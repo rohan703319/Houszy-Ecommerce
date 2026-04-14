@@ -431,6 +431,10 @@ const backorderState = getBackorderUIState({
       vatRate: vatRate ?? null,
       vatExempt: product.vatExempt,
       sku: defaultVariant?.sku ?? (product as any).sku,
+      stockQuantity:
+  defaultVariant?.stockQuantity ??
+  (product as any).stockQuantity ??
+  null,
     });
   if (inWishlist) {
   toast.error("Product removed from wishlist");
@@ -737,20 +741,14 @@ toast.success(
       {/* ADD TO CART DISABLED WITH TEXT */}
       <Button
         disabled
-        className="w-full text-xs md:text-sm rounded-lg py-2 bg-red-400 cursor-not-allowed text-white"
+        className="w-full text-xs md:text-sm rounded-lg py-2 bg-red-500 cursor-not-allowed text-white"
       >
-        <CircleOff className="h-4 w-4" />
-        Stock!
+        <PackageX className="h-4 w-4" />
+        Out of stock
       </Button>
 
       {/* BUY NOW DISABLED */}
-      <Button
-        disabled
-        className="w-full text-xs md:text-sm rounded-lg py-2 bg-gray-300 text-gray-600 cursor-not-allowed"
-      >
-        <Zap className="h-4 w-4" />
-        Buy Now
-      </Button>
+   
     </>
   )}
 

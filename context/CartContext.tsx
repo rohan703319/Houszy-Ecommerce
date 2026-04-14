@@ -5,19 +5,27 @@ import { useToast } from "@/components/toast/CustomToast";
 import * as signalR from "@microsoft/signalr";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5285";
-const CART_SESSION_KEY = "cartSessionId";
-
-// ─── Generate / retrieve anonymous session ID ─────────────────────────────────
 function getSessionId(): string {
   if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(CART_SESSION_KEY);
+
+  const user = localStorage.getItem("user");
+
+  // ✅ If logged in → FIXED session per user
+  if (user) {
+    const userId = JSON.parse(user)?.id;
+    if (userId) {
+      return `user_${userId}`; // 🔥 SAME across all browsers
+    }
+  }
+
+  // 👇 guest (same as before)
+  let id = localStorage.getItem("cart_guest");
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem(CART_SESSION_KEY, id);
+    localStorage.setItem("cart_guest", id);
   }
   return id;
 }
-
 // ─── Cart item type (unchanged from original) ─────────────────────────────────
 export interface CartItem {
   id: string;            // variant id OR product id (frontend key)
@@ -192,18 +200,46 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ── React to login / logout events ────────────────────────────────────────
   useEffect(() => {
-    const handleLogin = () => {
-      // Switch to user-specific session that login() already wrote to localStorage
-      const newId = getSessionId();
-      setSessionId(newId);
-    };
+const handleLogin = async () => {
+  const oldGuestId = localStorage.getItem("cart_guest");
+  const newUserSession = getSessionId();
+
+  // 🔥 STEP 1: resync FIRST
+  if (oldGuestId && oldGuestId !== newUserSession) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/Cart/${oldGuestId}`);
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.data)) {
+        // 🔥 WAIT for all items to be added
+        await Promise.all(
+          data.data.map((item: any) =>
+            fetch(`${API_BASE_URL}/api/Cart/items`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...item,
+                sessionId: newUserSession,
+              }),
+            })
+          )
+        );
+          // 🔥 ADD THIS LINE HERE
+  localStorage.removeItem("cart_guest");
+      }
+    } catch {}
+  }
+
+  // 🔥 STEP 2: THEN switch session
+  setSessionId(newUserSession);
+};
 
     const handleLogout = () => {
       // Clear in-memory cart immediately
       setCart([]);
       // Generate a fresh anonymous session for the next visitor
       const newId = crypto.randomUUID();
-      localStorage.setItem(CART_SESSION_KEY, newId);
+     localStorage.setItem("cart_guest", newId);
       setSessionId(newId);
     };
 

@@ -1,5 +1,4 @@
 "use client";
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export interface WishlistItem {
@@ -14,6 +13,8 @@ export interface WishlistItem {
   vatRate?: number | null;
   vatExempt?: boolean;
   sku?: string;
+  // 🔥 ADD THIS
+  stockQuantity?: number;
 }
 
 interface WishlistContextType {

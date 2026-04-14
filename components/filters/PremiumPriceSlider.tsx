@@ -17,7 +17,7 @@ export default function PremiumPriceSlider({
   onChange,
 }: PremiumPriceSliderProps) {
 
-  const MIN_GAP = 5;
+  const MIN_GAP = 2;
 
   const handleChange = (vals: number[]) => {
     let [minVal, maxVal] = vals;

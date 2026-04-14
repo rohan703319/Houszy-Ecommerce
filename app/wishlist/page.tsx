@@ -10,28 +10,54 @@ import { Button } from "@/components/ui/button";
 
 export default function WishlistPage() {
   const { wishlist, removeFromWishlist, clearWishlist } = useWishlist();
-  const { addToCart } = useCart();
+  const { addToCart, cart } = useCart();
   const toast = useToast();
 
-  const handleAddToCart = (item: WishlistItem) => {
-    addToCart({
-      id: item.variantId ? `${item.productId}_${item.variantId}` : `wishlist:${item.productId}`,
-      productId: item.productId,
-      variantId: item.variantId ?? null,
-      name: item.name,
-      price: item.price,
-      finalPrice: item.price,
-      priceBeforeDiscount: item.price,
-      discountAmount: 0,
-      quantity: 1,
-      image: item.image,
-      slug: item.slug,
-      sku: item.sku,
-      vatRate: item.vatRate ?? null,
-      vatIncluded: item.vatRate != null,
-    });
-    toast.success(`${item.name} added to cart`);
-  };
+ const handleAddToCart = (item: WishlistItem) => {
+  const existingCartQty = cart
+    .filter(
+      (c) =>
+        c.productId === item.productId &&
+        (c.variantId ?? null) === (item.variantId ?? null)
+    )
+    .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
+
+  const stock = item.stockQuantity ?? 0;
+
+  // ❌ OUT OF STOCK
+  if (stock === 0) {
+    toast.error("Out of stock");
+    return;
+  }
+
+  // ❌ STOCK LIMIT
+  if (existingCartQty + 1 > stock) {
+    toast.error(`Only ${stock - existingCartQty} left in stock`);
+    return;
+  }
+
+  // ✅ ADD
+  addToCart({
+    id: item.variantId
+      ? `${item.productId}_${item.variantId}`
+      : `wishlist:${item.productId}`,
+    productId: item.productId,
+    variantId: item.variantId ?? null,
+    name: item.name,
+    price: item.price,
+    finalPrice: item.price,
+    priceBeforeDiscount: item.price,
+    discountAmount: 0,
+    quantity: 1,
+    image: item.image,
+    slug: item.slug,
+    sku: item.sku,
+    vatRate: item.vatRate ?? null,
+    vatIncluded: item.vatRate != null,
+  });
+
+  toast.success(`${item.name} added to cart`);
+};
 
   if (wishlist.length === 0) {
     return (

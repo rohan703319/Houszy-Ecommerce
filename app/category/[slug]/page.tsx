@@ -13,6 +13,10 @@ interface SearchParams {
   page?: string;
   pageSize?: string;
   discount?: string;
+  subCategorySlug?: string;
+  brands?: string;    // brand slugs, comma-separated  e.g. "acme,bandaid"
+  price?: string;     // price range e.g. "10-100"
+  minRating?: string;
 }
 type BreadcrumbItem = {
   label: string;
@@ -63,13 +67,16 @@ function findCategoryPath(
 
 async function getProducts(
   params: SearchParams = {},
-  categorySlug?: string
+  categorySlug?: string,
+  brandIds?: string   // pre-resolved brand IDs (mapped from slugs)
 ) {
   const {
     page = "1",
     pageSize = "20",
     sortBy = "name",
     sortDirection = "asc",
+    price,
+    minRating,
   } = params;
 
   const query = new URLSearchParams({
@@ -80,6 +87,15 @@ async function getProducts(
   });
 
   if (categorySlug) query.set("categorySlug", categorySlug);
+  if (brandIds)     query.set("brandIds", brandIds);
+
+  if (price) {
+    const [min, max] = price.split("-");
+    if (min) query.set("minPrice", min);
+    if (max) query.set("maxPrice", max);
+  }
+
+  if (minRating) query.set("minRating", minRating);
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`,
@@ -211,7 +227,19 @@ const breadcrumbs: BreadcrumbItem[] = [
   },
 ];
 
-  const productsRes = await getProducts(searchParamsResolved, slug);
+  // Map brand slugs (from URL) → brand IDs (for API)
+  const brandSlugs = searchParamsResolved.brands?.split(",").filter(Boolean) ?? [];
+  const resolvedBrandIds = brandSlugs.length > 0
+    ? (category.brands ?? [] as any[])
+        .filter((b: any) => brandSlugs.includes(b.slug))
+        .map((b: any) => b.id)
+        .join(",")
+    : undefined;
+
+  // Subcategory filter — use subCategorySlug query param (stays on same page)
+  const effectiveCategorySlug = searchParamsResolved.subCategorySlug || slug;
+
+  const productsRes = await getProducts(searchParamsResolved, effectiveCategorySlug, resolvedBrandIds);
 
   const vatRatesRes = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/VATRates?activeOnly=true`,

@@ -5,8 +5,12 @@ import { useMemo, useState } from "react";
 import OrderCard from "../orders/OrderCard";
 import { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useSearchParams } from "next/navigation";
 
 export default function OrdersTab({ orders }: any) {
+
+  const searchParams = useSearchParams();
+const targetOrderId = searchParams.get("orderId");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deliveryMethodFilter, setDeliveryMethodFilter] = useState("all");
 const [dateFilter, setDateFilter] = useState("1month"); // ✅ default
@@ -15,7 +19,13 @@ const { refreshProfile } = useAuth();
 useEffect(() => {
   refreshProfile();
 }, [refreshProfile]);
-
+useEffect(() => {
+  if (targetOrderId) {
+    setDateFilter("all");
+    setStatusFilter("all");
+    setDeliveryMethodFilter("all");
+  }
+}, [targetOrderId]);
 const yearOptions = useMemo(() => {
   const years = new Set<number>();
 
@@ -37,13 +47,23 @@ const normalizeStatus = (status: string = "") => {
 
   if (s.includes("delivered") || s.includes("complete")) return "delivered";
   if (s.includes("cancel")) return "cancelled";
+  if (s.includes("refund")) return "refunded";
 
   return s;
 };
 
 const filteredOrders = useMemo(() => {
   let result = [...orders];
+// 🔥 ensure target order always visible
+if (targetOrderId) {
+  const targetOrder = orders.find(
+    (o: any) => o.orderNumber === targetOrderId
+  );
 
+  if (targetOrder && !result.some(o => o.orderNumber === targetOrderId)) {
+    result.push(targetOrder);
+  }
+}
   if (statusFilter !== "all") {
    result = result.filter(
   (o: any) => normalizeStatus(o.status) === statusFilter
@@ -91,14 +111,26 @@ if (dateFilter !== "all") {
 }
  
 
+  if (targetOrderId) {
+  result.sort((a: any, b: any) => {
+    if (a.orderNumber === targetOrderId) return -1;
+    if (b.orderNumber === targetOrderId) return 1;
+
+    return (
+      new Date(b.orderDate).getTime() -
+      new Date(a.orderDate).getTime()
+    );
+  });
+} else {
   result.sort(
     (a: any, b: any) =>
       new Date(b.orderDate).getTime() -
       new Date(a.orderDate).getTime()
   );
+}
 
   return result;
-}, [orders, statusFilter, deliveryMethodFilter,dateFilter]);
+}, [orders, statusFilter, deliveryMethodFilter, dateFilter, targetOrderId]);
 
 const filteredCount = filteredOrders.length;
 
@@ -123,6 +155,7 @@ const filteredCount = filteredOrders.length;
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
             </select>
           </div>
 {/* DELIVERY METHOD */}
@@ -205,7 +238,11 @@ const filteredCount = filteredOrders.length;
         </div>
       ) : (
         filteredOrders.map((order: any) => (
-          <OrderCard key={order.id} order={order} />
+        <OrderCard 
+  key={order.id} 
+  order={order} 
+  targetOrderId={targetOrderId} 
+/>
         ))
       )}
     </div>

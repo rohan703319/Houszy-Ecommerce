@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Star, BadgePercent, AwardIcon } from "lucide-react";
+import { ShoppingCart, Star, BadgePercent, AwardIcon, PackageX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/toast/CustomToast";
@@ -331,7 +331,7 @@ if (product.orderMinimumQuantity > 1) {
         </div>
 
         {/* ADD TO CART */}
-       <Button
+<Button
   onClick={handleAddToCart}
   disabled={stock === 0 || product.disableBuyButton === true}
   className={`mt-1 w-full
@@ -341,7 +341,12 @@ if (product.orderMinimumQuantity > 1) {
         : "bg-[#445D41] hover:bg-[#334a2c] text-white"
     }`}
 >
-  <ShoppingCart className="mr-2 h-4 w-4" />
+  {stock > 0 ? (
+    <ShoppingCart className="mr-2 h-4 w-4" />
+  ) : (
+    <PackageX className="mr-2 h-4 w-4" />
+  )}
+
   {stock > 0 ? "Add to Cart" : "Out of Stock"}
 </Button>
 

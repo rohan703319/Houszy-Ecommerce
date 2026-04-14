@@ -7,6 +7,7 @@ import PremiumPriceSlider from "@/components/filters/PremiumPriceSlider";
 import { Star, SlidersHorizontal, X, Loader2, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
+import { getDiscountedPrice } from "@/app/lib/discountHelpers";
 
 interface Props {
   discountId: string;
@@ -31,7 +32,20 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
   const [maxPrice, setMaxPrice] = useState(0);
   const [minRating, setMinRating] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+const getFinalPrice = (item: any) => {
+  const p = item.productData;
 
+  const basePrice =
+    typeof item.variantForCard?.price === "number" &&
+    item.variantForCard.price > 0
+      ? item.variantForCard.price
+      : p.price ?? 0;
+
+  // ✅ EXACT SAME AS ProductCard
+  const finalPrice = getDiscountedPrice(p, basePrice);
+
+  return finalPrice;
+};
   // Load more
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -62,14 +76,14 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
   useEffect(() => {
     if (!products.length) return;
     const flat = flattenProductsForListing(products);
-    const prices = flat.map((item: any) =>
-      typeof item.variantForCard?.price === "number" && item.variantForCard.price > 0
-        ? item.variantForCard.price : (item.productData.price ?? 0)
-    );
+ const prices = flat.map((item: any) => getFinalPrice(item));
     if (!prices.length) return;
     const min = Math.floor(Math.min(...prices));
     const max = Math.ceil(Math.max(...prices));
-    setMinPrice(min); setMaxPrice(max); setPriceRange([min, max]);
+    setMinPrice(min); setMaxPrice(max);
+    setPriceRange(prev =>
+  prev[0] === 0 && prev[1] === 0 ? [min, max] : prev
+);
   }, [products]);
 
   // Categories / Brands from loaded products
@@ -91,17 +105,40 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
 
   // Filter + flatten + sort
   const flattenedProducts = useMemo(() => {
-    const filtered = products.filter(p => {
-      if (selectedCategories.length && !p.categories?.some((c: any) => selectedCategories.includes(c.categoryId))) return false;
-      if (selectedBrands.length && !p.brands?.some((b: any) => selectedBrands.includes(b.brandId))) return false;
-      if (p.price < priceRange[0] || p.price > priceRange[1]) return false;
-      if ((p.averageRating ?? 0) < minRating) return false;
-      return true;
-    });
+ const flat = flattenProductsForListing(products);
+const filtered = flat.filter((item: any) => {
+  const p = item.productData;
 
-    const flat = flattenProductsForListing(filtered);
+  // Category filter
+  if (
+    selectedCategories.length &&
+    !p.categories?.some((c: any) =>
+      selectedCategories.includes(c.categoryId)
+    )
+  )
+    return false;
+
+  // Brand filter
+  if (
+    selectedBrands.length &&
+    !p.brands?.some((b: any) =>
+      selectedBrands.includes(b.brandId)
+    )
+  )
+    return false;
+
+  // ✅ FIXED PRICE LOGIC (IMPORTANT)
+const price = getFinalPrice(item);
+
+  if (price < priceRange[0] || price > priceRange[1]) return false;
+
+  // Rating
+  if ((p.averageRating ?? 0) < minRating) return false;
+
+  return true;
+});
     const seen = new Set<string>();
-    const unique = flat.filter((item: any) => {
+   const unique = filtered.filter((item: any) => {
       const key = `${item.productData.id}-${item.variantForCard?.id ?? "parent"}`;
       if (seen.has(key)) return false;
       seen.add(key); return true;
@@ -112,8 +149,8 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
       const stockB = b.variantForCard?.stockQuantity ?? b.productData?.stockQuantity ?? 0;
       if (stockA <= 0 && stockB > 0) return 1;
       if (stockA > 0 && stockB <= 0) return -1;
-      const priceA = typeof a.variantForCard?.price === "number" ? a.variantForCard.price : a.productData.price;
-      const priceB = typeof b.variantForCard?.price === "number" ? b.variantForCard.price : b.productData.price;
+    const priceA = getFinalPrice(a);
+const priceB = getFinalPrice(b);
       if (sortBy === "price") {
         const cmp = priceA - priceB;
         return sortDirection === "asc" ? cmp : -cmp;

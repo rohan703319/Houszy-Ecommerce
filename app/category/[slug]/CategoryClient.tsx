@@ -7,7 +7,7 @@ import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { getVatRate } from "@/app/lib/vatHelpers";
 import PremiumPriceSlider from "@/components/filters/PremiumPriceSlider";
 import Link from "next/link";
-import { ShoppingCart, Star, SlidersHorizontal, X, Search, Grid3x3, LayoutGrid, ChevronRight, ExternalLink, BadgePercent, Grid2x2, AwardIcon, } from "lucide-react";
+import { ShoppingCart, Star, SlidersHorizontal, X, Search, Grid3x3, LayoutGrid, ChevronRight, ExternalLink, BadgePercent, Grid2x2, AwardIcon, Loader2, } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,7 +161,12 @@ const [sortBy, setSortBy] = useState((initialSortBy ?? "name").toLowerCase());
     initialSortDirection as "asc" | "desc"
   );
 
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(() => {
+    const brandsParam = searchParams.get("brands");
+    if (!brandsParam) return [];
+    const slugs = brandsParam.split(",").filter(Boolean);
+    return brands.filter(b => slugs.includes(b.slug)).map(b => b.id);
+  });
 const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
 const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
   const [minRating, setMinRating] = useState(0);
@@ -315,34 +320,7 @@ if (selectedSubCategories.length > 0) {
 }
 
 
-// ✅ BRAND FILTER (FIXED FOR brands[])
-if (selectedBrands.length > 0) {
-  const productBrandIds =
-    product.brands?.map((b) => b.brandId) ?? [];
-
-  const match = productBrandIds.some((id) =>
-    selectedBrands.includes(id)
-  );
-
-  if (!match) return false;
-}
-
-const defaultVariant =
-  (product as any).variants?.find((v: any) => v.isDefault) ??
-  (product as any).variants?.[0] ??
-  null;
-
-const basePrice =
-  typeof defaultVariant?.price === "number"
-    ? defaultVariant.price
-    : product.price;
-
-const effectivePrice = getDiscountedPrice(product, basePrice);
-
-if (effectivePrice < priceRange[0] || effectivePrice > priceRange[1])
-  return false;
-
-  if (product.averageRating < minRating) return false;
+  // Brand, price, rating filters are handled server-side — no client-side filter needed
 
   return true;
 });
@@ -505,11 +483,18 @@ useEffect(() => {
   return () => observer.disconnect();
 }, [hasMore]);
 
+// Reset products only when the URL filter/sort params actually change (not on background re-renders)
+const filterKey = `${urlSlug}_${searchParams.toString()}`;
+const prevFilterKeyRef = useRef(filterKey);
+
 useEffect(() => {
-  setProducts(initialProducts ?? []);
-  setPage(currentPage ?? 1);
-  setHasMore(totalPages ? currentPage < totalPages : true);
-}, [initialProducts, currentPage, totalPages]);
+  if (prevFilterKeyRef.current !== filterKey) {
+    prevFilterKeyRef.current = filterKey;
+    setProducts(initialProducts ?? []);
+    setPage(currentPage ?? 1);
+    setHasMore(totalPages ? currentPage < totalPages : true);
+  }
+}, [filterKey, initialProducts, currentPage, totalPages]);
 
 
 
@@ -577,21 +562,67 @@ const getInitialQty = (product: any) => {
 };
 
 const resetFilters = useCallback(() => {
-
   setSelectedBrands([]);
   setSelectedSubCategories([]);
   setMinRating(0);
   setSortBy("name");
   setSortDirection("asc");
+  setPriceRange([minPrice, maxPrice]);
 
-setPriceRange([minPrice, maxPrice]);
   const params = new URLSearchParams();
   if (discount) params.set("discount", String(discount));
 
   router.push(`/category/${urlSlug}?${params.toString()}`);
-
 }, [router, urlSlug, discount, minPrice, maxPrice]);
-  
+
+// Subcategory toggle — filter in-place via query param (same page)
+const handleSubCategoryChange = useCallback((sub: Category, checked: boolean) => {
+  const newSelected = checked
+    ? [...selectedSubCategories, sub.id]
+    : selectedSubCategories.filter((s) => s !== sub.id);
+
+  setSelectedSubCategories(newSelected);
+
+  const subSlug = newSelected.length === 1
+    ? (allSubCategories.find((s) => s.id === newSelected[0])?.slug ?? "")
+    : "";
+
+  updateServerFilters({ subCategorySlug: subSlug });
+}, [selectedSubCategories, allSubCategories, updateServerFilters]);
+
+// Brand toggle — server-side refetch with SEO-friendly slugs in URL
+const handleBrandChange = useCallback((brandId: string, checked: boolean) => {
+  const newSelected = checked
+    ? [...selectedBrands, brandId]
+    : selectedBrands.filter((b) => b !== brandId);
+
+  setSelectedBrands(newSelected);
+
+  // Use brand slugs in URL (not GUIDs)
+  const slugs = newSelected
+    .map(id => availableBrands.find(b => b.id === id)?.slug ?? "")
+    .filter(Boolean);
+
+  updateServerFilters({ brands: slugs.join(",") });
+}, [selectedBrands, availableBrands, updateServerFilters]);
+
+// Price slider — debounced server-side refetch
+const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const handlePriceChange = useCallback((v: number[]) => {
+  setPriceRange(v as [number, number]);
+  if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+  priceDebounceRef.current = setTimeout(() => {
+    // SEO-friendly: ?price=10-100 instead of ?minPrice=10&maxPrice=100
+    updateServerFilters({ price: `${v[0]}-${v[1]}` });
+  }, 600);
+}, [updateServerFilters]);
+
+// Rating radio — server-side refetch
+const handleRatingChange = useCallback((rating: number) => {
+  setMinRating(rating);
+  updateServerFilters({ minRating: rating > 0 ? String(rating) : "" });
+}, [updateServerFilters]);
+
 const { addToCart, cart } = useCart();
 const handleAddToCart = useCallback(
 (product: any, cardSlug?: string) => {
@@ -821,15 +852,7 @@ if (product.orderMinimumQuantity > 1) {
             type="checkbox"
             className="w-4 h-4 text-[#445D41]"
             checked={selectedSubCategories.includes(sub.id)}
-            onChange={(e) => {
-              if (e.target.checked) {
-                setSelectedSubCategories([...selectedSubCategories, sub.id]);
-              } else {
-                setSelectedSubCategories(
-                  selectedSubCategories.filter((s) => s !== sub.id)
-                );
-              }
-            }}
+            onChange={(e) => handleSubCategoryChange(sub, e.target.checked)}
           />
           <span className="text-sm text-gray-700 truncate">
             {sub.name}
@@ -857,14 +880,7 @@ if (product.orderMinimumQuantity > 1) {
                           type="checkbox"
                           className="w-4 h-4 rounded border-gray-300 text-[#445D41] focus:ring-[#445D41] focus:ring-2 flex-shrink-0"
                           checked={selectedBrands.includes(brand.id)}
-                          onChange={(e) => {
-                           if (e.target.checked) {
-  setSelectedBrands([...selectedBrands, brand.id]);
-} else {
-  setSelectedBrands(selectedBrands.filter((b) => b !== brand.id));
-}
-
-                          }}
+                          onChange={(e) => handleBrandChange(brand.id, e.target.checked)}
                         />
                         <div className="flex items-center justify-between flex-1 min-w-0">
                           <span className="text-sm text-gray-700 truncate group-hover:text-[#445D41] transition">
@@ -892,7 +908,7 @@ if (product.orderMinimumQuantity > 1) {
   ]}
     min={minPrice}
     max={maxPrice}
-    onChange={(v) => setPriceRange(v)}
+    onChange={handlePriceChange}
   />
 )}
 </div>
@@ -912,7 +928,7 @@ if (product.orderMinimumQuantity > 1) {
                           name="rating"
                           className="w-4 h-4 text-[#445D41] focus:ring-[#445D41] focus:ring-2"
                           checked={minRating === rating}
-                          onChange={() => setMinRating(rating)}
+                          onChange={() => handleRatingChange(rating)}
                         />
                         <div className="flex items-center gap-2">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -977,10 +993,7 @@ if (product.orderMinimumQuantity > 1) {
                                 type="checkbox"
                                 className="w-4 h-4 text-[#445D41] rounded"
                                 checked={selectedSubCategories.includes(sub.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) setSelectedSubCategories([...selectedSubCategories, sub.id]);
-                                  else setSelectedSubCategories(selectedSubCategories.filter((s) => s !== sub.id));
-                                }}
+                                onChange={(e) => handleSubCategoryChange(sub, e.target.checked)}
                               />
                               <span className="text-sm text-gray-800">{sub.name}</span>
                             </label>
@@ -1003,10 +1016,7 @@ if (product.orderMinimumQuantity > 1) {
                                 type="checkbox"
                                 className="w-4 h-4 rounded border-gray-300 text-[#445D41] focus:ring-[#445D41]"
                                 checked={selectedBrands.includes(brand.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) setSelectedBrands([...selectedBrands, brand.id]);
-                                  else setSelectedBrands(selectedBrands.filter((b) => b !== brand.id));
-                                }}
+                                onChange={(e) => handleBrandChange(brand.id, e.target.checked)}
                               />
                               <span className="text-sm text-gray-800 truncate">{brand.name}</span>
                             </label>
@@ -1025,7 +1035,7 @@ if (product.orderMinimumQuantity > 1) {
                           value={priceRange}
                           min={minPrice}
                           max={maxPrice}
-                          onChange={(v) => setPriceRange(v)}
+                          onChange={handlePriceChange}
                         />
                       </div>
                     )}
@@ -1043,7 +1053,7 @@ if (product.orderMinimumQuantity > 1) {
                               name="rating-mobile"
                               className="w-4 h-4 text-[#445D41] focus:ring-[#445D41]"
                               checked={minRating === rating}
-                              onChange={() => setMinRating(rating)}
+                              onChange={() => handleRatingChange(rating)}
                             />
                             <div className="flex items-center gap-1.5">
                               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -1077,11 +1087,21 @@ if (product.orderMinimumQuantity > 1) {
             )}
 
             {/* PRODUCT GRID */}
-            <div
-              className={`grid grid-cols-2 ${
-                gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-2"
-              } gap-2 md:gap-4 mb-6 md:mb-8`}
-            >
+            <div className="relative">
+              {/* Filter loading overlay */}
+              {isPending && (
+                <div className="absolute inset-0 z-10 bg-white/60 rounded-xl flex items-center justify-center min-h-[200px]">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#445D41]" />
+                    <span className="text-sm text-[#445D41] font-medium">Filtering...</span>
+                  </div>
+                </div>
+              )}
+              <div
+                className={`grid grid-cols-2 ${
+                  gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-2"
+                } gap-2 md:gap-4 mb-6 md:mb-8 ${isPending ? "opacity-40 pointer-events-none" : ""}`}
+              >
 {flattenedProducts.map((item) => (
   <ProductCard
     key={`${item.productData.id}-${item.variantForCard?.id ?? "parent"}`}
@@ -1091,6 +1111,7 @@ if (product.orderMinimumQuantity > 1) {
     cardSlug={item.cardSlug}
   />
 ))}
+              </div>
             </div>
 {/* Load more trigger + skeleton cards */}
 {hasMore && <div ref={loadMoreRef} />}
@@ -1117,7 +1138,7 @@ if (product.orderMinimumQuantity > 1) {
 )}
 
             {/* No results */}
-            {filteredAndSortedProducts.length === 0 && (
+            {filteredAndSortedProducts.length === 0 && !isPending && (
               <Card className="shadow-sm">
                 <CardContent className="p-6 md:p-12 text-center">
                   <div className="mb-4">
