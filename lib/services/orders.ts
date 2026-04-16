@@ -8,16 +8,18 @@ import { API_ENDPOINTS } from '../api-config';
 /**
  * ✅ Order Status (Backend returns strings now)
  */
-export type OrderStatus = 
+export type OrderStatus =
   | 'Pending'
   | 'Confirmed'
   | 'Processing'
+  | 'CancellationRequested'
   | 'Shipped'
+  | 'PartiallyShipped'
   | 'Delivered'
   | 'Cancelled'
+  | 'Returned'
   | 'Refunded'
-  | 'PartiallyShipped'
-  | 'Returned';
+  | 'Collected'; // ✅ ADD THIS
 
   
 // ================= BULK REQUEST DTOs ====================
@@ -27,6 +29,14 @@ export interface BulkUpdateStatusRequest {
   newStatus: OrderStatus;
   adminNotes?: string;
   currentUser: string;
+}
+
+export interface UnshippedItem {
+  orderItemId: string;
+  productName: string;
+  quantity: number;
+  remainingQuantity: number;
+  productImageUrl?: string;
 }
 
 export interface BulkShipmentItem {
@@ -79,7 +89,9 @@ export type PaymentStatus =
   | 'Failed'
   | 'Cancelled'
   | 'Refunded'
-  | 'PartiallyRefunded';
+  | 'PartiallyRefunded'
+  | 'PartiallyPaid'
+  ;
 
 // ==================== INTERFACES ====================
 
@@ -128,6 +140,11 @@ export interface ShipmentItem {
   quantity: number;
   orderItemId: string;
   orderItem?: OrderItem;
+  productImageUrl?: string;
+  productName?: string;
+  productSku?: string;
+  unitPrice?: string;
+
 }
 
 export interface Shipment {
@@ -174,8 +191,14 @@ export interface Order {
   shippingAddress: Address;
   userId?: string;
   customerName: string;
+  shippingMethodName: string;
+  collectionStoreName: string;
   deliveryMethod: DeliveryMethod;
   clickAndCollectFee?: number;
+  remainingRefundableAmount?: number;
+
+  totalRefundedAmount: number;
+  netAmountPaid: number;
   collectionStatus?: CollectionStatus;
   readyForCollectionAt?: string;
   collectedAt?: string;
@@ -201,6 +224,7 @@ export interface Order {
   // Payment summary fields (from backend OrderDto)
   paymentMethod?: string;
   paymentStatus?: string;
+  unshippedItems?: UnshippedItem[];
 
   orderItems: OrderItem[];
     // ✅ ADD THIS
@@ -219,6 +243,22 @@ export interface OrdersListResponse {
   totalPages: number;
   hasPrevious: boolean;
   hasNext: boolean;
+
+  // ✅ ADD THIS
+  stats: {
+    totalOrders: number;
+    totalPending: number;
+    totalConfirmed: number;
+    totalProcessing: number;
+    totalCancellationRequested?: number;
+    totalShipped: number;
+    totalPartiallyShipped: number;
+    totalDelivered: number;
+    totalCollected: number;
+    totalCancelled: number;
+    totalReturned: number;
+    totalRefunded: number;
+  };
 }
 
 interface ApiResponse<T> {
@@ -226,6 +266,14 @@ interface ApiResponse<T> {
   message: string;
   data: T;
   errors?: string[];
+}
+
+export interface WooCommerceOrderImportResult {
+  totalRows: number;
+  importedOrders: number;
+  createdCustomers: number;
+  skippedOrders: number;
+  errors: string[];
 }
 
 // ==================== REQUEST DTOs ====================
@@ -286,7 +334,6 @@ async getAllOrders(params?: {
   toDate?: string;
   searchTerm?: string;
   pharmacyVerificationStatus?: PharmacyVerificationStatus;
-    // ✅ ADD THIS
   includeGuestOrders?: boolean;
 }) {
 
@@ -300,7 +347,45 @@ async getAllOrders(params?: {
       throw new Error(error.response?.data?.message || 'Failed to fetch orders');
     }
   }
+// ================= PAYMENT =================
 
+// 🔥 Mark FULL payment as paid
+async markPaymentPaid(orderId: string, data?: {
+  transactionId?: string;
+  paymentMethod?: string;
+  notes?: string;
+}) {
+  try {
+    const response = await apiClient.post(
+      `${API_ENDPOINTS.orders}/${orderId}/mark-payment-paid`,
+      data || {}
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error.response?.data?.message || "Failed to mark payment as paid"
+    );
+  }
+}
+
+// 🔥 Mark PENDING AMOUNT as paid (partial)
+async markPendingAmountPaid(orderId: string, data?: {
+  transactionId?: string;
+  paymentMethod?: string;
+  notes?: string;
+}) {
+  try {
+    const response = await apiClient.post(
+      `${API_ENDPOINTS.orders}/${orderId}/mark-pending-amount-paid`,
+      data || {}
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error.response?.data?.message || "Failed to mark pending amount as paid"
+    );
+  }
+}
   async getOrderById(orderId: string) {
     try {
       const response = await apiClient.get<ApiResponse<Order>>(
@@ -419,72 +504,148 @@ async bulkCreateShipment(data: BulkCreateShipmentRequest) {
     }
   }
 
-  async updateStatus(data: UpdateStatusRequest) {
-    try {
-      const response = await apiClient.put<ApiResponse<Order>>(
-        `${API_ENDPOINTS.orders}/${data.orderId}/status`,
-        data
-      );
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to update order status');
-    }
-  }
+async updateStatus(data: UpdateStatusRequest) {
+  try {
+    const response = await apiClient.put<ApiResponse<Order>>(
+      `${API_ENDPOINTS.orders}/${data.orderId}/status`,
+      data
+    );
 
-  async createShipment(data: CreateShipmentRequest) {
-    try {
-      const response = await apiClient.post<ApiResponse<Shipment>>(
-        `${API_ENDPOINTS.orders}/${data.orderId}/shipment`,
-        data
-      );
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to create shipment');
-    }
-  }
+    return {
+      data: response.data?.data,
+      message: response.data?.message
+    };
 
-  async markDelivered(data: MarkDeliveredRequest) {
-    try {
-      const response = await apiClient.post<ApiResponse<Order>>(
-        `${API_ENDPOINTS.orders}/${data.orderId}/delivered`,
-        data
-      );
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to mark order as delivered');
-    }
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message || 'Failed to update order status'
+    );
   }
+}
 
-  async cancelOrder(data: CancelOrderRequest) {
-    try {
-      const response = await apiClient.post<ApiResponse<Order>>(
-        `${API_ENDPOINTS.orders}/${data.orderId}/cancel`,
-        data
-      );
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to cancel order');
-    }
-  }
+async createShipment(data: CreateShipmentRequest) {
+  try {
+    const response = await apiClient.post<ApiResponse<Shipment>>(
+      `${API_ENDPOINTS.orders}/${data.orderId}/shipment`,
+      data
+    );
 
-  async downloadInvoice(orderId: string): Promise<void> {
-    try {
-      const response = await apiClient.get(
-        `${API_ENDPOINTS.orders}/${orderId}/invoice/download`,
-        { responseType: 'blob' }
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data as BlobPart], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice-${orderId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to download invoice');
-    }
+    return {
+      data: response.data?.data,
+      message: response.data?.message
+    };
+
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message || 'Failed to create shipment'
+    );
   }
+}
+
+async markDelivered(data: MarkDeliveredRequest) {
+  try {
+    const response = await apiClient.post<ApiResponse<Order>>(
+      `${API_ENDPOINTS.orders}/${data.orderId}/delivered`,
+      data
+    );
+
+    return {
+      data: response.data?.data,
+      message: response.data?.message
+    };
+
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message || 'Failed to mark order as delivered'
+    );
+  }
+}
+
+async cancelOrder(data: CancelOrderRequest) {
+  try {
+    const response = await apiClient.post<ApiResponse<Order>>(
+      `${API_ENDPOINTS.orders}/${data.orderId}/cancel`,
+      data
+    );
+
+    return {
+      data: response.data?.data,
+      message: response.data?.message
+    };
+
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message || 'Failed to cancel order'
+    );
+  }
+}
+async importWooCommerce(file: File) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post<ApiResponse<WooCommerceOrderImportResult>>(
+      `${API_ENDPOINTS.orders}/import-woocommerce`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return {
+      data: response.data?.data,
+      message: response.data?.message
+    };
+
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message || 'Failed to import WooCommerce orders'
+    );
+  }
+}
+
+async downloadInvoice(orderId: string): Promise<void> {
+  try {
+    const response = await apiClient.get<Blob>(
+      `${API_ENDPOINTS.orders}/${orderId}/invoice/download`,
+      { responseType: 'blob' }
+    );
+
+    const blob = response.data as Blob;
+
+    // ❗ handle backend JSON error inside blob
+    if (blob.type === "application/json") {
+      const text = await blob.text();
+      const json = JSON.parse(text);
+      throw new Error(json?.message || "Failed to download invoice");
+    }
+
+    const url = window.URL.createObjectURL(
+      new Blob([blob], { type: "application/pdf" })
+    );
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `invoice-${orderId}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      "Failed to download invoice"
+    );
+  }
+}
+
+
 }
 
 
@@ -501,14 +662,23 @@ export const getOrderStatusInfo = (status: OrderStatus) => {
     'Pending': { label: 'Pending', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
     'Confirmed': { label: 'Confirmed', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
     'Processing': { label: 'Processing', color: 'text-indigo-400', bgColor: 'bg-indigo-500/10' },
+    'CancellationRequested': { label: 'Cancellation Requested', color: 'text-amber-300', bgColor: 'bg-amber-500/10' },
     'Shipped': { label: 'Shipped', color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
     'PartiallyShipped': { label: 'Partially Shipped', color: 'text-purple-300', bgColor: 'bg-purple-400/10' },
     'Delivered': { label: 'Delivered', color: 'text-green-400', bgColor: 'bg-green-500/10' },
     'Cancelled': { label: 'Cancelled', color: 'text-red-400', bgColor: 'bg-red-500/10' },
     'Returned': { label: 'Returned', color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
     'Refunded': { label: 'Refunded', color: 'text-pink-400', bgColor: 'bg-pink-500/10' },
+
+    // ✅ ADD THIS
+    'Collected': { label: 'Collected', color: 'text-green-400', bgColor: 'bg-green-500/10' },
   };
-  return statusMap[status] || { label: 'Unknown', color: 'text-gray-400', bgColor: 'bg-gray-500/10' };
+
+  return statusMap[status] || {
+    label: 'Unknown',
+    color: 'text-gray-400',
+    bgColor: 'bg-gray-500/10'
+  };
 };
 
 /**
@@ -528,17 +698,39 @@ export const getCollectionStatusInfo = (status: CollectionStatus) => {
  * ✅ Get Payment Status Info (Updated with "Successful")
  */
 export const getPaymentStatusInfo = (status: PaymentStatus) => {
-  const statusMap: Record<PaymentStatus, { label: string; color: string; bgColor: string }> = {
-    'Pending': { label: 'Pending', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
-    'Authorized': { label: 'Authorized', color: 'text-blue-300', bgColor: 'bg-blue-400/10' },
-    'Processing': { label: 'Processing', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
-    'Successful': { label: 'Successful', color: 'text-green-400', bgColor: 'bg-green-500/10' },
-    'Completed': { label: 'Completed', color: 'text-green-400', bgColor: 'bg-green-500/10' },
-    'Failed': { label: 'Failed', color: 'text-red-400', bgColor: 'bg-red-500/10' },
-    'Cancelled': { label: 'Cancelled', color: 'text-red-300', bgColor: 'bg-red-400/10' },
-    'Refunded': { label: 'Refunded', color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
-    'PartiallyRefunded': { label: 'Partially Refunded', color: 'text-purple-300', bgColor: 'bg-purple-400/10' },
-  };
+  const statusMap: Record<
+  PaymentStatus,
+  { label: string; color: string; bgColor: string }
+> = {
+  Pending: { label: 'Pending', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
+
+  Authorized: { label: 'Authorized', color: 'text-blue-300', bgColor: 'bg-blue-400/10' },
+
+  Processing: { label: 'Processing', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
+
+  Successful: { label: 'Successful', color: 'text-green-400', bgColor: 'bg-green-500/10' },
+
+  Completed: { label: 'Completed', color: 'text-green-400', bgColor: 'bg-green-500/10' },
+
+  Failed: { label: 'Failed', color: 'text-red-400', bgColor: 'bg-red-500/10' },
+
+  Cancelled: { label: 'Cancelled', color: 'text-red-300', bgColor: 'bg-red-400/10' },
+
+  Refunded: { label: 'Refunded', color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
+
+  PartiallyRefunded: {
+    label: 'Partially Refunded',
+    color: 'text-purple-300',
+    bgColor: 'bg-purple-400/10'
+  },
+
+  // 🔥 ADD THIS (missing tha)
+  PartiallyPaid: {
+    label: 'Partially Paid',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/10'
+  },
+};
   return statusMap[status] || statusMap['Pending'];
 };
 
@@ -546,13 +738,98 @@ export const getPaymentStatusInfo = (status: PaymentStatus) => {
  * Get Payment Method Info
  */
 export const getPaymentMethodInfo = (method?: string | null) => {
-  if (!method) return { label: 'N/A', color: 'text-slate-400', bgColor: 'bg-slate-500/10', icon: 'cash' as const };
-
-  const normalized = method.toLowerCase();
-  if (normalized === 'stripe') {
-    return { label: 'Stripe', color: 'text-indigo-400', bgColor: 'bg-indigo-500/10', icon: 'card' as const };
+  if (!method) {
+    return {
+      label: 'N/A',
+      color: 'text-slate-400',
+      bgColor: 'bg-slate-500/10',
+      icon: 'cash' as const,
+    };
   }
-  return { label: 'Cash on Delivery', color: 'text-amber-400', bgColor: 'bg-amber-500/10', icon: 'cash' as const };
+
+  const normalized = method.toLowerCase().trim();
+
+  // ========================
+  // STRIPE BASED METHODS
+  // ========================
+  if (normalized.includes('stripe')) {
+    return {
+      label: 'Stripe',
+      color: 'text-indigo-400',
+      bgColor: 'bg-indigo-500/10',
+      icon: 'card' as const,
+    };
+  }
+
+  // ========================
+  // PAYPAL
+  // ========================
+  if (normalized.includes('paypal')) {
+    return {
+      label: 'PayPal',
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/10',
+      icon: 'wallet' as const,
+    };
+  }
+
+  // ========================
+  // APPLE PAY
+  // ========================
+  if (normalized.includes('apple pay')) {
+    return {
+      label: 'Apple Pay',
+      color: 'text-slate-200',
+      bgColor: 'bg-slate-500/10',
+      icon: 'phone' as const,
+    };
+  }
+
+  // ========================
+  // GOOGLE PAY
+  // ========================
+  if (normalized.includes('google pay')) {
+    return {
+      label: 'Google Pay',
+      color: 'text-green-400',
+      bgColor: 'bg-green-500/10',
+      icon: 'wallet' as const,
+    };
+  }
+
+  // ========================
+  // CARD
+  // ========================
+  if (normalized.includes('credit') || normalized.includes('debit')) {
+    return {
+      label: 'Card',
+      color: 'text-purple-400',
+      bgColor: 'bg-purple-500/10',
+      icon: 'card' as const,
+    };
+  }
+
+  // ========================
+  // KLARNA
+  // ========================
+  if (normalized.includes('klarna')) {
+    return {
+      label: 'Klarna',
+      color: 'text-pink-400',
+      bgColor: 'bg-pink-500/10',
+      icon: 'wallet' as const,
+    };
+  }
+
+  // ========================
+  // FALLBACK (NO COD)
+  // ========================
+  return {
+    label: method, // show actual method instead of forcing COD
+    color: 'text-slate-400',
+    bgColor: 'bg-slate-500/10',
+    icon: 'card' as const,
+  };
 };
 
 /**

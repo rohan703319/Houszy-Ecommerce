@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -84,6 +86,10 @@ async function getProducts(
     pageSize,
     sortBy,
     sortDirection,
+      // ✅ ADD THESE FILTERS
+  isPublished: "true",
+  isActive: "true",
+  isDeleted: "false",
   });
 
   if (categorySlug) query.set("categorySlug", categorySlug);

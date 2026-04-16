@@ -12,13 +12,9 @@ import { API_BASE_URL } from "@/lib/api-config";
 import { BlogPost, blogPostsService, BlogCategory } from "@/lib/services/blogPosts";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
+import { getImageUrl } from "../_utils/formatUtils";
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-const getImageUrl = (url?: string) => {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  return `${API_BASE_URL}/${url.replace(/^\//, "")}`;
-};
+
 
 const getAllComments = (comments: any[]): any[] => {
   let all: any[] = [];
@@ -144,11 +140,11 @@ export default function BlogPostsPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => router.push("/admin/comments")}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/15 border border-pink-500/30 text-pink-400 hover:bg-pink-500/25 text-xs font-semibold rounded-lg transition-all">
-            <MessageSquare className="w-3.5 h-3.5" />Blog Comments
+            <MessageSquare className="w-3.5 h-3.5" />Go to Blog Comment Page
           </button>
           <button onClick={() => router.push("/admin/BlogCategories")}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/15 border border-violet-500/30 text-violet-400 hover:bg-violet-500/25 text-xs font-semibold rounded-lg transition-all">
-            <FolderTree className="w-3.5 h-3.5" />Blog Categories
+            <FolderTree className="w-3.5 h-3.5" />Go to Blog Category Page
           </button>
           <button onClick={() => router.push("/admin/BlogPosts/create")}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-500 to-cyan-500 hover:from-violet-600 hover:to-cyan-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-all">

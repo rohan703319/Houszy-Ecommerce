@@ -738,6 +738,23 @@ setSelectedImage(0);
   setAppliedCoupon(null);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }, [product.id]);
+// ✅ HANDLE URL HASH (#reviews) → EMAIL / DIRECT LINK SUPPORT
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  if (window.location.hash === "#reviews") {
+    const scrollToReviews = () => {
+      const el = document.getElementById("reviews-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+
+    // 🔥 double attempt (important for SSR + hydration timing)
+    setTimeout(scrollToReviews, 300);
+    setTimeout(scrollToReviews, 800);
+  }
+}, [product.id]);
 const basePrice = useMemo(() => {
   if (selectedVariant && typeof selectedVariant.price === "number" && selectedVariant.price > 0) {
     return selectedVariant.price;

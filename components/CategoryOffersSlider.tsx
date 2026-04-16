@@ -78,14 +78,14 @@ const offerCategories = categories.filter((c) => {
 
  return (
   <section className="relative w-full py-4 mt-0 overflow-hidden bg-gray-50">
-    <div className="relative max-w-7xl mx-auto px-4">
+    <div className="relative max-w-7xl mx-auto px-2">
       {/* ===== HEADER (NO BACKGROUND) ===== */}
       <div className="mb-3 md:mb-6 text-center">
         <h2 className="text-xl md:text-4xl font-extrabold tracking-tight text-black">
           Big Festive Sale
         </h2>
         <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-700">
-          Save big on selected categories – limited time only
+          Save big on selected categories - limited time only
         </p>
       </div>
     </div>
@@ -172,7 +172,7 @@ const percentageDiscounts = validDiscounts
                     </div>
 
                     {/* CONTENT */}
-                    <div className="px-2 md:px-4 pt-2 pb-3 flex flex-col items-center text-center">
+                    <div className="px-1 md:px-4 pt-2 pb-3 flex flex-col items-center text-center">
                      <h3 className="text-xs md:text-sm font-bold text-[#445D41] leading-tight line-clamp-2">
   {cat.name}
 </h3>

@@ -337,14 +337,14 @@ const homeProducts = [...products].sort(
       {/* View All Button - Right Side */}
       <Link
         href="/category"
-        className="absolute right-0 top-0 text-xs md:text-base font-medium text-[#445D41] bg-green-50 border border-green-200 px-2 py-1 rounded hover:text-green-700 transition"
+        className="absolute right-0 top-0 text-xs md:text-base font-medium text-[#445D41] bg-green-50 border border-green-200 px-1 md:px-2 py-1 rounded hover:text-green-700 transition"
       >
         View All →
       </Link>
 
       {/* Centered Heading */}
       <div className="text-center">
-        <h2 className="text-xl md:text-3xl font-bold mb-1">
+        <h2 className="text-lg md:text-3xl font-bold mb-1">
           Shop by Category
         </h2>
         <p className="text-gray-600 text-sm md:text-base">

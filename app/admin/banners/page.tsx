@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Search, CheckCircle, Image as ImageIcon, Eye, Upload, Filter, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, ExternalLink, Tag, Monitor, Smartphone } from "lucide-react";
-import { API_ENDPOINTS, API_BASE_URL } from "@/lib/api-config";
-import { apiClient } from "@/lib/api";
+ 
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { ProductDescriptionEditor } from "../_components/SelfHostedEditor";
 import { Banner, bannersService, BannerStats } from "@/lib/services";
+import { extractFilename, formatDate, getImageUrl } from "../_utils/formatUtils";
 
 export default function ManageBanners() {
   const toast = useToast();
@@ -103,29 +103,11 @@ function getBannerStatus(banner: any): BannerStatus {
     offerText: "",
     buttonText: "",
     isActive: true,
-    displayOrder: 1,
+ displayOrder: "" as number | "",
     startDate: "",
     endDate: ""
   });
 
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) return "";
-    if (imageUrl.startsWith("http")) return imageUrl;
-    
-    const cleanUrl = imageUrl.split('?')[0];
-    
-    return `${API_BASE_URL}${cleanUrl}`;
-  };
-
-  const extractFilename = (imageUrl: string) => {
-    if (!imageUrl) return "";
-
-    const cleanedUrl = imageUrl.replace(API_BASE_URL, "");
-
-    const parts = cleanedUrl.split("/");
-
-    return parts.pop() || "";
-  };
 
   const handleImageFileChange = (file: File) => {
     setImageFile(file);
@@ -188,7 +170,23 @@ useEffect(() => {
   fetchBanners();
 }, [statusFilter, bannerTypeFilter, deletedFilter]);
 
+const handleStatusToggle = async (banner: Banner) => {
+  try {
+    const payload = {
+      ...banner,
+      id: banner.id,
+      isActive: !banner.isActive,
+    };
 
+    await bannersService.update(banner.id, payload);
+
+    toast.success("Status updated");
+    await fetchBanners();
+
+  } catch (error: any) {
+    toast.error(error.message);
+  }
+};
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -362,12 +360,21 @@ const handleSubmit = async (e: React.FormEvent) => {
         finalImageUrl = uploadResponse.data.data;
 
         // Delete old desktop image if editing
-        if (editingBanner?.imageUrl && editingBanner.imageUrl !== finalImageUrl) {
-          const filename = extractFilename(editingBanner.imageUrl);
-          if (filename) {
-            try { await bannersService.deleteImage(filename); } catch {}
-          }
-        }
+      if (editingBanner?.imageUrl && editingBanner.imageUrl !== finalImageUrl) {
+     const filename = extractFilename(editingBanner.imageUrl);
+  if (filename) {
+    try {
+      await bannersService.deleteImage(filename);
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("Image file not found")) {
+        console.log("⚠️ Image already deleted:", filename);
+      } else {
+        console.error("❌ Delete image error:", err);
+      }
+    }
+  }
+}
       } catch (uploadErr: any) {
         console.error("Error uploading image:", uploadErr);
         toast.error(uploadErr?.response?.data?.message || "Failed to upload desktop image");
@@ -389,12 +396,22 @@ const handleSubmit = async (e: React.FormEvent) => {
         finalMobileImageUrl = uploadResponse.data.data;
 
         // Delete old mobile image if editing
-        if (editingBanner?.mobileImageUrl && editingBanner.mobileImageUrl !== finalMobileImageUrl) {
-          const filename = extractFilename(editingBanner.mobileImageUrl);
-          if (filename) {
-            try { await bannersService.deleteImage(filename); } catch {}
-          }
-        }
+   if (editingBanner?.mobileImageUrl && editingBanner.mobileImageUrl !== finalMobileImageUrl) {
+  const filename = extractFilename(editingBanner.mobileImageUrl);
+  if (filename) {
+    try {
+      await bannersService.deleteImage(filename);
+    } catch (err: any) {
+      const msg = err?.message || "";
+
+      if (msg.includes("Image file not found")) {
+        console.log("⚠️ Mobile image already deleted:", filename);
+      } else {
+        console.error("❌ Delete mobile image error:", err);
+      }
+    }
+  }
+}
       } catch (uploadErr: any) {
         console.error("Error uploading mobile image:", uploadErr);
         toast.error(uploadErr?.response?.data?.message || "Failed to upload mobile image");
@@ -441,7 +458,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           ? formData.buttonText || undefined
           : undefined,
       isActive: Boolean(formData.isActive),
-      displayOrder: Number(formData.displayOrder) || 0,
+     displayOrder:
+  formData.displayOrder === "" ? undefined : Number(formData.displayOrder),
       startDate: formData.startDate, // Now guaranteed to exist
       endDate: formData.endDate,     // Now guaranteed to exist
       ...(editingBanner && { id: editingBanner.id }),
@@ -473,8 +491,6 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 };
 
-
-
   useEffect(() => {
     fetchBanners();
   }, []);
@@ -493,7 +509,8 @@ const handleSubmit = async (e: React.FormEvent) => {
       offerText: banner.offerText || "",
       buttonText: banner.buttonText || "",
       isActive: banner.isActive,
-      displayOrder: banner.displayOrder,
+      displayOrder:
+      banner.displayOrder === 0 ? "" : banner.displayOrder,
       startDate: banner.startDate ? banner.startDate.slice(0, 16) : "",
       endDate: banner.endDate ? banner.endDate.slice(0, 16) : "",
     });
@@ -538,7 +555,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       offerText: "",
       buttonText: "",
       isActive: true,
-      displayOrder: 0,
+      displayOrder: "" as number | "",
       startDate: "",
       endDate: "",
     });
@@ -869,10 +886,10 @@ const handleSubmit = async (e: React.FormEvent) => {
             <th className="text-left py-2 px-3 text-[11px] text-slate-400">Banner</th>
             <th className="text-center py-2 px-3 text-[11px] text-slate-400">Banner Type</th>
             <th className="text-center py-2 px-3 text-[11px] text-slate-400">Status</th>
-            <th className="text-center py-2 px-3 text-[11px] text-slate-400">Order</th>
+            <th className="text-center py-2 px-3 text-[11px] text-slate-400">Display Order</th>
             <th className="text-left py-2 px-3 text-[11px] text-slate-400">Date  Start</th>
             <th className="text-left py-2 px-3 text-[11px] text-slate-400">Date End</th>
-            <th className="text-left py-2 px-3 text-[11px] text-slate-400">Created</th>
+            <th className="text-left py-2 px-3 text-[11px] text-slate-400">Created At   </th>
             <th className="text-center py-2 px-3 text-[11px] text-slate-400">Actions</th>
           </tr>
         </thead>
@@ -989,20 +1006,19 @@ const handleSubmit = async (e: React.FormEvent) => {
 
               {/* Order */}
               <td className="py-2 px-3 text-center text-[11px] text-slate-300">
-                {banner.displayOrder || 0}
+             {banner.displayOrder === 0 ? "-" : banner.displayOrder}
               </td>
 
               {/* Dates */}
               <td className="py-2 px-3 text-[11px] text-slate-400">
-                {banner.startDate ? new Date(banner.startDate).toLocaleDateString() : "-"}
+            {formatDate(banner.startDate)}
+              </td>
+
+              <td className="py-2 px-3 text-[11px] text-slate-400">    {formatDate(banner.endDate)}
               </td>
 
               <td className="py-2 px-3 text-[11px] text-slate-400">
-                {banner.endDate ? new Date(banner.endDate).toLocaleDateString() : "-"}
-              </td>
-
-              <td className="py-2 px-3 text-[11px] text-slate-400">
-                {banner.createdAt ? new Date(banner.createdAt).toLocaleDateString() : "-"}
+                 {formatDate(banner.createdAt)}
               </td>
 
               {/* Actions */}
@@ -1194,13 +1210,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">Display Order</label>
                       <input
-                        type="number"
-                        value={formData.displayOrder}
-                        onChange={(e) => setFormData({...formData, displayOrder: parseInt(e.target.value) || 0})}
-                        placeholder="1"
-                        min="1"
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                      />
+  type="number"
+  value={formData.displayOrder ?? ""}
+  onChange={(e) => {
+    const val = e.target.value;
+
+    setFormData({
+      ...formData,
+      displayOrder: val === "" ? "" : Number(val),
+    });
+  }}
+  placeholder="Enter display order"
+  min="1"
+  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+/>
                     </div>
 
                     <div>
@@ -1696,23 +1719,55 @@ const handleSubmit = async (e: React.FormEvent) => {
             )}
 
             {/* Banner Image */}
-            {viewingBanner.imageUrl && (
-              <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-                <p className="text-sm text-slate-300 font-semibold mb-3">Banner Image:</p>
-                <div className="rounded-lg overflow-hidden border-2 border-violet-500/20 cursor-pointer hover:border-violet-500/50 transition-all">
-                  <img
-                    src={getImageUrl(viewingBanner.imageUrl)}
-                    alt={viewingBanner.title}
-                    className="w-full h-auto object-cover hover:scale-105 transition-transform"
-                    onClick={() => setSelectedImageUrl(getImageUrl(viewingBanner.imageUrl))}
-                     onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2 font-mono break-all">
-                  {viewingBanner.imageUrl}
-                </p>
-              </div>
-            )}
+<div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-4">
+
+  {/* DESKTOP IMAGE */}
+  {viewingBanner.imageUrl && (
+    <div>
+      <p className="text-xs text-cyan-400 mb-2 font-semibold">Desktop Image</p>
+
+      <div
+        className="rounded-lg overflow-hidden border-2 border-violet-500/20 cursor-pointer hover:border-violet-500"
+        onClick={() => setSelectedImageUrl(getImageUrl(viewingBanner.imageUrl))}
+      >
+        <img
+          src={getImageUrl(viewingBanner.imageUrl)}
+          alt="Desktop Banner"
+          className="w-full h-auto object-cover"
+          onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+        />
+      </div>
+
+      <p className="text-[10px] text-slate-400 mt-1 break-all">
+        {viewingBanner.imageUrl}
+      </p>
+    </div>
+  )}
+
+  {/* MOBILE IMAGE */}
+  {viewingBanner.mobileImageUrl && (
+    <div>
+      <p className="text-xs text-pink-400 mb-2 font-semibold">Mobile Image</p>
+
+      <div
+        className="rounded-lg overflow-hidden border-2 border-pink-500/20 cursor-pointer hover:border-pink-500"
+        onClick={() => setSelectedImageUrl(getImageUrl(viewingBanner.mobileImageUrl || undefined))}
+      >
+        <img
+          src={getImageUrl(viewingBanner.mobileImageUrl)}
+          alt="Mobile Banner"
+      className="w-full h-60 object-contain bg-black"
+          onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+        />
+      </div>
+
+      <p className="text-[10px] text-slate-400 mt-1 break-all">
+        {viewingBanner.mobileImageUrl}
+      </p>
+    </div>
+  )}
+
+</div>
           </div>
 
           {/* Right Column - Offer Details + Schedule */}
@@ -1768,14 +1823,14 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="flex items-center justify-between py-1">
                   <span className="text-sm text-slate-300 font-semibold">Start Date:</span>
                   <span className="text-slate-100 text-sm font-medium">
-                    {viewingBanner.startDate ? new Date(viewingBanner.startDate).toLocaleString() : 'Not set'}
+                     {formatDate(viewingBanner.startDate)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between py-1">
                   <span className="text-sm text-slate-300 font-semibold">End Date:</span>
                   <span className="text-slate-100 text-sm font-medium">
-                    {viewingBanner.endDate ? new Date(viewingBanner.endDate).toLocaleString() : 'Not set'}
+                      {formatDate(viewingBanner.endDate)}
                   </span>
                 </div>
 
@@ -1784,19 +1839,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="flex items-center justify-between py-1">
                   <span className="text-sm text-slate-300 font-semibold">Created At:</span>
                   <span className="text-slate-100 text-sm font-medium">
-                    {viewingBanner.createdAt ? new Date(viewingBanner.createdAt).toLocaleString() : 'N/A'}
+                    {formatDate(viewingBanner.createdAt)}
                   </span>
                 </div>
-
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-sm text-slate-300 font-semibold">Updated At:</span>
-                  <span className="text-slate-100 text-sm font-medium">
-                    {viewingBanner.updatedAt ? new Date(viewingBanner.updatedAt).toLocaleString() : 'Never updated'}
-                  </span>
-                </div>
-
-                <div className="border-t border-slate-700/50 my-3"></div>
-
                 <div className="py-1">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-sm text-slate-300 font-semibold whitespace-nowrap">Created By:</span>
@@ -1804,13 +1849,26 @@ const handleSubmit = async (e: React.FormEvent) => {
                       {viewingBanner.createdBy || 'Unknown'}
                     </span>
                   </div>
+
+                  
+                </div>
+
+
+                <div className="border-t border-slate-700/50 my-3"></div>
+
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-sm text-slate-300 font-semibold">Updated At:</span>
+                  <span className="text-slate-100 text-sm font-medium">
+         
+                      {formatDate(viewingBanner.updatedAt )}
+                  </span>
                 </div>
 
                 <div className="py-1">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-300 font-semibold">Updated By:</span>
                     <span className="text-slate-100 text-sm font-medium">
-                      {viewingBanner.updatedBy || 'Never updated'}
+                      {(viewingBanner.updatedBy)}
                     </span>
                   </div>
                 </div>
@@ -1862,17 +1920,26 @@ const handleSubmit = async (e: React.FormEvent) => {
       <ConfirmDialog
   isOpen={!!statusConfirm}
   onClose={() => setStatusConfirm(null)}
-  onConfirm={async () => {
-    if (!statusConfirm) return;
+onConfirm={async () => {
+  if (!statusConfirm) return;
 
-    await bannersService.update(statusConfirm.id, {
-      isActive: !statusConfirm.isActive
-    });
+  try {
+    const payload = {
+      ...statusConfirm, // 🔥 FULL OBJECT
+      id: statusConfirm.id, // 🔥 MUST
+      isActive: !statusConfirm.isActive // 🔥 only change
+    };
+
+    await bannersService.update(statusConfirm.id, payload);
 
     toast.success("Status updated!");
     setStatusConfirm(null);
-    fetchBanners();
-  }}
+    await fetchBanners();
+
+  } catch (error: any) {
+    toast.error(error.message || "Update failed");
+  }
+}}
   title="Change Status"
   message="Are you sure you want to change banner status?"
   confirmText="Yes, Change"

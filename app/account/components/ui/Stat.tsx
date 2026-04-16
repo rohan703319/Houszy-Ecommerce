@@ -8,7 +8,7 @@ export default function Stat({ label, value, icon }: any) {
       )}
 
       <div>
-        <p className="text-md text-gray-[#445D41]">{label}</p>
+        <p className="text-sm text-[#445D41]">{label}</p>
         <p className="text-sm font-semibold">{value}</p>
       </div>
     </div>

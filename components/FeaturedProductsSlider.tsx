@@ -272,21 +272,35 @@ const shouldShowMinWarning = (product: any) => {
       </button>
 
       <Swiper
-        modules={[Autoplay, Navigation, Pagination]}
-        spaceBetween={16}
-        slidesPerView={2}
-        className="pb-12 featured-products-slider"
-        breakpoints={{
-          640: { slidesPerView: 2, spaceBetween: 16 },
-          768: { slidesPerView: 3, spaceBetween: 20 },
-          1024: { slidesPerView: 4, spaceBetween: 22 },
-          1280: { slidesPerView: 4, spaceBetween: 24 },
-        }}
-        autoplay={{ delay: 2400, disableOnInteraction: false,  pauseOnMouseEnter: true,  }}
-        navigation={{ prevEl: "#prevBtn", nextEl: "#nextBtn" }}
-        pagination={{ clickable: true, dynamicBullets: true }}
-        loop={true}
-      >
+  modules={[Autoplay, Navigation, Pagination]}
+  spaceBetween={16}
+  slidesPerView={2}
+  className="pb-12 featured-products-slider"
+  breakpoints={{
+    640: { slidesPerView: 2, spaceBetween: 16 },
+    768: { slidesPerView: 3, spaceBetween: 20 },
+    1024: { slidesPerView: 4, spaceBetween: 22 },
+    1280: { slidesPerView: 4, spaceBetween: 24 },
+  }}
+
+  autoplay={{
+    delay: 3000,
+    disableOnInteraction: true, // 🔥 fix lag
+    pauseOnMouseEnter: true,
+  }}
+
+  navigation={{ prevEl: "#prevBtn", nextEl: "#nextBtn" }}
+
+  pagination={{ clickable: true, dynamicBullets: true }}
+
+  loop={false} // 🔥 MOST IMPORTANT FIX
+
+  watchSlidesProgress={true}
+  resistanceRatio={0.85}
+  touchRatio={1}
+  simulateTouch={true}
+ 
+>
         {flattenedProducts.map((item) =>  {
 
   const product = item.productData;
@@ -369,8 +383,10 @@ const backorderState = getBackorderUIState({
 
                   <img
   src={getProductDisplayImage(product, defaultVariant)}
+  loading="lazy"
+  decoding="async"
   alt={product.name}
-  className="object-contain w-full h-full transform transition duration-300 group-hover:scale-110"
+  className="object-contain w-full h-full transform transition duration-300 md:group-hover:scale-110"
   onError={(e) => ((e.target as HTMLImageElement).src = "/placeholder.jpg")}
 />
 
@@ -460,7 +476,7 @@ const backorderState = getBackorderUIState({
                 </Link>
 
                 {/* CONTENT */}
-             <div className="flex flex-col flex-grow px-3 pb-3 pt-2">
+             <div className="flex flex-col flex-grow px-1.5 md:px-3 pb-3 pt-2">
 
                   {/* FIXED TITLE HEIGHT */}
                  <div className="min-h-[42px] max-h-[42px] sm:min-h-[38px] sm:max-h-[38px] mb-0.5">
@@ -500,7 +516,7 @@ const backorderState = getBackorderUIState({
 
   {/* Loyalty */}
   {loyaltyPoints && (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
+    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-green-700 bg-green-50 border border-green-200 px-0.5 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
       <AwardIcon className="h-2.5 w-2.5 text-green-600 flex-shrink-0" />
       Earn {loyaltyPoints} pts
     </span>
@@ -536,7 +552,7 @@ const backorderState = getBackorderUIState({
 </div>
 
 {/* ACTION BUTTONS */}
-<div className="mt-auto flex items-center gap-2 pt-1.5">
+<div className="mt-auto flex items-center gap-1 md:gap-2 pt-1.5">
 
   {/* ⭐ CASE: IN STOCK OR CAN BUY */}
   {backorderState.canBuy && (
@@ -660,11 +676,11 @@ toast.success(
 
 }}
 
-        className="flex-1 text-xs md:text-sm rounded-lg py-2 flex items-center justify-center gap-2
+        className="flex-[0.47] md:flex-1 text-[9px] md:text-sm py-1.5 md:py-2 whitespace-nowrap flex items-center justify-center gap-1 md:gap-2
     bg-[#445D41] hover:bg-black text-white
     disabled:opacity-60 disabled:cursor-not-allowed"
 >
-        <ShoppingCart className="h-4 w-4" />
+        <ShoppingCart className="h-3 w-3 md:h-4 md:w-4" />
         Add
       </Button>
 
@@ -696,11 +712,11 @@ toast.success(
       cardSlug
     );
   }}
-  className="flex-1 text-xs md:text-sm rounded-lg py-2
+  className="flex-[0.47] md:flex-1 text-[9px] md:text-sm py-1.5 md:py-2 whitespace-nowrap flex items-center justify-center gap-1 md:gap-2
     bg-black border border-[#445D41] text-white hover:bg-[#445D41]
     disabled:opacity-60 disabled:cursor-not-allowed"
 >
-        <Zap className="h-4 w-4" />
+        <Zap className="h-3 w-3 md:h-4 md:w-4" />
         Buy
       </Button>
     </>

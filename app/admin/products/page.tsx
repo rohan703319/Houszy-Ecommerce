@@ -14,7 +14,8 @@ import {
   Upload,
   Download,
   Boxes,
-  Database
+  Database,
+  EyeOff
 } from "lucide-react";
 
 type ToggleProduct = {
@@ -38,6 +39,8 @@ import MediaViewerModal, { MediaItem } from "./MediaViewerModal";
 import { RelatedProduct, Product, productsService, productHelpers } from "@/lib/services";
 import ProductExcelImportModal from "./ProductExcelImportModal";
 import { useDebounce } from "../_hooks/useDebounce";
+import { formatDate, getProductImage } from "../_utils/formatUtils";
+import ImportWooCommerceModal from "./ImportWooCommerceModal";
 
 // ✅ INTERFACES
 interface FormattedProduct {
@@ -111,20 +114,7 @@ interface SelectOption {
   level?: number;
 }
 
-// ✅ API Response Interface
-interface ApiResponse {
-  success: boolean;
-  message: string;
-  data: {
-    items: any[];
-    totalCount: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    hasPrevious: boolean;
-    hasNext: boolean;
-  };
-}
+
 
 // ✅ REACT-SELECT CUSTOM STYLES
 const customSelectStyles = {
@@ -213,6 +203,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const ALLOWED_SORT_FIELDS = ['name', 'price', 'createdAt'];
   
   // API Pagination state
   const [totalCount, setTotalCount] = useState(0);
@@ -229,7 +221,7 @@ const debouncedSearchTerm = useDebounce(searchInput, 500); // 500ms delay
   // Export menu state
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedProductForDiscount, setSelectedProductForDiscount] = useState<any>(null);
+
 const [bulkAction, setBulkAction] = useState<null | {
   type: "activate" | "deactivate" | "publish" | "unpublish" | "delete" | "restore";
   items: FormattedProduct[];
@@ -332,11 +324,6 @@ const pharmaOptions: SelectOption[] = [
     { value: "no", label: "VAT Applicable" },
   ];
 
-  const discountOptions: SelectOption[] = [
-    { value: "all", label: "Discount: All" },
-    { value: "yes", label: "Has Discount" },
-    { value: "no", label: "No Discount" },
-  ];
 
 const deletedOptions = [
   { value: "all", label: "All Records" },
@@ -350,11 +337,15 @@ const deletedOptions = [
   label: "Active Only",
 });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showWooModal, setShowWooModal] = useState(false);
 
   const [selectedDeleteProduct, setSelectedDeleteProduct] = useState<ToggleProduct | null>(null);
   const [selectedToggleProduct, setSelectedToggleProduct] = useState<ToggleProduct | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showToggleConfirm, setShowToggleConfirm] = useState(false);
+  const [apiStats, setApiStats] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<string>('createdAt');
+const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 // BULK SELECTION
 const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 const [exportingSelected, setExportingSelected] = useState(false);
@@ -367,11 +358,25 @@ const handleSelectProduct = (productId: string) => {
       : [...prev, productId]
   );
 };
+
+const handleSort = (field: string) => {
+  if (!ALLOWED_SORT_FIELDS.includes(field)) return;
+
+  if (sortBy === field) {
+    setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+  } else {
+    setSortBy(field);
+    setSortDirection('asc');
+  }
+};
 useEffect(() => {
   if (searchInput.trim() !== "") {
     setSearchLoading(true);
   }
 }, [searchInput]);
+useEffect(() => {
+  fetchProducts();
+}, [sortBy, sortDirection]);
 const handleSelectAll = () => {
   if (selectedProducts.length === products.length) {
     setSelectedProducts([]);
@@ -382,18 +387,7 @@ const handleSelectAll = () => {
     setSelectedProducts(selectableIds);
   }
 };
-  const formatDate = (dateString?: string | null): string => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "N/A";
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+
 
   const openProductActionModal = (product: {
     id: string;
@@ -423,20 +417,7 @@ const handleSelectAll = () => {
     setShowToggleConfirm(true);
   };
 
-const getProductImage = (images: any[]): string => {
-  if (!images || images.length === 0) return "";
 
-  const mainImage = images.find((img: any) => img.isMain) || images[0];
-  let imageUrl = mainImage.imageUrl || "";
-
-  // 🔥 If already full URL → return directly
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  // 🔥 Otherwise attach base URL (for local uploads)
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
 
   const getPrimaryCategoryName = (categories: any[]): string => {
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
@@ -477,32 +458,33 @@ const [pharmaFilter, setPharmaFilter] = useState<SelectOption>({
 
 // ✅ FETCH PRODUCTS WITH PAGINATION AND FILTERS
 const fetchProducts = async () => {
-  setLoading(true);
+  // setLoading(true);
    setFilterLoading(true); // ✅ start loader
 
   try {
     // Build backend params
     const params: any = {
-      page: currentPage,
-      pageSize: itemsPerPage,
-      sortBy: 'createdAt',
-      sortDirection: 'desc',
-    };
+  page: currentPage,
+  pageSize: itemsPerPage,
+  sortBy,
+  sortDirection,
+};
+    if (statusFilter.value !== "all") {
+      params.stockStatus = statusFilter.value;
+    }
 
-   if (deletedFilter.value === "deleted") {
+delete params.isDeleted;
+delete params.isActive;
+
+if (deletedFilter.value === "deleted") {
   params.isDeleted = true;
-}
-if (statusFilter.value !== "all") {
-  params.stockStatus = statusFilter.value;
 }
 
 if (deletedFilter.value === "active") {
-  params.isDeleted = false;
   params.isActive = true;
 }
 
 if (deletedFilter.value === "inactive") {
-  params.isDeleted = false;
   params.isActive = false;
 }
 
@@ -564,18 +546,6 @@ if (selectedType.value !== "all") {
     if (response.data?.success && response.data?.data?.items) {
       const apiData = response.data.data;
       let items = [...apiData.items];
-// Client-side Active / Inactive filter
-if (deletedFilter.value === "active") {
-  items = items.filter((p: any) => p.isDeleted !== true && p.isActive === true);
-}
-
-if (deletedFilter.value === "inactive") {
-  items = items.filter((p: any) => p.isDeleted !== true && p.isActive === false);
-}
-
-if (deletedFilter.value === "deleted") {
-  items = items.filter((p: any) => p.isDeleted === true);
-}
 
 
 
@@ -675,6 +645,10 @@ if (deletedFilter.value === "deleted") {
         };
       });
 
+
+// ✅ ADD THIS
+setApiStats(apiData.stats);
+console.log("STATS 👉", apiData.stats);
       setProducts(formattedProducts);
 setSelectedProducts([]);
       // Related Products Map
@@ -707,31 +681,42 @@ setSelectedProducts([]);
   }
 };
   // ✅ FETCH CATEGORIES
-  const fetchCategories = async () => {
-    try {
-      const response = await categoriesService.getAll({
+const fetchCategories = async () => {
+  try {
+    const response = await categoriesService.getAll({
+      params: {
         includeInactive: false,
         includeSubCategories: true,
-      });
-      if (response.data?.success && Array.isArray(response.data?.data)) {
-        setCategories(response.data.data);
-      }
-    } catch (err) {
-      console.error("Error fetching categories:", err);
-    }
-  };
+      },
+    });
 
+    const categoriesData = Array.isArray(response.data?.data?.items)
+      ? response.data.data.items
+      : [];
+
+    setCategories(categoriesData);
+
+  } catch (err) {
+    console.error("Error fetching categories:", err);
+  }
+};
   // ✅ FETCH BRANDS
-  const fetchBrands = async () => {
-    try {
-      const response = await brandsService.getAll({ includeUnpublished: false });
-      if (response.data?.success && Array.isArray(response.data?.data)) {
-        setBrands(response.data.data);
-      }
-    } catch (err) {
-      console.error("Error fetching brands:", err);
-    }
-  };
+const fetchBrands = async () => {
+  try {
+    const response = await brandsService.getAll({
+      params: { includeUnpublished: false }
+    });
+
+    const brandsData = Array.isArray(response.data?.data?.items)
+      ? response.data.data.items
+      : [];
+
+    setBrands(brandsData);
+
+  } catch (err) {
+    console.error("Error fetching brands:", err);
+  }
+};
 const FilterLoader = () => {
   return (
     <div className="flex items-center gap-2 text-xs text-violet-400 bg-violet-500/10 border border-violet-500/30 px-2 py-1 rounded-md">
@@ -767,8 +752,6 @@ const fetchProductDetails = async (productId: string) => {
     // ✅ CASE 2: DELETED PRODUCT → use search API
     else {
       const response = await productsService.getAll({
-        page: 1,
-        pageSize: 1,
         isDeleted: true,
         searchTerm: currentProduct.name, // 🔥 NAME SEARCH
       });
@@ -815,19 +798,7 @@ if (p.crossSellProductIds) {
   }
 };
 
-  const handleToggleStatus = async (product: Product) => {
-    try {
-      const response = await productsService.toggleActive(product.id);
-      if (!response?.data?.success) {
-        toast.error(response?.data?.message || "Failed to update status");
-        return;
-      }
-      toast.success(response.data.message);
-      fetchProducts();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Something went wrong");
-    }
-  };
+
 
   // ✅ MEDIA VIEWER
   const openMediaViewer = (media: MediaItem | MediaItem[], startIndex = 0) => {
@@ -899,20 +870,7 @@ useEffect(() => {
   pharmaFilter 
 ]);
 
-// ✅ EFFECT 3: Handle client-side filters - JUST reset page, NO API call
-useEffect(() => {
-  setCurrentPage(1);
-}, [
-  selectedBrand,
-  selectedType,
-  statusFilter,
-  deliveryFilter,
-  notReturnableFilter,
-  inventoryFilter,
-  recurringFilter,
-  vatFilter,
- 
-]);
+
 
 
 
@@ -933,7 +891,13 @@ const clearFilters = useCallback(() => {
   setVatFilter({ value: "all", label: "VAT: All" });
   setDeletedFilter({ value: "all", label: "All Records" });
   setPharmaFilter({ value: "all", label: "All Products" });
-  setSearchInput(""); // Clear search input
+
+  setSearchInput("");
+
+  // 🔥 ADD THIS (IMPORTANT)
+  setSortBy("createdAt");
+  setSortDirection("desc");
+
   setCurrentPage(1);
 }, []);
 
@@ -953,8 +917,13 @@ const hasActiveFilters = useMemo(
     recurringFilter.value !== "all" ||
     vatFilter.value !== "all" ||
     deletedFilter.value !== "all" ||
-    pharmaFilter.value !== "all"||
-    searchInput.trim() !== "", // Use searchInput instead of searchTerm
+    pharmaFilter.value !== "all" ||
+    searchInput.trim() !== "" ||
+
+    // 🔥 ADD THIS
+    sortBy !== "createdAt" ||
+    sortDirection !== "desc",
+
   [
     selectedCategory,
     selectedBrand,
@@ -969,7 +938,12 @@ const hasActiveFilters = useMemo(
     recurringFilter,
     vatFilter,
     deletedFilter,
-    searchInput, // Use searchInput
+    pharmaFilter,
+    searchInput,
+
+    // 🔥 ADD DEPENDENCIES
+    sortBy,
+    sortDirection,
   ]
 );
 
@@ -1065,44 +1039,61 @@ const selectionState = useMemo(() => {
   return { mixed, status, publishStatus };
 }, [selectedProducts, products]);
 
+const stats = useMemo(() => {
+  if (!apiStats) {
+    return {
+      totalCount: 0,
+      publishedCount: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0,
+      unpublishedCount: 0,
+    };
+  }
+
+  return {
+    totalCount: apiStats.totalProducts,
+    publishedCount: apiStats.published,
+    lowStockCount: apiStats.lowStock,
+    outOfStockCount: apiStats.outOfStock,
+    unpublishedCount: apiStats.unpublished,
+  };
+}, [apiStats]);
+
 const selectedProductItems = useMemo(() => {
   return selectedProducts
     .map((id) => products.find((p) => p.id === id))
     .filter((p): p is FormattedProduct => Boolean(p));
 }, [selectedProducts, products]);
   // ✅ STATS (using totalCount from API)
-  const stats = useMemo(() => {
-    const lowStockCount = products.filter((p) => p.status === "Low Stock").length;
-    const outOfStockCount = products.filter((p) => p.status === "Out of Stock").length;
-    const publishedCount = products.filter((p) => p.isPublished).length;
-    
-    return {
-      totalCount: totalCount, // This is the real total from API (3671)
-      lowStockCount,
-      outOfStockCount,
-      publishedCount,
-    };
-  }, [products, totalCount]);
 
-  const handleStatClick = useCallback(
-    (filterType: string) => {
-      clearFilters();
-      switch (filterType) {
-        case "total":
-          break;
-        case "published":
-          setPublishedFilter({ value: "published", label: "Published" });
-          break;
-        case "lowStock":
-          setStatusFilter({ value: "Low Stock", label: "Low Stock" });
-          break;
-        case "outOfStock":
-          setStatusFilter({ value: "Out of Stock", label: "Out of Stock" });
-          break;
-      }
-    },
-    [clearFilters]
-  );
+
+const handleStatClick = useCallback(
+  (filterType: string) => {
+    clearFilters();
+
+    switch (filterType) {
+      case "total":
+        break;
+
+      case "published":
+        setPublishedFilter({ value: "published", label: "Published" });
+        break;
+
+      case "unpublished":
+        setPublishedFilter({ value: "unpublished", label: "Unpublished" });
+        break;
+
+      case "lowStock":
+        setStatusFilter({ value: "LowStock", label: "Low Stock" });
+        break;
+
+      case "outOfStock":
+        setStatusFilter({ value: "OutOfStock", label: "Out of Stock" });
+        break;
+    }
+  },
+  [clearFilters]
+);
 
   const statusCounts = useMemo(() => {
     const counts = { Pending: 0, all: myTakeoverRequests.length };
@@ -1544,131 +1535,148 @@ const handleExportSelected = async () => {
           <p className="text-sm text-slate-400">Manage your product inventory</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => router.push("/admin/discounts")}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm
-            bg-gradient-to-r from-pink-500 to-rose-500
-            hover:from-pink-600 hover:to-rose-600
-            text-white rounded-lg font-semibold shadow
-            hover:shadow-pink-500/40 transition-all"
-          >
-            <Tag className="w-4 h-4" />
-            Discounts
-          </button>
-          {/* Inventory Button */}
+<div className="flex flex-wrap items-center gap-2">
+
+
+
+<div className="relative">
+
+  {/* MAIN BUTTON */}
   <button
-    onClick={() => router.push("/admin/inventory")}
+    onClick={() => setShowImportMenu(!showImportMenu)}
     className="flex items-center gap-2 px-4 py-2 text-sm
-    bg-gradient-to-r from-pink-500 to-rose-500
-    hover:from-pink-600 hover:to-rose-600
-    text-white rounded-xl font-semibold shadow-md
-    hover:shadow-pink-500/40
-    transition-all duration-200"
+    bg-slate-800 border border-slate-700
+    hover:bg-slate-700
+    text-white rounded-xl font-medium transition"
   >
-    <Boxes className="w-4 h-4 stroke-[2.2]" />
-    <span>Inventory</span>
+    <Upload className="w-4 h-4" />
+    Import
+    <ChevronDown className="w-4 h-4 opacity-70" />
   </button>
 
-          <button
-            onClick={() => router.push("/admin/orders")}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm
-            bg-gradient-to-r from-emerald-500 to-teal-500
-            hover:from-emerald-600 hover:to-teal-600
-            text-white rounded-lg font-semibold shadow
-            hover:shadow-emerald-500/40 transition-all"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Orders
-          </button>
+  {/* DROPDOWN */}
+  {showImportMenu && (
+    <>
+      {/* OUTSIDE CLICK */}
+      <div
+        className="fixed inset-0 z-10"
+        onClick={() => setShowImportMenu(false)}
+        title="Import products (Excel or WooCommerce)"
+      />
 
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm
-            bg-gradient-to-r from-emerald-600 to-green-600
-            text-white rounded-lg font-semibold shadow
-            hover:shadow-emerald-500/40 transition-all"
-          >
-            <Upload className="w-4 h-4" />
-            Import Excel
-          </button>
+      <div className="absolute right-0 mt-2 w-56
+        bg-slate-900 border border-slate-700
+        rounded-xl shadow-xl z-20 overflow-hidden"
+      >
+        {/* EXCEL IMPORT */}
+        <button
+          onClick={() => {
+            setShowImportModal(true);
+            setShowImportMenu(false);
+          }}
+          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
+          
+            
+        >
+          <div className="flex items-center gap-3">
+            <FileSpreadsheet className="w-4 h-4 text-green-400" />
+            <div>
+              <p className="text-sm text-white font-medium">
+                Excel Import
+              </p>
+              <p className="text-xs text-slate-400">
+               Upload Excel file (.xlsx)
+              </p>
+            </div>
+          </div>
+        </button>
 
-          <button
-            onClick={() => router.push("/admin/productReview")}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm
-            bg-gradient-to-r from-amber-500 to-orange-500
-            hover:from-amber-600 hover:to-orange-600
-            text-white rounded-lg font-semibold shadow
-            hover:shadow-amber-500/40 transition-all"
-          >
-            <Star className="w-4 h-4" />
-            Reviews
-          </button>
+        <div className="border-t border-slate-700" />
 
-          {statusCounts.Pending > 0 && (
-            <button
-              onClick={() => setShowTakeoverPanel(true)}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg font-semibold
-              shadow transition-all relative ${
-                statusCounts.Pending > 0
-                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white animate-pulse shadow-orange-500/40"
-                  : "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-blue-500/40"
-              }`}
-            >
-              <Send className="w-4 h-4" />
-              Requests
-              {statusCounts.Pending > 0 && (
-                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-orange-600 text-[10px] font-bold">
-                  {statusCounts.Pending}
-                </span>
-              )}
-            </button>
-          )}
+        {/* WOOCOMMERCE IMPORT */}
+        <button
+          onClick={() => {
+            setShowWooModal(true);
+            setShowImportMenu(false);
+          }}
+          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
+        >
+          <div className="flex items-center gap-3">
+            <Upload className="w-4 h-4 text-blue-400" />
+            <div>
+              <p className="text-sm text-white font-medium">
+                WooCommerce Import
+              </p>
+              <p className="text-xs text-slate-400">
+                Upload WooCommerce excel file (.xlsx)
+              </p>
+            </div>
+          </div>
+        </button>
 
+      </div>
+    </>
+  )}
+
+</div>
+
+  {/* REQUESTS */}
+  {statusCounts.Pending > 0 && (
+    <button
+      onClick={() => setShowTakeoverPanel(true)}
+      className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg font-semibold
+      shadow transition-all relative ${
+        statusCounts.Pending > 0
+          ? "bg-gradient-to-r from-orange-500 to-red-500 text-white animate-pulse shadow-orange-500/40"
+          : "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-blue-500/40"
+      }`}
+    >
+      <Send className="w-4 h-4" />
+      Requests
+      <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-orange-600 text-[10px] font-bold">
+        {statusCounts.Pending}
+      </span>
+    </button>
+  )}
+
+  {/* EXPORT */}
 <div className="relative">
   <button
     onClick={() => setShowExportMenu(!showExportMenu)}
-    className="flex items-center gap-2 px-3 py-1.5 text-sm
-      bg-gradient-to-r from-green-600 to-emerald-600
-      text-white rounded-lg font-semibold shadow
-      hover:shadow-emerald-500/40 transition-all"
+    className="flex items-center gap-2 px-4 py-2 text-sm
+    bg-slate-800 border border-slate-700
+    hover:bg-slate-700
+    text-white rounded-xl font-medium transition"
+      title="Export products (current page or all)"
   >
     <FileSpreadsheet className="w-4 h-4" />
     Export
-    <ChevronDown className="w-4 h-4 opacity-80" />
+    <ChevronDown className="w-4 h-4 opacity-70" />
   </button>
 
   {showExportMenu && (
     <>
-      {/* Overlay */}
       <div
         className="fixed inset-0 z-10"
         onClick={() => setShowExportMenu(false)}
       />
 
-      {/* Dropdown */}
-      <div className="absolute right-0 mt-2 w-52
-        bg-slate-800/95 backdrop-blur-xl
-        border border-slate-700
-        rounded-xl shadow-xl
-        overflow-hidden z-20"
+      <div className="absolute right-0 mt-2 w-56
+        bg-slate-900 border border-slate-700
+        rounded-xl shadow-xl z-20 overflow-hidden"
       >
-
-    
-
         {/* Current Page */}
         <button
           onClick={() => {
             handleExport(false);
             setShowExportMenu(false);
           }}
-          className="w-full px-4 py-2.5 text-left hover:bg-slate-700/60 transition-all"
-          title="Export current page products"
+          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
         >
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
             <div>
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm text-white font-medium">
                 Current Page
               </p>
               <p className="text-xs text-slate-400">
@@ -1678,23 +1686,20 @@ const handleExportSelected = async () => {
           </div>
         </button>
 
-        {/* Divider */}
-        <div className="border-t border-slate-700/60" />
+        <div className="border-t border-slate-700" />
 
-        {/* Export All */}
+        {/* All Products */}
         <button
           onClick={() => {
             handleExport(true);
             setShowExportMenu(false);
           }}
-          className="w-full px-4 py-2.5 text-left hover:bg-slate-700/60 transition-all"
+          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
         >
           <div className="flex items-center gap-3">
             <Database className="w-4 h-4 text-emerald-400" />
             <div>
-              <p className="text-sm font-medium text-white"
-          title="Export All products"
-              >
+              <p className="text-sm text-white font-medium">
                 All Products
               </p>
               <p className="text-xs text-slate-400">
@@ -1708,21 +1713,25 @@ const handleExportSelected = async () => {
     </>
   )}
 </div>
-          <Link href="/admin/products/add">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm
-            bg-gradient-to-r from-violet-500 to-cyan-500
-            text-white rounded-lg font-semibold shadow
-            hover:shadow-violet-500/40 transition-all">
-              <Plus className="w-4 h-4" />
-              Add Product
-            </button>
-          </Link>
-        </div>
+
+  {/* ADD PRODUCT */}
+  <Link href="/admin/products/add">
+    <button className="flex items-center gap-2 px-3 py-1.5 text-sm
+    bg-gradient-to-r from-violet-500 to-cyan-500
+    text-white rounded-lg font-semibold shadow
+    hover:shadow-violet-500/40 transition-all"
+    title="Add new product">
+      <Plus className="w-4 h-4" />
+      Add Product
+    </button>
+  </Link>
+
+</div>
       </div>
 
 
       {/* ================= STATS ================= */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-5">
         <div
           onClick={() => handleStatClick("total")}
           className="bg-gradient-to-br from-violet-500/10 to-purple-500/10
@@ -1774,6 +1783,22 @@ const handleExportSelected = async () => {
           </div>
         </div>
 
+       <div
+  onClick={() => handleStatClick("unpublished")}
+  className="bg-gradient-to-br from-slate-500/10 to-slate-600/10
+  border border-slate-500/20 rounded-xl p-3
+  hover:shadow-lg hover:shadow-slate-500/10 transition-all cursor-pointer"
+>
+  <div className="flex items-center gap-3">
+    <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg">
+      <EyeOff className="w-4 h-4 text-white" />
+    </div>
+    <div>
+      <p className="text-xs text-slate-400">Unpublished</p>
+      <p className="text-xl font-bold text-white">{stats.unpublishedCount}</p>
+    </div>
+  </div>
+</div>
         <div
           onClick={() => handleStatClick("outOfStock")}
           className="bg-gradient-to-br from-red-500/10 to-rose-500/10
@@ -1819,9 +1844,6 @@ const handleExportSelected = async () => {
 
     {/* RIGHT SIDE */}
     <div className="flex items-center gap-3">
-
-      {/* 🔄 FILTER LOADER */}
-  {filterLoading && <FilterLoader />}
 
       {/* RESULT TEXT */}
       <div className="text-xs text-slate-400 whitespace-nowrap">
@@ -1914,7 +1936,7 @@ const handleExportSelected = async () => {
             />
           </div>
 
-          <div className="flex-1 max-w-[130px]">
+          <div className="flex-1 max-w-[150px]">
             <Select
               value={selectedBrand}
               onChange={(option) => setSelectedBrand(option as SelectOption)}
@@ -1990,6 +2012,24 @@ const handleExportSelected = async () => {
                 ))}
               </select>
             </div>
+                 <select
+                value={publishedFilter.value}
+                onChange={(e) => {
+                  const option = visibilityOptions.find(opt => opt.value === e.target.value);
+                  if (option) setPublishedFilter(option);
+                }}
+                className={`w-full px-3 py-2.5 bg-slate-800/90 border rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all ${
+                  publishedFilter.value !== "all"
+                    ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50"
+                    : "border-slate-600"
+                }`}
+              >
+                {visibilityOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
           </div>
 
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
@@ -2026,7 +2066,7 @@ const handleExportSelected = async () => {
         {/* ✅ ROW 2 - COLLAPSIBLE FILTERS */}
         {showMoreFilters && (
           <div className="mt-1 pt-1 border-t border-slate-700">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-9 gap-1.5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-8 gap-1.5">
               <select
                 value={statusFilter.value}
                 onChange={(e) => {
@@ -2040,25 +2080,6 @@ const handleExportSelected = async () => {
                 }`}
               >
                 {statusOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={publishedFilter.value}
-                onChange={(e) => {
-                  const option = visibilityOptions.find(opt => opt.value === e.target.value);
-                  if (option) setPublishedFilter(option);
-                }}
-                className={`w-full px-3 py-2.5 bg-slate-800/90 border rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all ${
-                  publishedFilter.value !== "all"
-                    ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50"
-                    : "border-slate-600"
-                }`}
-              >
-                {visibilityOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -2203,15 +2224,25 @@ const handleExportSelected = async () => {
       </div>
 
       {/* ✅ PRODUCTS TABLE */}
-      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-2">
-        {products.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="h-16 w-16 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400">No products found</p>
-          </div>
-        ) : (
-       <div className="overflow-auto max-h-[65vh]">
-  <table className="w-full table-fixed text-sm">
+<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-2 relative">
+
+  {/* 🔄 OVERLAY LOADER */}
+  {filterLoading && (
+    <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center z-20 rounded-2xl">
+      <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  )}
+
+  {/* TABLE (always render) */}
+  <div className={`overflow-auto max-h-[65vh] ${filterLoading ? "opacity-40" : ""}`}>
+    
+    {products.length === 0 && !filterLoading ? (
+      <div className="text-center py-12">
+        <Package className="h-16 w-16 text-slate-600 mx-auto mb-4" />
+        <p className="text-slate-400">No products found</p>
+      </div>
+    ) : (
+    <table className="w-full table-fixed text-sm">
     
     <thead className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800">
       <tr>
@@ -2223,17 +2254,30 @@ const handleExportSelected = async () => {
               onChange={handleSelectAll}
               className="accent-violet-500"
             />
-            Product
+          <span className="text-purple-500" onClick={() => handleSort('name')}>
+  Name {sortBy === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}
+</span>
           </div>
         </th>
 
         <th className="text-center py-2 px-3 text-slate-400 w-[110px]">SKU</th>
-        <th className="text-center py-2 px-3 text-slate-400 w-[80px]">Price</th>
+        <th className="text-center py-2 px-3 text-red-400 w-[80px]" onClick={() => handleSort('price')}>
+          Price {sortBy === 'price' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}
+        </th>
         <th className="text-center py-2 px-3 text-slate-400 w-[70px]">Status</th>
         <th className="text-center py-2 px-3 text-slate-400 w-[170px]">Stock Status</th>
         <th className="text-center py-2 px-3 text-slate-400 w-[150px]">Visibility</th>
-        <th className="text-left py-2 px-3 text-slate-400 w-[150px]">Updated At</th>
-        <th className="text-left py-2 px-3 text-slate-400 w-[110px]">Updated By</th>
+        <th
+  onClick={() => handleSort('createdAt')}
+  className="text-left py-2 px-3 text-blue-400 w-[170px] cursor-pointer"
+>
+  Created At
+  {sortBy === 'createdAt' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
+</th>
+
+<th className="text-left py-2 px-3 text-slate-400 w-[170px]">
+  Updated At
+</th>
         <th className="text-center py-2 px-3 text-slate-400 w-[140px]">Actions</th>
       </tr>
     </thead>
@@ -2468,25 +2512,30 @@ Backorder: ${allowBackorder ? "Allowed" : "No"}
                         </div>
                       </td>
 
-                      <td
-                        className="py-2 px-3 text-xs text-slate-300 cursor-help"
-                        title={`
-Created At: ${product.createdAt || "N/A"}
-Last Updated At: ${product.updatedAt || "N/A"}
-                        `.trim()}
-                      >
-                        {formatDate(product.updatedAt)}
-                      </td>
-
-                      <td
-                        className="py-2 px-3 text-xs text-slate-300 truncate cursor-help"
-                        title={`
-Created By: ${product.createdBy || "N/A"}
-Last Updated By: ${product.updatedBy || "N/A"}
-                        `.trim()}
-                      >
-                        {product.updatedBy || "-"}
-                      </td>
+<td
+  className="py-2 px-3 text-xs text-slate-300 cursor-help"
+  title={`Created At: ${product.createdAt || "N/A"}
+Created By: ${product.createdBy || "N/A"}`}
+>
+  <div className="flex flex-col">
+    <span>{product.createdAt || "N/A"}</span>
+    <span className="text-[10px] text-slate-500">
+      {product.createdBy || "N/A"}
+    </span>
+  </div>
+</td>
+<td
+  className="py-2 px-3 text-xs text-slate-300 cursor-help"
+  title={`Updated At: ${product.updatedAt || "N/A"}
+Updated By: ${product.updatedBy || "N/A"}`}
+>
+  <div className="flex flex-col">
+    <span>{product.updatedAt || "N/A"}</span>
+    <span className="text-[10px] text-slate-500">
+      {product.updatedBy || "N/A"}
+    </span>
+  </div>
+</td>
 
                       {/* ACTIONS */}
                       <td className="py-2 px-3">
@@ -2551,10 +2600,10 @@ Last Updated By: ${product.updatedBy || "N/A"}
                 })}
               </tbody>
             </table>
-          </div>
-        )}
-      </div>
+    )}
 
+  </div>
+</div>
       {/* PAGINATION */}
       {totalPages > 1 && (
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-4">
@@ -2952,6 +3001,10 @@ Last Updated By: ${product.updatedBy || "N/A"}
             : "bg-gradient-to-r from-emerald-600 to-green-600"
         }
       />
+      <ImportWooCommerceModal
+  open={showWooModal}
+  onClose={() => setShowWooModal(false)}
+/>
     </div>
   );
 }

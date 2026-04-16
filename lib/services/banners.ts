@@ -49,7 +49,7 @@ export interface CreateBannerDto {
   offerText?: string | null;
   buttonText?: string | null;
   isActive: boolean;
-  displayOrder: number;
+displayOrder?: number | null;
   startDate?: string | null;
   endDate?: string | null;
 }

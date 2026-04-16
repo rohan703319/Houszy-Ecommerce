@@ -17,7 +17,7 @@ interface ConfirmDialogProps {
   confirmButtonStyle?: string;
   isLoading?: boolean;
   confirmButtonClass?: string;
-  closeOnEsc?: boolean; // ✅ NEW: Allow disabling ESC key
+  closeOnEsc?: boolean;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -32,12 +32,12 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   iconColor = "text-red-400",
   confirmButtonStyle = "bg-gradient-to-r from-red-500 to-rose-500 hover:shadow-lg hover:shadow-red-500/50",
   isLoading = false,
-  closeOnEsc = true, // ✅ NEW: Enable ESC by default
+  closeOnEsc = true,
 }) => {
-  // ✅ State for closing animation
+  // State for closing animation
   const [isClosing, setIsClosing] = useState(false);
 
-  // ✅ Prevent body scroll when modal is open
+  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -53,7 +53,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     };
   }, [isOpen]);
 
-  // ✅ ESC key handler
+  // ESC key handler
   useEffect(() => {
     if (!isOpen || !closeOnEsc || isLoading) return;
 
@@ -63,18 +63,15 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       }
     };
 
-    // Add event listener
     document.addEventListener('keydown', handleEscKey);
-
-    // Cleanup
     return () => {
       document.removeEventListener('keydown', handleEscKey);
     };
   }, [isOpen, closeOnEsc, isLoading]);
 
-  // ✅ Handle close with animation
+  // Handle close with animation
   const handleClose = () => {
-    if (isLoading) return; // Prevent closing while loading
+    if (isLoading) return;
     
     setIsClosing(true);
     setTimeout(() => {
@@ -83,9 +80,10 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     }, 200);
   };
 
- if (!isOpen && !isClosing) return null;
+  // Don't render if not open and not closing
+  if (!isOpen && !isClosing) return null;
 
-  const handleConfirm = () => {
+  const handleConfirmClick = () => {
     onConfirm();
     handleClose();
   };
@@ -98,10 +96,10 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   const modalContent = (
     <>
-      {/* ✅ BACKDROP */}
+      {/* BACKDROP */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] transition-opacity duration-200 ${
-          isClosing ? 'animate-out fade-out' : 'animate-in fade-in'
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] transition-all duration-200 ${
+          isClosing ? 'opacity-0' : 'opacity-100'
         }`}
         onClick={handleBackdropClick}
         style={{
@@ -113,7 +111,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         }}
       />
 
-      {/* ✅ MODAL WRAPPER */}
+      {/* MODAL WRAPPER */}
       <div
         className="fixed inset-0 z-[100000] flex items-center justify-center p-4"
         style={{
@@ -125,12 +123,12 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           pointerEvents: 'none',
         }}
       >
-        {/* ✅ MODAL CONTENT */}
+        {/* MODAL CONTENT */}
         <div
           className={`relative bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full shadow-2xl transition-all duration-200 ${
             isClosing
-              ? 'animate-out zoom-out-95 fade-out'
-              : 'animate-in zoom-in-95 fade-in'
+              ? 'opacity-0 scale-95'
+              : 'opacity-100 scale-100'
           }`}
           style={{
             pointerEvents: 'auto',
@@ -177,7 +175,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 {cancelText}
               </button>
               <button
-                onClick={handleConfirm}
+                onClick={handleConfirmClick}
                 disabled={isLoading}
                 type="button"
                 className={`flex-1 px-4 py-3 text-white rounded-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${confirmButtonStyle}`}

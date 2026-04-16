@@ -1,9 +1,11 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Mail, Eye, EyeOff, Sparkles, TrendingUp, Users2, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { authService } from "@/lib/services/auth";
+
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -13,17 +15,22 @@ export default function LoginPage() {
     password: ''
   });
   const [error, setError] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
       const { data: result } = await authService.login(formData);
+
       if (!result?.accessToken && !result?.token) {
         setError("Token not received from server");
         return;
       }
+
       const token = result.accessToken ?? result.token!;
+
       // ✅ COMPLETE LOCALSTORAGE SYNC (for AuthContext compatibility)
       localStorage.setItem("accessToken", token);
       localStorage.setItem("authToken", token);
@@ -40,33 +47,41 @@ export default function LoginPage() {
       } else {
         localStorage.setItem("userEmail", formData.email);
       }
+
       // Cookie for SSR (optional)
       document.cookie = `authToken=${token}; path=/; max-age=86400`;
+
       console.log("✅ Login successful, data stored");
+
       // Redirect to admin
       setTimeout(() => {
         window.location.href = "/admin";
       }, 200);
+
     } catch (err: any) {
       console.error("❌ Login error:", err);
       setError(err.response?.data?.message || "Invalid email or password");
       setLoading(false);
     }
   };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
   };
+
   return (
     <div className="min-h-screen bg-slate-950 relative overflow-hidden">
       {/* Animated Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+
       {/* Gradient Orbs */}
       <div className="absolute top-0 -left-4 w-96 h-96 bg-violet-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
       <div className="absolute top-0 -right-4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
       <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000" />
+
       <div className="relative z-10 min-h-screen flex">
         {/* Left Side - Branding */}
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12">
@@ -77,15 +92,18 @@ export default function LoginPage() {
               </div>
               <span className="text-2xl font-bold text-white">EcomPanel</span>
             </div>
+
             <h1 className="text-5xl font-bold text-white mb-6 leading-tight">
               Welcome to the<br />
               <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
                 Future of Commerce
               </span>
             </h1>
+
             <p className="text-slate-400 text-lg mb-12 max-w-md">
               Manage your entire e-commerce empire from one powerful dashboard. Analytics, inventory, and customer insights at your fingertips.
             </p>
+
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 max-w-lg">
               <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-5">
@@ -105,10 +123,12 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
+
           <div className="text-sm text-slate-500">
             © 2025 EcomPanel. All rights reserved.
           </div>
         </div>
+
         {/* Right Side - Login Form */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
@@ -121,6 +141,7 @@ export default function LoginPage() {
                 <span className="text-2xl font-bold text-white">EcomPanel</span>
               </div>
             </div>
+
             {/* Login Card */}
             <div className="bg-slate-900/50 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
               {/* Header */}
@@ -128,6 +149,7 @@ export default function LoginPage() {
                 <h2 className="text-3xl font-bold text-white mb-2">Sign In</h2>
                 <p className="text-slate-400">Enter your credentials to access the dashboard</p>
               </div>
+
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Email */}
@@ -148,6 +170,7 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
+
                 {/* Password */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-300">Password</label>
@@ -173,12 +196,14 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
+
                 {/* Error */}
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl text-sm">
                     {error}
                   </div>
                 )}
+
                 {/* Remember & Forgot */}
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -189,6 +214,7 @@ export default function LoginPage() {
                     Forgot password?
                   </Link>
                 </div>
+
                 {/* Submit Button */}
                 <button
                   type="submit"
@@ -210,6 +236,7 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+
               {/* Footer */}
               <div className="mt-8 text-center">
                 <Link href="/" className="text-sm text-slate-400 hover:text-slate-300 transition-colors inline-flex items-center gap-2">
@@ -223,6 +250,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
       <style jsx>{`
         @keyframes blob {
           0% { transform: translate(0px, 0px) scale(1); }

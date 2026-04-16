@@ -7,6 +7,41 @@ import { API_ENDPOINTS } from '../api-config';
 // ENUMS (Match API Documentation)
 // ===========================
 
+export interface ShippingRefundResult {
+  success: boolean;
+  message: string;
+  data?: {
+    orderId: string;
+    orderNumber: string;
+    refundId: string;
+    refundAmount: number;
+    remainingRefundableAmount: number;
+    isFullyRefunded: boolean;
+    paymentStatus: string;
+    stockRestored: boolean;
+    loyaltyPointsReversed: number;
+    refundDate: string;
+  };
+  errors?: string[];
+}
+export interface RefundResult {
+  success: boolean; // 🔥 ADD THIS
+  message: string;
+  data?: {
+    orderId: string;
+    orderNumber: string;
+    refundId: string;
+    refundAmount: number;
+    remainingRefundableAmount: number;
+    isFullyRefunded: boolean;
+    paymentStatus: string;
+    stockRestored: boolean;
+    loyaltyPointsReversed: number;
+    refundDate: string;
+  };
+  errors?: string[];
+}
+
 /**
  * Order Edit Operation Types (MUST USE NUMERIC VALUES)
  * @see API Documentation Section 7
@@ -191,18 +226,6 @@ export interface OrderEditResult {
  * Refund Result DTO
  * @see API Documentation Section 8 - RefundResultDto
  */
-export interface RefundResult {
-  orderId: string;
-  orderNumber: string;
-  refundId: string;
-  refundAmount: number;
-  remainingRefundableAmount: number;
-  isFullyRefunded: boolean;
-  paymentStatus: string;
-  stockRestored: boolean;
-  loyaltyPointsReversed: number | null;
-  refundDate: string;
-}
 
 /**
  * Refund Entry DTO
@@ -354,86 +377,76 @@ class OrderEditService {
    * POST /api/orders/{orderId}/refund
    * @see API Documentation Section 2
    */
-  async processFullRefund(request: FullRefundRequest): Promise<RefundResult> {
-    try {
-      console.log('💰 Full Refund Request:', request);
+async processFullRefund(request: FullRefundRequest): Promise<RefundResult> {
+  try {
+    const response = await apiClient.post<any>(
+      `${API_ENDPOINTS.orders}/${request.orderId}/refund`,
+      request
+    );
 
-      const response = await apiClient.post<any>(
-        `${API_ENDPOINTS.orders}/${request.orderId}/refund`,
-        request
-      );
+    const actualData = response.data;
 
-      console.log('📥 Full Refund Response:', response);
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      const actualData = response.data;
-
-      if (actualData && actualData.success === false) {
-        throw new Error(
-          actualData.message || 
-          actualData.errors?.[0] || 
-          'Failed to process refund'
-        );
-      }
-
-      return actualData.data as RefundResult;
-      
-    } catch (error: any) {
-      console.error('❌ Full Refund Error:', error);
+    // ✅ ONLY backend controls success/failure
+    if (actualData?.success === false) {
       throw new Error(
-        error.response?.data?.message ||
-        error.response?.data?.errors?.[0] ||
-        error.message ||
+        actualData.message || 
+        actualData.errors?.[0] || 
         'Failed to process refund'
       );
     }
-  }
 
+    return actualData as RefundResult;
+
+  } catch (error: any) {
+    throw new Error(
+      error.response?.data?.message ||
+      error.response?.data?.errors?.[0] ||
+      error.message ||
+      'Failed to process refund'
+    );
+  }
+}
   /**
    * Process partial refund
    * POST /api/orders/{orderId}/partial-refund
    * @see API Documentation Section 3
    */
-  async processPartialRefund(request: PartialRefundRequest): Promise<RefundResult> {
-    try {
-      console.log('💵 Partial Refund Request:', request);
+async processPartialRefund(request: PartialRefundRequest): Promise<RefundResult> {
+  try {
+    console.log('💵 Partial Refund Request:', request);
 
-      const response = await apiClient.post<any>(
-        `${API_ENDPOINTS.orders}/${request.orderId}/partial-refund`,
-        request
-      );
+    const response = await apiClient.post<any>(
+      `${API_ENDPOINTS.orders}/${request.orderId}/partial-refund`,
+      request
+    );
 
-      console.log('📥 Partial Refund Response:', response);
+    console.log('📥 Partial Refund Response:', response);
 
-      if (response.error) {
-        throw new Error(response.error);
-      }
+    const actualData = response.data;
 
-      const actualData = response.data;
-
-      if (actualData && actualData.success === false) {
-        throw new Error(
-          actualData.message || 
-          actualData.errors?.[0] || 
-          'Failed to process partial refund'
-        );
-      }
-
-      return actualData.data as RefundResult;
-      
-    } catch (error: any) {
-      console.error('❌ Partial Refund Error:', error);
+    // ✅ ONLY backend decides failure
+    if (actualData?.success === false) {
       throw new Error(
-        error.response?.data?.message ||
-        error.response?.data?.errors?.[0] ||
-        error.message ||
+        actualData.message || 
+        actualData.errors?.[0] || 
         'Failed to process partial refund'
       );
     }
+
+    // ✅ return full response (important)
+    return actualData as RefundResult;
+
+  } catch (error: any) {
+    console.error('❌ Partial Refund Error:', error);
+
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      'Failed to process partial refund'
+    );
   }
+}
 
   /**
    * Get refund history
@@ -512,41 +525,36 @@ class OrderEditService {
    * POST /api/orders/{orderId}/regenerate-invoice
    * @see API Documentation Section 6
    */
-  async regenerateInvoice(request: RegenerateInvoiceRequest): Promise<Invoice> {
-    try {
-      console.log('📄 Regenerate Invoice Request:', request);
+async regenerateInvoice(request: RegenerateInvoiceRequest): Promise<any> {
+  try {
+    const response = await apiClient.post<any>(
+      `${API_ENDPOINTS.orders}/${request.orderId}/regenerate-invoice`,
+      request
+    );
 
-      const response = await apiClient.post<any>(
-        `${API_ENDPOINTS.orders}/${request.orderId}/regenerate-invoice`,
-        request
-      );
+    const actualData = response.data;
 
-      console.log('📥 Regenerate Invoice Response:', response);
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      const actualData = response.data;
-
-      if (actualData && actualData.success === false) {
-        throw new Error(
-          actualData.message || 
-          'Failed to regenerate invoice'
-        );
-      }
-
-      return actualData.data as Invoice;
-      
-    } catch (error: any) {
-      console.error('❌ Regenerate Invoice Error:', error);
+    // ✅ backend controls failure
+    if (actualData?.success === false) {
       throw new Error(
-        error.response?.data?.message ||
-        error.message ||
+        actualData.message ||
+        actualData.errors?.[0] ||
         'Failed to regenerate invoice'
       );
     }
+
+    // ✅ return FULL response (important)
+    return actualData;
+
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      'Failed to regenerate invoice'
+    );
   }
+}
 
   // ===========================
   // HELPER METHODS
@@ -709,29 +717,42 @@ async refundShipping(
     adminNotes?: string;
     sendCustomerNotification?: boolean;
   }
-) {
+): Promise<ShippingRefundResult> {
   try {
-
-    const response = await apiClient.post(
+    const response = await apiClient.post<ShippingRefundResult>(
       `${API_ENDPOINTS.orders}/${orderId}/refund-shipping`,
       {
-        orderId: orderId,
-
-        // ⭐ modal ka notes yahi save hoga
+        orderId,
         adminNotes: data.adminNotes?.trim() || "",
-
         sendCustomerNotification: data.sendCustomerNotification ?? true
       }
     );
 
-    return response.data;
+    const actualData = response.data;
+
+    // ✅ HARD CHECK (no undefined allowed)
+    if (!actualData) {
+      throw new Error("Empty response from server");
+    }
+
+    if (actualData.success === false) {
+      throw new Error(
+        actualData.message ||
+        actualData.errors?.[0] ||
+        "Failed to refund shipping charge"
+      );
+    }
+
+    return actualData; // ✅ always returns here
 
   } catch (error: any) {
-
+    // ✅ ALWAYS throw → never return undefined
     throw new Error(
-      error.response?.data?.message || "Failed to refund shipping charge"
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      "Failed to refund shipping charge"
     );
-
   }
 }
   /**

@@ -1,9 +1,6 @@
 // app/admin/products/ProductModals.tsx
 "use client";
 import React, { useState, useEffect } from 'react';
-import { X, Shield, CheckCircle } from 'lucide-react';
-import { apiClient } from '@/lib/api';
-import { API_ENDPOINTS } from '@/lib/api-config';
 import productsService from '@/lib/services/products';
 
 // ========================================

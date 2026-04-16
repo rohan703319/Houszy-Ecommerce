@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Search, Tag, Eye, CheckCircle, Filter, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Package, FolderTree, Copy, Loader2 } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api-config";
+import { Plus, Edit, Trash2, Search, Tag, Eye, CheckCircle, Filter, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Package, FolderTree, Copy, Loader2, HelpCircle } from "lucide-react";
+import { useMemo, useCallback } from "react";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { Brand, brandsService, BrandStats } from "@/lib/services/brands";
 import { useRouter } from "next/navigation";
 import BrandModals from "./BrandModals";
+import { formatDate, getImageUrl } from "../_utils/formatUtils";
 
 export default function BrandsPage() {
   const toast = useToast();
@@ -20,18 +21,28 @@ export default function BrandsPage() {
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [viewingBrand, setViewingBrand] = useState<Brand | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   // ✅ UPDATED FILTERS - Using "all" | "true" | "false"
+  const [initialTab, setInitialTab] = useState<'basic' | 'image' | 'seo' | 'settings' | 'faqs'>('basic');
   const [publishedFilter, setPublishedFilter] = useState<string>("all");
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [deletedFilter, setDeletedFilter] = useState<string>("all");
   const [homepageFilter, setHomepageFilter] = useState<string>("all");
-  
-  const [stats, setStats] = useState<BrandStats>({
-    totalBrands: 0,
-    publishedBrands: 0,
-    homepageBrands: 0,
-    totalProducts: 0
-  });
+const [activeTab, setActiveTab] = useState<'basic' | 'image' | 'seo' | 'settings' | 'faqs'>('basic');
+const [stats, setStats] = useState<BrandStats>({
+  totalBrands: 0,
+
+  totalPublished: 0,
+  totalUnpublished: 0,
+
+  totalActive: 0,
+  totalInactive: 0,
+
+  totalShowOnHomepage: 0,
+
+  totalProducts: 0 // optional
+});
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 const [statusConfirm, setStatusConfirm] = useState<{
@@ -40,9 +51,18 @@ const [statusConfirm, setStatusConfirm] = useState<{
   currentStatus: boolean;
 } | null>(null);
 useEffect(() => {
+  if (!searchTerm.trim()) {
+    setDebouncedSearch("");
+    setIsSearching(false);
+    return;
+  }
+
+  setIsSearching(true);
+
   const timer = setTimeout(() => {
     setDebouncedSearch(searchTerm);
-  }, 400); // 300–500 best
+    setIsSearching(false);
+  }, 400);
 
   return () => clearTimeout(timer);
 }, [searchTerm]);
@@ -67,6 +87,12 @@ const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
       isDeleted: brand.isDeleted,
     });
   };
+
+useEffect(() => {
+  if (showModal && initialTab) {
+    setActiveTab(initialTab);
+  }
+}, [initialTab, showModal]);
 const handleStatusUpdate = async () => {
   if (!statusConfirm) return;
 
@@ -119,12 +145,6 @@ const handleStatusUpdate = async () => {
 
 
 
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) return "";
-    if (imageUrl.startsWith("http")) return imageUrl;
-    const cleanUrl = imageUrl.split('?')[0];
-    return `${API_BASE_URL}${cleanUrl}`;
-  };
 
   const handleConfirmBrandAction = async () => {
     if (!selectedBrand) return;
@@ -158,14 +178,7 @@ const handleStatusUpdate = async () => {
     fetchBrands();
   }, [publishedFilter, activeFilter, deletedFilter]); // ✅ Re-fetch when filters change
 
-  const calculateStats = (brandsData: Brand[]) => {
-    const totalBrands = brandsData.length;
-    const publishedBrands = brandsData.filter(b => b.isPublished).length;
-    const homepageBrands = brandsData.filter(b => b.showOnHomepage).length;
-    const totalProducts = brandsData.reduce((sum, brand) => sum + (brand.productCount || 0), 0);
-    setStats({ totalBrands, publishedBrands, homepageBrands, totalProducts });
-  };
-
+  
   // ✅ MODIFIED fetchBrands with API parameters
   const fetchBrands = async () => {
     setLoading(true);
@@ -188,8 +201,8 @@ const handleStatusUpdate = async () => {
       }
 
       const response = await brandsService.getAll({ params });
-
-      const brandsData = response.data?.data || [];
+const brandsData = response.data?.data?.items || [];
+const statsData = response.data?.data?.stats;
 
       const sortedBrands = brandsData.sort((a: any, b: any) => {
         if (a.isActive !== b.isActive) {
@@ -199,9 +212,11 @@ const handleStatusUpdate = async () => {
         const dateB = new Date(b.createdAt || 0).getTime();
         return dateB - dateA;
       });
-
-      setBrands(sortedBrands);
-      calculateStats(sortedBrands);
+if (statsData) {
+  setStats(statsData);
+}
+     setBrands(brandsData);
+   
     } catch (error) {
       console.error("Error fetching brands:", error);
       setBrands([]);
@@ -210,10 +225,21 @@ const handleStatusUpdate = async () => {
     }
   };
 
-  const handleEdit = (brand: Brand) => {
-    setEditingBrand(brand);
+const handleEdit = (
+  brand: Brand,
+  tab: 'basic' | 'image' | 'seo' | 'settings' | 'faqs' = 'basic'
+) => {
+  setEditingBrand(brand);
+
+  // 🔥 FORCE correct order
+  setInitialTab(tab);
+
+  // delay modal open
+  setTimeout(() => {
     setShowModal(true);
-  };
+  }, 0);
+};
+
 
   const resetForm = () => {
     setEditingBrand(null);
@@ -236,26 +262,41 @@ const handleStatusUpdate = async () => {
     searchTerm.trim() !== "";
 
   // ✅ CLIENT-SIDE FILTERING (for search and homepage only)
-  const filteredBrands = brands.filter(brand => {
-    const matchesSearch = brand.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-                         brand.description.toLowerCase().includes(searchTerm.toLowerCase());
+const filteredBrands = useMemo(() => {
+  return brands.filter((brand) => {
+    const matchesSearch =
+      brand.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      brand.description.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-    const matchesHomepage = homepageFilter === "all" ||
-                           (homepageFilter === "true" && brand.showOnHomepage) ||
-                           (homepageFilter === "false" && !brand.showOnHomepage);
+    const matchesHomepage =
+      homepageFilter === "all" ||
+      (homepageFilter === "true" && brand.showOnHomepage) ||
+      (homepageFilter === "false" && !brand.showOnHomepage);
 
     return matchesSearch && matchesHomepage;
   });
-
+}, [brands, debouncedSearch, homepageFilter]);
+const paginationData = useMemo(() => {
   const totalItems = filteredBrands.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
+
   const currentData = filteredBrands.slice(startIndex, endIndex);
 
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  return {
+    totalItems,
+    totalPages,
+    startIndex,
+    endIndex,
+    currentData,
   };
+}, [filteredBrands, currentPage, itemsPerPage]);
+const { totalItems, totalPages, startIndex, endIndex, currentData } = paginationData;
+const goToPage = useCallback((page: number) => {
+  setCurrentPage((prev) => Math.max(1, Math.min(page, totalPages)));
+}, [totalPages]);
 
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
@@ -319,7 +360,7 @@ const handleStatusUpdate = async () => {
       className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/60 border border-slate-700 text-slate-300 rounded-md text-[12px] hover:text-white hover:border-violet-500/40 transition-all"
     >
       <FolderTree className="h-3.5 w-3.5" />
-      Categories
+      Go to Categories Page
     </button>
 
     {/* Products */}
@@ -329,7 +370,7 @@ const handleStatusUpdate = async () => {
       className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/60 border border-slate-700 text-slate-300 rounded-md text-[12px] hover:text-white hover:border-cyan-500/40 transition-all"
     >
       <Package className="h-3.5 w-3.5" />
-      Products
+      Go to Product Page
     </button>
 
     {/* Add Brand */}
@@ -350,31 +391,25 @@ const handleStatusUpdate = async () => {
 
   
  {/* Stats Cards */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
 
-  {/* Total Brands */}
-  <button
-    type="button"
-    onClick={() => {
-      if (publishedFilter === 'all') setPublishedFilter('true');
-      else if (publishedFilter === 'true') setPublishedFilter('false');
-      else setPublishedFilter('all');
-    }}
-    className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5 hover:border-violet-500/40 transition-all text-left"
-  >
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-violet-500/10 rounded-md flex items-center justify-center">
-        <Tag className="h-4 w-4 text-violet-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500 font-medium">Total Brands</p>
-        <p className="text-lg font-semibold text-white">{stats.totalBrands}</p>
-        <p className="text-[10px] text-violet-400">
-          {publishedFilter === 'all' ? 'All' : publishedFilter === 'true' ? 'Published' : 'Unpublished'}
-        </p>
-      </div>
-    </div>
-  </button>
+  {/* Total */}
+  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+    <p className="text-[11px] text-slate-500">Total</p>
+    <p className="text-lg font-semibold text-white">{stats.totalBrands}</p>
+  </div>
+
+  {/* Published */}
+  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5">
+    <p className="text-[11px] text-green-400">Published</p>
+    <p className="text-lg font-semibold text-white">{stats.totalPublished}</p>
+  </div>
+
+  {/* Unpublished */}
+  <div className="bg-slate-500/10 border border-slate-500/20 rounded-lg p-2.5">
+    <p className="text-[11px] text-slate-400">Unpublished</p>
+    <p className="text-lg font-semibold text-white">{stats.totalUnpublished}</p>
+  </div>
 
   {/* Active */}
   <button
@@ -384,23 +419,17 @@ const handleStatusUpdate = async () => {
       else if (activeFilter === 'true') setActiveFilter('false');
       else setActiveFilter('all');
     }}
-    className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5 hover:border-green-500/40 transition-all text-left"
+    className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5 text-left"
   >
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-green-500/10 rounded-md flex items-center justify-center">
-        <CheckCircle className="h-4 w-4 text-green-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500 font-medium">Active</p>
-        <p className="text-lg font-semibold text-white">
-          {brands.filter(b => b.isActive).length}
-        </p>
-        <p className="text-[10px] text-green-400">
-          {activeFilter === 'all' ? 'All' : activeFilter === 'true' ? 'Active' : 'Inactive'}
-        </p>
-      </div>
-    </div>
+    <p className="text-[11px] text-green-400">Active</p>
+    <p className="text-lg font-semibold text-white">{stats.totalActive}</p>
   </button>
+
+  {/* Inactive */}
+  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+    <p className="text-[11px] text-red-400">Inactive</p>
+    <p className="text-lg font-semibold text-white">{stats.totalInactive}</p>
+  </div>
 
   {/* Homepage */}
   <button
@@ -410,34 +439,11 @@ const handleStatusUpdate = async () => {
       else if (homepageFilter === 'true') setHomepageFilter('false');
       else setHomepageFilter('all');
     }}
-    className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5 hover:border-cyan-500/40 transition-all text-left"
+    className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-2.5 text-left"
   >
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-cyan-500/10 rounded-md flex items-center justify-center">
-        <Eye className="h-4 w-4 text-cyan-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500 font-medium">Homepage</p>
-        <p className="text-lg font-semibold text-white">{stats.homepageBrands}</p>
-        <p className="text-[10px] text-cyan-400">
-          {homepageFilter === 'all' ? 'All' : homepageFilter === 'true' ? 'Yes' : 'No'}
-        </p>
-      </div>
-    </div>
+    <p className="text-[11px] text-cyan-400">Homepage</p>
+    <p className="text-lg font-semibold text-white">{stats.totalShowOnHomepage}</p>
   </button>
-
-  {/* Products */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-pink-500/10 rounded-md flex items-center justify-center">
-        <Package className="h-4 w-4 text-pink-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500 font-medium">Products</p>
-        <p className="text-lg font-semibold text-white">{stats.totalProducts}</p>
-      </div>
-    </div>
-  </div>
 
 </div>
 {/* Items Per Page */}
@@ -480,14 +486,23 @@ const handleStatusUpdate = async () => {
 
     {/* Search */}
     <div className="relative flex-1 min-w-[220px]">
-      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-      <input
-        type="search"
-        placeholder="Search brands..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full pl-8 pr-3 py-1.5 bg-slate-800/60 border border-slate-700 rounded-md text-white text-[12px] placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-      />
+   <div className="relative flex-1 min-w-[220px]">
+  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+
+  <input
+    type="search"
+    placeholder="Search brands..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    className="w-full pl-8 pr-8 py-1.5 bg-slate-800/60 border border-slate-700 rounded-md text-white text-[12px] placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+  />
+
+  {isSearching && (
+    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+      <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+    </div>
+  )}
+</div>
     </div>
 
     {/* Filters */}
@@ -595,7 +610,7 @@ const handleStatusUpdate = async () => {
                   <th className="text-center py-2 px-3 text-slate-400 font-medium">Status</th>
                   <th className="text-center py-2 px-3 text-slate-400 font-medium">Homepage</th>
                   <th className="text-center py-2 px-3 text-slate-400 font-medium">Deleted</th>
-                  <th className="text-center py-2 px-3 text-slate-400 font-medium">Order By</th>
+                  <th className="text-center py-2 px-3 text-slate-400 font-medium">Display Order</th>
                   <th className="text-left py-2 px-3 text-slate-400 font-medium">Updated</th>
                   <th className="text-left py-2 px-3 text-slate-400 font-medium">Updated By</th>
                   <th className="text-center py-2 px-3 text-slate-400 font-medium">Actions</th>
@@ -712,9 +727,7 @@ const handleStatusUpdate = async () => {
                       </td>
 
                       <td className="py-2 px-3 text-slate-300 text-xs">
-                        {brand.updatedAt
-                          ? new Date(brand.updatedAt).toLocaleDateString()
-                          : '-'}
+                          {formatDate(brand.updatedAt)}
                       </td>
 
                       <td className="py-2 px-3">
@@ -744,6 +757,13 @@ const handleStatusUpdate = async () => {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
+                          <button
+  onClick={() => handleEdit(brand, 'faqs')}
+  className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded-md"
+  title="Manage FAQs"
+>
+  <HelpCircle className="h-4 w-4" />
+</button>
 
                           <button
                             onClick={() => handleEdit(brand)}
@@ -859,19 +879,20 @@ const handleStatusUpdate = async () => {
       )}
 
       {/* Reusable Modals Component */}
-      <BrandModals
-        showModal={showModal}
-        setShowModal={setShowModal}
-        editingBrand={editingBrand}
-        setEditingBrand={setEditingBrand}
-        viewingBrand={viewingBrand}
-        setViewingBrand={setViewingBrand}
-        selectedImageUrl={selectedImageUrl}
-        setSelectedImageUrl={setSelectedImageUrl}
-        brands={brands}
-        fetchBrands={fetchBrands}
-        getImageUrl={getImageUrl}
-      />
+   <BrandModals
+  initialTab={initialTab}
+  showModal={showModal}
+  setShowModal={setShowModal}
+  editingBrand={editingBrand}
+  setEditingBrand={setEditingBrand}
+  viewingBrand={viewingBrand}
+  setViewingBrand={setViewingBrand}
+  selectedImageUrl={selectedImageUrl}
+  setSelectedImageUrl={setSelectedImageUrl}
+  brands={brands}
+  fetchBrands={fetchBrands}
+  getImageUrl={getImageUrl}
+/>
 <ConfirmDialog
   isOpen={!!statusConfirm}
   onClose={() => setStatusConfirm(null)}

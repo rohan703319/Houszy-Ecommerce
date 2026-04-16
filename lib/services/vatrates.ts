@@ -14,6 +14,7 @@ export interface VATRate {
   displayOrder: number;
   createdAt?: string;
   updatedAt?: string;
+  isDeleted?: boolean; // 
 }
 
 export interface CreateVATRateDto {

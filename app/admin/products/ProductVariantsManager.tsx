@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Plus, X, Upload, Package, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
-import { ProductVariant, ProductOption } from '@/lib/services';
+import { ProductVariant, ProductOption, productsService } from '@/lib/services';
 import { useToast } from '@/app/admin/_components/CustomToast';
-import { API_BASE_URL } from '@/lib/api-config';
+
 import ConfirmDialog from '@/app/admin/_components/ConfirmDialog';
+import { extractFilename, getImageUrl } from '../_utils/formatUtils';
 
 interface ProductVariantsManagerProps {
   variants: ProductVariant[];
@@ -54,6 +55,28 @@ export default function ProductVariantsManager({
       return newSet;
     });
   };
+const handleDeleteVariantImage = async (variant: any) => {
+  try {
+    if (variant.imageUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(variant.imageUrl);
+    } else if (variant.imageUrl) {
+      const fileName = extractFilename(variant.imageUrl);
+
+      console.log("Deleting file:", fileName);
+
+      await productsService.deleteVariantImage(variant.id);
+    }
+
+    updateProductVariant(variant.id, "imageUrl", null);
+    updateProductVariant(variant.id, "imageFile", undefined);
+
+    toast.success("Variant image deleted"); // ✅ better
+
+  } catch (error) {
+    console.error("Delete variant image failed:", error);
+    toast.error("Failed to delete image"); // ✅ better
+  }
+};
 
   // ✅ Open delete modal
   const openDeleteModal = (id: string, name: string) => {
@@ -73,10 +96,8 @@ export default function ProductVariantsManager({
     }
   };
 
-  // ✅ Cancel delete
-  const cancelDelete = () => {
-    setDeleteModal({ isOpen: false, variantId: null, variantName: null });
-  };
+
+
 const closeDeleteModal = () => {
     setDeleteModal({ isOpen: false, variantId: null, variantName: null });
   };
@@ -717,34 +738,29 @@ const closeDeleteModal = () => {
                       </label>
                       <div className="flex items-center gap-3">
                         {/* Image Preview */}
-                        {variant.imageUrl && (
-                          <div className="relative">
-                            <img
-                              src={
-                                variant.imageUrl.startsWith('blob:')
-                                  ? variant.imageUrl
-                                  : `${API_BASE_URL}${variant.imageUrl}`
-                              }
-                              alt={variant?.name || 'Variant'}
-                              className="w-16 h-16 object-cover rounded-lg border-2 border-slate-700"
-                                 onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                      {variant.imageUrl && (
+  <div className="relative">
+    <img
+      src={
+        variant.imageUrl?.startsWith("blob:")
+          ? variant.imageUrl
+          : `${getImageUrl(variant.imageUrl)}?t=${Date.now()}`
+      }
+      alt={variant?.name || "Variant"}
+      className="w-16 h-16 object-cover rounded-lg border-2 border-slate-700"
+      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+    />
 
-                            />
-                            {/* <button
-                              type="button"
-                              onClick={() => {
-                                if (variant.imageUrl?.startsWith('blob:'))
-                                  URL.revokeObjectURL(variant.imageUrl);
-                                updateProductVariant(variant.id, 'imageUrl', null);
-                                updateProductVariant(variant.id, 'imageFile', undefined);
-                              }}
-                              disabled={disabled}
-                              className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full disabled:opacity-50"
-                            >
-                              <X className="h-3 w-3" />
-                            </button> */}
-                          </div>
-                        )}
+    <button
+      type="button"
+      onClick={() => handleDeleteVariantImage(variant)}
+      disabled={disabled}
+      className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full disabled:opacity-50"
+    >
+      <X className="h-3 w-3" />
+    </button>
+  </div>
+)}
 
                         {/* Upload Button */}
                         <div className="flex-1">

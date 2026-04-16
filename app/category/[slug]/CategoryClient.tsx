@@ -168,7 +168,10 @@ const [sortBy, setSortBy] = useState((initialSortBy ?? "name").toLowerCase());
     return brands.filter(b => slugs.includes(b.slug)).map(b => b.id);
   });
 const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
-const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
+
+// dragRange: local override while user is actively dragging (cleared after debounce commits)
+const [dragRange, setDragRange] = useState<[number, number] | null>(null);
+
   const [minRating, setMinRating] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [gridCols, setGridCols] = useState(3);
@@ -199,69 +202,49 @@ const availableBrands = useMemo(
 
 const allSubCategories = flattenSubCategories(category);
 
-  // ---------- Derived initial price range ----------
-// ---------- Derived price range from flattened products ----------
+  // ---------- Compute slider bounds (min/max track) from all loaded products ----------
+// NOTE: priceRange (user selection) is NEVER touched here.
+// It is derived from URL on every render (see committedRange below).
 useEffect(() => {
   if (!products || products.length === 0) return;
 
   const flat = flattenProductsForListing(products as any);
-
-  const prices = flat.map((item: any) => {
-    const variantPrice =
-      typeof item.variantForCard?.price === "number" &&
-      item.variantForCard.price > 0
-        ? item.variantForCard.price
-        : item.productData.price ?? 0;
-
-    return variantPrice;
-  });
+  const prices = flat
+    .map((item: any) => {
+      const v = item.variantForCard;
+      return typeof v?.price === "number" && v.price > 0
+        ? v.price
+        : (item.productData.price ?? 0);
+    })
+    .filter((p: number) => p > 0);
 
   if (prices.length === 0) return;
 
   const newMin = Math.floor(Math.min(...prices));
   const newMax = Math.ceil(Math.max(...prices));
 
-  // ✅ EXPAND ONLY (never shrink)
+  // Expand bounds only — never shrink (so slider track accommodates all products seen so far)
   setMinPrice((prev) => (prev === 0 ? newMin : Math.min(prev, newMin)));
   setMaxPrice((prev) => Math.max(prev, newMax));
-
-  // ✅ FIX: slider bahar na jaye
-  setPriceRange((prev) => {
-    let [minVal, maxVal] = prev;
-
-    // expand only if needed
-    if (maxVal < newMax) maxVal = newMax;
-    if (minVal > newMin) minVal = newMin;
-
- // ✅ clamp only MIN (max ko kabhi shrink nahi karna)
-minVal = Math.max(minVal, newMin);
-
-// ❌ maxVal ko touch nahi karna (warna shrink hoga)
-
-    return [minVal, maxVal];
-  });
-
 }, [products]);
-useEffect(() => {
-  if (maxPrice === 0) return;
 
-  setPriceRange((prev) => {
-    let [minVal, maxVal] = prev;
-
-    // ✅ max kabhi bahar na jaye
-    if (maxVal > maxPrice) maxVal = maxPrice;
-
-    // ✅ min bhi safe rahe
-    if (minVal < minPrice) minVal = minPrice;
-
-    // ✅ fallback
-    if (minVal > maxVal) {
-      return [minPrice, maxPrice];
+// ---------- Price range (URL is single source of truth) ----------
+// committedRange = what the server is actually filtering by (from URL)
+// dragRange = user's in-progress drag (overrides committedRange visually until debounce commits)
+const urlPriceParam = searchParams.get("price");
+const committedRange = useMemo<[number, number]>(() => {
+  if (urlPriceParam && maxPrice > 0) {
+    const parts = urlPriceParam.split("-").map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return [parts[0], Math.min(parts[1], maxPrice)];
     }
+  }
+  return [minPrice, maxPrice]; // default: full range
+}, [urlPriceParam, minPrice, maxPrice]);
 
-    return [minVal, maxVal];
-  });
-}, [minPrice, maxPrice]);
+// What the slider shows: drag in progress → dragRange, else committed URL value
+const displayRange: [number, number] = dragRange ?? committedRange;
+
   // ---------- Filtering + sorting ----------
   const filteredAndSortedProducts = useMemo(() => {
    const filtered = products.filter((product) => {
@@ -342,7 +325,6 @@ return filtered;
   }, [
     products,
     selectedBrands,
-    priceRange,
     minRating,
     selectedSubCategories,
   ]);
@@ -350,10 +332,30 @@ return filtered;
 const flattenedProducts = useMemo(() => {
   const flat = flattenProductsForListing(filteredAndSortedProducts);
 
-  // 🔥 REMOVE DUPLICATES FIRST
+  // Parse price range from URL — filter individual variant cards precisely
+  let priceMin: number | null = null;
+  let priceMax: number | null = null;
+  if (urlPriceParam) {
+    const parts = urlPriceParam.split("-").map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      priceMin = parts[0];
+      priceMax = parts[1];
+    }
+  }
+
+  const priceFiltered = (priceMin !== null && priceMax !== null)
+    ? flat.filter((item: any) => {
+        const rawPrice = typeof item.variantForCard?.price === "number" && item.variantForCard.price > 0
+          ? item.variantForCard.price
+          : item.productData.price ?? 0;
+        return rawPrice >= priceMin! && rawPrice <= priceMax!;
+      })
+    : flat;
+
+  // 🔥 REMOVE DUPLICATES
   const seen = new Set<string>();
 
-  const unique = flat.filter((item) => {
+  const unique = priceFiltered.filter((item: any) => {
     const key = `${item.productData.id}-${item.variantForCard?.id ?? "parent"}`;
 
     if (seen.has(key)) return false;
@@ -411,7 +413,7 @@ const flattenedProducts = useMemo(() => {
 
   return sorted;
 
-}, [filteredAndSortedProducts, sortBy, sortDirection]);
+}, [filteredAndSortedProducts, sortBy, sortDirection, urlPriceParam]);
 
   // ---------- Helpers ----------
 
@@ -425,21 +427,44 @@ const flattenedProducts = useMemo(() => {
   }, []);
 
   const fetchMoreProducts = useCallback(async () => {
-  // useRef guard fires synchronously — prevents multiple calls before React re-renders
   if (isFetchingRef.current || !hasMore) return;
   isFetchingRef.current = true;
   setIsLoadingMore(true);
 
   try {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", String(page + 1));
-    params.set("pageSize", String(pageSize));
+    // Build API params the same way page.tsx getProducts() does —
+    // so all active filters are correctly forwarded on scroll pages.
+    const query = new URLSearchParams();
+    query.set("page", String(page + 1));
+    query.set("pageSize", String(pageSize));
+    query.set("sortBy", sortBy);
+    query.set("sortDirection", sortDirection);
+query.set("isPublished", "true");
+query.set("isActive", "true");
+query.set("isDeleted", "false");
+    // subCategorySlug (comma-separated) → categorySlug, else main slug
+    const subSlug = searchParams.get("subCategorySlug");
+    query.set("categorySlug", subSlug || urlSlug);
 
-    // ✅ Use URL slug (exact match with route) not category.slug from DB
-    if (urlSlug) params.set("categorySlug", urlSlug);
+    // price "X-Y" → minPrice + maxPrice  (page.tsx does same conversion)
+    const priceParam = searchParams.get("price");
+    if (priceParam) {
+      const [pMin, pMax] = priceParam.split("-");
+      if (pMin) query.set("minPrice", pMin);
+      if (pMax) query.set("maxPrice", pMax);
+    }
+
+    // brands: selectedBrands state already holds IDs (resolved from slugs on mount)
+    if (selectedBrands.length > 0) {
+      query.set("brandIds", selectedBrands.join(","));
+    }
+
+    // rating
+    const ratingParam = searchParams.get("minRating");
+    if (ratingParam) query.set("minRating", ratingParam);
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${params.toString()}`
+      `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`
     );
 
     if (!res.ok) throw new Error(`Failed to load products: ${res.status}`);
@@ -455,7 +480,7 @@ const flattenedProducts = useMemo(() => {
     isFetchingRef.current = false;
     setIsLoadingMore(false);
   }
-}, [page, hasMore, searchParams]);
+}, [page, hasMore, searchParams, sortBy, sortDirection, urlSlug, selectedBrands]);
 
 
 const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -483,18 +508,13 @@ useEffect(() => {
   return () => observer.disconnect();
 }, [hasMore]);
 
-// Reset products only when the URL filter/sort params actually change (not on background re-renders)
-const filterKey = `${urlSlug}_${searchParams.toString()}`;
-const prevFilterKeyRef = useRef(filterKey);
-
+// Reset products whenever the server provides new initialProducts (covers both URL changes
+// and the delayed server re-render after a filter change like subcategory multi-select)
 useEffect(() => {
-  if (prevFilterKeyRef.current !== filterKey) {
-    prevFilterKeyRef.current = filterKey;
-    setProducts(initialProducts ?? []);
-    setPage(currentPage ?? 1);
-    setHasMore(totalPages ? currentPage < totalPages : true);
-  }
-}, [filterKey, initialProducts, currentPage, totalPages]);
+  setProducts(initialProducts ?? []);
+  setPage(currentPage ?? 1);
+  setHasMore(totalPages ? currentPage < totalPages : true);
+}, [initialProducts, currentPage, totalPages]);
 
 
 
@@ -567,15 +587,16 @@ const resetFilters = useCallback(() => {
   setMinRating(0);
   setSortBy("name");
   setSortDirection("asc");
-  setPriceRange([minPrice, maxPrice]);
+  setDragRange(null); // clear any in-progress drag
 
   const params = new URLSearchParams();
   if (discount) params.set("discount", String(discount));
 
   router.push(`/category/${urlSlug}?${params.toString()}`);
-}, [router, urlSlug, discount, minPrice, maxPrice]);
+}, [router, urlSlug, discount]);
 
-// Subcategory toggle — filter in-place via query param (same page)
+// Subcategory toggle — pass all selected slugs comma-separated to backend
+// Backend already supports comma-separated categorySlug (splits & OR-filters by all)
 const handleSubCategoryChange = useCallback((sub: Category, checked: boolean) => {
   const newSelected = checked
     ? [...selectedSubCategories, sub.id]
@@ -583,11 +604,12 @@ const handleSubCategoryChange = useCallback((sub: Category, checked: boolean) =>
 
   setSelectedSubCategories(newSelected);
 
-  const subSlug = newSelected.length === 1
-    ? (allSubCategories.find((s) => s.id === newSelected[0])?.slug ?? "")
-    : "";
+  const slugs = newSelected
+    .map((id) => allSubCategories.find((s) => s.id === id)?.slug ?? "")
+    .filter(Boolean)
+    .join(",");
 
-  updateServerFilters({ subCategorySlug: subSlug });
+  updateServerFilters({ subCategorySlug: slugs });
 }, [selectedSubCategories, allSubCategories, updateServerFilters]);
 
 // Brand toggle — server-side refetch with SEO-friendly slugs in URL
@@ -606,13 +628,13 @@ const handleBrandChange = useCallback((brandId: string, checked: boolean) => {
   updateServerFilters({ brands: slugs.join(",") });
 }, [selectedBrands, availableBrands, updateServerFilters]);
 
-// Price slider — debounced server-side refetch
+// Price slider — local drag feedback + debounced URL commit
 const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const handlePriceChange = useCallback((v: number[]) => {
-  setPriceRange(v as [number, number]);
+  setDragRange(v as [number, number]); // immediate visual feedback
   if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
   priceDebounceRef.current = setTimeout(() => {
-    // SEO-friendly: ?price=10-100 instead of ?minPrice=10&maxPrice=100
+    setDragRange(null); // clear drag override — URL will drive the slider now
     updateServerFilters({ price: `${v[0]}-${v[1]}` });
   }, 600);
 }, [updateServerFilters]);
@@ -900,12 +922,12 @@ if (product.orderMinimumQuantity > 1) {
                   <h3 className="font-bold text-sm text-gray-900 mb-4">
                     Price Range
                   </h3>
-{minPrice < maxPrice && priceRange && (
- <PremiumPriceSlider
-  value={[
-    Math.max(priceRange[0], minPrice),
-    Math.min(priceRange[1], maxPrice),
-  ]}
+{minPrice < maxPrice && (
+  <PremiumPriceSlider
+    value={[
+      Math.max(displayRange[0], minPrice),
+      Math.min(displayRange[1], maxPrice),
+    ]}
     min={minPrice}
     max={maxPrice}
     onChange={handlePriceChange}
@@ -1026,13 +1048,16 @@ if (product.orderMinimumQuantity > 1) {
                     )}
 
                     {/* Price Range */}
-                    {minPrice < maxPrice && priceRange && (
+                    {minPrice < maxPrice && (
                       <div>
                         <div className="flex items-center justify-between mb-4 pb-1 border-b border-gray-100">
                           <h3 className="font-bold text-base text-gray-900">Price</h3>
                         </div>
                         <PremiumPriceSlider
-                          value={priceRange}
+                          value={[
+                            Math.max(displayRange[0], minPrice),
+                            Math.min(displayRange[1], maxPrice),
+                          ]}
                           min={minPrice}
                           max={maxPrice}
                           onChange={handlePriceChange}

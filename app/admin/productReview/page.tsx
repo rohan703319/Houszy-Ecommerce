@@ -43,6 +43,7 @@ import {
   CreateReviewDto,
   ReviewFilters,
 } from "@/lib/services/productReviews";
+import { formatDate, getOrderProductImage } from "../_utils/formatUtils";
 export default function ProductReviewsPage() {
   const router = useRouter();
   const toast = useToast();
@@ -87,15 +88,7 @@ const productDropdownRef = useRef<HTMLDivElement>(null);
   const [serverTotal, setServerTotal] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [debouncedSearch, setDebouncedSearch] = useState("");
-const getOrderProductImage = (imageUrl?: string): string => {
-  if (!imageUrl) return "/no-image.png";
 
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: string;
     customer: string;
@@ -107,13 +100,16 @@ const [approveConfirm, setApproveConfirm] = useState<{
   customer: string;
   title: string;
 } | null>(null);
+
+const [stats, setStats] = useState({
+  totalReviews: 0,
+  totalPending: 0,
+  totalApproved: 0,
+  totalVerified: 0,
+  totalUnverified: 0,
+});
 const [isApproving, setIsApproving] = useState(false);
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    averageRating: 0,
-  });
+
 // ✅ Add this useEffect for closing date picker on outside click
 useEffect(() => {
   const handleClickOutside = (event: MouseEvent) => {
@@ -159,7 +155,7 @@ const fetchProducts = async (searchTerm?: string) => {
 // Fetch all products for the create-review form (needs price/sku, all products not just reviewed ones)
 const fetchFormProducts = async () => {
   try {
-    const response = await productReviewsService.getAllProducts(1, 200);
+    const response = await productReviewsService.getAllProducts(1, 5000);
     if (response.data?.success && Array.isArray(response.data?.data?.items)) {
       setFormProducts(response.data.data.items.map((p: any) => ({
         id: p.id,
@@ -178,14 +174,7 @@ const fetchFormProducts = async () => {
 const getDateRangeLabel = () => {
   if (!dateRange.startDate && !dateRange.endDate) return "Select Date Range";
   
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    return new Date(dateStr).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
+
 
   if (dateRange.startDate && dateRange.endDate) {
     return `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`;
@@ -210,15 +199,24 @@ const fetchReviews = useCallback(async () => {
     if (ratingFilter !== "all")    filters.rating = parseInt(ratingFilter);
     if (debouncedSearch.trim())    filters.searchTerm = debouncedSearch.trim();
     if (productFilter !== "all")   filters.productId = productFilter;
+    if (verifiedOnlyFilter) {
+  filters.verifiedOnly = true;
+}
 
-    const res = await productReviewsService.getAll(filters);
+  const res = await productReviewsService.getAll(filters);
 
-    if (res.data?.success) {
-      const paged = res.data.data;
-      setReviews(paged.items ?? []);
-      setServerTotal(paged.totalCount ?? 0);
-      setServerTotalPages(paged.totalPages ?? 1);
-    } else {
+if (res.data?.success) {
+  const paged = res.data.data;
+
+  setReviews(paged.items ?? []);
+  setServerTotal(paged.totalCount ?? 0);
+  setServerTotalPages(paged.totalPages ?? 1);
+
+  // ✅ ADD THIS
+  if (paged.stats) {
+    setStats(paged.stats);
+  }
+}else {
       setReviews([]);
       setServerTotal(0);
       setServerTotalPages(1);
@@ -230,7 +228,7 @@ const fetchReviews = useCallback(async () => {
   } finally {
     setLoadingReviews(false);
   }
-}, [currentPage, itemsPerPage, statusFilter, ratingFilter, debouncedSearch, productFilter]);
+}, [currentPage,verifiedOnlyFilter, itemsPerPage, statusFilter, ratingFilter, debouncedSearch, productFilter]);
 
   // ✅ Initial load — fetch products (for dropdown) and reviews simultaneously
   useEffect(() => {
@@ -247,26 +245,9 @@ const fetchReviews = useCallback(async () => {
     fetchReviews();
   }, [fetchReviews]);
 
-  const calculateStats = (reviewsData: ProductReview[]) => {
-    const total = reviewsData.length;
-    const approved = reviewsData.filter((r) => r.isApproved).length;
-    const pending = reviewsData.filter((r) => !r.isApproved).length;
-    const averageRating =
-      reviewsData.length > 0
-        ? reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length
-        : 0;
 
-    setStats({ total, pending, approved, averageRating });
-  };
 
-  // ✅ Calculate stats from server-returned data
-  useEffect(() => {
-    if (reviews.length > 0) {
-      calculateStats(reviews);
-    } else {
-      setStats({ total: 0, pending: 0, approved: 0, averageRating: 0 });
-    }
-  }, [reviews]);
+
 
   // ✅ Approve Review
 const handleApprove = async (id: string) => {
@@ -635,6 +616,7 @@ const handleExportSelectedReviews = () => {
   }
 
   exportReviewsToExcel(selectedData, "selected");
+  setSelectedReviews([])
 };
 
 const resolveMediaUrl = (url?: string) => {
@@ -803,73 +785,101 @@ const isPlayableVideoUrl = (url: string) => {
       
 
         {/* Stats strip */}
-        <div className="grid grid-cols-4 gap-2">
-          {/* Total */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
-            <div className="w-8 h-8 bg-violet-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Star className="h-3.5 w-3.5 text-violet-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">Total</p>
-              <p className="text-lg font-bold text-white leading-none">{serverTotal}</p>
-            </div>
-          </div>
+ {/* ✅ Stats strip (Backend Driven) */}
+<div className="grid grid-cols-5 gap-2">
 
-          {/* Status - clickable */}
-          <button
-            type="button"
-            onClick={() => { const next = statusFilter === 'all' ? 'pending' : statusFilter === 'pending' ? 'approved' : 'all'; setStatusFilter(next); setCurrentPage(1); }}
-            className={`border rounded-xl px-4 py-3 flex items-center gap-3 transition-all text-left group ${
-              statusFilter !== 'all' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${statusFilter === 'pending' ? 'bg-amber-500/20' : statusFilter === 'approved' ? 'bg-green-500/20' : 'bg-slate-700/50'}`}>
-              {statusFilter === 'pending' ? <Clock className="h-3.5 w-3.5 text-amber-400" /> : statusFilter === 'approved' ? <CheckCircle className="h-3.5 w-3.5 text-green-400" /> : <MessageSquare className="h-3.5 w-3.5 text-slate-400" />}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">{statusFilter === 'all' ? 'Status' : statusFilter}</p>
-              <p className="text-lg font-bold text-white leading-none">{statusFilter === 'pending' ? stats.pending : statusFilter === 'approved' ? stats.approved : stats.total}</p>
-            </div>
-          </button>
+  {/* Total Reviews */}
+  <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
+    <div className="w-8 h-8 bg-violet-500/15 rounded-lg flex items-center justify-center">
+      <Star className="h-3.5 w-3.5 text-violet-400" />
+    </div>
+    <div>
+      <p className="text-[10px] text-slate-500 uppercase">Total</p>
+      <p className="text-lg font-bold text-white">{stats.totalReviews}</p>
+    </div>
+  </div>
 
-          {/* Verified - clickable */}
-          <button
-            type="button"
-            onClick={() => { setVerifiedOnlyFilter(!verifiedOnlyFilter); setCurrentPage(1); }}
-            className={`border rounded-xl px-4 py-3 flex items-center gap-3 transition-all text-left ${
-              verifiedOnlyFilter ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${verifiedOnlyFilter ? 'bg-green-500/20' : 'bg-slate-700/50'}`}>
-              <CheckCircle className="h-3.5 w-3.5 text-green-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">Verified</p>
-              <p className="text-lg font-bold text-white leading-none">{reviews.filter(r => r.isVerifiedPurchase).length}</p>
-            </div>
-          </button>
+  {/* Pending */}
+  <button
+    onClick={() => {
+      setStatusFilter("pending");
+      setCurrentPage(1);
+    }}
+    className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${
+      statusFilter === "pending"
+        ? "bg-amber-500/10 border-amber-500/30"
+        : "bg-slate-900/60 border-slate-800"
+    }`}
+  >
+    <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+      <Clock className="h-3.5 w-3.5 text-amber-400" />
+    </div>
+    <div>
+      <p className="text-[10px] text-slate-500 uppercase">Pending</p>
+      <p className="text-lg font-bold text-white">{stats.totalPending}</p>
+    </div>
+  </button>
 
-          {/* Avg Rating - clickable stars */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3 group relative">
-            <div className="w-8 h-8 bg-yellow-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Award className="h-3.5 w-3.5 text-yellow-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">Avg Rating</p>
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-bold text-white leading-none">{stats.averageRating.toFixed(1)}</p>
-                <div className="flex items-center gap-0.5">
-                  {[1,2,3,4,5].map(s => (
-                    <button key={s} type="button" onClick={() => { const n = ratingFilter === s.toString() ? 'all' : s.toString(); setRatingFilter(n); setCurrentPage(1); }} className="focus:outline-none">
-                      <Star className={`h-2.5 w-2.5 transition-colors ${ratingFilter === s.toString() ? 'fill-yellow-400 text-yellow-400' : s <= Math.round(stats.averageRating) ? 'fill-yellow-400/60 text-yellow-400/60' : 'text-slate-600'}`} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  {/* Approved */}
+  <button
+    onClick={() => {
+      setStatusFilter("approved");
+      setCurrentPage(1);
+    }}
+    className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${
+      statusFilter === "approved"
+        ? "bg-green-500/10 border-green-500/30"
+        : "bg-slate-900/60 border-slate-800"
+    }`}
+  >
+    <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+      <CheckCircle className="h-3.5 w-3.5 text-green-400" />
+    </div>
+    <div>
+      <p className="text-[10px] text-slate-500 uppercase">Approved</p>
+      <p className="text-lg font-bold text-white">{stats.totalApproved}</p>
+    </div>
+  </button>
 
+  {/* Verified */}
+  <button
+    onClick={() => {
+      setVerifiedOnlyFilter(true);
+      setCurrentPage(1);
+    }}
+    className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${
+      verifiedOnlyFilter
+        ? "bg-cyan-500/10 border-cyan-500/30"
+        : "bg-slate-900/60 border-slate-800"
+    }`}
+  >
+    <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+      <Award className="h-3.5 w-3.5 text-cyan-400" />
+    </div>
+    <div>
+      <p className="text-[10px] text-slate-500 uppercase">Verified</p>
+      <p className="text-lg font-bold text-white">{stats.totalVerified}</p>
+    </div>
+  </button>
+
+  {/* Unverified */}
+  <button
+    onClick={() => {
+      setVerifiedOnlyFilter(false);
+      setCurrentPage(1);
+    }}
+    className="border rounded-xl px-4 py-3 flex items-center gap-3 bg-slate-900/60 border-slate-800"
+  >
+    <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
+      <X className="h-3.5 w-3.5 text-red-400" />
+    </div>
+    <div>
+      <p className="text-[10px] text-slate-500 uppercase">Unverified</p>
+      <p className="text-lg font-bold text-white">{stats.totalUnverified}</p>
+    </div>
+  </button>
+
+</div>
 
         {/* Reviews Section */}
         <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-xl overflow-hidden">
@@ -1285,36 +1295,70 @@ const isPlayableVideoUrl = (url: string) => {
                         <p className="text-[10px] text-slate-500">{review.rating}/5</p>
                       </td>
                       <td className="py-2 px-3">
-                        <p className="text-slate-300 text-xs">{new Date(review.createdAt).toLocaleDateString()}</p>
-                        <p className="text-[10px] text-slate-500">{new Date(review.createdAt).toLocaleTimeString()}</p>
+                        <p className="text-slate-300 text-xs">  {formatDate(review.createdAt)}</p>
+                        
                       </td>
                       <td className="py-2 px-3 text-center">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${review.isApproved ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {review.isApproved ? "Approved" : "Pending"}
                         </span>
                       </td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center justify-center gap-0.5">
-                          {!review.isApproved && (
-                            <button onClick={() => setApproveConfirm({ id: review.id, customer: review.customerName, title: review.title })} className="flex flex-col items-center gap-0.5 px-2 py-1 text-green-400 hover:bg-green-500/10 rounded-lg transition-all group/btn">
-                              <CheckCircle className="h-3.5 w-3.5" />
-                              <span className="text-[9px] font-medium leading-none">Approve</span>
-                            </button>
-                          )}
-                          <button onClick={() => setReplyingTo(review)} className="flex flex-col items-center gap-0.5 px-2 py-1 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all">
-                            <Reply className="h-3.5 w-3.5" />
-                            <span className="text-[9px] font-medium leading-none">Reply</span>
-                          </button>
-                          <button onClick={() => setViewingReview(review)} className="flex flex-col items-center gap-0.5 px-2 py-1 text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all">
-                            <Eye className="h-3.5 w-3.5" />
-                            <span className="text-[9px] font-medium leading-none">View</span>
-                          </button>
-                          <button onClick={() => setDeleteConfirm({ id: review.id, customer: review.customerName })} className="flex flex-col items-center gap-0.5 px-2 py-1 text-red-400 hover:bg-red-500/10 rounded-lg transition-all">
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span className="text-[9px] font-medium leading-none">Delete</span>
-                          </button>
-                        </div>
-                      </td>
+               <td className="py-2 px-3">
+  <div className="flex items-center justify-center gap-0.5">
+
+    {/* APPROVE (only if not approved) */}
+    {!review.isApproved && (
+      <button
+        onClick={() =>
+          setApproveConfirm({
+            id: review.id,
+            customer: review.customerName,
+            title: review.title,
+          })
+        }
+        className="flex flex-col items-center gap-0.5 px-2 py-1 text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
+      >
+        <CheckCircle className="h-3.5 w-3.5" />
+        <span className="text-[9px] font-medium leading-none">Approve</span>
+      </button>
+    )}
+
+    {/* REPLY (only if approved) */}
+    {review.isApproved && (
+      <button
+        onClick={() => setReplyingTo(review)}
+        className="flex flex-col items-center gap-0.5 px-2 py-1 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+      >
+        <Reply className="h-3.5 w-3.5" />
+        <span className="text-[9px] font-medium leading-none">Reply</span>
+      </button>
+    )}
+
+    {/* VIEW (always visible) */}
+    <button
+      onClick={() => setViewingReview(review)}
+      className="flex flex-col items-center gap-0.5 px-2 py-1 text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all"
+    >
+      <Eye className="h-3.5 w-3.5" />
+      <span className="text-[9px] font-medium leading-none">View</span>
+    </button>
+
+    {/* DELETE (always visible) */}
+    <button
+      onClick={() =>
+        setDeleteConfirm({
+          id: review.id,
+          customer: review.customerName,
+        })
+      }
+      className="flex flex-col items-center gap-0.5 px-2 py-1 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+      <span className="text-[9px] font-medium leading-none">Delete</span>
+    </button>
+
+  </div>
+</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1596,9 +1640,7 @@ const isPlayableVideoUrl = (url: string) => {
                         <div>
                           <p className="text-slate-400 text-sm mb-1">Date</p>
                           <p className="text-white text-sm">
-                            {new Date(
-                              viewingReview.createdAt
-                            ).toLocaleString()}
+                         {formatDate(viewingReview.createdAt)}
                           </p>
                         </div>
 
@@ -1621,9 +1663,7 @@ const isPlayableVideoUrl = (url: string) => {
                             Approved At
                           </p>
                           <p className="text-white text-sm">
-                            {new Date(
-                              viewingReview.approvedAt
-                            ).toLocaleString()}
+                           {formatDate(viewingReview.approvedAt)}
                           </p>
                           {viewingReview.approvedBy && (
                             <p className="text-slate-500 text-xs mt-1">
@@ -1675,7 +1715,7 @@ const isPlayableVideoUrl = (url: string) => {
                                   {reply.comment}
                                 </p>
                                 <p className="text-slate-500 text-xs mt-1">
-                                  {new Date(reply.createdAt).toLocaleString()}
+                                      {formatDate(reply.createdAt)}
                                 </p>
                               </div>
                             ))}

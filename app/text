@@ -1686,3 +1686,337 @@ For any questions or issues:
 ---
 
 **END OF DOCUMENTATION**
+Hi Kausar,
+
+We found inconsistencies in the order payment data after editing an order.
+
+Example Order ID:
+6837c8a3-7f3b-4709-ad80-6bcd483c4c48
+
+Current API Response Issues:
+
+1. Payment Status Issue
+- paymentStatus is showing as "Successful"
+- But the order is only partially paid
+
+Details:
+- Successful payment: £1.29
+- Pending amount: £2.58
+
+Expected:
+- paymentStatus should be "PartiallyPaid" (or similar)
+- It should NOT be "Successful" when pendingPaymentAmount > 0
+
+---
+
+2. Net Amount Paid Issue
+- netAmountPaid is showing: £3.87
+- But actual successful payment is only: £1.29
+
+Data:
+- payments[0].amount = 1.29 (Successful)
+- pendingPaymentAmount = 2.58
+
+Expected:
+- netAmountPaid should be equal to sum of successful payments
+- In this case: £1.29
+
+---
+
+Expected Backend Logic:
+
+1. paymentStatus:
+- If pendingPaymentAmount > 0 → "PartiallyPaid"
+- If pendingPaymentAmount = 0 → "Successful"
+
+2. netAmountPaid:
+- Should be calculated as sum of successful/completed payments
+- Should NOT include pending/unpaid amounts
+
+---
+
+Reason:
+Frontend refund logic depends on actual paid amount.
+Currently incorrect values are causing wrong refund calculations and UI inconsistencies.
+
+Please fix this at API level.
+
+Thanks
+--------------------------------------------------------------------------------------
+1.Brand ki images show nhi ho rha h jo bhi import kiya hai aapne brands.
+2.checkout page me delivery method click and collect select krte hi mujhe store address dikhana hai user choose kr sakega ki kaha se collect krna chahta hai wo
+3.offers wala page me kaam hai offers link pe click krte hi ek page khule jisme banners ho offers ki categories ki aur uspe click kru to uske according offers wale product show ho... abhi hamare paas /offers ka page hai sirf jaha pe sabhi offer wale products ham show kara rhe hai
+4.category get api me jab mai includesubcategories false kr rha hu tb bhi sabhi categories aaarhi hai sirf main categories aani chahiye
+5.brand get api me ek hi brand 2-2 bar aarhe hai
+6.newsletter subscribe krne pe email nhi ja rha h suscribed ka POST/api/Newsletter/subscribe
+7.standard delivery date dikhana hai checkout page pe
+8.checkout page me postcode se delivery options milte the hame but ab nhi mil rhe
+https://testapi.knowledgemarkg.com/api/Shipping/quote
+please check this api
+
+---------------------------------------------
+
+
+1. User Registration (Updated)
+
+  POST /api/Auth/register
+
+  {
+    "email": "user@example.com",
+    "password": "Test@123456",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phoneNumber": "+447700000000",
+    "dateOfBirth": "1990-01-15",
+    "gender": "Male",
+    "accountType": "Personal"
+  }
+
+  Business Account ke liye:
+  {
+    "email": "business@example.com",
+    "password": "Test@123456",
+    "firstName": "John",
+    "lastName": "Doe",
+    "accountType": "Business",
+    "companyName": "Acme Corporation",
+    "companyNumber": "12345678"
+  }
+
+  ▎ Rules:
+  ▎ - accountType = "Personal" ya "Business" (default: "Personal")
+  ▎ - accountType: "Business" ho to companyName aur companyNumber required hain
+  ▎ - Personal account mein company fields bhejne ki zarurat nahi
+
+  Success Response:
+  {
+    "accessToken": "eyJ...",
+    "refreshToken": "abc...",
+    "user": {
+      "id": "ccf35546-f540-4c47-8920-08de898a8bb2",
+      "email": "business@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "phoneNumber": null,
+      "dateOfBirth": null,
+      "gender": null,
+      "accountType": "Business",
+      "companyName": "Acme Corporation",
+      "companyNumber": "12345678"
+    }
+  }
+
+  ---
+  2. Profile Edit (Updated)
+
+  PUT /api/Auth/profile
+  Headers: Authorization: Bearer {token}
+
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "phoneNumber": "+447700000000",
+    "dateOfBirth": "1990-01-15",
+    "gender": "Male",
+    "profileImageUrl": "https://example.com/image.jpg",
+    "accountType": "Business",
+    "companyName": "Acme Corporation",
+    "companyNumber": "12345678"
+  }
+
+  ▎ Rules:
+  ▎ - Sab fields optional hain — sirf jo update karna ho woh bhejo
+  ▎ - accountType change karna ho "Business" to, to companyName + companyNumber required
+  ▎ - Personal mein convert karo to company fields automatically null ho jaate hain
+  ▎ - Already Business user hai to sirf companyName ya companyNumber bhi update kar sakte hain
+
+  Success Response:
+  {
+    "message": "Profile updated successfully",
+    "user": {
+      "id": "ccf35546-...",
+      "email": "user@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "phoneNumber": "+447700000000",
+      "dateOfBirth": "1990-01-15T00:00:00",
+      "gender": "Male",
+      "accountType": "Business",
+      "companyName": "Acme Corporation",
+      "companyNumber": "12345678"
+    }
+  }
+
+  ---
+  3. Profile Image Upload (New)
+
+  POST /api/Auth/profile/upload-image
+  Headers: Authorization: Bearer {token}
+  Content-Type: multipart/form-data
+
+  ┌───────┬──────┬─────────────────────────────────────┐
+  │ Field │ Type │               Details               │
+  ├───────┼──────┼─────────────────────────────────────┤
+  │ image │ File │ jpg, jpeg, png, gif, webp — max 5MB │
+  └───────┴──────┴─────────────────────────────────────┘
+
+  Success Response:
+  {
+    "message": "Profile image uploaded successfully",
+    "profileImageUrl": "/images/profiles/ccf35546-7215914b.webp"
+  }
+
+  ▎ - Purani local image automatically delete ho jaati hai
+  ▎ - Full URL banane ke liye: https://your-api-domain.com + profileImageUrl
+  ▎ - External URL (http/https) ho to delete nahi hoti
+
+  ---
+  4. Get My Profile
+
+  GET /api/Auth/me
+  Headers: Authorization: Bearer {token}
+
+  Response includes new fields:
+  {
+    "id": "ccf35546-...",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phoneNumber": "+44...",
+    "dateOfBirth": "1990-01-15T00:00:00",
+    "gender": "Male",
+    "profileImageUrl": "/images/profiles/ccf35546-7215914b.webp",
+    "accountType": "Business",
+    "companyName": "Acme Corporation",
+    "companyNumber": "12345678",
+    "roles": ["Customer"],
+    "createdAt": "2026-03-24T09:48:47",
+    "lastLoginAt": "2026-03-24T10:00:00",
+    "isActive": true
+  }
+
+  ---
+  5. Admin — Customer Active/Inactive Toggle (New)
+
+  PUT /api/Customers/{customerId}/toggle-status
+  Headers: Authorization: Bearer {admin-token}
+  Body: None (koi body nahi bhejna)
+
+  Success Response:
+  {
+    "success": true,
+    "message": "Customer deactivated successfully",
+    "data": {
+      "id": "ccf35546-...",
+      "email": "user@example.com",
+      "isActive": false
+    }
+  }
+
+  ▎ - Dobara call karo to isActive: true ho jaata hai ("Customer activated successfully")
+  ▎ - Sirf Admin role ke liye — Customer token se 403 Forbidden milega
+
+  ---
+  6. Subscriptions — Get User Subscriptions
+
+  GET /api/Subscriptions/customer/{customerId}
+  Headers: Authorization: Bearer {token}
+  Query Params: ?activeOnly=false (optional, default false)
+
+  ▎ - User sirf apna customerId use kar sakta hai — dusre ka ID dene par 403
+  ▎ - Admin kisi bhi customer ki subscriptions dekh sakta hai
+  ▎ - activeOnly=true bhejo to sirf Active/Paused subscriptions aayengi
+
+  Success Response:
+  {
+    "success": true,
+    "data": [
+      {
+        "id": "sub-guid",
+        "customerId": "ccf35546-...",
+        "productId": "prod-guid",
+        "productName": "Vitamin C",
+        "productSku": "VIT-001",
+        "productImageUrl": "/images/products/...",
+        "quantity": 2,
+        "frequency": "Monthly",
+        "frequencyDisplay": "Every Month",
+        "status": "Active",
+        "statusDisplay": "Active",
+        "nextDeliveryDate": "2026-04-24T00:00:00",
+        "shippingAddressLine1": "123 Main St",
+        "shippingCity": "London",
+        "shippingPostalCode": "SW1A 1AA",
+        "shippingCountry": "GB",
+        "createdAt": "2026-03-24T10:00:00"
+      }
+    ]
+  }
+
+  ---
+  7. Subscriptions — Cancel
+
+  POST /api/Subscriptions/{subscriptionId}/cancel
+  Headers: Authorization: Bearer {token}
+
+  {
+    "cancellationReason": "No longer needed"
+  }
+
+  ▎ - cancellationReason optional hai — body bina bhi bhej sakte hain
+  ▎ - User sirf apni subscription cancel kar sakta hai — 403 agar dusre ki try kare
+  ▎ - Already cancelled subscription cancel karne par 400 Bad Request
+  ▎ - Subscription nahi mili to 404 Not Found
+
+  Success Response:
+  {
+    "success": true,
+    "message": "Subscription cancelled successfully",
+    "data": {
+      "id": "sub-guid",
+      "status": "Cancelled",
+      "cancelledAt": "2026-03-24T10:20:00",
+      "cancellationReason": "No longer needed"
+    }
+  }
+
+  ---
+  Quick Reference — All Endpoints
+
+  ┌───────────────────────────────────┬────────┬──────────┬──────────────────────────────┐
+  │             Endpoint              │ Method │   Auth   │             Kaam             │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Auth/register                │ POST   │ :x:       │ Register (Personal/Business) │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Auth/login                   │ POST   │ :x:       │ Login                        │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Auth/me                      │ GET    │ :white_check_mark: User  │ Apni profile dekho           │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Auth/profile                 │ PUT    │ :white_check_mark: User  │ Profile edit karo            │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Auth/profile/upload-image    │ POST   │ :white_check_mark: User  │ Profile image upload         │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Auth/change-password         │ POST   │ :white_check_mark: User  │ Password change              │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Customers/{id}/toggle-status │ PUT    │ :white_check_mark: Admin │ Active/Inactive toggle       │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Subscriptions/customer/{id}  │ GET    │ :white_check_mark: User  │ User ki subscriptions        │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Subscriptions/{id}/cancel    │ POST   │ :white_check_mark: User  │ Subscription cancel          │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Subscriptions/{id}/pause     │ POST   │ :white_check_mark: User  │ Pause karo                   │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Subscriptions/{id}/resume    │ POST   │ :white_check_mark: User  │ Resume karo                  │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Subscriptions/{id}/skip      │ POST   │ :white_check_mark: User  │ Next delivery skip           │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Addresses                    │ GET    │ :white_check_mark: User  │ Addresses list               │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Addresses                    │ POST   │ :white_check_mark: User  │ Address add karo             │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Addresses/{id}               │ PUT    │ :white_check_mark: User  │ Address edit                 │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Addresses/{id}               │ DELETE │ :white_check_mark: User  │ Address delete               │
+  ├───────────────────────────────────┼────────┼──────────┼──────────────────────────────┤
+  │ /api/Addresses/{id}/set-default   │ PUT    │ :white_check_mark: User  │ Default address set          │
+  └───────────────────────────────────┴────────┴──────────┴──────────────────────────────┘

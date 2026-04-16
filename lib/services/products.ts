@@ -20,10 +20,14 @@ export interface ProductImage {
 export interface ProductAttribute {
   id: string;
   name: string;
-  value: string;
+  value: string;           // For variation: "Red, Blue, Green" | For regular: "100% Cotton"
   displayOrder: number;
   sortOrder?: number;
   displayName?: string;
+  // WooCommerce-style: marks this attribute as "Used for variations"
+  isVariation?: boolean;
+  displayType?: string;    // Only for variation: "buttons" | "dropdown" | "swatch"
+  position?: number;       // Only for variation: ordering (1, 2, 3...)
 }
 
 export interface VATRateData {
@@ -124,12 +128,6 @@ export interface ProductsApiResponse {
   errors: null;
 }
 
-interface CategoryApiResponse {
-  success: boolean;
-  message: string;
-  data: CategoryData[];
-  errors: null;
-}
 
 export interface RelatedProduct {
   id: string;
@@ -178,6 +176,7 @@ export interface Product {
   id: string;
   name: string;
   slug?: string;
+  status?:string;
   sku: string;
   gtin?: string;
   isActive?: boolean;
@@ -207,7 +206,11 @@ export interface Product {
   minStockQuantity?: number;
   notifyAdminForQuantityBelow?: boolean;
   notifyQuantityBelow?: number;
+  loyaltyPointsEarnable?: number;
+  subscriptionDiscountPercentage?: number;
   allowBackorder?: boolean;
+  loyaltyPointsMessage?: string;
+  estimatedDispatchDays?: string;
   backorderMode?: string;
   orderMinimumQuantity?: number;
   orderMaximumQuantity?: number;
@@ -242,6 +245,7 @@ export interface Product {
   metaKeywords?: string;
   searchEngineFriendlyPageName?: string;
   tags?: string;
+allowedSubscriptionFrequencies?: string;
   averageRating?: number;
   reviewCount?: number;
   viewCount?: number;
@@ -407,6 +411,18 @@ export interface PaginatedResponse<T> {
     page: number;
     pageSize: number;
     totalPages: number;
+
+    // ✅ ADD THIS
+    stats: {
+      totalProducts: number;
+      totalPublished: number;
+      totalUnpublished: number;
+      totalActive: number;
+      totalInactive: number;
+      totalInStock: number;
+      totalLowStock: number;
+      totalOutOfStock: number;
+    };
   };
   message?: string;
 }
@@ -483,7 +499,8 @@ getAll: async (params?: ProductQueryParams) => {
 
   if (params?.sortDirection)
     queryParams.append("sortDirection", params.sortDirection);
-  
+  if (params?.isActive !== undefined)
+  queryParams.append("isActive", params.isActive.toString());
 
   const url = `${API_ENDPOINTS.products}${
     queryParams.toString() ? `?${queryParams.toString()}` : ""
@@ -532,6 +549,12 @@ bulkUpdateInventory: async (items: {
       }[];
     }>
   >(API_ENDPOINTS.inventoryBulkUpdate, items);
+},
+
+getSimpleProducts: async () => {
+  return apiClient.get<ApiResponse<Product[]>>(
+    `${API_ENDPOINTS.products}/simple`
+  );
 },
 
 // 🔥 Inventory Bulk Upload (Excel File) — POST is correct here
@@ -620,6 +643,12 @@ restore: async (id: string) => {
     );
   },
 
+  deleteVariantImage: async (variantId: string) => {
+  return apiClient.delete<ApiResponse<void>>(
+    `${API_ENDPOINTS.products}/variants/${variantId}/image`
+  );
+},
+
   createWithImages: async (data: FormData) => {
     return apiClient.post<ApiResponse<Product>>(
       `${API_ENDPOINTS.products}/with-images`,
@@ -703,6 +732,34 @@ importExcel: async (file: File) => {
     }
   );
 },
+
+ importWooCommerce: async (file: File) => {
+    const formData = new FormData();
+
+    // ⚠️ MUST MATCH BACKEND PARAM NAME
+    formData.append("csvFile", file);
+
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: {
+        totalRows: number;
+        successCount: number;
+        failedCount: number;
+        errors: string[];
+        warnings: string[];
+      };
+    }>(
+      `${API_ENDPOINTS.products}/import-woocommerce`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+  },
+
 
 
   // ==========================================
@@ -926,6 +983,6 @@ export const productHelpers = {
 
 // ==========================================
 // EXPORT DEFAULT
-// ==========================================
+// ==========================================d
 
 export default productsService;

@@ -6,6 +6,7 @@ import { MessageSquare, Clock, CheckCircle, X, Search, FilterX, ChevronLeft, Che
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { blogCommentsService, BlogComment, BlogPost } from "@/lib/services/blogComments";
+import { formatDate } from "../_utils/formatUtils";
 
 
 export default function CommentsPage() {
@@ -20,7 +21,7 @@ export default function CommentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [postFilter, setPostFilter] = useState<string>("all");
-  const [selectedComments, setSelectedComments] = useState<string[]>([]);
+
   const [viewingComment, setViewingComment] = useState<BlogComment | null>(null);
   const [replyingTo, setReplyingTo] = useState<BlogComment | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -627,7 +628,7 @@ const getDateRangeLabel = () => {
       className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-md hover:opacity-90"
     >
       <FolderTree className="h-3 w-3" />
-     Blog Categories
+     Go toBlog Category Page
     </button>
 
     {/* Blog Posts */}
@@ -636,7 +637,7 @@ const getDateRangeLabel = () => {
       className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-md hover:opacity-90"
     >
       <FileText className="h-3 w-3" />
-    Blog  Posts
+     Go to Blog Post Page
     </button>
 
     {/* Refresh */}
@@ -1085,7 +1086,7 @@ const getDateRangeLabel = () => {
                     <span className="text-slate-600">•</span>
                     
                     <p className="text-slate-400 text-[11px]">
-                      {new Date(parentComment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {formatDate(parentComment.createdAt)}
                     </p>
                         {/* Status Badge */}
                     <span className={`inline-flex w-fit px-2.5 py-1 rounded-lg text-[11px] font-semibold border items-center gap-1.5 whitespace-nowrap ${
@@ -1153,9 +1154,15 @@ const getDateRangeLabel = () => {
                             <Shield className="h-3.5 w-3.5" />Spam
                           </button>
                         )}
-                        <button onClick={() => setReplyingTo(parentComment)} className="px-2.5 py-1.5 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 border border-violet-500/30">
-                          <Reply className="h-3.5 w-3.5" />Reply
-                        </button>
+   {parentComment.isApproved && (
+  <button
+    onClick={() => setReplyingTo(parentComment)}
+    className="px-2.5 py-1.5 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 border border-violet-500/30"
+  >
+    <Reply className="h-3.5 w-3.5" />
+    Reply
+  </button>
+)}
                         <button onClick={() => setViewingComment(parentComment)} className="px-2.5 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 border border-cyan-500/30">
                           <Eye className="h-3.5 w-3.5" />View
                         </button>
@@ -1198,7 +1205,7 @@ const getDateRangeLabel = () => {
                             <p className={`font-medium text-sm ${reply.isDeleted ? 'text-slate-500' : 'text-white'}`}>{reply.authorName}</p>
                             {isAdminComment(reply) && !reply.isDeleted && <span className="px-1.5 py-0.5 bg-violet-500/10 text-violet-400 rounded text-[10px] font-medium">Admin</span>}
                             <span className="text-slate-600 text-xs">•</span>
-                            <p className="text-slate-400 text-[11px]">{new Date(reply.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                             {formatDate(reply.createdAt)}
                             </div>
                             <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium items-center gap-1 ${reply.isDeleted ? 'bg-slate-700/50 text-slate-500' : reply.isSpam ? 'bg-red-500/10 text-red-400' : reply.isApproved ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'}`}>
                               {reply.isDeleted ? <><Trash2 className="h-2.5 w-2.5" />Deleted</> : reply.isSpam ? 'Spam' : reply.isApproved ? 'Approved' : 'Pending'}
@@ -1464,7 +1471,7 @@ const getDateRangeLabel = () => {
                         <div>
                           <p className="text-slate-400 text-sm mb-1">Date</p>
                           <p className="text-white text-sm">
-                            {new Date(viewingComment.createdAt).toLocaleString()}
+                              {formatDate(viewingComment.createdAt)}
                           </p>
                         </div>
 
@@ -1472,7 +1479,7 @@ const getDateRangeLabel = () => {
                           <div>
                             <p className="text-slate-400 text-sm mb-1">Approved At</p>
                             <p className="text-white text-sm">
-                              {new Date(viewingComment.approvedAt).toLocaleString()}
+                                {formatDate(viewingComment.approvedAt)}
                             </p>
                           </div>
                         )}

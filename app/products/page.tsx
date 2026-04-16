@@ -1,4 +1,6 @@
 // app/products/page.tsx
+export const dynamic = "force-dynamic";
+
 import ProductsClient from "./ProductsClient";
 
 interface SearchParams {

@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Plus, Edit, Tag, Trash2, Upload, CheckCircle, AlertCircle, Loader2, Eye, Copy } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api-config";
+import { useState, useEffect, useCallback } from "react";
+import { X, Plus, Edit, Tag, Trash2, Upload, CheckCircle, AlertCircle, Loader2, Eye, Copy, HelpCircle } from "lucide-react";
+
 import { ProductDescriptionEditor } from "../_components/SelfHostedEditor";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { Brand, brandsService } from "@/lib/services/brands";
+
+import BrandFaqManager from "./BrandFaqManager";
+import { brandFaqsService } from "@/lib/services/brandFaqs";
+import { extractFilename, formatDate } from "../_utils/formatUtils";
+
 
 const MAX_HOMEPAGE_BRANDS = 50;
 
@@ -14,8 +19,9 @@ interface BrandModalsProps {
   showModal: boolean;
   setShowModal: (show: boolean) => void;
   editingBrand: Brand | null;
-  setEditingBrand: (brand: Brand | null) => void;
+setEditingBrand: React.Dispatch<React.SetStateAction<Brand | null>>;
   viewingBrand: Brand | null;
+  initialTab?: 'basic' | 'image' | 'seo' | 'settings' | 'faqs';
   setViewingBrand: (brand: Brand | null) => void;
   selectedImageUrl: string | null;
   setSelectedImageUrl: (url: string | null) => void;
@@ -23,6 +29,7 @@ interface BrandModalsProps {
   fetchBrands: () => Promise<void>;
   getImageUrl: (imageUrl?: string) => string;
 }
+
 
 
 export default function BrandModals({
@@ -34,6 +41,7 @@ export default function BrandModals({
   setViewingBrand,
   selectedImageUrl,
   setSelectedImageUrl,
+  initialTab,
   brands,
   fetchBrands,
   getImageUrl,
@@ -42,13 +50,24 @@ export default function BrandModals({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [pendingFaqs, setPendingFaqs] = useState<any[]>([]);
+  const [nameStatus, setNameStatus] = useState<"idle" | "checking" | "valid" | "duplicate">("idle");
+
+const checkDuplicateBrand = useCallback((name: string): boolean => {
+  return brands.some(
+    (b) =>
+      b.name.trim().toLowerCase() === name.toLowerCase() &&
+      b.id !== editingBrand?.id
+  );
+}, [brands, editingBrand]);
+
   const [imageDeleteConfirm, setImageDeleteConfirm] = useState<{
     brandId: string;
     imageUrl: string;
     brandName: string;
   } | null>(null);
   const [isDeletingImage, setIsDeletingImage] = useState(false);
-const [activeTab, setActiveTab] = useState<'basic' | 'image' | 'seo' | 'settings'>('basic');
+const [activeTab, setActiveTab] = useState<'basic' | 'image' | 'seo' | 'settings' | 'faqs'>('basic');
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -56,20 +75,36 @@ const [activeTab, setActiveTab] = useState<'basic' | 'image' | 'seo' | 'settings
     isPublished: true,
      isActive: true,  
     showOnHomepage: false,
-    displayOrder: 1,
+    displayOrder: 0 as number | "",
     metaTitle: "",
     metaDescription: "",
     metaKeywords: ""
   });
 
+
   const homepageBrandsCounter = brands.filter(brand => brand.showOnHomepage);
   const homepageCount = homepageBrandsCounter.length;
+useEffect(() => {
+  if (!formData.name.trim()) {
+    setNameStatus("idle");
+    return;
+  }
 
-  const extractFilename = (imageUrl: string) => {
-    if (!imageUrl) return "";
-    const parts = imageUrl.split('/');
-    return parts[parts.length - 1];
-  };
+  setNameStatus("checking");
+
+  const timer = setTimeout(() => {
+    const isDuplicate = checkDuplicateBrand(formData.name);
+    setNameStatus(isDuplicate ? "duplicate" : "valid");
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [formData.name, brands]);
+
+useEffect(() => {
+  if (showModal && initialTab) {
+    setActiveTab(initialTab);
+  }
+}, [initialTab, showModal]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -96,7 +131,7 @@ const [activeTab, setActiveTab] = useState<'basic' | 'image' | 'seo' | 'settings
          isActive: true,  
         isPublished: true,
         showOnHomepage: false,
-        displayOrder: 1,
+        displayOrder: "",
         
         metaTitle: "",
         metaDescription: "",
@@ -141,338 +176,118 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
 };
 
 
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+const brandName = formData.name.trim();
+
+if (nameStatus === "duplicate") {
+  toast.error("Brand already exists");
+  return;
+}
+if (!brandName) {
+  toast.error("❌ Brand name is required");
+  return;
+}
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
 
-    // ============================================
-    // 1. BRAND NAME VALIDATION
-    // ============================================
-    
-    const brandName = formData.name.trim();
 
-    if (!brandName) {
-      toast.error("❌ Brand name is required");
-      return;
-    }
-    if (!logoFile) {
-      toast.error("❌ Brand logo is required");
-      return;
-    }
+  if (!logoFile && !formData.logoUrl) {
+    toast.error("❌ Brand logo is required");
+    return;
+  }
 
-    if (brandName.length < 2 || brandName.length > 80) {
-      toast.error(`❌ Brand name must be between 2 and 80 characters. Current: ${brandName.length}`);
-      return;
-    }
+  if (isSubmitting) return;
+  setIsSubmitting(true);
 
-    const brandRegex = /^[A-Za-z0-9\s&.\-()]+$/;
-    if (!brandRegex.test(brandName)) {
-      toast.error("❌ Brand name can only contain letters, numbers, spaces, &, ., -, ()");
-      return;
-    }
+  try {
+    let finalLogoUrl = formData.logoUrl;
 
-    const isDuplicateName = brands.some(
-      brand => 
-        brand.name.toLowerCase().trim() === brandName.toLowerCase() &&
-        brand.id !== editingBrand?.id
-    );
-    if (isDuplicateName) {
-      toast.error("❌ A brand with this name already exists!");
-      return;
-    }
-
-    // ============================================
-    // 2. DESCRIPTION VALIDATION
-    // ============================================
-    
-    const description = formData.description.trim();
-
-    if (description.length > 1000) {
-      toast.error(`❌ Description cannot exceed 1000 characters. Current: ${description.length}`);
-      return;
-    }
-
-    // ============================================
-    // 3. DISPLAY ORDER VALIDATION
-    // ============================================
-    
-    if (isNaN(formData.displayOrder)) {
-      toast.error("❌ Display order must be a valid number");
-      return;
-    }
-
-    if (!Number.isInteger(formData.displayOrder)) {
-      toast.error("❌ Display order must be a whole number (no decimals)");
-      return;
-    }
-
-    if (formData.displayOrder < 1 || formData.displayOrder > 1000) {
-      toast.error("❌ Display order must be between 1 and 1000");
-      return;
-    }
-
-    // ============================================
-    // 4. META FIELDS VALIDATION
-    // ============================================
-    
-    if (formData.metaTitle) {
-      const metaTitle = formData.metaTitle.trim();
-      
-      if (metaTitle.length > 60) {
-        toast.error(`❌ Meta title must be less than 60 characters. Current: ${metaTitle.length}`);
-        return;
-      }
-
-      if (/^\s+$/.test(formData.metaTitle)) {
-        toast.error("❌ Meta title cannot contain only spaces");
-        return;
-      }
-    }
-
-    if (formData.metaDescription) {
-      const metaDesc = formData.metaDescription.trim();
-      
-      if (metaDesc.length > 160) {
-        toast.error(`❌ Meta description must be less than 160 characters. Current: ${metaDesc.length}`);
-        return;
-      }
-
-      if (/^\s+$/.test(formData.metaDescription)) {
-        toast.error("❌ Meta description cannot contain only spaces");
-        return;
-      }
-    }
-
-    if (formData.metaKeywords) {
-      const metaKeywords = formData.metaKeywords.trim();
-      
-      if (metaKeywords.length > 200) {
-        toast.error(`❌ Meta keywords must be less than 200 characters. Current: ${metaKeywords.length}`);
-        return;
-      }
-
-      if (/^\s+$/.test(formData.metaKeywords)) {
-        toast.error("❌ Meta keywords cannot contain only spaces");
-        return;
-      }
-
-      if (metaKeywords.length > 0) {
-        const keywords = metaKeywords.split(',');
-        for (const keyword of keywords) {
-          const trimmed = keyword.trim();
-          if (trimmed.length > 0 && (trimmed.length < 2 || trimmed.length > 50)) {
-            toast.error("❌ Each keyword must be between 2-50 characters");
-            return;
-          }
-        }
-      }
-    }
-
-    // ============================================
-    // 5. HOMEPAGE LIMIT VALIDATION
-    // ============================================
-    
-    if (formData.showOnHomepage) {
-      const currentHomepageCount = brands.filter(
-        brand => brand.showOnHomepage && brand.id !== editingBrand?.id
-      ).length;
-      
-      if (currentHomepageCount >= MAX_HOMEPAGE_BRANDS) {
-        toast.error(
-          `❌ Homepage limit reached! Only ${MAX_HOMEPAGE_BRANDS} brands allowed. Currently: ${currentHomepageCount}/${MAX_HOMEPAGE_BRANDS}`
-        );
-        return;
-      }
-    }
-
-    // ============================================
-    // 6. LOGO VALIDATION
-    // ============================================
-    
+    // =========================
+    // ✅ UPLOAD LOGO
+    // =========================
     if (logoFile) {
-      const allowedTypes = ['image/webp', 'image/png'];
-      const maxSize = 1 * 1024 * 1024; // 1MB
+      const uploadRes = await brandsService.uploadLogo(logoFile, {
+        name: formData.name,
+      });
 
-      if (!allowedTypes.includes(logoFile.type)) {
-        toast.error("❌ Only WebP and PNG images are allowed");
-        return;
+      if (!uploadRes.data?.success || !uploadRes.data?.data) {
+        throw new Error("Logo upload failed");
       }
 
-      if (logoFile.size > maxSize) {
-        const sizeMB = (logoFile.size / (1024 * 1024)).toFixed(2);
-        toast.error(`❌ Logo size must be less than 1MB. Current: ${sizeMB}MB`);
-        return;
-      }
-
-      if (logoFile.name.length > 255) {
-        toast.error("❌ Logo file name is too long (max 255 characters)");
-        return;
-      }
-
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const img = new Image();
-          const url = URL.createObjectURL(logoFile);
-          
-          img.onload = () => {
-            URL.revokeObjectURL(url);
-            
-            const MIN_WIDTH = 200;
-            const MAX_WIDTH = 5000;
-            const MIN_HEIGHT = 200;
-            const MAX_HEIGHT = 5000;
-            
-            if (img.width < MIN_WIDTH || img.width > MAX_WIDTH) {
-              reject(`Logo width must be between ${MIN_WIDTH}px and ${MAX_WIDTH}px. Current: ${img.width}px`);
-              return;
-            }
-            
-            if (img.height < MIN_HEIGHT || img.height > MAX_HEIGHT) {
-              reject(`Logo height must be between ${MIN_HEIGHT}px and ${MAX_HEIGHT}px. Current: ${img.height}px`);
-              return;
-            }
-            
-            resolve();
-          };
-          
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject('Invalid or corrupted logo file');
-          };
-          
-          img.src = url;
-        });
-      } catch (error: any) {
-        toast.error(`❌ ${error}`);
-        return;
-      }
+      finalLogoUrl = uploadRes.data.data;
     }
 
-    // ============================================
-    // 7. PREVENT DUPLICATE SUBMISSION
-    // ============================================
-    
-    if (isSubmitting) {
-      toast.error("⏳ Please wait, processing...");
-      return;
+    // =========================
+    // ✅ PAYLOAD
+    // =========================
+    const payload: any = {
+      name: brandName,
+      description: formData.description.trim(),
+      logoUrl: finalLogoUrl,
+      isPublished: formData.isPublished,
+      showOnHomepage: formData.showOnHomepage,
+      isActive: formData.isActive,
+       displayOrder: formData.displayOrder === "" ? 0 : formData.displayOrder,
+      metaTitle: formData.metaTitle?.trim() || undefined,
+      metaDescription: formData.metaDescription?.trim() || undefined,
+      metaKeywords: formData.metaKeywords?.trim() || undefined,
+    };
+
+    // =========================
+    // 🔥 CREATE MODE
+    // =========================
+    if (!editingBrand) {
+      const res = await brandsService.create(payload);
+
+      // 🔥 IMPORTANT FIX (correct parsing)
+      const brandId = res.data?.data?.id;
+
+      if (!brandId) {
+        throw new Error("Brand ID missing");
+      }
+
+      // 🔥 CREATE FAQs AFTER BRAND
+      if (pendingFaqs?.length) {
+        await Promise.all(
+          pendingFaqs.map((faq: any) =>
+            brandFaqsService.create(brandId, faq)
+          )
+        );
+      }
+
+      toast.success("✅ Brand created successfully! 🎉");
     }
-    
-    setIsSubmitting(true);
 
-    try {
-      let finalLogoUrl = formData.logoUrl;
+    // =========================
+    // 🔥 EDIT MODE
+    // =========================
+    else {
+      await brandsService.update(editingBrand.id, {
+        ...payload,
+        id: editingBrand.id, // ⚠️ backend needs this
+      });
 
-      // ============================================
-      // 8. LOGO UPLOAD
-      // ============================================
-      
-      if (logoFile) {
-        try {
-          const uploadResponse = await brandsService.uploadLogo(logoFile, {
-            name: formData.name,
-          });
-
-          if (!uploadResponse.data?.success || !uploadResponse.data?.data) {
-            throw new Error(
-              uploadResponse.data?.message || "Logo upload failed"
-            );
-          }
-
-          finalLogoUrl = uploadResponse.data.data;
-
-          
-          // Delete old logo if exists
-          if (editingBrand?.logoUrl && editingBrand.logoUrl !== finalLogoUrl) {
-            const filename = extractFilename(editingBrand.logoUrl);
-            if (filename) {
-              try {
-                await brandsService.deleteLogo(filename);
-              } catch (err) {
-                // Silently fail - old logo deletion is non-critical
-              }
-            }
-          }
-        } catch (uploadErr: any) {
-          toast.error(
-            uploadErr?.response?.data?.message || "Failed to upload logo"
-          );
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
-      // ============================================
-      // 9. PREPARE PAYLOAD
-      // ============================================
-      
-      const payload = {
-        name: brandName,
-        description: description,
-        logoUrl: finalLogoUrl,
-        isPublished: formData.isPublished,
-        showOnHomepage: formData.showOnHomepage,
-        isActive: formData.isActive,  // ✅ ADD THIS
-        displayOrder: formData.displayOrder,
-        metaTitle: formData.metaTitle?.trim() || undefined,
-        metaDescription: formData.metaDescription?.trim() || undefined,
-        metaKeywords: formData.metaKeywords?.trim() || undefined,
-        ...(editingBrand && { id: editingBrand.id }),
-      };
-
-      // ============================================
-      // 10. API CALL
-      // ============================================
-      
-      if (editingBrand) {
-        await brandsService.update(editingBrand.id, payload);
-        toast.success("✅ Brand updated successfully! 🎉");
-      } else {
-        await brandsService.create(payload);
-        toast.success("✅ Brand created successfully! 🎉");
-      }
-
-      // ============================================
-      // 11. CLEANUP
-      // ============================================
-      
-      if (logoPreview) URL.revokeObjectURL(logoPreview);
-      setLogoFile(null);
-      setLogoPreview(null);
-      await fetchBrands();
-      setShowModal(false);
-      setEditingBrand(null);
-      setActiveTab('basic'); // ✅ Reset tab to basic
-
-    } catch (error: any) {
-      // ============================================
-      // 12. ERROR HANDLING
-      // ============================================
-      
-      let message = "Failed to save brand";
-      
-      if (error?.response?.status === 400) {
-        message = error?.response?.data?.message || "Invalid data provided";
-      } else if (error?.response?.status === 401) {
-        message = "Session expired. Please login again";
-      } else if (error?.response?.status === 403) {
-        message = "Access denied. You don't have permission";
-      } else if (error?.response?.status === 409) {
-        message = "Brand with this name already exists";
-      } else if (error?.response?.status === 500) {
-        message = "Server error. Please try again later";
-      } else if (error?.code === 'ECONNABORTED') {
-        message = "Request timeout. Check your internet connection";
-      } else if (error?.message) {
-        message = error.message;
-      }
-      
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
+      toast.success("✅ Brand updated successfully! 🎉");
     }
-  };
 
+    // =========================
+    // 🔥 REFRESH + CLEANUP
+    // =========================
+    await fetchBrands();
+
+    setShowModal(false);
+    setEditingBrand(null);
+    setPendingFaqs([]);
+    setActiveTab("basic");
+
+  } catch (err: any) {
+    toast.error(err?.message || "Failed");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   return (
     <>
 {/* ============================================
@@ -480,7 +295,7 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
           ============================================ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-violet-500/10">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl shadow-violet-500/10">
             
             {/* ============================================
                 HEADER - SIMPLE WITH LOGO & INFO
@@ -509,6 +324,7 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
             src={logoPreview || getImageUrl(formData.logoUrl)}
             alt="Brand"
             className="w-full h-full object-cover rounded-lg"
+            onError={(e) => (e.currentTarget.src = "/placeholder.png")}
           />
         ) : editingBrand ? (
           <Edit className="h-6 w-6 text-white" />
@@ -535,11 +351,11 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
             ? "✏️ Update brand information" 
             : "➕ Add a new brand"}
 
-          {formData.displayOrder > 0 && (
-            <span className="text-cyan-400 font-semibold">
-              •  #{formData.displayOrder}
-            </span>
-          )}
+        {typeof formData.displayOrder === "number" && formData.displayOrder > 0 && (
+  <span className="text-cyan-400 font-semibold">
+    • #{formData.displayOrder}
+  </span>
+)}
         </p>
       </div>
     </div>
@@ -554,7 +370,11 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
         setActiveTab('basic');
       }}
       className="p-2 text-slate-400 hover:text-white hover:bg-red-500/20 border border-transparent hover:border-red-500/50 rounded-lg transition-all"
-      disabled={isSubmitting}
+    disabled={
+  isSubmitting ||
+  nameStatus === "duplicate" ||
+  nameStatus === "checking"
+}
     >
       <X className="h-5 w-5" />
     </button>
@@ -570,7 +390,8 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                 { id: 'basic', label: 'Basic Info', icon: Tag },
                 { id: 'image', label: 'Logo', icon: Upload },
                 { id: 'seo', label: 'SEO', icon: Eye },
-                { id: 'settings', label: 'Settings', icon: CheckCircle }
+                { id: 'settings', label: 'Settings', icon: CheckCircle },
+                { id: 'faqs', label: 'FAQs', icon: HelpCircle }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -596,7 +417,7 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                 MODAL BODY
                 ============================================ */}
             <div className="overflow-y-auto flex-1 p-4">
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={handleSubmit} className="space-y-2">
                 
                 {/* TAB 1: Basic Information */}
                 {activeTab === 'basic' && (
@@ -608,31 +429,66 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                         <label className="block text-sm text-slate-300 font-semibold mb-2">
                           Brand Name <span className="text-red-400">*</span>
                         </label>
-                        <input
-                          type="text"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          placeholder="e.g., Apple, Samsung"
-                          className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                          disabled={isSubmitting}
-                        />
+                       <input
+  type="text"
+  value={formData.name}
+  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+  placeholder="e.g., Apple, Samsung"
+  className={`w-full px-3 py-2.5 border rounded-lg text-white transition-all ${
+    nameStatus === "duplicate"
+      ? "border-red-500 bg-red-500/10"
+      : nameStatus === "valid"
+      ? "border-green-500 bg-green-500/10"
+      : "border-slate-600 bg-slate-800/50"
+  }`}
+  disabled={isSubmitting}
+/>
+{nameStatus === "checking" && (
+  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+    <Loader2 className="h-3 w-3 animate-spin" />
+    Checking...
+  </p>
+)}
+
+{nameStatus === "duplicate" && (
+  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+    <AlertCircle className="h-3 w-3" />
+    Brand already exists
+  </p>
+)}
+
+{nameStatus === "valid" && formData.name && (
+  <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
+    <CheckCircle className="h-3 w-3" />
+    Name available
+  </p>
+)}
                       </div>
 
                       {/* Display Order */}
-                      <div>
-                        <label className="block text-sm text-slate-300 font-semibold mb-2">
-                          Display Order <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="1000"
-                          value={formData.displayOrder}
-                          onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 1 })}
-                          className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                          disabled={isSubmitting}
-                        />
-                      </div>
+                  <div>
+  <label className="block text-sm text-slate-300 font-semibold mb-2">
+    Display Order <span className="text-red-400">*</span>
+  </label>
+
+  <input
+    type="number"
+    min="1"
+    max="1000"
+    placeholder="Enter order Numer"
+    value={formData.displayOrder ?? ""}
+    onChange={(e) => {
+      const value = e.target.value;
+
+      setFormData({
+        ...formData,
+        displayOrder: value === "" ? "" : parseInt(value)
+      });
+    }}
+    className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+    disabled={isSubmitting}
+  />
+</div>
                     </div>
 
                     {/* Description */}
@@ -644,6 +500,7 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                         value={formData.description}
                         onChange={(value) => setFormData({ ...formData, description: value })}
                         placeholder="Enter brand description..."
+                        height={300}
                       />
                       <p className="text-xs text-slate-500 mt-1">
                         {formData.description.length}/1000 characters
@@ -731,8 +588,8 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                           <div>
                             <p className="text-sm text-cyan-400 font-semibold mb-2">Guidelines:</p>
                             <ul className="text-xs text-slate-300 space-y-1">
-                              <li>• Size: 200×200px to 5000×5000px</li>
-                              <li>• Format: WebP or PNG</li>
+                              <li>• Size: 300×300 (In px)</li>
+                              <li>• Format: WebP</li>
                               <li>• Max: 1MB</li>
                             </ul>
                           </div>
@@ -744,10 +601,10 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
 
                 {/* TAB 3: SEO Information */}
                 {activeTab === 'seo' && (
-                  <div className="space-y-3 animate-fadeIn">
+                  <div className="space-y-2 animate-fadeIn">
                     {/* Meta Title */}
                     <div>
-                      <label className="block text-sm text-slate-300 font-semibold mb-2">
+                      <label className="block text-sm text-slate-300 font-semibold mb-1">
                         Meta Title
                       </label>
                       <input
@@ -969,6 +826,22 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                     )}
                   </div>
                 )}
+{activeTab === "faqs" && (
+ <BrandFaqManager
+   
+  brandId={editingBrand?.id || ""}
+  faqs={editingBrand ? editingBrand.faqs : pendingFaqs}
+  onChange={(faqs) => {
+    if (editingBrand) {
+      setEditingBrand(prev =>
+        prev ? { ...prev, faqs } : prev
+      );
+    } else {
+      setPendingFaqs(faqs);
+    }
+  }}
+/>
+)}
               </form>
             </div>
 
@@ -992,8 +865,17 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
                 <button
                   type="submit"
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white rounded-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                 disabled={
+  isSubmitting ||
+  nameStatus === "duplicate" ||
+  nameStatus === "checking"
+}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all
+${
+  isSubmitting || nameStatus === "duplicate" || nameStatus === "checking"
+    ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+    : "bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white cursor-pointer"
+}`}
                 >
                   {isSubmitting ? (
                     <>
@@ -1016,214 +898,251 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
           VIEW BRAND MODAL - UPDATED
           ============================================ */}
 {viewingBrand && (
-  <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    
-    <div className="
-      bg-gray-100 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-900 dark:to-slate-800
-      border border-gray-300 dark:border-violet-500/20
-      rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col
-      shadow-xl dark:shadow-2xl dark:shadow-violet-500/10
-    ">
-      
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+
+    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl shadow-violet-500/10">
+
       {/* ================= HEADER ================= */}
-      <div className="
-        p-4 border-b border-gray-300 dark:border-violet-500/20
-        bg-gradient-to-r 
-        from-violet-100 via-gray-100 to-cyan-100
-        dark:from-violet-500/10 dark:to-cyan-500/10
-        rounded-t-2xl shrink-0
-      ">
+      <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10 rounded-t-2xl">
         <div className="flex items-center gap-4">
 
-          {/* Logo */}
           {viewingBrand.logoUrl ? (
-            <div 
-              className="w-14 h-14 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-violet-500/30 cursor-pointer hover:border-violet-500 transition-all shrink-0"
-              onClick={() => setSelectedImageUrl(getImageUrl(viewingBrand.logoUrl))}
-            >
-              <img
-                src={getImageUrl(viewingBrand.logoUrl)}
-                alt={viewingBrand.name}
-                className="w-full h-full object-cover hover:scale-105 transition-transform"
-                 onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-              />
-            </div>
+            <img
+              src={getImageUrl(viewingBrand.logoUrl)}
+              className="w-14 h-14 rounded-lg object-cover border border-violet-500/30"
+              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+            />
           ) : (
-            <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shrink-0">
-              <Tag className="h-7 w-7 text-white" />
+            <div className="w-14 h-14 rounded-lg bg-violet-600 flex items-center justify-center text-white font-bold">
+              {viewingBrand.name?.charAt(0)}
             </div>
           )}
 
-          {/* Title */}
-          <div className="flex-1 min-w-0">
-            <h2 className="
-              text-xl font-bold
-              text-gray-900
-              dark:bg-gradient-to-r dark:from-violet-400 dark:via-cyan-400 dark:to-pink-400
-              dark:bg-clip-text dark:text-transparent
-              truncate
-            ">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
               {viewingBrand.name}
             </h2>
-
-            <p className="text-gray-600 dark:text-slate-400 text-xs mt-0.5">
-              View brand information
-            </p>
+            <p className="text-slate-400 text-xs">View brand information</p>
           </div>
 
-          {/* Close */}
-          <button
-            onClick={() => setViewingBrand(null)}
-            className="
-              p-2 text-gray-500 dark:text-slate-400
-              hover:text-red-500 dark:hover:text-white
-              hover:bg-red-100 dark:hover:bg-red-500/20
-              border border-transparent hover:border-red-500/50
-              rounded-lg transition-all shrink-0
-            "
-          >
-            <X className="h-5 w-5" />
+          <button onClick={() => setViewingBrand(null)}>
+            <X className="text-slate-400 hover:text-white" />
           </button>
         </div>
       </div>
 
-      {/* ================= CONTENT ================= */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* ================= BODY ================= */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-            {/* Basic Info */}
-            <div className="
-              bg-white dark:bg-slate-800/30
-              p-4 rounded-xl
-              border border-gray-300 dark:border-slate-700/50
-            ">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-xs text-white">ℹ️</span>
-                Basic Information
-              </h3>
+        {/* GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-              <div className="space-y-3">
+          {/* ================= BASIC ================= */}
+          <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-3">
 
-                <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Brand Name</p>
-                  <p className="text-base font-bold text-gray-900 dark:text-white">
-                    {viewingBrand.name}
-                  </p>
-                </div>
+            <h3 className="text-white font-semibold">Basic Information</h3>
 
-                <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-gray-600 dark:text-slate-400">Brand ID</p>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(viewingBrand.id);
-                        toast.success("ID copied!");
-                      }}
-                      className="text-gray-500 dark:text-slate-400 hover:text-black dark:hover:text-white"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <p className="text-sm font-mono text-gray-700 dark:text-slate-300 break-all">
-                    {viewingBrand.id}
-                  </p>
-                </div>
+            <div className="bg-slate-900/50 p-3 rounded-lg">
+              <p className="text-xs text-slate-400">Name</p>
+              <p className="text-white font-medium">{viewingBrand.name}</p>
+            </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Slug</p>
-                    <p className="text-gray-800 dark:text-white text-sm">{viewingBrand.slug}</p>
-                  </div>
+            <div className="bg-slate-900/50 p-3 rounded-lg">
+              <p className="text-xs text-slate-400">ID</p>
+              <p className="text-xs text-slate-300 break-all">{viewingBrand.id}</p>
+            </div>
 
-                  <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Display Order</p>
-                    <p className="text-gray-900 dark:text-white font-semibold">
-                      #{viewingBrand.displayOrder}
-                    </p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-xs text-slate-400">Slug</p>
+                <p className="text-white text-sm">{viewingBrand.slug}</p>
+              </div>
 
-                <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Description</p>
-                  {viewingBrand.description ? (
-                    <div
-                      className="text-gray-800 dark:text-white text-sm"
-                      dangerouslySetInnerHTML={{ __html: viewingBrand.description }}
-                    />
-                  ) : (
-                    <p className="text-gray-500 text-sm italic">No description</p>
-                  )}
-                </div>
-
+              <div className="bg-slate-900/50 p-3 rounded-lg">
+                <p className="text-xs text-slate-400">Order</p>
+                <p className="text-white font-semibold">#{viewingBrand.displayOrder}</p>
               </div>
             </div>
 
-            {/* SEO Info */}
-            <div className="
-              bg-white dark:bg-slate-800/30
-              p-4 rounded-xl
-              border border-gray-300 dark:border-slate-700/50
-            ">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center text-xs text-white">🔍</span>
-                SEO Information
+            <div className="bg-slate-900/50 p-3 rounded-lg">
+              <p className="text-xs text-slate-400">Description</p>
+              <div
+                className="text-sm text-white"
+                dangerouslySetInnerHTML={{ __html: viewingBrand.description }}
+              />
+            </div>
+
+          </div>
+
+          {/* ================= RIGHT PANEL (SEO + TIMELINE) ================= */}
+          <div className="space-y-4">
+
+            <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+
+              <h3 className="text-white font-semibold mb-4">
+                SEO & Metadata
               </h3>
 
-              <div className="space-y-3">
-                <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Meta Title</p>
-                  <p className="text-gray-800 dark:text-white text-sm">
+              <div className="space-y-4">
+
+                {/* META TITLE */}
+                <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/40">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Meta Title</span>
+                    <span>{viewingBrand.metaTitle?.length || 0}/60</span>
+                  </div>
+                  <p className="text-white text-sm font-medium">
                     {viewingBrand.metaTitle || "Not set"}
                   </p>
                 </div>
 
-                <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Meta Description</p>
-                  <p className="text-gray-800 dark:text-white text-sm">
+                {/* META DESCRIPTION */}
+                <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/40">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Meta Description</span>
+                    <span>{viewingBrand.metaDescription?.length || 0}/160</span>
+                  </div>
+                  <p className="text-slate-300 text-sm">
                     {viewingBrand.metaDescription || "Not set"}
                   </p>
                 </div>
 
-                <div className="bg-gray-200 dark:bg-slate-900/50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Meta Keywords</p>
-                  <p className="text-gray-800 dark:text-white text-sm">
-                    {viewingBrand.metaKeywords || "Not set"}
-                  </p>
+                {/* KEYWORDS */}
+                <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/40">
+                  <p className="text-xs text-slate-400 mb-2">Meta Keywords</p>
+
+                  {viewingBrand.metaKeywords ? (
+                    <div className="flex flex-wrap gap-2">
+                      {viewingBrand.metaKeywords.split(",").map((tag: string, i: number) => (
+                        <span
+                          key={i}
+                          className="text-xs px-2 py-1 rounded-md bg-violet-500/10 text-violet-300 border border-violet-500/20"
+                        >
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">Not set</p>
+                  )}
                 </div>
+
+                {/* TIMELINE */}
+                <div className="border-t border-slate-700/50 pt-4">
+                  <h4 className="text-sm font-medium text-white mb-3">Timeline</h4>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+
+                    <div className="bg-slate-900/50 p-3 rounded-lg">
+                      <p className="text-slate-400 text-xs">Created By</p>
+                      <p className="text-white text-sm">{formatDate(viewingBrand.createdAt)}</p>
+                      <p className="text-xs text-slate-500">{viewingBrand.createdBy}</p>
+                    </div>
+
+                    <div className="bg-slate-900/50 p-3 rounded-lg">
+                      <p className="text-slate-400 text-xs">Updated by </p>
+                      <p className="text-white text-sm">{formatDate(viewingBrand.updatedAt)}</p>
+                      <p className="text-xs text-slate-500">{viewingBrand.updatedBy}</p>
+                    </div>
+
+                  </div>
+                </div>
+
               </div>
             </div>
 
           </div>
         </div>
+
+        {/* ================= FAQ ================= */}
+        <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-white font-semibold">FAQs</h3>
+            <span className="text-xs px-2 py-1 bg-slate-700 rounded text-slate-300">
+              {viewingBrand.faqs?.length || 0}
+            </span>
+          </div>
+
+          {viewingBrand.faqs?.length ? (
+            <div className="space-y-2">
+
+              {viewingBrand.faqs.map((faq: any, i: number) => (
+                <details
+                  key={faq.id}
+                  className="group bg-slate-900/50 rounded-lg border border-slate-700/40"
+                >
+                  <summary className="cursor-pointer list-none p-3 flex justify-between items-center">
+
+                    <p className="text-sm text-white font-medium">
+                      {i + 1}. {faq.question}
+                    </p>
+
+                    <div className="flex items-center gap-2">
+
+                      <span className={`text-[10px] px-2 py-0.5 rounded ${
+                        faq.isActive
+                          ? "bg-green-500/10 text-green-400"
+                          : "bg-red-500/10 text-red-400"
+                      }`}>
+                        {faq.isActive ? "Active" : "Inactive"}
+                      </span>
+
+                      <span className="text-xs text-slate-500">
+                        #{faq.displayOrder}
+                      </span>
+
+                    </div>
+
+                  </summary>
+
+                  <div className="px-3 pb-3 text-xs text-slate-400 border-t border-slate-700/40">
+                    {faq.answer}
+                  </div>
+
+                </details>
+              ))}
+
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm">No FAQs available</p>
+          )}
+
+        </div>
+
       </div>
 
       {/* ================= FOOTER ================= */}
-      <div className="
-        p-4 border-t border-gray-300 dark:border-slate-700/50
-        bg-gray-200 dark:bg-slate-800/30
-        rounded-b-2xl shrink-0
-      ">
-        <div className="flex justify-end">
-          <button
-            onClick={() => setViewingBrand(null)}
-            className="
-              px-4 py-2.5
-              bg-violet-600 hover:bg-violet-700
-              text-white text-sm rounded-lg
-              transition-all font-medium
-            "
-          >
-            Close
-          </button>
-        </div>
-      </div>
+  <div className="p-3 border-t border-slate-700/50 flex justify-end gap-2">
+
+  {/* CLOSE */}
+  <button
+    onClick={() => setViewingBrand(null)}
+    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm"
+  >
+    Close
+  </button>
+
+  {/* EDIT */}
+  <button
+    onClick={() => {
+      if (!viewingBrand) return;
+
+      setViewingBrand(null);       // close view modal
+      setEditingBrand(viewingBrand); // pass data to edit
+      setTimeout(() => setShowModal(true), 0); // open edit modal
+    }}
+    className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm flex items-center gap-1.5"
+  >
+    <Edit className="h-4 w-4" />
+    Edit
+  </button>
+
+</div>
 
     </div>
   </div>
 )}
-
 
 {/* ============================================
     IMAGE VIEW MODAL (POLISHED)
@@ -1241,7 +1160,7 @@ const handleDeleteImage = async (brandId: string, imageUrl: string) => {
         className="
           absolute top-3 right-3
           p-2 rounded-lg
-          bg-white/10 hover:bg-red-500
+          bg-red-900/80 hover:bg-red-500
           text-white backdrop-blur-md
           transition-all shadow-md
         "

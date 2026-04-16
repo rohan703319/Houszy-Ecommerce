@@ -13,6 +13,7 @@ import { useToast } from "@/app/admin/_components/CustomToast";
 import { blogPostsService, BlogPost, BlogCategory } from "@/lib/services/blogPosts";
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { blogCategoriesService } from "@/lib/services/blogCategories";
+import { generateSlug } from "../_utils/formatUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormErrors {
@@ -28,14 +29,7 @@ interface BlogPostFormProps {
   initialData?: BlogPost | null;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const generateSlug = (title: string) =>
-  title
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+
 
 const inp =
   "w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 transition-colors";

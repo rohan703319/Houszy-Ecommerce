@@ -1573,8 +1573,12 @@ setShippingAddressQuery("");
 {/* STEP 1 */}
 {!stripeClientSecret && (
   <button
-disabled={!acceptTerms || isPlacing}
+disabled={isPlacing}
     onClick={async () => {
+        if (!acceptTerms) {
+    setError("Please accept Terms & Conditions");
+    return;
+  }
        if (isPlacing) return;
   setIsPlacing(true);
       const payload = await validateAndBuildPayload();
@@ -1688,9 +1692,23 @@ if (!intentJson?.data?.clientSecret) {
               </div>
              {/* Terms & Newsletter */}
 <div className="mt-2 space-y-1.5">
-  <label className="flex items-start gap-2 text-xs text-gray-700">
-    <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} className="mt-0.5" />
-    <span>I agree to the <Link href="/terms" className="text-blue-600 underline">Terms & Conditions</Link></span>
+ <label className={`flex items-start gap-2 text-xs ${
+  stripeClientSecret ? "text-gray-400 cursor-not-allowed" : "text-gray-700"
+}`}>
+<input
+  type="checkbox"
+  checked={acceptTerms}
+  disabled={!!stripeClientSecret} // 🔥 lock in step 2
+  onChange={(e) => {
+    const checked = e.target.checked;
+    setAcceptTerms(checked);
+
+    if (checked) {
+      setError(null);
+    }
+  }}
+/>
+    <span>I agree to the <Link href="/terms-and-conditions" className="text-blue-600 underline">Terms & Conditions</Link></span>
   </label>
   <label className="flex items-start gap-2 text-xs text-gray-700">
     <input type="checkbox" checked={subscribeNewsletter} onChange={(e) => setSubscribeNewsletter(e.target.checked)} className="mt-0.5" />

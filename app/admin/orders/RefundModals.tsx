@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { RefundHistory, RefundReason, orderEditService } from '@/lib/services/OrderEdit';
 import { Order, formatCurrency } from '@/lib/services/orders';
+import ConfirmDialog from '../_components/ConfirmDialog';
 
 type RefundTab = 'full' | 'partial' | 'shipping';
 
@@ -74,11 +75,16 @@ export default function UnifiedRefundModal({
   const [activeTab, setActiveTab] = useState<RefundTab>(defaultTab);
   const [reason, setReason] = useState<RefundReason>(RefundReason.CustomerRequest);
   const [notes, setNotes] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [partialAmount, setPartialAmount] = useState<number>(0);
 
   const refundedAmount = refundHistory?.totalRefunded ?? 0;
   const remainingRefundable = Math.max(0, paidAmountCap - refundedAmount);
-
+useEffect(() => {
+  if (!processingRefund && confirmOpen) {
+    setConfirmOpen(false);
+  }
+}, [processingRefund]);
   // Reset state every time modal opens
   useEffect(() => {
     if (isOpen) {
@@ -101,12 +107,11 @@ export default function UnifiedRefundModal({
     if (!processingRefund) onClose();
   };
 
-  const handleSubmit = () => {
-    if (activeTab === 'full') onFullRefund(reason, notes);
-    else if (activeTab === 'partial') onPartialRefund(partialAmount, reason, notes);
-    else if (activeTab === 'shipping') onShippingRefund(notes);
-  };
-
+const handleConfirmRefund = () => {
+  if (activeTab === 'full') onFullRefund(reason, notes);
+  else if (activeTab === 'partial') onPartialRefund(partialAmount, reason, notes);
+  else if (activeTab === 'shipping') onShippingRefund(notes);
+};
   const isSubmitDisabled = (() => {
     if (processingRefund || !notes.trim()) return true;
     if (activeTab === 'partial' && partialAmount <= 0) return true;
@@ -308,7 +313,7 @@ export default function UnifiedRefundModal({
               Cancel
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={() => setConfirmOpen(true)}
               disabled={isSubmitDisabled}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
                 activeTab === 'full'
@@ -344,6 +349,41 @@ export default function UnifiedRefundModal({
         </div>
 
       </div>
+<ConfirmDialog
+  isOpen={confirmOpen}
+  isLoading={processingRefund}
+  onClose={() => setConfirmOpen(false)}
+  onConfirm={handleConfirmRefund}
+  title={
+    activeTab === 'full'
+      ? "Confirm Full Refund"
+      : activeTab === 'partial'
+      ? "Confirm Partial Refund"
+      : "Confirm Shipping Refund"
+  }
+  message={
+    activeTab === 'full'
+      ? "Full refund will be issued. This action is irreversible and money will be returned to the customer."
+      : activeTab === 'partial'
+      ? `You are about to refund ${formatCurrency(partialAmount, order.currency)}. This cannot be undone.`
+      : "Shipping charges will be refunded only. This action cannot be undone."
+  }
+  confirmText="Yes, Refund"
+  iconColor={
+    activeTab === 'full'
+      ? "text-red-400"
+      : activeTab === 'partial'
+      ? "text-orange-400"
+      : "text-cyan-400"
+  }
+  confirmButtonStyle={
+    activeTab === 'full'
+      ? "bg-red-600 hover:bg-red-700"
+      : activeTab === 'partial'
+      ? "bg-orange-500 hover:bg-orange-600"
+      : "bg-cyan-600 hover:bg-cyan-700"
+  }
+/>
     </div>
   );
 }

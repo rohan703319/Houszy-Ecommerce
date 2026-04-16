@@ -39,6 +39,7 @@ import {
   RotateCcw,
   XCircle,
   Upload,
+  BellRing,
 } from 'lucide-react';
 import {
   orderService,
@@ -51,35 +52,33 @@ import {
   formatDate,
   PharmacyVerificationStatus,
 } from '../../../lib/services/orders';
+import {
+  OrderCancellationRequestItem,
+  orderCancellationRequestsService,
+} from '../../../lib/services/orderCancellationRequests';
 import { useToast } from '@/app/admin/_components/CustomToast';
 import React from 'react';
 import OrderActionsModal from './OrderActionsModal';
 import BulkStatusModal from './BulkStatusModal';
+import {
+  CancellationActionButtons,
+  CancellationDecisionModal,
+} from './CancellationRequestManager';
 
 import BulkShipmentUploadModal from './BulkShipmentUploadModal';
-import { API_BASE_URL } from '@/lib/api';
+import ImportWooCommerceOrdersModal from './ImportWooCommerceOrdersModal';
 
-interface Address {
-  firstName: string;
-  lastName: string;
-  company?: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  phoneNumber?: string;
-}
-const getOrderProductImage = (imageUrl?: string): string => {
-  if (!imageUrl) return "/no-image.png";
+import { formatNumber, getOrderProductImage } from '../_utils/formatUtils';
+import { useDebounce } from '../_hooks/useDebounce';
+import ImagePreviewModal from '../_components/ImagePreviewModal';
 
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
+const card = `
+bg-slate-900/40 border rounded-lg p-2
+hover:shadow-lg transition-all text-left
+`;
 
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
+
+
 // ✅ Get Available Actions based on Order Status (matching backend rules)
 const getAvailableActions = (order: Order) => {
   const actions: string[] = [];
@@ -103,6 +102,8 @@ const getAvailableActions = (order: Order) => {
       break;
     case 'PartiallyShipped':
       actions.push('create-shipment', 'mark-delivered', 'update-status', 'cancel-order');
+      break;
+    case 'CancellationRequested':
       break;
     case 'Delivered':
       actions.push('update-status');
@@ -137,6 +138,7 @@ export default function OrdersListPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [showProducts, setShowProducts] = useState<string | null>(null);
 const popupRef = useRef<HTMLDivElement | null>(null);
+const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // ✅ Bulk Selection
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -175,11 +177,23 @@ const selectedStatus = selectedOrderObjects[0]?.status;
   const [actionMenuOrder, setActionMenuOrder] = useState<string | null>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
-
+const [stats, setStats] = useState<any>(null);
 const [bulkLoading, setBulkLoading] = useState(false);
-const [debouncedSearch, setDebouncedSearch] = useState(filters.searchTerm);
+const [searchInput, setSearchInput] = useState("");
+const debouncedSearch = useDebounce(searchInput, 500);
+
+const [filterLoading, setFilterLoading] = useState(false);
+const [searchLoading, setSearchLoading] = useState(false);
+const [cancellationRequests, setCancellationRequests] = useState<OrderCancellationRequestItem[]>([]);
+const [cancellationDecisionState, setCancellationDecisionState] = useState<{
+  mode: 'approve' | 'reject';
+  request: OrderCancellationRequestItem;
+} | null>(null);
+const [cancellationAdminNotes, setCancellationAdminNotes] = useState("");
+const [cancellationActionLoading, setCancellationActionLoading] = useState(false);
 
 const [shipmentModalOpen, setShipmentModalOpen] = useState(false);
+const [importWooCommerceModalOpen, setImportWooCommerceModalOpen] = useState(false);
   // ✅ Order Actions Modal
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -216,25 +230,25 @@ useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+const [initialLoading, setInitialLoading] = useState(true);
 useEffect(() => {
-  if (!filters.searchTerm) {
-    setDebouncedSearch("");
-    return;
+  const init = async () => {
+    await fetchOrders();
+    setInitialLoading(false);
+  };
+
+  init();
+}, []);
+useEffect(() => {
+  if (searchInput.trim() !== "") {
+    setSearchLoading(true);
   }
-
-  setIsSearching(true);
-
-  const handler = setTimeout(() => {
-    setDebouncedSearch(filters.searchTerm);
-  }, 500);
-
-  return () => clearTimeout(handler);
-}, [filters.searchTerm]);
-
+}, [searchInput]);
   // Fetch orders
 const fetchOrders = useCallback(async () => {
   try {
-    setLoading(true);
+  
+    setFilterLoading(true);
 
 const response = await orderService.getAllOrders({
   page: currentPage,
@@ -242,7 +256,7 @@ const response = await orderService.getAllOrders({
   status: filters.status || undefined,
   fromDate: filters.fromDate || undefined,
   toDate: filters.toDate || undefined,
-  searchTerm: debouncedSearch || undefined,
+  searchTerm: debouncedSearch.trim() !== "" ? debouncedSearch : undefined,
   pharmacyVerificationStatus:
     filters.pharmacyVerificationStatus || undefined,
 
@@ -253,8 +267,10 @@ const response = await orderService.getAllOrders({
       : undefined,
 });
 
-    if (response?.data) {
-      let filteredOrders = response.data.items || [];
+    const responseData = response?.data;
+
+    if (responseData) {
+      let filteredOrders = responseData.items || [];
 
       if (filters.deliveryMethod) {
         filteredOrders = filteredOrders.filter(
@@ -262,16 +278,16 @@ const response = await orderService.getAllOrders({
         );
       }
 
-      if (filters.paymentMethod) {
-        filteredOrders = filteredOrders.filter((o) => {
-          const method =
-            o.paymentMethod || o.payments?.[0]?.paymentMethod || "";
-          return (
-            method.toLowerCase() ===
-            filters.paymentMethod.toLowerCase()
-          );
-        });
-      }
+     if (filters.paymentMethod) {
+  filteredOrders = filteredOrders.filter((o) => {
+    const method =
+      o.paymentMethod || o.payments?.[0]?.paymentMethod || "";
+
+    return method.toLowerCase().includes(
+      filters.paymentMethod.toLowerCase()
+    );
+  });
+}
 
       if (filters.paymentStatus) {
         filteredOrders = filteredOrders.filter((o) => {
@@ -285,14 +301,17 @@ const response = await orderService.getAllOrders({
       }
 
       setOrders(filteredOrders);
-      setTotalCount(response.data.totalCount || 0);
-      setTotalPages(response.data.totalPages || 0);
+      setStats(responseData.stats);
+      setTotalCount(responseData.totalCount || 0);
+      setTotalPages(responseData.totalPages || 0);
     }
   } catch (error: any) {
     toast.error(error.message || "Failed to load orders");
   } finally {
     setLoading(false);
     setIsSearching(false); // 👈 stop loader after API
+    setFilterLoading(false);
+setSearchLoading(false);
   }
 }, [
   currentPage,
@@ -309,9 +328,34 @@ const response = await orderService.getAllOrders({
 ]);
 
 
-  useEffect(() => {
+useEffect(() => {
+  if (!initialLoading) {
     fetchOrders();
-  }, [fetchOrders]);
+  }
+}, [
+  currentPage,
+  itemsPerPage,
+  filters,
+  debouncedSearch
+]);
+
+useEffect(() => {
+  const fetchCancellationRequests = async () => {
+    try {
+      const response = await orderCancellationRequestsService.getAll({
+        page: 1,
+        pageSize: 20,
+      });
+
+      setCancellationRequests(response?.data?.items || []);
+    } catch (error: any) {
+      setCancellationRequests([]);
+      toast.error(error?.message || "Failed to load cancellation requests");
+    }
+  };
+
+  fetchCancellationRequests();
+}, []);
 
   // ✅ Bulk Selection Handlers
   const toggleSelectAll = () => {
@@ -553,6 +597,18 @@ const hasActiveFilters = useMemo(() => {
   });
 }, [filters]);
 
+const pendingCancellationRequestMap = useMemo(() => {
+  return cancellationRequests.reduce<Record<string, OrderCancellationRequestItem>>(
+    (accumulator, request) => {
+      if (request.status === "Pending") {
+        accumulator[request.orderId] = request;
+      }
+      return accumulator;
+    },
+    {}
+  );
+}, [cancellationRequests]);
+
 
   const getDateRangeLabel = () => {
     if (!filters.fromDate && !filters.toDate) return 'Select Date Range';
@@ -571,22 +627,7 @@ const hasActiveFilters = useMemo(() => {
     return 'Select Date Range';
   };
 
-  const getDeliveryMethodBadge = (method: string) => {
-    if (method === 'ClickAndCollect') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs border border-cyan-500/20">
-          <MapPin className="h-3 w-3" />
-          Click & Collect
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-xs border border-purple-500/20">
-        <Truck className="h-3 w-3" />
-        Home Delivery
-      </span>
-    );
-  };
+  
 
   // ✅ Handle Action Modal
   const openActionModal = (order: Order, action: string) => {
@@ -601,47 +642,100 @@ const hasActiveFilters = useMemo(() => {
   const handleActionSuccess = () => {
     closeActionModal();
     fetchOrders();
+    orderCancellationRequestsService
+      .getAll({ page: 1, pageSize: 20 })
+      .then((response) => setCancellationRequests(response?.data?.items || []))
+      .catch(() => setCancellationRequests([]));
   };
-const [stats, setStats] = useState({
-  totalOrders: 0,
-  pending: 0,
-  processing: 0,
-  delivered: 0,
-});
-const fetchOrderStats = useCallback(async () => {
-  try {
-    const response = await orderService.getAllOrders({
-      page: 1,
-      pageSize: 10000, // large size to fetch all
-    });
 
-    const allOrders: Order[] = response?.data?.items || [];
+  const handleViewCancellationRequestedOrders = () => {
+    setFilters((prev) => ({
+      ...prev,
+      status: 'CancellationRequested',
+    }));
+    setCurrentPage(1);
+  };
 
-   const pending = allOrders.filter(o => o.status === "Pending").length;
+  const pendingCancellationCount = cancellationRequests.filter(
+    (request) => request.status === 'Pending'
+  ).length;
 
-const processing = allOrders.filter(
-  o => o.status === "Processing"
-).length;
+  const openCancellationDecision = async (
+    order: Order,
+    mode: 'approve' | 'reject'
+  ) => {
+    try {
+      const existingRequest = cancellationRequests.find(
+        (request) => request.orderId === order.id && request.status === 'Pending'
+      );
 
-const delivered = allOrders.filter(
-  o => o.status === "Delivered"
-).length;
+      if (existingRequest) {
+        setCancellationDecisionState({ mode, request: existingRequest });
+        setCancellationAdminNotes("");
+        return;
+      }
 
-    setStats({
-      totalOrders: allOrders.length,
-      pending,
-      processing,
-      delivered,
-    });
+      const response = await orderCancellationRequestsService.getByOrderId(order.id);
+      const requestData = response?.data;
 
-  } catch (error) {
-    console.error("Failed to load order stats", error);
-  }
-}, []);
-useEffect(() => {
-  fetchOrderStats();
-}, [fetchOrderStats]);
-  // ✅ Calculate stats with proper typing
+      if (!requestData) {
+        throw new Error("Cancellation request not found");
+      }
+
+      setCancellationDecisionState({ mode, request: requestData });
+      setCancellationAdminNotes("");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load cancellation request");
+    }
+  };
+
+  const closeCancellationDecision = () => {
+    if (!cancellationActionLoading) {
+      setCancellationDecisionState(null);
+      setCancellationAdminNotes("");
+    }
+  };
+
+  const handleCancellationDecision = async () => {
+    if (!cancellationDecisionState || !cancellationAdminNotes.trim()) {
+      toast.error("Admin notes are required");
+      return;
+    }
+
+    setCancellationActionLoading(true);
+
+    try {
+      if (cancellationDecisionState.mode === 'approve') {
+        await orderCancellationRequestsService.approve(
+          cancellationDecisionState.request.id,
+          { adminNotes: cancellationAdminNotes.trim() }
+        );
+        toast.success("Cancellation request approved successfully");
+      } else {
+        await orderCancellationRequestsService.reject(
+          cancellationDecisionState.request.id,
+          { adminNotes: cancellationAdminNotes.trim() }
+        );
+        toast.success("Cancellation request rejected successfully");
+      }
+
+      closeCancellationDecision();
+      const refreshedRequests = await orderCancellationRequestsService.getAll({
+        page: 1,
+        pageSize: 20,
+      });
+      setCancellationRequests(refreshedRequests?.data?.items || []);
+      await fetchOrders();
+    } catch (error: any) {
+      toast.error(
+        error?.message || "Failed to process cancellation request"
+      );
+    } finally {
+      setCancellationActionLoading(false);
+    }
+  };
+
+
 
 
   // ✅ Quick filter handlers
@@ -650,7 +744,7 @@ useEffect(() => {
     setCurrentPage(1);
   };
 
-  if (loading) {
+if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -664,7 +758,8 @@ useEffect(() => {
   return (
     <div className="space-y-2">
       {/* Header */}
-<div className="relative flex items-start justify-between">
+<div className="relative space-y-3">
+  <div className="flex items-start justify-between gap-4">
 
   {/* 🔹 LEFT SIDE — TITLE */}
   <div>
@@ -679,12 +774,40 @@ useEffect(() => {
   {/* 🔹 RIGHT SIDE — ACTION BUTTONS */}
   <div className="flex items-center gap-3">
 
-    {/* Upload Shipments */}
+    {/* Pending Cancellation CTA */}
+   {pendingCancellationCount > 0 && (
+  <button
+    onClick={handleViewCancellationRequestedOrders}
+    className="relative overflow-hidden px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium border border-amber-400/40 bg-gradient-to-r from-amber-500/15 to-orange-500/10 text-amber-200 shadow-lg shadow-amber-500/10 animate-pulse"
+    title="orders with pending cancellation requests"
+  >
+    <BellRing className="w-4 h-4 text-amber-300" />
+
+    <span>
+      {pendingCancellationCount} cancellation request
+      {pendingCancellationCount === 1 ? "" : "s"}
+    </span>
+
+    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-300" />
+  </button>
+)}
+
     <button
-      onClick={() => setShipmentModalOpen(true)}
-      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 
-      text-white rounded-lg hover:shadow-lg hover:shadow-purple-500/30 
+      onClick={() => setImportWooCommerceModalOpen(true)}
+      className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 
+      text-white rounded-lg hover:shadow-lg hover:shadow-cyan-500/30 
       transition-all flex items-center gap-2 text-sm font-medium"
+    >
+      <FileSpreadsheet className="w-4 h-4" />
+      Import WooCommerce
+    </button>
+
+    {/* Upload Shipments */}
+      <button
+      onClick={() => setShipmentModalOpen(true)}
+        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 
+        text-white rounded-lg hover:shadow-lg hover:shadow-purple-500/30 
+        transition-all flex items-center gap-2 text-sm font-medium"
     >
       <Upload className="w-4 h-4" />
       Upload Shipments
@@ -754,6 +877,8 @@ useEffect(() => {
         </>
       )}
     </div>
+  </div>
+
   </div>
 
 {selectedOrders.length > 0 && (
@@ -841,95 +966,104 @@ useEffect(() => {
 )}
 </div>
 
-      {/* ✅ Clickable Stats Cards with Quick Filters */}
-      <div className="grid gap-3 md:grid-cols-4">
-        <button
-          onClick={() => handleQuickFilter('')}
-          className={`bg-gradient-to-br from-violet-500/10 to-purple-500/10 border rounded-lg p-3 hover:shadow-lg transition-all text-left ${
-            filters.status === '' ? 'border-violet-500 shadow-lg shadow-violet-500/20' : 'border-violet-500/20'
-          }`}
-          title="View all orders"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg">
-              <ShoppingCart className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Total Orders</p>
-             <p className="text-xl font-bold text-white">
-{stats.totalOrders}
-</p>
-            </div>
-          </div>
+<div className="grid gap-3 md:grid-cols-5">
+
+  {/* CARD */}
+  {[
+    {
+      label1: "Total Orders",
+      value1: stats?.totalOrders,
+      color1: "text-violet-400",
+      action1: () => handleQuickFilter(""),
+
+      label2: "Pending",
+      value2: stats?.totalPending,
+      color2: "text-cyan-400",
+      action2: () => handleQuickFilter("Pending"),
+    },
+    {
+      label1: "Processing",
+      value1: stats?.totalProcessing,
+      color1: "text-pink-400",
+      action1: () => handleQuickFilter("Processing"),
+
+      label2: "Confirmed",
+      value2: stats?.totalConfirmed,
+      color2: "text-blue-400",
+      action2: () => handleQuickFilter("Confirmed"),
+    },
+    {
+      label1: "Shipped",
+      value1: stats?.totalShipped,
+      color1: "text-indigo-400",
+      action1: () => handleQuickFilter("Shipped"),
+
+      label2: "Partial",
+      value2: stats?.totalPartiallyShipped,
+      color2: "text-yellow-400",
+      action2: () => handleQuickFilter("PartiallyShipped"),
+    },
+    {
+      label1: "Delivered",
+      value1: stats?.totalDelivered,
+      color1: "text-green-400",
+      action1: () => handleQuickFilter("Delivered"),
+
+      label2: "Returned",
+      value2: stats?.totalReturned,
+      color2: "text-orange-400",
+      action2: () => handleQuickFilter("Returned"),
+    },
+    {
+      label1: "Cancelled",
+      value1: stats?.totalCancelled,
+      color1: "text-red-400",
+      action1: () => handleQuickFilter("Cancelled"),
+
+      label2: "Refunded",
+      value2: stats?.totalRefunded,
+      color2: "text-pink-400",
+      action2: () => handleQuickFilter("Refunded"),
+    },
+  ].map((card, i) => (
+    <div
+      key={i}
+      className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 hover:shadow-md transition"
+    >
+      <div className="grid grid-cols-2 gap-2">
+
+        {/* LEFT */}
+        <button onClick={card.action1} className="text-left group">
+          <p className="text-[12px] text-slate-400 group-hover:text-white truncate">
+            {card.label1}
+          </p>
+          <p className={`text-sm font-semibold ${card.color1}`}>
+            {formatNumber(card.value1 ?? 0)}
+          </p>
         </button>
 
-        <button
-          onClick={() => handleQuickFilter('Pending')}
-          className={`bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border rounded-lg p-3 hover:shadow-lg transition-all text-left ${
-            filters.status === 'Pending' ? 'border-cyan-500 shadow-lg shadow-cyan-500/20' : 'border-cyan-500/20'
-          }`}
-          title="View pending orders"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg">
-              <Clock className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Pending</p>
-             <p className="text-xl font-bold text-white">
-{stats.pending}
-</p>
-            </div>
-          </div>
+        {/* RIGHT */}
+        <button onClick={card.action2} className="text-right group">
+          <p className="text-[12px] text-slate-400 group-hover:text-white truncate">
+            {card.label2}
+          </p>
+          <p className={`text-sm font-semibold ${card.color2}`}>
+            {formatNumber(card.value2 ?? 0)}
+          </p>
         </button>
 
-        <button
-          onClick={() => handleQuickFilter('Processing')}
-          className={`bg-gradient-to-br from-pink-500/10 to-rose-500/10 border rounded-lg p-3 hover:shadow-lg transition-all text-left ${
-            filters.status === 'Processing' ? 'border-pink-500 shadow-lg shadow-pink-500/20' : 'border-pink-500/20'
-          }`}
-          title="View processing orders"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg">
-              <Package className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Processing</p>
-              <p className="text-xl font-bold text-white">
-{stats.processing}
-</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => handleQuickFilter('Delivered')}
-          className={`bg-gradient-to-br from-green-500/10 to-emerald-500/10 border rounded-lg p-3 hover:shadow-lg transition-all text-left ${
-            filters.status === 'Delivered' ? 'border-green-500 shadow-lg shadow-green-500/20' : 'border-green-500/20'
-          }`}
-          title="View completed orders"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg">
-              <CheckCircle className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Delivered</p>
-          <p className="text-xl font-bold text-white">
-{stats.delivered}
-</p>
-            </div>
-          </div>
-        </button>
       </div>
+    </div>
+  ))}
+
+</div>
 
       {/* Items Per Page */}
-   <div className="bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-3">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-xs">
+   <div className="bg-slate-900/50 border border-slate-800 rounded-lg px-2 py-2">
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs">
     
     {/* LEFT SIDE */}
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-wrap items-center gap-2">
       
       {/* Show Entries */}
       <div className="flex items-center gap-2">
@@ -970,7 +1104,7 @@ useEffect(() => {
     </div>
 
     {/* RIGHT SIDE */}
-    <div className="flex items-center gap-4 text-slate-400">
+    <div className="flex items-center gap-2 text-slate-400">
       
       {/* Page Info */}
       <span>
@@ -983,359 +1117,287 @@ useEffect(() => {
           {totalPages}
         </span>
       </span>
-
-      {/* Filter Indicator */}
-      {hasActiveFilters && (
-        <span className="text-violet-400 flex items-center gap-1">
-          <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-pulse"></span>
-          Filters active
-        </span>
-      )}
-     
     </div>
   </div>
 </div>
-
-
 {/* FILTERS */}
-<div className="bg-slate-900/50 border border-slate-800 rounded-lg p-3 space-y-2">
+<div className="bg-slate-900/50 border border-slate-800 rounded-xl p-2 space-y-3">
 
-{/* ROW 1 */}
-<div className="flex flex-wrap gap-2 items-center">
+  {/* ✅ SINGLE ROW - ALL FILTERS INLINE */}
+  <div className="flex flex-wrap items-center gap-1 w-full">
+    
+    {/* SEARCH - Flexible width */}
+<div className="relative flex-1 min-w-[220px]">
+  
+  {/* ICON */}
+  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
 
-{/* SEARCH */}
-<div className="relative flex-1 min-w-[260px]">
+  {/* INPUT */}
+  <input
+    type="text"
+    placeholder="Search order by OrderID, name, email, phone..."
+    title="Search order by ID, name, email, phone"
+    value={searchInput}
+    onChange={(e) => setSearchInput(e.target.value)}
+    className="w-full pl-10 pr-10 py-2 bg-slate-800/90 border border-slate-700 rounded-lg text-sm placeholder:text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+  />
 
-<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-
-<input
-type="text"
-placeholder="Search Order, Product, SKU, Customer..."
-value={filters.searchTerm}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-searchTerm:e.target.value
-}))
-}
-className={`w-full pl-9 pr-3 py-2 rounded-lg text-white text-sm bg-slate-800 border
-${filters.searchTerm ? "border-violet-500 bg-violet-500/10":"border-slate-700"}
-focus:ring-2 focus:ring-violet-500`}
-/>
-
-{isSearching && (
-<div className="absolute right-3 top-1/2 -translate-y-1/2">
-<div className="h-4 w-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"/>
-</div>
-)}
-
-</div>
-
-
-{/* USER TYPE */}
-<select
-value={filters.isGuestOrder}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-isGuestOrder:e.target.value
-}))
-}
-className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[160px]
-${filters.isGuestOrder ? "border-violet-500 bg-violet-500/10":"border-slate-700"}
-`}
->
-<option value="">User Type</option>
-<option value="false">Registered</option>
-<option value="true">Guest</option>
-</select>
-
-
-{/* ORDER STATUS */}
-<select
-value={filters.status}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-status:e.target.value
-}))
-}
-className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[160px]
-${filters.status ? "border-blue-500 bg-blue-500/10":"border-slate-700"}
-`}
->
-<option value="">Order Status</option>
-<option value="Pending">Pending</option>
-<option value="Confirmed">Confirmed</option>
-<option value="Processing">Processing</option>
-<option value="Shipped">Shipped</option>
-<option value="Delivered">Delivered</option>
-<option value="Cancelled">Cancelled</option>
-
-</select>
-
-
-{/* DELIVERY */}
-<select
-value={filters.deliveryMethod}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-deliveryMethod:e.target.value
-}))
-}
-className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[160px]
-${filters.deliveryMethod ? "border-cyan-500 bg-cyan-500/10":"border-slate-700"}
-`}
->
-<option value="">Delivery</option>
-<option value="HomeDelivery">Home Delivery</option>
-<option value="ClickAndCollect">Click & Collect</option>
-</select>
-
-
-{/* MORE / HIDE */}
-<button
-onClick={()=>setShowAdvancedFilters(!showAdvancedFilters)}
-className="px-3 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-sm flex items-center gap-2"
->
-<Filter className="w-4 h-4"/>
-{showAdvancedFilters ? "Hide":"More"}
-</button>
-
-
-{/* CLEAR */}
-{hasActiveFilters && (
-<button
-onClick={clearFilters}
-className="px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2"
->
-<FilterX className="w-4 h-4"/>
-Clear
-</button>
-)}
+  {/* RIGHT ICON */}
+  {searchLoading ? (
+    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+      <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : (
+    searchInput && (
+      <X
+        onClick={() => setSearchInput("")}
+        className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 cursor-pointer text-slate-400 hover:text-white"
+      />
+    )
+  )}
 
 </div>
 
+    {/* USER TYPE */}
+    <select
+      value={filters.isGuestOrder}
+      onChange={(e) =>
+        setFilters((prev) => ({
+          ...prev,
+          isGuestOrder: e.target.value,
+        }))
+      }
+      className={`px-2 py-2 rounded-lg text-sm text-white border bg-gray-800 min-w-[100px]
+        ${filters.isGuestOrder !== "" ? "border-violet-500 bg-violet-500/10" : "border-slate-700"}`}
+    >
+      <option value="">User Type</option>
+      <option value="false">Registered</option>
+      <option value="true">Guest</option>
+    </select>
 
-{/* ROW 2 */}
-{showAdvancedFilters && (
+    {/* STATUS */}
+    <select
+      value={filters.status}
+      onChange={(e) =>
+        setFilters((prev) => ({
+          ...prev,
+          status: e.target.value,
+        }))
+      }
+      className={`px-2 py-2 rounded-lg text-sm text-white border bg-slate-800 max-w-[150px]
+        ${filters.status ? "border-blue-500 bg-blue-500/10" : "border-slate-700"}`}
+    >
+      <option value="">Order Status</option>
+      <option value="Pending">Pending</option>
+      <option value="Confirmed">Confirmed</option>
+      <option value="Processing">Processing</option>
+      <option value="CancellationRequested">Cancellation Requested</option>
+      <option value="Shipped">Shipped</option>
+      <option value="PartiallyShipped">Partially Shipped</option>
+      <option value="Delivered">Delivered</option>
+      <option value="Returned">Returned</option>
+      <option value="Refunded">Refunded</option>
+      <option value="Cancelled">Cancelled</option>
+    </select>
 
-<div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2 w-full">
+    {/* DELIVERY METHOD */}
+    <select
+      value={filters.deliveryMethod}
+      onChange={(e) =>
+        setFilters((prev) => ({
+          ...prev,
+          deliveryMethod: e.target.value,
+        }))
+      }
+      className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[110px]
+        ${filters.deliveryMethod ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
+    >
+      <option value="">Delivery Method</option>
+      <option value="HomeDelivery">Home Delivery</option>
+      <option value="ClickAndCollect">Click & Collect</option>
+    </select>
 
+    {/* PAYMENT METHOD */}
+    <select
+      value={filters.paymentMethod}
+      onChange={(e) =>
+        setFilters((prev) => ({
+          ...prev,
+          paymentMethod: e.target.value,
+        }))
+      }
+      className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[20px]
+        ${filters.paymentMethod ? "border-amber-500 bg-amber-500/10" : "border-slate-700"}`}
+    >
+      <option value="">Payment Status</option>
+      <option value="Stripe">Stripe</option>
+      <option value="PayPal">PayPal</option>
+      <option value="Apple Pay">Apple Pay</option>
+      <option value="Google Pay">Google Pay</option>
+      <option value="Credit">Credit Card</option>
+      <option value="Debit">Debit Card</option>
+      <option value="Klarna">Klarna</option>
+    </select>
 
-{/* PAYMENT METHOD */}
-<select
-value={filters.paymentMethod}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-paymentMethod:e.target.value
-}))
-}
-className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[160px]
-${filters.paymentMethod ? "border-amber-500 bg-amber-500/10":"border-slate-700"}
-`}
->
-<option value="">Payment Method</option>
-<option value="CashOnDelivery">Cash on Delivery</option>
-<option value="Stripe">Stripe</option>
-</select>
+    {/* PAYMENT STATUS */}
+    <select
+      value={filters.paymentStatus}
+      onChange={(e) =>
+        setFilters((prev) => ({
+          ...prev,
+          paymentStatus: e.target.value,
+        }))
+      }
+      className={`px-2 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[110px]
+        ${filters.paymentStatus ? "border-green-500 bg-green-500/10" : "border-slate-700"}`}
+    >
+      <option value="">Pay Status</option>
+      <option value="Successful">Successful</option>
+      <option value="Pending">Pending</option>
+      <option value="Failed">Failed</option>
+      <option value="Refunded">Refunded</option>
+    </select>
 
+    {/* PHARMACY STATUS */}
+    <select
+      value={filters.pharmacyVerificationStatus || ""}
+      onChange={(e) =>
+        setFilters((prev) => ({
+          ...prev,
+          pharmacyVerificationStatus: e.target.value === "" ? "" : e.target.value as PharmacyVerificationStatus,
+        }))
+      }
+      className={`px-2 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[110px]
+        ${filters.pharmacyVerificationStatus ? "border-purple-500 bg-purple-500/10" : "border-slate-700"}`}
+    >
+      <option value="">Pharmacy</option>
+      <option value="Pending">Pending</option>
+      <option value="Approved">Approved</option>
+      <option value="Rejected">Rejected</option>
+    </select>
 
-{/* PAYMENT STATUS */}
-<select
-value={filters.paymentStatus}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-paymentStatus:e.target.value
-}))
-}
-className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[160px]
-${filters.paymentStatus ? "border-green-500 bg-green-500/10":"border-slate-700"}
-`}
->
-<option value="">Payment Status</option>
-<option value="Successful">Successful</option>
-<option value="Pending">Pending</option>
-<option value="Failed">Failed</option>
-<option value="Refunded">Refunded</option>
-</select>
+    {/* DATE RANGE */}
+    <div className="relative min-w-[130px]" ref={datePickerRef}>
+      <button
+        onClick={() => setShowDatePicker(!showDatePicker)}
+        className={`w-full pl-9 pr-8 py-2 rounded-lg text-sm text-left
+          ${filters.fromDate || filters.toDate
+            ? "bg-violet-500/20 border border-violet-500/50 text-white"
+            : "bg-slate-800 border border-slate-700 text-slate-400"}
+        `}
+      >
+        <span className="truncate block">{getDateRangeLabel()}</span>
+        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        {(filters.fromDate || filters.toDate) ? (
+          <X
+            onClick={(e) => {
+              e.stopPropagation();
+              setFilters(prev => ({ ...prev, fromDate: "", toDate: "" }));
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 hover:text-white"
+          />
+        ) : (
+          <ChevronDown
+            className={`absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 transition-transform
+              ${showDatePicker ? "rotate-180" : ""}`}
+          />
+        )}
+      </button>
 
+      {showDatePicker && (
+        <>
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowDatePicker(false)} />
+          <div className="absolute top-full left-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-3 z-[110] min-w-[240px]">
+            {/* FROM DATE */}
+            <div className="mb-3">
+              <label className="block text-blue-400 text-xs font-semibold mb-1">From Date</label>
+              <input
+                type="date"
+                value={filters.fromDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, fromDate: e.target.value }))}
+                max={filters.toDate || new Date().toISOString().split("T")[0]}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+              />
+            </div>
 
-{/* PHARMACY STATUS */}
-<select
-value={filters.pharmacyVerificationStatus || ""}
-onChange={(e)=>
-setFilters(prev=>({
-...prev,
-pharmacyVerificationStatus:
-e.target.value === ""
-? ""
-: (e.target.value as PharmacyVerificationStatus)
-}))
-}
-className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-full
-${filters.pharmacyVerificationStatus !== ""
-? "border-purple-500 bg-purple-500/10"
-: "border-slate-700"}
-`}
->
-<option value="">Pharmacy Status</option>
-<option value="Pending">Pending</option>
-<option value="Approved">Approved</option>
-<option value="Rejected">Rejected</option>
-</select>
+            {/* TO DATE */}
+            <div className="mb-3">
+              <label className="block text-blue-400 text-xs font-semibold mb-1">To Date</label>
+              <input
+                type="date"
+                value={filters.toDate}
+                onChange={(e) => setFilters(prev => ({ ...prev, toDate: e.target.value }))}
+                min={filters.fromDate}
+                max={new Date().toISOString().split("T")[0]}
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+              />
+            </div>
 
+            {/* QUICK BUTTONS */}
+            <div className="flex gap-2 pt-2 border-t border-slate-700">
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const weekAgo = new Date(today);
+                  weekAgo.setDate(today.getDate() - 7);
+                  setFilters(prev => ({
+                    ...prev,
+                    fromDate: weekAgo.toISOString().split("T")[0],
+                    toDate: today.toISOString().split("T")[0]
+                  }));
+                  setShowDatePicker(false);
+                }}
+                className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-violet-400 rounded-lg text-xs font-medium"
+              >
+                Last 7 Days
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const monthAgo = new Date(today);
+                  monthAgo.setMonth(today.getMonth() - 1);
+                  setFilters(prev => ({
+                    ...prev,
+                    fromDate: monthAgo.toISOString().split("T")[0],
+                    toDate: today.toISOString().split("T")[0]
+                  }));
+                  setShowDatePicker(false);
+                }}
+                className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-xs font-medium"
+              >
+                Last 30 Days
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+    {hasActiveFilters && (
+      <button
+        onClick={clearFilters}
+        title="Clear Filters"
+        className="px-2 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all whitespace-nowrap"
+      >
+       <X className="w-4 h-4 "/>
+      </button>
+    )}
 
+    {/* CLEAR FILTERS BUTTON */}
+  </div>
 
-{/* DATE RANGE */}
-<div className="relative min-w-[220px]" ref={datePickerRef}>
-
-<button
-onClick={() => setShowDatePicker(!showDatePicker)}
-className={`pl-9 pr-8 py-2 rounded-lg text-sm text-left w-full
-${filters.fromDate || filters.toDate
-? "bg-violet-500/20 border-2 border-violet-500/50 text-white"
-: "bg-slate-800 border border-slate-700 text-slate-400"}
-`}
->
-
-<span className="ml-4 truncate">{getDateRangeLabel()}</span>
-
-<Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"/>
-
-{filters.fromDate || filters.toDate ? (
-<X
-onClick={(e)=>{
-e.stopPropagation();
-setFilters(prev=>({...prev,fromDate:"",toDate:""}));
-}}
-className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 hover:text-white"
-/>
-):(
-<ChevronDown
-className={`absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 transition-transform
-${showDatePicker ? "rotate-180":""}`}
-/>
-)}
-
-</button>
-
-
-{showDatePicker && (
-<>
-<div
-className="fixed inset-0 z-[100]"
-onClick={()=>setShowDatePicker(false)}
-/>
-
-<div className="absolute top-full left-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-3 z-[110] min-w-[220px]">
-
-{/* FROM DATE */}
-<div className="mb-3">
-<label className="block text-blue-400 text-xs font-semibold mb-1">
-From Date
-</label>
-
-<input
-type="date"
-value={filters.fromDate}
-onChange={(e)=>setFilters(prev=>({...prev,fromDate:e.target.value}))}
-max={filters.toDate || new Date().toISOString().split("T")[0]}
-className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
-/>
-
-</div>
-
-
-{/* TO DATE */}
-<div className="mb-3">
-
-<label className="block text-blue-400 text-xs font-semibold mb-1">
-To Date
-</label>
-
-<input
-type="date"
-value={filters.toDate}
-onChange={(e)=>setFilters(prev=>({...prev,toDate:e.target.value}))}
-min={filters.fromDate}
-max={new Date().toISOString().split("T")[0]}
-className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
-/>
-
-</div>
-
-
-{/* QUICK BUTTONS */}
-<div className="flex gap-2 pt-2 border-t border-slate-700">
-
-<button
-onClick={()=>{
-
-const today=new Date()
-
-const weekAgo=new Date(today)
-
-weekAgo.setDate(today.getDate()-7)
-
-setFilters(prev=>({
-...prev,
-fromDate:weekAgo.toISOString().split("T")[0],
-toDate:today.toISOString().split("T")[0]
-}))
-
-setShowDatePicker(false)
-
-}}
-className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-violet-400 rounded-lg text-xs font-medium"
->
-Last 7 Days
-</button>
-
-
-<button
-onClick={()=>{
-
-const today=new Date()
-
-const monthAgo=new Date(today)
-
-monthAgo.setMonth(today.getMonth()-1)
-
-setFilters(prev=>({
-...prev,
-fromDate:monthAgo.toISOString().split("T")[0],
-toDate:today.toISOString().split("T")[0]
-}))
-
-setShowDatePicker(false)
-
-}}
-className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-xs font-medium"
->
-Last 30 Days
-</button>
-
-</div>
-
-</div>
-</>
-)}
-
-</div>
-
-
-</div>
-
-)}
 
 </div>
 
       {/* Orders Table */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden relative z-10">
+    <div className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden relative z-10">
+    {filterLoading && (
+  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-20 flex items-center justify-center">
+    <div className="flex items-center gap-2 text-violet-400 text-sm">
+      <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+      Loading...
+    </div>
+  </div>
+)}
         {orders.length === 0 ? (
           <div className="text-center py-12">
             <ShoppingCart className="w-12 h-12 text-slate-600 mx-auto mb-3" />
@@ -1347,7 +1409,7 @@ Last 30 Days
 <thead className="sticky top-0 bg-slate-800/85 backdrop-blur-sm z-50">
 <tr className="border-b border-slate-700">
 
-<th className="py-3 px-3">
+<th className="py-2 px-2">
 <input
 type="checkbox"
 checked={selectedOrders.length === orders.length && orders.length > 0}
@@ -1357,27 +1419,27 @@ title="Select all orders"
 />
 </th>
 
-<th className="text-left py-3 px-3 text-slate-300 font-semibold text-xs">
+<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs">
 Order
 </th>
 
-<th className="text-left py-3 px-3 text-slate-300 font-semibold text-xs">
+<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs">
 Customer
 </th>
 
-<th className="text-left py-3 px-3 text-slate-300 font-semibold text-xs">
+<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs">
 Amount
 </th>
 
-<th className="text-center py-3 px-3 text-slate-300 font-semibold text-xs">
+<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs">
 Status
 </th>
 
-<th className="text-center py-3 px-3 text-slate-300 font-semibold text-xs">
+<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs">
 Payment
 </th>
 
-<th className="text-center py-3 px-3 text-slate-300 font-semibold text-xs">
+<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs">
 Actions
 </th>
 
@@ -1388,6 +1450,7 @@ Actions
 {orders.map((order) => {
 
 const statusInfo = getOrderStatusInfo(order.status);
+const pendingCancellationRequest = pendingCancellationRequestMap[order.id];
 
 const paymentMethodStr =
 order.paymentMethod || order.payments?.[0]?.paymentMethod;
@@ -1422,121 +1485,71 @@ title="Select order"
 
 
 {/* ORDER */}
-<td className="py-3 px-3">
-  <div className="flex items-start gap-3">
+<td className="py-2 px-2">
+  <div className="flex items-center justify-center gap-2.5">
 
-    {/* PRODUCT IMAGE */}
+    {/* IMAGE */}
     <img
       src={getOrderProductImage(order.orderItems[0]?.productImageUrl)}
       alt={order.orderItems[0]?.productName}
-      className="w-11 h-11 rounded-md object-cover border border-slate-600"
+      className="w-12 h-12 rounded-md object-cover border border-slate-700 flex-shrink-0 cursor-pointer hover:scale-105 transition"
+      onClick={() =>
+        setPreviewImage(order.orderItems[0]?.productImageUrl || null)
+      }
       onError={(e) => (e.currentTarget.src = "/placeholder.png")}
     />
 
-    <div className="min-w-0">
+    {/* CONTENT */}
+    <div className="flex flex-col min-w-0 flex-1 gap-[2px]">
 
-      {/* Order + Product */}
-      <div className="flex items-center gap-2 min-w-0">
-
-        <p
-          onClick={() => router.push(`/admin/orders/${order.id}`)}
-          className="text-violet-400 font-semibold text-xs cursor-pointer hover:underline"
+      {/* ORDER + META */}
+      <div className="flex items-center gap-1.5 flex-wrap text-[11px] leading-none">
+        <a
+          href={`/admin/orders/${order.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-violet-400 font-medium hover:underline"
         >
           {order.orderNumber}
-        </p>
+        </a>
 
-        {/* 🔥 IMPORTANT: RELATIVE WRAPPER */}
-        <div className="relative flex items-center gap-1 text-xs min-w-0">
+        <span className="text-slate-600">•</span>
 
-          <span className="text-slate-500">•</span>
+        <span className="text-slate-500">
+          {order.orderItems.length} items
+        </span>
 
-          <p
-            className="text-slate-300 truncate max-w-[170px] cursor-pointer hover:text-white"
-            title={order.orderItems[0]?.productName}
-            onClick={() =>
-              setShowProducts(showProducts === order.id ? null : order.id)
-            }
-          >
-            {order.orderItems[0]?.productName}
-          </p>
+        <span className="text-slate-600">•</span>
 
-          {order.orderItems.length > 1 && (
-            <button
-              onClick={() =>
-                setShowProducts(showProducts === order.id ? null : order.id)
-              }
-              className="text-cyan-400 hover:text-cyan-300 font-medium"
-            >
-              +{order.orderItems.length - 1} more
-            </button>
-          )}
-
-          {/* ✅ POPUP EXACTLY UNDER TEXT */}
-          {showProducts === order.id && (
-            <div
-              ref={popupRef}
-              className="absolute z-40 top-full left-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl ring-1 ring-slate-700/50 p-2"
-            >
-              {/* HEADER */}
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-white">
-                  Products ({order.orderItems.length})
-                </p>
-
-                <button
-                  onClick={() => setShowProducts(null)}
-                  className="text-slate-400 hover:text-white text-xs"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* LIST */}
-              <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
-
-                {order.orderItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/40 transition"
-                  >
-                    <img
-                      src={getOrderProductImage(item.productImageUrl)}
-                      alt={item.productName}
-                      className="w-9 h-9 rounded-md object-cover border border-slate-600"
-                       onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                    />
-
-                    <div className="min-w-0">
-                      <p
-                        className="text-xs text-white truncate"
-                        title={item.productName}
-                      >
-                        {item.productName}
-                      </p>
-
-                      <p className="text-[11px] text-cyan-400">
-                        SKU: {item.productSku}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-              </div>
-            </div>
-          )}
-
-        </div>
+        <span className="text-slate-500">
+          {formatDate(order.orderDate)}
+        </span>
       </div>
 
+      {/* PRODUCT NAME */}
+<p
+  className="text-xs text-slate-200 leading-tight line-clamp-2 max-w-[420px]"
+  title={order.orderItems[0]?.productName}
+>
+  {order.orderItems[0]?.productName}
+</p>
+
       {/* SKU */}
-      <p className="text-[11px] text-cyan-400 truncate max-w-[220px]">
+      <p className="text-[10px] text-cyan-400 leading-none">
         SKU: {order.orderItems.map((i) => i.productSku).join(", ")}
       </p>
 
-      {/* Items + Date */}
-      <p className="text-[11px] text-slate-500">
-        {order.orderItems.length} items • {formatDate(order.orderDate)}
-      </p>
+      {/* MORE ITEMS */}
+      {order.orderItems.length > 1 && (
+        <button
+          onClick={() =>
+            setShowProducts(showProducts === order.id ? null : order.id)
+          }
+          className="text-[10px] text-cyan-400 hover:text-cyan-300 leading-none w-fit"
+        >
+          +{order.orderItems.length - 1} more
+        </button>
+      )}
 
     </div>
   </div>
@@ -1607,6 +1620,16 @@ title={`Pharmacy verification: ${order.pharmacyVerificationStatus}`}
 >
 {order.pharmacyVerificationStatus}
 </span>
+)}
+
+{order.status === "CancellationRequested" && pendingCancellationRequest && (
+  <div className="mt-1">
+    <CancellationActionButtons
+      compact
+      onApprove={() => openCancellationDecision(order, "approve")}
+      onReject={() => openCancellationDecision(order, "reject")}
+    />
+  </div>
 )}
 
 </div>
@@ -1780,6 +1803,25 @@ Cancel Order
         </div>
       )}
 
+<CancellationDecisionModal
+  state={cancellationDecisionState}
+  notes={cancellationAdminNotes}
+  setNotes={setCancellationAdminNotes}
+  loading={cancellationActionLoading}
+  onClose={closeCancellationDecision}
+  onConfirm={handleCancellationDecision}
+/>
+
+{importWooCommerceModalOpen && (
+  <ImportWooCommerceOrdersModal
+    open={true}
+    onClose={() => setImportWooCommerceModalOpen(false)}
+    onSuccess={() => {
+      fetchOrders();
+    }}
+  />
+)}
+
 {shipmentModalOpen && (
   <BulkShipmentUploadModal
     isOpen={true}
@@ -1810,6 +1852,11 @@ Cancel Order
   currentStatus={selectedStatus as OrderStatus}
   selectedOrders={selectedOrderPreview}
   loading={bulkLoading}
+/>
+
+<ImagePreviewModal
+  imageUrl={previewImage}
+  onClose={() => setPreviewImage(null)}
 />
     </div>
   );

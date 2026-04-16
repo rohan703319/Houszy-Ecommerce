@@ -1,3 +1,6 @@
+// ISR: regenerate every 5 minutes — serves static HTML from CDN under high traffic
+export const revalidate = 300;
+
 import BrandsClient from "@/components/BrandsClient";
 
 interface Brand {
@@ -12,7 +15,7 @@ async function getAllBrands(baseUrl: string): Promise<Brand[]> {
   try {
     const res = await fetch(
       `${baseUrl}/api/Brands?includeUnpublished=false&isActive=true&isDeleted=false`,
-      { cache: "no-store" }
+      { next: { revalidate: 300 } }
     );
 
     // ✅ response fail handle

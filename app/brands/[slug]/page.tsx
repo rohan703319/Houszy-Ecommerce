@@ -1,4 +1,5 @@
 // app/brands/[slug]/page.tsx
+export const dynamic = "force-dynamic";
 
 import BrandsClient from "./BrandsClient";
 

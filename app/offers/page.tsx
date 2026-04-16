@@ -1,4 +1,6 @@
 // app/offers/page.tsx
+export const revalidate = 300;
+
 import Link from "next/link";
 import { Tag, Clock, Gift, ChevronRight, ShoppingBag, Percent, BadgePercent } from "lucide-react";
 
@@ -54,7 +56,7 @@ export default async function OffersPage() {
 
   let discounts: Discount[] = [];
   try {
-    const res = await fetch(`${baseUrl}/api/Discounts/public`, { cache: "no-store" });
+    const res = await fetch(`${baseUrl}/api/Discounts/public`, { next: { revalidate: 300 } });
     if (res.ok) {
       const json = await res.json();
       discounts = json?.data ?? [];

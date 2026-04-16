@@ -11,6 +11,7 @@ export interface LoyaltyConfig {
   id: string;
   pointsPerPound: number;
   minimumOrderAmountForPoints: number;
+  maxPointsPerRedemption: number; // ✅ ADD THIS
   includeShippingInPoints: boolean;
   includeTaxInPoints: boolean;
   redemptionRate: number;
@@ -39,6 +40,7 @@ export interface UpdateLoyaltyConfigDto {
   id: string;
   pointsPerPound: number;
   minimumOrderAmountForPoints: number;
+  maxPointsPerRedemption: number; // ✅ ADD THIS
   includeShippingInPoints: boolean;
   includeTaxInPoints: boolean;
   redemptionRate: number;
@@ -107,6 +109,23 @@ export const calculatePoints = (
   return Math.floor(orderAmount * config.pointsPerPound);
 };
 
+export const getEffectiveMaxRedeemablePoints = (
+  userBalance: number,
+  orderAmount: number,
+  config: LoyaltyConfig
+): number => {
+  const percentLimitPoints = Math.floor(
+    (orderAmount * (config.maxRedemptionPercentOfOrder / 100)) *
+    config.redemptionRate
+  );
+
+  return Math.min(
+    userBalance,
+    config.maxPointsPerRedemption,
+    percentLimitPoints
+  );
+};
+
 /**
  * Calculate redemption value from points
  */
@@ -118,7 +137,9 @@ export const calculateRedemptionValue = (
     return 0;
   }
   const value = points / config.redemptionRate;
-  return config.roundDownRedemptionValue ? Math.floor(value) : value;
+ return config.roundDownRedemptionValue
+  ? Math.floor(value * 100) / 100
+  : value;
 };
 
 /**

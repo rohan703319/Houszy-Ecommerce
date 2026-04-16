@@ -5,16 +5,17 @@ import {
   Plus, Edit, Trash2, Search, FolderTree, Eye, Upload, Filter, FilterX,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle,
   CheckCircle, Tag, FileText, Clock, ChevronDown, ChevronRight as ChevronRightIcon,
-  MessageSquare, RotateCcw, X, Globe, Hash, Settings, Image as ImageIcon,
-  LayoutList, TrendingUp,
+  MessageSquare, RotateCcw, X, Globe , Settings, Image as ImageIcon,
+  LayoutList, 
   ExternalLink
 } from "lucide-react";
 import { ProductDescriptionEditor } from "../_components/SelfHostedEditor";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
-import { API_BASE_URL } from "@/lib/api";
+ 
 import { blogCategoriesService, BlogCategory } from "@/lib/services/blogCategories";
 import { useRouter } from "next/navigation";
+import { extractFilename, formatDate, generateSlug, getImageUrl } from "../_utils/formatUtils";
 
 interface BlogCategoryStats {
   totalCategories: number;
@@ -81,23 +82,7 @@ export default function BlogCategoriesPage() {
     });
   };
 
-  const generateSlug = (text: string) =>
-    text.toLowerCase().trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
 
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) return "";
-    if (imageUrl.startsWith("http")) return imageUrl;
-    return `${API_BASE_URL}${imageUrl.split("?")[0]}`;
-  };
-
-  const extractFilename = (imageUrl: string) => {
-    if (!imageUrl) return "";
-    const parts = imageUrl.split("/");
-    return parts[parts.length - 1];
-  };
 
   /* ─── data fetching ───────────────────────────────────────────── */
   const fetchBlogCategories = async () => {
@@ -391,13 +376,13 @@ export default function BlogCategoriesPage() {
             onClick={() => router.push("/admin/BlogPosts")}
             className="flex items-center gap-1.5 px-3 py-2 text-sm bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-violet-500/50 rounded-lg transition-all"
           >
-            <FileText className="h-3.5 w-3.5" /> Blog Posts
+            <FileText className="h-3.5 w-3.5" /> Go To Blog Post Page
           </button>
           <button
             onClick={() => router.push("/admin/comments")}
             className="flex items-center gap-1.5 px-3 py-2 text-sm bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-pink-500/50 rounded-lg transition-all"
           >
-            <MessageSquare className="h-3.5 w-3.5" />Blog Comments
+            <MessageSquare className="h-3.5 w-3.5" /> Go To Blog Comment Page
           </button>
           <button
             onClick={() => { resetForm(); setShowModal(true); }}
@@ -544,7 +529,7 @@ export default function BlogCategoriesPage() {
                   <th className="text-left py-2.5 px-4 text-slate-400 font-medium text-xs uppercase tracking-wide">Category</th>
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Posts</th>
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Status</th>
-                  <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Order</th>
+                  <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Display Order</th>
                   <th className="text-left py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Created</th>
                   <th className="text-left py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Updated By</th>
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Actions</th>
@@ -676,10 +661,7 @@ export default function BlogCategoriesPage() {
                         {cat.createdAt ? (
                           <div>
                             <p className={`text-xs font-medium ${isInactive ? "text-slate-600" : "text-slate-300"}`}>
-                              {new Date(cat.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                            </p>
-                            <p className={`text-xs ${isInactive ? "text-slate-700" : "text-slate-500"}`}>
-                              {new Date(cat.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                               {formatDate(cat.createdAt)}
                             </p>
                           </div>
                         ) : <span className="text-slate-600 text-xs">—</span>}
@@ -859,17 +841,18 @@ export default function BlogCategoriesPage() {
 
               {/* Timestamps */}
               <div className="grid grid-cols-2 gap-3 text-xs">
-                {viewingBlogCategory.createdAt && (
+{viewingBlogCategory.createdAt && (
                   <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
-                    <p className="text-slate-500 mb-1 flex items-center gap-1"><Clock className="h-3 w-3" /> Created</p>
-                    <p className="text-slate-300">{new Date(viewingBlogCategory.createdAt).toLocaleString()}</p>
+                    <p className="text-slate-500 mb-1 flex items-center gap-1"><Clock className="h-3 w-3" /> Created At </p>
+                    <p className="text-slate-300">{formatDate(viewingBlogCategory.createdAt)}</p>
+                   {/* {formatDate(viewingBlogCategory.createdAt)} */}
                     {viewingBlogCategory.createdBy && <p className="text-slate-500 mt-0.5">by {viewingBlogCategory.createdBy}</p>}
                   </div>
                 )}
                 {viewingBlogCategory.updatedAt && (
                   <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3">
                     <p className="text-slate-500 mb-1 flex items-center gap-1"><Clock className="h-3 w-3" /> Updated</p>
-                    <p className="text-slate-300">{new Date(viewingBlogCategory.updatedAt).toLocaleString()}</p>
+                    <p className="text-slate-300">{formatDate(viewingBlogCategory.updatedAt)}</p>
                     {viewingBlogCategory.updatedBy && <p className="text-slate-500 mt-0.5">by {viewingBlogCategory.updatedBy}</p>}
                   </div>
                 )}

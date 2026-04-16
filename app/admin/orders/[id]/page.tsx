@@ -44,12 +44,16 @@ import {
   FlaskConical,
   MessageSquare,
   Eye,
+  Smartphone,
+  Wallet,
+  EyeOff,
 } from 'lucide-react';
 import {
   orderService,
   Order,
   formatCurrency,
   formatDate,
+  getPaymentMethodInfo,
 } from '@/lib/services/orders';
 import { useToast } from '@/app/admin/_components/CustomToast';
 import OrderActionsModal from '../OrderActionsModal';
@@ -66,6 +70,8 @@ import RefundModals from '../RefundModals';
 import PharmacyVerificationModal from '../PharmacyVerificationModal';
 
 import { API_BASE_URL } from '@/lib/api';
+import { getOrderProductImage } from '../../_utils/formatUtils';
+import PaymentModal from '../PaymentModal';
 
 // Types
 type CollectionStatus = 'Pending' | 'Ready' | 'Collected' | 'Expired';
@@ -111,6 +117,14 @@ const getOrderStatusInfo = (status: OrderStatus) => {
       icon: <RefreshCw className="h-3 w-3 animate-spin" />,
       description: 'Order is being prepared and packed.',
       nextAction: 'Create shipment or Mark Ready',
+    },
+    CancellationRequested: {
+      label: 'Cancellation Requested',
+      color: 'text-amber-300',
+      bgColor: 'bg-amber-500/10',
+      icon: <AlertCircle className="h-3 w-3" />,
+      description: 'Customer has requested order cancellation.',
+      nextAction: 'Approve or reject the cancellation request',
     },
     Shipped: {
       label: 'Shipped',
@@ -160,6 +174,14 @@ const getOrderStatusInfo = (status: OrderStatus) => {
       description: 'Payment has been refunded.',
       nextAction: 'No further action required',
     },
+    Collected: {
+  label: 'Collected',
+  color: 'text-green-400',
+  bgColor: 'bg-green-500/10',
+  icon: <CheckCircle2 className="h-3 w-3" />,
+  description: 'Order has been collected by customer.',
+  nextAction: 'No further action required',
+},
   };
   return (
     statusMap[status] || {
@@ -225,6 +247,13 @@ const getPaymentStatusInfo = (status: PaymentStatus) => {
       icon: <XCircle className="h-3 w-3" />,
       description: 'Payment failed.',
     },
+    PartiallyPaid: {
+  label: 'Partially Paid',
+  color: 'text-amber-400',
+  bgColor: 'bg-amber-500/10',
+  icon: <AlertCircle className="h-3 w-3" />,
+  description: 'Partial payment received. Remaining amount pending.',
+},
     Cancelled: {
       label: 'Cancelled',
       color: 'text-red-300',
@@ -453,12 +482,18 @@ const getAllAvailableActions = (
   }> = [];
 
   const status = order.status;
-  const deliveryMethod = order.deliveryMethod;
+  const isHomeDelivery = order.deliveryMethod === 'HomeDelivery';
+  const isClickAndCollect = order.deliveryMethod === 'ClickAndCollect';
 
-  // ✅ Workflow Actions (Click & Collect)
-  if (deliveryMethod === 'ClickAndCollect') {
-    // Mark Ready: Confirmed or Processing, not already Ready/Collected
-    if ((status === 'Confirmed' || status === 'Processing') && order.collectionStatus !== 'Ready' && order.collectionStatus !== 'Collected') {
+  // ===========================
+  // 📦 CLICK & COLLECT FLOW
+  // ===========================
+  if (isClickAndCollect) {
+    if (
+      (status === 'Confirmed' || status === 'Processing') &&
+      order.collectionStatus !== 'Ready' &&
+      order.collectionStatus !== 'Collected'
+    ) {
       actions.push({
         label: 'Mark Ready',
         action: 'mark-ready',
@@ -468,7 +503,6 @@ const getAllAvailableActions = (
       });
     }
 
-    // Mark Collected: Only when Ready
     if (order.collectionStatus === 'Ready') {
       actions.push({
         label: 'Mark Collected',
@@ -480,83 +514,79 @@ const getAllAvailableActions = (
     }
   }
 
-  // ✅ Workflow Actions (Home Delivery)
-  if (deliveryMethod === 'HomeDelivery') {
-    // Create Shipment: Confirmed/Processing/PartiallyShipped, not Cancelled/Refunded/Delivered
-    if (['Confirmed', 'Processing', 'PartiallyShipped'].includes(status)) {
-      actions.push({
-        label: 'Create Shipment',
-        action: 'create-shipment',
-        icon: <Truck className="h-3.5 w-3.5" />,
-        color: 'bg-purple-600 hover:bg-purple-700',
-        category: 'workflow',
-      });
-    }
 
-    // Mark Delivered: Only when Shipped or PartiallyShipped with shipments
-    if (
-      (status === 'Shipped' || status === 'PartiallyShipped') &&
-      order.shipments &&
-      order.shipments.length > 0
-    ) {
-      actions.push({
-        label: 'Mark Delivered',
-        action: 'mark-delivered',
-        icon: <CheckCircle className="h-3.5 w-3.5" />,
-        color: 'bg-green-600 hover:bg-green-700',
-        category: 'workflow',
-      });
-    }
-  }
-
-  // Backend: Delivered → Returned/Refunded, Cancelled → Refunded, Refunded → BLOCKED
-  const canUpdateStatus =
+  // ===========================
+  // ✏️ UPDATE STATUS
+  // ===========================
+const canUpdateStatus =
+  order.deliveryMethod !== 'ClickAndCollect' && // 🔥 HARD BLOCK
   status !== 'Cancelled' &&
   status !== 'Refunded' &&
-  order.pharmacyVerificationStatus !== 'Pending';
+  status !== 'Collected' &&
+  order.pharmacyVerificationStatus !== 'Pending' ;
+ 
 
-if (canUpdateStatus) {
+  if (canUpdateStatus) {
+    actions.push({
+      label: 'Update Status',
+      action: 'update-status',
+      icon: <Edit className="h-3.5 w-3.5" />,
+      color: 'bg-blue-600 hover:bg-blue-700',
+      category: 'edit',
+    });
+  }
+
+  // ===========================
+  // ❌ CANCEL ORDER
+  // ===========================
+  const canCancel =
+    ['Pending', 'Confirmed', 'Processing', 'Shipped', 'PartiallyShipped'].includes(status) &&
+    !(isClickAndCollect && order.collectionStatus === 'Collected') &&
+    (!order.pharmacyVerificationStatus || order.pharmacyVerificationStatus === 'Approved');
+
+  if (canCancel) {
+    actions.push({
+      label: 'Cancel Order',
+      action: 'cancel-order',
+      icon: <PackageX className="h-3.5 w-3.5" />,
+      color: 'bg-red-600 hover:bg-red-700',
+      category: 'edit',
+    });
+  }
+
+  // ===========================
+  // 💰 FINANCIAL
+  // ===========================
   actions.push({
-    label: 'Update Status',
-    action: 'update-status',
-    icon: <Edit className="h-3.5 w-3.5" />,
-    color: 'bg-blue-600 hover:bg-blue-700',
-    category: 'edit',
-  });
-}
-
-  // Backend: Cannot cancel Delivered (use Return), Cancelled, Refunded, Returned
-const canCancel =
-  ['Pending', 'Confirmed', 'Processing', 'Shipped', 'PartiallyShipped'].includes(status) &&
-  !(
-    deliveryMethod === 'ClickAndCollect' &&
-    order.collectionStatus === 'Collected'
-  ) &&
-  (
-    !order.pharmacyVerificationStatus || 
-    order.pharmacyVerificationStatus === 'Approved'
-  );
-
-if (canCancel) {
-  actions.push({
-    label: 'Cancel Order',
-    action: 'cancel-order',
-    icon: <PackageX className="h-3.5 w-3.5" />,
-    color: 'bg-red-600 hover:bg-red-700',
-    category: 'edit',
-  });
-}
-
-  // ✅ Regenerate Invoice - Always available (backend has no status restriction)
-  actions.push({
-    label: 'Regenerate Invoice',
+    label: 'Resend Invoice',
     action: 'regenerate-invoice',
     icon: <Receipt className="h-3.5 w-3.5" />,
     color: 'bg-indigo-600 hover:bg-indigo-700',
     category: 'financial',
   });
 
-  // ✅ Download Invoice - Always available
+  // 💰 PAYMENT ACTIONS
+if (order.paymentStatus === 'Pending') {
+  actions.push({
+    label: 'Mark Paid',
+    action: 'mark-paid',
+    icon: <CheckCircle className="h-3.5 w-3.5" />,
+    color: 'bg-green-600 hover:bg-green-700',
+    category: 'financial',
+  });
+}
+
+// 🔥 PARTIAL PAYMENT (Pending amount exists)
+// if (order.pendingPaymentAmount > 0) {
+//   actions.push({
+//     label: 'Pay Pending Amount',
+//     action: 'mark-pending-paid',
+//     icon: <PoundSterling className="h-3.5 w-3.5" />,
+//     color: 'bg-yellow-600 hover:bg-yellow-700',
+//     category: 'financial',
+//   });
+// }
+
   actions.push({
     label: 'Download Invoice',
     action: 'download-invoice',
@@ -565,9 +595,13 @@ if (canCancel) {
     category: 'financial',
   });
 
-  // ✅ View Refund History - Only when order has been refunded or has refund-related payment
-  const hasRefundActivity = order.status === 'Refunded' || order.status === 'Returned' ||
-    order.payments?.some(p => p.status === 'Refunded' || p.status === 'PartiallyRefunded');
+  const hasRefundActivity =
+    order.status === 'Refunded' ||
+    order.status === 'Returned' ||
+    order.payments?.some(
+      (p) => p.status === 'Refunded' || p.status === 'PartiallyRefunded'
+    );
+
   if (hasRefundActivity) {
     actions.push({
       label: 'View Refund History',
@@ -578,16 +612,14 @@ if (canCancel) {
     });
   }
 
-  // ✅ View Edit History - Only for orders that have been modified (not brand new pending)
-actions.push({
-  label: 'View Edit History',
-  action: 'view-edit-history',
-  icon: <History className="h-3.5 w-3.5" />,
-  color: 'bg-slate-600 hover:bg-slate-700',
-  category: 'financial',
-});
+  actions.push({
+    label: 'View Edit History',
+    action: 'view-edit-history',
+    icon: <History className="h-3.5 w-3.5" />,
+    color: 'bg-slate-600 hover:bg-slate-700',
+    category: 'financial',
+  });
 
-  // ✅ Single "Refund" button — opens unified modal with tabs
   if (canRefund || canRefundShippingArg) {
     actions.push({
       label: 'Refund',
@@ -618,13 +650,14 @@ const RegenerateInvoiceModal = ({
   loading: boolean;
   orderNumber: string;
 }) => {
-  const [sendToCustomer, setSendToCustomer] = useState(false);
+  const [sendToCustomer, setSendToCustomer] = useState(true);
   const [notes, setNotes] = useState('');
+
 
   // ✅ ADD: Reset function
   const handleClose = () => {
     // Reset form to default values
-    setSendToCustomer(false);
+    setSendToCustomer(true);
     setNotes('');
     // Then call parent onClose
     onClose();
@@ -646,7 +679,7 @@ const RegenerateInvoiceModal = ({
             <Receipt className="h-6 w-6 text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white">Regenerate Invoice</h3>
+            <h3 className="text-xl font-bold text-white">Resend Invoice</h3>
             <p className="text-sm text-slate-400">Order #{orderNumber}</p>
           </div>
         </div>
@@ -655,7 +688,7 @@ const RegenerateInvoiceModal = ({
           <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <p className="text-xs text-amber-400 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
-              This will generate a new invoice PDF for this order.
+             This action will generate a new invoice and create a versioned record in the order history.
             </p>
           </div>
 
@@ -702,12 +735,12 @@ const RegenerateInvoiceModal = ({
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
+                Resending...
               </>
             ) : (
               <>
                 <Receipt className="h-4 w-4" />
-                Regenerate
+                Resend
               </>
             )}
           </button>
@@ -733,7 +766,7 @@ const [hasEditHistory, setHasEditHistory] = useState<boolean | null>(null);
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
-
+const [showId, setShowId] = useState(false);
   // Refund & History States
   const [refundHistoryOpen, setRefundHistoryOpen] = useState(false);
   const [editHistoryOpen, setEditHistoryOpen] = useState(false);
@@ -754,6 +787,9 @@ const [showPharmaQA, setShowPharmaQA] = useState(false);
   const [showRegenerateInvoiceModal, setShowRegenerateInvoiceModal] = useState(false);
   const [regeneratingInvoice, setRegeneratingInvoice] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+const [paymentLoading, setPaymentLoading] = useState(false);
 
 // ===========================
 // FETCH ORDER DETAILS
@@ -788,7 +824,7 @@ const fetchOrderDetails = useCallback(async () => {
   }
 }, [orderId, toast]);
 
-
+const unshippedItems = order?.unshippedItems ?? [];
 // ===========================
 // FETCH REFUND HISTORY
 // ===========================
@@ -813,15 +849,7 @@ const fetchRefundHistory = useCallback(async () => {
   }
 }, [orderId, toast]);
 
-const getOrderProductImage = (imageUrl?: string): string => {
-  if (!imageUrl) return "/no-image.png";
 
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
 // ===========================
 // FETCH EDIT HISTORY
 // ===========================
@@ -889,19 +917,26 @@ const handleRegenerateInvoice = async (
       sendToCustomer,
     });
 
-    toast.success("Invoice regenerated successfully", { autoClose: 4000 });
-
-    if (sendToCustomer) {
-      toast.info("Invoice sent to customer email", { autoClose: 4000 });
+    // ✅ check backend success
+    if (!result?.success) {
+      throw new Error(result?.message || 'Failed to regenerate invoice');
     }
 
-    // ✅ Download PDF securely
-    if (result?.pdfUrl) {
-      const fullUrl = result.pdfUrl.startsWith("http")
-        ? result.pdfUrl
-        : `${API_BASE_URL}${result.pdfUrl}`;
+    // ✅ show backend message
+    toast.success(result.message || "Invoice regenerated successfully");
 
-      // ✅ correct token key
+    if (sendToCustomer) {
+      toast.info("Invoice sent to customer email");
+    }
+
+    const invoiceData = result.data;
+
+    // ✅ Download PDF
+    if (invoiceData?.pdfUrl) {
+      const fullUrl = invoiceData.pdfUrl.startsWith("http")
+        ? invoiceData.pdfUrl
+        : `${API_BASE_URL}${invoiceData.pdfUrl}`;
+
       const token = localStorage.getItem("authToken");
 
       const response = await fetch(fullUrl, {
@@ -917,56 +952,61 @@ const handleRegenerateInvoice = async (
 
       const blob = await response.blob();
 
-const file = new Blob([blob], { type: "application/pdf" });
-const url = window.URL.createObjectURL(file);
+      const file = new Blob([blob], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(file);
 
-const link = document.createElement("a");
-link.href = url;
-link.setAttribute("download", `invoice-${orderId}.pdf`);
-link.style.display = "none";
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `invoice-${orderId}.pdf`);
+      link.style.display = "none";
 
-document.body.appendChild(link);
-link.click();
+      document.body.appendChild(link);
+      link.click();
 
-setTimeout(() => {
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-}, 100);
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     }
 
     await refreshAllOrderData();
-
     setShowRegenerateInvoiceModal(false);
 
   } catch (error: any) {
-    console.error("Error regenerating invoice", error);
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      "Failed to regenerate invoice";
 
-    toast.error(
-      error?.message || "Failed to regenerate invoice",
-      { autoClose: 5000 }
-    );
+    toast.error(backendMessage);
   } finally {
     setRegeneratingInvoice(false);
   }
 };
-
 const handleDownloadInvoice = async () => {
   if (downloadingInvoice) return;
+
   try {
     setDownloadingInvoice(true);
+
     await orderService.downloadInvoice(orderId);
-    toast.success('Invoice downloaded successfully', { autoClose: 3000 });
+
+    toast.success('Invoice downloaded successfully');
+
   } catch (error: any) {
-    toast.error(error?.message || 'Failed to download invoice. Please regenerate the invoice first.', { autoClose: 5000 });
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Failed to download invoice. Please regenerate the invoice first.';
+
+    toast.error(backendMessage);
   } finally {
     setDownloadingInvoice(false);
   }
 };
 
-
-
 const handleFullRefund = async (notes: string, reason: RefundReason) => {
-
   if (!notes || !notes.trim()) {
     toast.error('Please provide refund notes');
     return;
@@ -974,55 +1014,96 @@ const handleFullRefund = async (notes: string, reason: RefundReason) => {
 
   if (!order) return;
 
-  if (!confirm(`Process full refund of ${formatCurrency(order.totalAmount, order.currency)}?`)) {
-    return;
-  }
-
   try {
     setProcessingRefund(true);
 
     const result = await orderEditService.processFullRefund({
       orderId,
-      reason: reason,
+      reason,
       reasonDetails: orderEditService.getRefundReasonLabel(reason),
       adminNotes: notes,
       restoreInventory: true,
       sendCustomerNotification: true,
     });
 
-    toast.success(`Refund processed successfully`);
+    if (!result?.success) {
+      throw new Error(result?.message || 'Refund failed');
+    }
+
+    toast.success(result.message || 'Refund processed successfully');
+
+    setShowRefundModal(false);
+    await refreshAllOrderData();
+
+  } catch (error: any) {
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      'Failed to process refund';
+
+    toast.error(backendMessage);
+  } finally {
+    setProcessingRefund(false);
+  }
+};
+
+const handleShippingRefund = async (notes: string) => {
+  if (!order) return;
+
+  if (!notes?.trim()) {
+    toast.error('Please provide refund notes');
+    return;
+  }
+
+  try {
+    setProcessingRefund(true);
+
+    const result = await orderEditService.refundShipping(order.id, {
+      adminNotes: notes.trim(),
+      sendCustomerNotification: true,
+    });
+
+    // ✅ backend decides success
+    if (!result?.success) {
+      throw new Error(result?.message || 'Failed to refund shipping charge');
+    }
+
+    // ✅ show real backend message
+    toast.success(result.message || 'Shipping charge refunded successfully');
 
     setShowRefundModal(false);
 
     await refreshAllOrderData();
 
   } catch (error: any) {
-    toast.error(error.message || 'Failed to process refund');
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      'Failed to refund shipping charge';
+
+    toast.error(backendMessage);
   } finally {
     setProcessingRefund(false);
   }
 };
-
 const handlePartialRefund = async (
   refundAmount: number,
   reason: RefundReason,
   notes: string
 ) => {
   if (!refundAmount || refundAmount <= 0) {
-    toast.error('Please enter a valid refund amount', { autoClose: 4000 });
+    toast.error('Please enter a valid refund amount');
     return;
   }
 
-  if (!notes || !notes.trim()) {
-    toast.error('Please provide refund notes', { autoClose: 4000 });
+  if (!notes?.trim()) {
+    toast.error('Please provide refund notes');
     return;
   }
 
   if (!order) return;
-
-  if (!confirm(`Process partial refund of ${formatCurrency(refundAmount, order.currency)}?`)) {
-    return;
-  }
 
   try {
     setProcessingRefund(true);
@@ -1036,84 +1117,126 @@ const handlePartialRefund = async (
       sendCustomerNotification: true,
     });
 
-    toast.success(`✅ Partial refund processed successfully`);
+    if (!result?.success) {
+      throw new Error(result?.message || 'Refund failed');
+    }
+
+    toast.success(result.message || 'Partial refund processed successfully');
 
     setShowRefundModal(false);
-
     await refreshAllOrderData();
 
   } catch (error: any) {
-    toast.error(error.message || 'Failed to process refund');
+    const backendMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.errors?.[0] ||
+      error?.message ||
+      'Failed to process refund';
+
+    toast.error(backendMessage);
   } finally {
     setProcessingRefund(false);
   }
 };
 
-const handleAction = (action: string) => {
+const handlePaymentSubmit = async (data: any) => {
+  if (!order) return;
 
+  try {
+    setPaymentLoading(true);
+
+    if (paymentMode === 'full') {
+      await orderService.markPaymentPaid(order.id, data);
+    } else {
+      await orderService.markPendingAmountPaid(order.id, data);
+    }
+
+    toast.success('Payment updated');
+
+    setPaymentModalOpen(false);
+    await refreshAllOrderData();
+
+  } catch (err: any) {
+    toast.error(err.message);
+  } finally {
+    setPaymentLoading(false);
+  }
+};
+
+
+const handleAction = (action: string) => {
+  // 🔥 STATUS / SHIPMENT ACTIONS
+  if (action === 'update-status' || action === 'create-shipment') {
+    setSelectedAction(action);
+    setActionModalOpen(true);
+    return;
+  }
+
+  // 🔥 INVOICE
   if (action === 'regenerate-invoice') {
     setShowRegenerateInvoiceModal(true);
     return;
   }
 
+  // 🔥 REFUND
   if (action === 'refund') {
-    // Default to the first available tab
     if (canRefund()) setRefundTab('full');
     else if (canRefundShipping) setRefundTab('shipping');
+
     setShowRefundModal(true);
     return;
   }
 
+  // 🔥 DOWNLOAD
   if (action === 'download-invoice') {
     handleDownloadInvoice();
     return;
   }
 
+  // 🔥 PAYMENT
+  if (action === 'mark-paid') {
+    setPaymentMode('full');
+    setPaymentModalOpen(true);
+    return;
+  }
+
+  if (action === 'mark-pending-paid') {
+    setPaymentMode('partial');
+    setPaymentModalOpen(true);
+    return;
+  }
+
+  // 🔥 HISTORY
   if (action === 'view-refund-history') {
     setRefundHistoryOpen(true);
-    if (!refundHistory) {
-      fetchRefundHistory();
-    }
+    if (!refundHistory) fetchRefundHistory();
     return;
   }
 
   if (action === 'view-edit-history') {
     setEditHistoryOpen(true);
-    if (editHistory.length === 0) {
-      fetchEditHistory();
-    }
+    if (editHistory.length === 0) fetchEditHistory();
     return;
   }
 
-
+  // 🔥 DEFAULT (fallback)
   setSelectedAction(action);
   setActionModalOpen(true);
 };
 
+const handleActionSuccess = async (nextAction?: string) => {
+  setActionModalOpen(false);
 
-  const handleActionSuccess = () => {
-    setActionModalOpen(false);
-    fetchOrderDetails();
-  
-  };
-
-const handleShippingRefund = async (notes: string) => {
-  if (!order) return;
-  try {
-    setProcessingRefund(true);
-    await orderEditService.refundShipping(order.id, {
-      adminNotes: notes.trim(),
-      sendCustomerNotification: true,
-    });
-    toast.success('Shipping charge refunded successfully', { autoClose: 4000 });
-    setShowRefundModal(false);
-    await refreshAllOrderData();
-  } catch (error: any) {
-    toast.error(error?.message || 'Failed to refund shipping charge', { autoClose: 5000 });
-  } finally {
-    setProcessingRefund(false);
+  if (nextAction === 'create-shipment') {
+    setSelectedAction('create-shipment');
+    setActionModalOpen(true);
+    return;
   }
+
+  await refreshAllOrderData();
 };
+
+
 
   const isCollectionExpired = () => {
     if (!order?.collectionExpiryDate) return false;
@@ -1131,7 +1254,12 @@ const isOrderEditable = () => {
 
 const canRefund = () => {
   if (!order) return false;
-  return refundablePaidAmount > 0 && order.status !== 'Refunded';
+
+  return (
+    refundablePaidAmount > 0 &&
+    order.status !== 'Refunded' &&
+    order.collectionStatus !== 'Collected' // 🔥 ADD THIS
+  );
 };
 
   if (loading) {
@@ -1532,45 +1660,56 @@ const allActions = getAllAvailableActions(
                 {formatCurrency(order.subtotalAmount, order.currency)}
               </span>
             </div>
-            {/* <div className="flex justify-between" title="Value Added Tax (VAT)">
-              <span className="text-slate-400">Tax(inc)</span>
-              <span className="text-white font-medium">
-                {formatCurrency(order.taxAmount, order.currency)}
-              </span>
-            </div> */}
-     <div className="flex justify-between items-center" title="Shipping charge">
+       
+{order.deliveryMethod !== 'ClickAndCollect' && (
+  <div className="flex justify-between items-center" title="Shipping charge">
+    <span className="text-slate-400">
+      Shipping{order.shippingMethodName ? ` (${order.shippingMethodName})` : ''}
+    </span>
 
-  <span className="text-slate-400">Shipping</span>
+    <div className="flex items-center gap-2">
 
-  <div className="flex items-center gap-2">
+      {(!order.shippingAmount || order.shippingAmount === 0) ? (
+        <span className="text-slate-500 text-xs">Free</span>
 
-    {order.isShippingRefunded ? (
-      <>
-        <span className="text-slate-500 line-through">
+      ) : order.isShippingRefunded ? (
+        <>
+          <span className="text-slate-500 line-through">
+            {formatCurrency(order.shippingAmount, order.currency)}
+          </span>
+
+          <span className="text-green-400 text-xs px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-md">
+            Refunded
+          </span>
+        </>
+      ) : (
+        <span className="text-white font-medium">
           {formatCurrency(order.shippingAmount, order.currency)}
         </span>
+      )}
 
-        <span className="text-green-400 text-xs px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-md">
-          Refunded
-        </span>
-      </>
-    ) : (
-      <span className="text-white font-medium">
-        {formatCurrency(order.shippingAmount, order.currency)}
-      </span>
-    )}
-
+    </div>
   </div>
+)}
+{order.deliveryMethod === 'ClickAndCollect' && (
+  <div className="flex justify-between items-center" title="Click & Collect service fee">
+    <span className="text-slate-400">
+      Click & Collect Fee {order.collectionStoreName ? `(${order.collectionStoreName})` : ''}
+    </span>
 
-</div>
-            {order.clickAndCollectFee && order.clickAndCollectFee > 0 && (
-              <div className="flex justify-between" title="Click & Collect service fee">
-                <span className="text-slate-400">Click & Collect Fee</span>
-                <span className="text-white font-medium">
-                  {formatCurrency(order.clickAndCollectFee, order.currency)}
-                </span>
-              </div>
-            )}
+    <span
+      className={`font-medium ${
+        (order.clickAndCollectFee ?? 0) === 0
+          ? 'text-slate-500 text-xs'
+          : 'text-white'
+      }`}
+    >
+      {(order.clickAndCollectFee ?? 0) === 0
+        ? 'Free'
+        : formatCurrency(order.clickAndCollectFee ?? 0, order.currency)}
+    </span>
+  </div>
+)}
             {order.discountAmount > 0 && (
               <div className="flex justify-between" title="Promotional discount applied">
                 <span className="text-slate-400">Discount</span>
@@ -1580,94 +1719,109 @@ const allActions = getAllAvailableActions(
               </div>
             )}
 
-            {/* Pending Payment */}
-{order.pendingPaymentAmount > 0 && (
-  <div
-    className="flex justify-between items-center bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded-lg"
-    title="Amount still pending to be paid by customer"
-  >
-    <span className="text-amber-400 font-medium flex items-center gap-1">
-      <AlertTriangle className="h-4 w-4" />
-      Pending Payment
-    </span>
 
-    <span className="text-amber-400 font-bold">
-      {formatCurrency(order.pendingPaymentAmount, order.currency)}
+{/* Pending Payment */}
+{order.pendingPaymentAmount > 0 && (
+  <div className=" flex items-center justify-between px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+
+    {/* LEFT */}
+    <div className="flex items-center gap-2 text-amber-400 text-sm">
+      <AlertTriangle className="h-4 w-4" />
+      <span className="text-xs text-amber-300/80">Pending</span>
+      <span className="font-semibold">
+        {formatCurrency(order.pendingPaymentAmount, order.currency)}
+      </span>
+    </div>
+
+    {/* RIGHT */}
+    <button
+      onClick={() => {
+        setPaymentMode('partial');
+        setPaymentModalOpen(true);
+      }}
+      className="px-2.5 py-1 text-xs font-medium bg-yellow-500 hover:bg-yellow-600 text-black rounded-md transition"
+    >
+      Pay Now
+    </button>
+
+  </div>
+)}
+           {/* TOTAL */}
+<div className="border-t border-slate-700 pt-2 flex justify-between">
+  <span className="text-white font-semibold">Total</span>
+  <span className="text-white font-semibold">
+    {formatCurrency(order.totalAmount, order.currency)}
+  </span>
+</div>
+
+{/* REFUNDED */}
+{order.totalRefundedAmount > 0 && (
+  <div className="flex justify-between">
+    <span className="text-pink-400">Refunded</span>
+    <span className="text-pink-400 font-medium">
+      -{formatCurrency(order.totalRefundedAmount, order.currency)}
     </span>
   </div>
 )}
-            <div className="border-t border-slate-700 pt-2 flex justify-between" title="Final amount charged to customer">
-              <span className="text-white font-bold">Total</span>
-              <span className="text-white font-bold text-lg">
-                {formatCurrency(order.totalAmount, order.currency)}
-              </span>
-            </div>
+
+
+{/* NET PAID */}
+{order.totalRefundedAmount > 0 && (
+  <div className="border-t border-slate-700 pt-2 flex justify-between">
+    <span className="text-green-400 font-bold">Net Paid</span>
+    <span className="text-green-400 font-bold text-lg">
+      {formatCurrency(order.netAmountPaid, order.currency)}
+    </span>
+  </div>
+)}
+            
           </div>
 
 {/* Delivery + Payment Row */}
-<div className="mt-3 pt-3 border-t border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div className="mt-3 pt-3 border-t border-slate-700 flex flex-col gap-2">
 
-  {/* Delivery Method */}
-  <div>
-    <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-      <Truck className="h-3 w-3" />
-      Delivery Method
-    </p>
+  {/* Row */}
+  <div className="flex items-center justify-between text-sm">
 
-    {order.deliveryMethod === 'ClickAndCollect' ? (
-      <span
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-sm border border-cyan-500/20 cursor-help"
-        title="Customer will collect order from store location"
-      >
-        <MapPin className="h-4 w-4" />
-        Click & Collect
+    {/* Delivery */}
+    <div className="flex items-center gap-2 text-slate-300">
+      <Truck className="h-4 w-4 text-slate-400" />
+      <span className="text-xs text-slate-400">Delivery:</span>
+      <span className="font-medium text-purple-400">
+        {order.deliveryMethod === 'ClickAndCollect'
+          ? 'Click & Collect'
+          : 'Home Delivery'}
       </span>
-    ) : (
-      <span
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-sm border border-purple-500/20 cursor-help"
-        title="Order will be shipped to customer address"
-      >
-        <Truck className="h-4 w-4" />
-        Home Delivery
+    </div>
+
+    {/* Payment */}
+{(() => {
+  const method = order.paymentMethod || order.payments?.[0]?.paymentMethod;
+  const info = getPaymentMethodInfo(method);
+
+  return (
+    <div className="flex items-center gap-2 text-slate-300">
+      
+      {/* ICON */}
+      {info.icon === 'card' && (
+        <CreditCard className={`h-4 w-4 ${info.color}`} />
+      )}
+      {info.icon === 'wallet' && (
+        <Wallet className={`h-4 w-4 ${info.color}`} />
+      )}
+      {info.icon === 'phone' && (
+        <Smartphone className={`h-4 w-4 ${info.color}`} />
+      )}
+
+      {/* TEXT */}
+      <span className="text-xs text-slate-400">Payment:</span>
+      <span className={`font-medium ${info.color}`}>
+        {info.label}
       </span>
-    )}
+    </div>
+  );
+})()}
   </div>
-
-  {/* Payment Method */}
-  <div>
-    <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-      <CreditCard className="h-3 w-3" />
-      Payment Method
-    </p>
-
-    {(() => {
-      const method = order.paymentMethod || order.payments?.[0]?.paymentMethod;
-      const isStripe = method?.toLowerCase() === 'stripe';
-
-      return (
-        <span
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border cursor-help ${
-            isStripe
-              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-          }`}
-          title={
-            isStripe
-              ? 'Payment via Stripe card processing'
-              : 'Cash on Delivery - payment upon receipt'
-          }
-        >
-          {isStripe ? (
-            <CreditCard className="h-4 w-4" />
-          ) : (
-            <PoundSterling className="h-4 w-4" />
-          )}
-          {isStripe ? 'Stripe' : 'Cash on Delivery'}
-        </span>
-      );
-    })()}
-  </div>
-
 </div>
 
 
@@ -1781,9 +1935,30 @@ const allActions = getAllAvailableActions(
                 <Hash className="h-3 w-3" />
                 ID Number
               </p>
-              <p className="text-white font-medium">
-                {order.collectorIDNumber ? `****${order.collectorIDNumber.slice(-4)}` : 'Not recorded'}
-              </p>
+<div className="flex items-center gap-2">
+  <p className="text-white font-medium">
+    {order.collectorIDNumber
+      ? showId
+        ? order.collectorIDNumber
+        : `****${order.collectorIDNumber.slice(-4)}`
+      : "Not recorded"}
+  </p>
+
+  {order.collectorIDNumber && (
+    <button
+      type="button"
+      onClick={() => setShowId(!showId)}
+      className="p-1 rounded hover:bg-slate-700 transition"
+      title={showId ? "Hide ID" : "Show ID"}
+    >
+      {showId ? (
+        <EyeOff className="w-4 h-4 text-slate-400" />
+      ) : (
+        <Eye className="w-4 h-4 text-slate-400" />
+      )}
+    </button>
+  )}
+</div>
             </div>
           </div>
         </div>
@@ -2147,22 +2322,71 @@ const allActions = getAllAvailableActions(
                     </p>
                   )}
                 </div>
-                {shipment.shipmentItems && shipment.shipmentItems.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-700">
-                    <p className="text-xs text-slate-400 mb-2" title="Items included in this shipment">
-                      <Package className="h-3 w-3 inline mr-1" />
-                      Items in Shipment: {shipment.shipmentItems.length}
-                    </p>
-                    <div className="space-y-1">
-                      {shipment.shipmentItems.map((item) => (
-                        <p key={item.id} className="text-xs text-white flex items-center gap-1">
-                          <ChevronRight className="h-3 w-3 text-purple-400" />
-                          Quantity: {item.quantity}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
+ {shipment.shipmentItems && shipment.shipmentItems.length > 0 && (
+  <div className="mt-4 pt-4 border-t border-slate-700">
+
+    {/* HEADER */}
+    <div className="flex items-center justify-between mb-3">
+      <p className="text-xs text-slate-400 flex items-center gap-1">
+        <Package className="h-3 w-3" />
+        Items in Shipment
+      </p>
+
+      <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-300">
+        {shipment.shipmentItems.length} items
+      </span>
+    </div>
+
+    <div className="space-y-3">
+
+      {shipment.shipmentItems.map((item) => {
+        const orderItem = order.orderItems.find(
+          (oi) => oi.id === item.orderItemId
+        );
+
+        return (
+          <div
+            key={item.id}
+            className="flex items-center gap-4 p-3 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-purple-500/30 transition-all"
+          >
+
+            {/* IMAGE */}
+            <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center">
+              <img
+                src={getOrderProductImage(orderItem?.productImageUrl) || '/placeholder.png'}
+                alt={orderItem?.productName || 'Product'}
+                className="w-full h-full object-cover"
+                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+              />
+            </div>
+
+            {/* DETAILS */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-white font-semibold line-clamp-1">
+                {orderItem?.productName || 'Unknown Product'}
+              </p>
+
+              <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                <span>SKU: {orderItem?.productSku || 'N/A'}</span>
+                <span>£{orderItem?.unitPrice ?? 0}</span>
+              </div>
+            </div>
+
+            {/* QTY BADGE */}
+            <div className="flex flex-col items-end">
+          
+              <span className="text-sm font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg">
+                {item.quantity}
+              </span>
+            </div>
+
+          </div>
+        );
+      })}
+
+    </div>
+  </div>
+)}
               </div>
             ))}
           </div>
@@ -2211,13 +2435,13 @@ const allActions = getAllAvailableActions(
   }}
 />
       {actionModalOpen && order && (
-        <OrderActionsModal
-          isOpen={actionModalOpen}
-          onClose={() => setActionModalOpen(false)}
-          order={order}
-          action={selectedAction}
-          onSuccess={handleActionSuccess}
-        />
+      <OrderActionsModal
+  isOpen={actionModalOpen}
+  onClose={() => setActionModalOpen(false)}
+  order={order}
+  action={selectedAction}
+  onSuccess={handleActionSuccess}
+/>
       )}
 
       {/* ✅ NEW: Regenerate Invoice Modal */}
@@ -2243,6 +2467,15 @@ const allActions = getAllAvailableActions(
   onFullRefund={(reason, notes) => handleFullRefund(notes, reason)}
   onPartialRefund={(amount, reason, notes) => handlePartialRefund(amount, reason, notes)}
   onShippingRefund={(notes) => handleShippingRefund(notes)}
+/>
+
+<PaymentModal
+  isOpen={paymentModalOpen}
+  onClose={() => setPaymentModalOpen(false)}
+  onSubmit={handlePaymentSubmit}
+  loading={paymentLoading}
+  mode={paymentMode}
+  amount={order?.pendingPaymentAmount}
 />
 
 {pharmaAction && (

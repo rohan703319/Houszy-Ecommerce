@@ -3,9 +3,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Star, BadgePercent, AwardIcon, PackageX } from "lucide-react";
+import { ShoppingCart, Star, BadgePercent, AwardIcon, PackageX, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+
+import { useWishlist } from "@/context/WishlistContext";
 import { useToast } from "@/components/toast/CustomToast";
 import { getDiscountBadge, getDiscountedPrice } from "@/app/lib/discountHelpers";
 import { getVatRate } from "@/app/lib/vatHelpers";
@@ -29,6 +31,7 @@ export default function ProductCard({
   const router = useRouter();
   const toast = useToast();
   const { addToCart, cart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const [showPharmaModal, setShowPharmaModal] = useState(false);
 
 // 🔁 resume add after modal
@@ -274,6 +277,54 @@ if (product.orderMinimumQuantity > 1) {
               VAT Relief
             </span>
           )}
+          {/* ❤️ WISHLIST BUTTON */}
+<button
+  onClick={(e) => {
+    e.preventDefault();
+
+    const wishlistId = defaultVariant?.id ?? product.id;
+    const inWishlist = isInWishlist(wishlistId);
+
+    toggleWishlist({
+      id: wishlistId,
+      productId: product.id,
+      variantId: defaultVariant?.id,
+      variantName: defaultVariant?.name,
+      name: product.name,
+      slug: cardSlug,
+      price: finalPrice,
+      image: mainImage,
+      vatRate: vatRate ?? null,
+      vatExempt: product.vatExempt,
+      sku: defaultVariant?.sku ?? product.sku,
+      stockQuantity:
+        defaultVariant?.stockQuantity ??
+        product.stockQuantity ??
+        null,
+    });
+
+    if (inWishlist) {
+      toast.error("Product removed from wishlist");
+    } else {
+      toast.success("Product added to wishlist!");
+    }
+  }}
+  className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all
+    ${discountBadge || hasActiveCoupon ? "top-14" : "top-2"}
+    ${
+      isInWishlist(defaultVariant?.id ?? product.id)
+        ? "bg-green-50 border-green-200"
+        : "bg-white border-gray-200 hover:bg-green-50 hover:border-green-200"
+    }`}
+>
+  <Heart
+    className={`h-4 w-4 transition-colors ${
+      isInWishlist(defaultVariant?.id ?? product.id)
+        ? "fill-green-500 text-green-500"
+        : "text-gray-400 hover:text-green-400"
+    }`}
+  />
+</button>
         </div>
       </Link>
 

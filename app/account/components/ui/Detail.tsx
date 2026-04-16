@@ -1,7 +1,7 @@
 export default function Detail({ label, value, icon }: any) {
   return (
     <div className="flex items-center justify-between px-5 py-4 text-sm">
-      <div className="flex items-center gap-3 text-[#445D41]">
+      <div className="flex items-center gap-2 text-[#445D41]">
         {icon}
         <span>{label}</span>
       </div>

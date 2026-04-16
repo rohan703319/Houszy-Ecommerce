@@ -4,13 +4,18 @@ export const API_ENDPOINTS = {
   // Auth
   login: '/api/Auth/login',
   register: '/api/Auth/register',
+  contact: '/api/Contact',
   refreshToken: '/api/Auth/refresh-token',
   changePassword: '/api/Auth/change-password',
+
 
   // Categories
   categories: '/api/Categories',
   uploadCategoryImage: '/api/Categories/upload-image',
   deleteCategoryImage: '/api/ImageManagement/category',
+
+  StoreLocations: '/api/StoreLocations',
+  storeSettings: "/api/StoreSettings",
 
   // Manufacturers
   manufacturers: '/api/Manufacturers',
@@ -41,6 +46,7 @@ export const API_ENDPOINTS = {
 
   // Orders
   orders: '/api/Orders',
+  orderCancellationrequests: '/api/Orders/cancellation-requests',
   AddressLookup: '/api/address-lookup',
 
   // Shipping
@@ -53,6 +59,7 @@ export const API_ENDPOINTS = {
 
   // Customers
   customers: '/api/customers',
+  GoogleMerchantCenter:'/api/GoogleMerchant',
 
   // Discounts
   discounts: '/api/Discounts',

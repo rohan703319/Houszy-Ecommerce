@@ -589,9 +589,23 @@ const refundedAmount =
   label="Total amount paid"
   value={`£${order.totalPaidAmount?.toFixed(2) ?? "0.00"}`}
 />
-     <Info
+ <Info
   label="Payment Status"
-  value={order.paymentStatus ?? "—"}
+  value={
+    <span
+      className={`font-medium ${
+        order.paymentStatus?.toLowerCase() === "successful"
+          ? "text-green-600"
+          : order.paymentStatus?.toLowerCase() === "pending"
+          ? "text-orange-500"
+          : order.paymentStatus?.toLowerCase() === "failed"
+          ? "text-red-600"
+          : "text-gray-600"
+      }`}
+    >
+      {order.paymentStatus ?? "—"}
+    </span>
+  }
 />
         {refundedAmount > 0 && (
   <Info

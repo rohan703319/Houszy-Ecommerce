@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/app/admin/_components/CustomToast";
 import { VATRate, vatratesService, CreateVATRateDto, DeleteVATRateResponse } from "@/lib/services/vatrates";
 import { countriesService, Country } from "@/lib/services/countries";
+import { formatDate } from "../_utils/formatUtils";
 
 
 
@@ -172,16 +173,16 @@ const handleExportSelected = () => {
 };
 
   // Form state
-  const [formData, setFormData] = useState<CreateVATRateDto>({
-    name: "",
-    description: "",
-    rate: 0,
-    isDefault: false,
-    isActive: true,
-    country: "",
-    region: "",
-    displayOrder: 0,
-  });
+const [formData, setFormData] = useState({
+  name: "",
+  description: "",
+  rate: "" as number | "",   // 🔥 ONLY CHANGE
+  isDefault: false,
+  isActive: true,
+  country: "",
+  region: "",
+  displayOrder: 0,
+});
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -299,6 +300,7 @@ const handleExportSelected = () => {
   XLSX.writeFile(wb, "Selected_VAT_Rates.xlsx");
 
   toast.success(`Exported ${selectedData.length} VAT rates`);
+  setSelectedRates([])
 };
 const filteredRates = useMemo(() => {
   return vatRates.filter((rate) => {
@@ -336,16 +338,7 @@ const filteredRates = useMemo(() => {
     currentPage * itemsPerPage
   );
 
-  // Format date
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+
 
   // Validate form
   const validateForm = (): boolean => {
@@ -362,10 +355,11 @@ const filteredRates = useMemo(() => {
     } else if (formData.description.trim().length < 10) {
       errors.description = "Description must be at least 10 characters";
     }
-
-   if (formData.rate < 0) {
+if (formData.rate === "") {
+  errors.rate = "VAT rate is required";
+} else if (Number(formData.rate) < 0) {
   errors.rate = "VAT rate cannot be negative";
-} else if (formData.rate > 100) {
+} else if (Number(formData.rate) > 100) {
   errors.rate = "VAT rate cannot exceed 100%";
 }
 if (formData.rate === 0) {
@@ -437,8 +431,13 @@ const handleCreate = async (e: React.FormEvent) => {
   setIsSubmitting(true);
   
   try {
-    const response = await vatratesService.create(formData);
     
+const payload: CreateVATRateDto = {
+  ...formData,
+  rate: formData.rate === "" ? 0 : Number(formData.rate),
+};
+
+const response = await vatratesService.create(payload);
     // ✅ Type assertion for proper response structure
     const apiData = response?.data as any;
     
@@ -472,7 +471,12 @@ const handleUpdate = async (e: React.FormEvent) => {
   setIsSubmitting(true);
   
   try {
-    const response = await vatratesService.update(editingRate.id, formData);
+ const payload: CreateVATRateDto = {
+  ...formData,
+  rate: formData.rate === "" ? 0 : Number(formData.rate),
+};
+
+const response = await vatratesService.update(editingRate.id, payload);
     
     // ✅ Type assertion for proper response structure
     const apiData = response?.data as any;
@@ -535,7 +539,7 @@ const handleUpdate = async (e: React.FormEvent) => {
     setFormData({
       name: "",
       description: "",
-      rate: 0,
+      rate: "",
       isDefault: false,
       isActive: true,
       country: "",
@@ -793,7 +797,7 @@ const clearFilters = () => {
         </div>
       </div>
 
-      {/* Items Per Page */}
+      
 {/* Items Per Page */}
 <div className="bg-slate-900/40 border border-slate-800 rounded-lg px-3 py-2">
   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -858,7 +862,7 @@ const clearFilters = () => {
     setStatusFilter(e.target.value);
     setCurrentPage(1);
   }}
-  className={`p-2 bg-slate-800/60 border rounded-md text-white text-[11px] focus:outline-none transition-all
+  className={`p-2 bg-gray-800/60 border rounded-md text-white text-[11px] focus:outline-none transition-all
   ${
     statusFilter !== "all"
       ? "border-violet-500 bg-violet-500/10"
@@ -962,7 +966,7 @@ const clearFilters = () => {
           <th className="text-left py-2 px-3 text-slate-400 font-medium">Region</th>
           <th className="text-center py-2 px-3 text-slate-400 font-medium">Status</th>
           <th className="text-center py-2 px-3 text-slate-400 font-medium">Default</th>
-          <th className="text-center py-2 px-3 text-slate-400 font-medium">Order</th>
+          <th className="text-center py-2 px-3 text-slate-400 font-medium">Display Order</th>
           <th className="text-center py-2 px-3 text-slate-400 font-medium">Actions</th>
         </tr>
       </thead>
@@ -1026,7 +1030,8 @@ const clearFilters = () => {
 
             {/* Status Toggle */}
             <td className="py-2 px-3 text-center">
-              <button
+              {rate.isDeleted === false && (
+                <button
                 onClick={() => setStatusConfirm(rate)}
                 className={`px-2 py-0.5 rounded-md text-xs font-medium transition ${
                   rate.isActive
@@ -1036,6 +1041,8 @@ const clearFilters = () => {
               >
                 {rate.isActive ? "Active" : "Inactive"}
               </button>
+              )}
+             
             </td>
 
             {/* Default */}
@@ -1377,7 +1384,11 @@ const clearFilters = () => {
                     max="100"
                     value={formData.rate}
                     onChange={(e) => {
-                      setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 });
+                      const val = e.target.value;
+                      setFormData({
+  ...formData,
+  rate: val === "" ? "" : parseFloat(val),
+});
                       setFormErrors({ ...formErrors, rate: '' });
                     }}
                     className={`w-full px-4 py-2.5 bg-slate-800/50 border ${

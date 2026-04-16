@@ -6,17 +6,18 @@ import { ArrowLeft, Save, Upload, X, Info, Search, Image, Package, Tag,  Globe, 
 import Link from "next/link"
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { useToast } from "@/app/admin/_components/CustomToast";
-import {  BrandApiResponse, brandsService, categoriesService, CategoryApiResponse, CategoryData, DropdownsData, ProductAttribute, ProductImage, ProductItem, ProductOption, ProductsApiResponse, productsService, ProductVariant, SimpleProduct,  VATRateData } from '@/lib/services';
+import {   brandsService, DropdownsData, ProductAttribute, ProductImage,  ProductOption,  productsService, ProductVariant, SimpleProduct,  VATRateData } from '@/lib/services';
 import { GroupedProductModal } from '../GroupedProductModal';
 import { MultiBrandSelector } from "../MultiBrandSelector";
-import { VATRateApiResponse, vatratesService } from "@/lib/services/vatrates";
+import {  vatratesService } from "@/lib/services/vatrates";
 import { MultiCategorySelector } from "../MultiCategorySelector";
-import ScrollToTopButton from "../../_components/ScrollToTopButton";
 import RelatedProductsSelector from "../RelatedProductsSelector";
 import ProductVariantsManager from "../ProductVariantsManager";
-import ProductOptionsManager from "../ProductOptionsManager";
 import PharmacyQuestionAssignModal from "../PharmacyQuestionAssignModal";
 import { AssignProductPharmacyQuestionDto, pharmacyQuestionsService } from "@/lib/services/PharmacyQuestions";
+import ProductNameInput from "../ProductNameInput";
+import SKUInput from "../SKUInput";
+import { categoriesService } from "@/lib/services/categories";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 const [showPharmacyModal, setShowPharmacyModal] = useState(false);
 const [pharmacyQuestions, setPharmacyQuestions] = useState<AssignProductPharmacyQuestionDto[]>([]);
-// ================================
+
 // ✅ LOADING & SUBMISSION STATES
 // ================================
 const [isSubmitting, setIsSubmitting] = useState(false);
@@ -219,8 +220,8 @@ const checkDraftRequirements = (): { isValid: boolean; missing: string[] } => {
     missing.push('Product Name');
   }
 
-  // 2. SKU
-  if (!formData.sku?.trim()) {
+  // 2. SKU (optional for variable products — auto-generated)
+  if (!formData.sku?.trim() && formData.productType !== 'variable') {
     missing.push('SKU');
   }
 
@@ -251,12 +252,17 @@ const checkPublishRequirements = (): { isValid: boolean; missing: string[] } => 
 
   // 1. Basic Info
   if (!formData.name?.trim()) missing.push('Product Name');
-  if (!formData.sku?.trim()) missing.push('SKU');
+  if (!formData.sku?.trim() && formData.productType !== 'variable') missing.push('SKU');
   if (!formData.shortDescription?.trim()) missing.push('Short Description');
   if (!formData.fullDescription?.trim()) missing.push('full Description');
   // 3. Categories
   if (!formData.categoryIds || formData.categoryIds.length === 0) {
     missing.push('Category (at least 1)');
+  }
+  // Price only required for non-variable products
+  if (formData.productType !== 'variable') {
+    const price = Number(formData.price);
+    if (isNaN(price) || price <= 0) missing.push('Valid Price');
   }
 
   // 4. Brands
@@ -270,12 +276,17 @@ const checkPublishRequirements = (): { isValid: boolean; missing: string[] } => 
     missing.push(`Product Images (minimum 5, current: ${formData.productImages?.length || 0})`);
   }
 
-  // 6. Stock (if tracking)
-  if (formData.manageInventory === 'track') {
+  // 6. Stock (if tracking - skip for variable products, variants manage their own stock)
+  if (formData.productType !== 'variable' && formData.manageInventory === 'track') {
     const stock = parseInt(formData.stockQuantity?.toString() || '0');
     if (isNaN(stock) || stock < 0) {
       missing.push('Stock Quantity (valid number)');
     }
+  }
+
+  // 6b. Variable products: require at least 1 variant
+  if (formData.productType === 'variable' && productVariants.length === 0) {
+    missing.push('At least 1 variant (go to Variants tab)');
   }
 
   // 7. Shipping (if enabled)
@@ -292,11 +303,15 @@ const checkPublishRequirements = (): { isValid: boolean; missing: string[] } => 
     }
   }
 
-  if(formData.vatExempt === false){
+   // IMPORTANT: Jab vatExempt true hai, toh yeh condition execute nahi hogi
+  if (!formData.vatExempt) {
     if (!formData.vatRateId || formData.vatRateId.trim() === '') {
       missing.push('VAT Rate (required when product is taxable)');
+    }
   }
-  }
+
+  // VAT Validation - Only if NOT exempt
+ 
   return {
     isValid: missing.length === 0,
     missing
@@ -378,16 +393,22 @@ useEffect(() => {
         categoriesService.getAll({ includeInactive: true, includeSubCategories: true }),
         vatratesService.getAll(),
         productsService.getAll({ pageSize: 100 }),
-        productsService.getAll({ productType: 'simple', pageSize: 100 })
+        productsService.getSimpleProducts()
       ]);
 
       console.log('✅ All data fetched');
 
-      // ==================== DROPDOWNS ====================
-      const brandsData = (brandsResponse.data as BrandApiResponse)?.data || [];
-      const categoriesData = (categoriesResponse.data as CategoryApiResponse)?.data || [];
-      const vatRatesData = (vatRatesResponse.data as VATRateApiResponse)?.data || [];
+  const brandsData = Array.isArray(brandsResponse?.data?.data?.items)
+  ? brandsResponse.data.data.items
+  : [];
 
+const categoriesData = Array.isArray(categoriesResponse?.data?.data?.items)
+  ? categoriesResponse.data.data.items
+  : [];
+
+const vatRatesData = Array.isArray(vatRatesResponse?.data?.data)
+  ? vatRatesResponse.data.data
+  : [];
       setDropdownsData({
         brands: brandsData,
         categories: categoriesData,
@@ -400,23 +421,19 @@ useEffect(() => {
         vat: vatRatesData.length
       });
 
-      // ✅ ==================== SET DEFAULT VAT RATE ====================
-      if (vatRatesData.length > 0 && !formData.vatRateId && !formData.vatExempt) {
-        // Find default rate (isDefault: true)
-        const defaultRate = vatRatesData.find((v: any) => v.isDefault === true);
+  //     // ✅ ==================== SET DEFAULT VAT RATE ====================
+  //  if (vatRatesData.length > 0 && !formData.vatRateId && !formData.vatExempt) {
+  //       const defaultRate = vatRatesData.find((v: any) => v.isDefault === true);
         
-        if (defaultRate) {
-          console.log('✅ Setting default VAT rate:', defaultRate.name, `(${defaultRate.rate}%)`);
-          setFormData(prev => ({ 
-            ...prev, 
-            vatRateId: defaultRate.id,
-            vatExempt: false  // Not exempt if default rate is selected
-          }));
-        } else {
-          // If no default found, log warning
-          console.warn('⚠️ No default VAT rate found in API response');
-        }
-      }
+  //       if (defaultRate) {
+  //         console.log('✅ Setting default VAT rate:', defaultRate.name, `(${defaultRate.rate}%)`);
+  //         setFormData(prev => ({ 
+  //           ...prev, 
+  //           vatRateId: defaultRate.id,
+  //           vatExempt: false
+  //         }));
+  //       }
+  //     }
 
       // ==================== HELPER FUNCTION ====================
       const extractProducts = (response: any): any[] => {
@@ -484,7 +501,6 @@ useEffect(() => {
 }, []); // Only run once on mount
 
 
-
  const [formData, setFormData] = useState({
   // ===== BASIC INFO =====
   name: '',
@@ -518,6 +534,7 @@ useEffect(() => {
   nextDayDeliveryEnabled: false,
   nextDayDeliveryFree: false,   // ✅ ADD THIS
   standardDeliveryEnabled: true,
+  nextDayDeliveryCutoffTime: '',
 
   // ===== RELATED PRODUCTS =====
   relatedProducts: [] as string[],
@@ -569,7 +586,7 @@ useEffect(() => {
   vatRateId: '',
 
   // ===== LOYALTY & PHARMA =====
-  loyaltyPointsEnabled: true,
+  excludeFromLoyaltyPoints: true,
   isPharmaProduct: false,
 
 
@@ -655,7 +672,34 @@ allowedQuantities: '',
   metaDescription: '',
   searchEngineFriendlyPageName: '',
 });
-
+// ✅ SEPARATE useEffect FOR DEFAULT VAT RATE
+useEffect(() => {
+  // Only run when VAT rates are loaded AND no rate selected AND not exempt
+  if (dropdownsData.vatRates.length > 0 && !formData.vatRateId && !formData.vatExempt) {
+    // Find default rate (isDefault: true)
+    const defaultRate = dropdownsData.vatRates.find((v: any) => v.isDefault === true);
+    
+    if (defaultRate) {
+      console.log('✅ Setting default VAT rate:', defaultRate.name, `(${defaultRate.rate}%)`);
+      setFormData(prev => ({ 
+        ...prev, 
+        vatRateId: defaultRate.id,
+        vatExempt: false  // Ensure not exempt
+      }));
+    } else {
+      // If no default rate found, optionally find 0% rate
+      const zeroRate = dropdownsData.vatRates.find((v: any) => v.rate === 0);
+      if (zeroRate) {
+        console.log('✅ Setting 0% VAT rate as default:', zeroRate.name);
+        setFormData(prev => ({ 
+          ...prev, 
+          vatRateId: zeroRate.id,
+          vatExempt: false
+        }));
+      }
+    }
+  }
+}, [dropdownsData.vatRates, formData.vatRateId, formData.vatExempt]); // ✅ Dependencies
 useEffect(() => {
   const { missing } = checkPublishRequirements();
   setMissingFields(missing);
@@ -674,6 +718,9 @@ useEffect(() => {
   formData.productType,
   formData.requireOtherProducts,
   formData.requiredProductIds,
+  formData.vatExempt,
+  formData.vatRateId,
+  productVariants,
 ]);
 
 /**
@@ -820,8 +867,7 @@ const filteredVATRates = dropdownsData.vatRates.filter(vat =>
 
 
 // ==================== SKU VALIDATION (COMPLETE - SERVICE-BASED) ====================
-const [skuError, setSkuError] = useState<string>('');
-const [checkingSku, setCheckingSku] = useState<boolean>(false);
+;
 
 
 // ✅ FLEXIBLE SKU VALIDATION - Allows: Pure Numbers, Pure Letters, OR Alphanumeric
@@ -860,78 +906,7 @@ const validateSkuFormat = (sku: string): { isValid: boolean; error: string } => 
   return { isValid: true, error: '' };
 };
 
-// ✅ 2. UPDATE EXISTING checkSkuExists FUNCTION
 
-const checkSkuExists = async (sku: string): Promise<boolean> => {
-  // Clear previous errors
-  setSkuError('');
-  
-  if (!sku || sku.length < 3) {
-    return false;
-  }
-  
-  // ✅ VALIDATE FORMAT FIRST
-  const validation = validateSkuFormat(sku);
-  if (!validation.isValid) {
-    setSkuError(validation.error);
-    return true;
-  }
-  
-  setCheckingSku(true);
-  
-  try {
-    console.log('🔍 Checking SKU:', sku);
-    
-    const response = await productsService.getAll({ 
-      page:1,
-      pageSize: 1000
-    });
-    
-    // Safe data extraction
-    let products: any[] = [];
-    
-    try {
-      if (response.data) {
-        if (typeof response.data === 'object' && 'data' in response.data) {
-          const nestedData = (response.data as any).data;
-          
-          if (nestedData && typeof nestedData === 'object') {
-            if ('items' in nestedData && Array.isArray(nestedData.items)) {
-              products = nestedData.items;
-            } else if (Array.isArray(nestedData)) {
-              products = nestedData;
-            }
-          }
-        } else if (Array.isArray(response.data)) {
-          products = response.data;
-        }
-      }
-    } catch (parseError) {
-      console.error('Error parsing products:', parseError);
-      products = [];
-    }
-    
-    // Check for duplicate SKU
-    const exists = products.some((p: any) => {
-      if (!p || typeof p !== 'object' || !p.sku) return false;
-      return p.sku.toUpperCase() === sku.toUpperCase();
-    });
-    
-    if (exists) {
-      setSkuError('SKU already exists. Please choose a unique SKU.');
-      return true;
-    }
-    
-    return false;
-    
-  } catch (error: any) {
-    console.error('SKU check error:', error);
-    setSkuError('');
-    return false;
-  } finally {
-    setCheckingSku(false);
-  }
-};
 
 // ✅ ADD THIS FUNCTION AFTER checkSkuExists FUNCTION
 
@@ -948,21 +923,8 @@ const getHomepageCount = async () => {
   }
 };
 
-// ==================== DEBOUNCED SKU CHECK ====================
-useEffect(() => {
-  const timer = setTimeout(() => {
-    if (formData.sku && formData.sku.length >= 2) {
-      checkSkuExists(formData.sku);
-    } else {
-      setSkuError('');
-      setCheckingSku(false);
-    }
-  }, 800); // Check after 800ms of typing
 
-  return () => {
-    clearTimeout(timer);
-  };
-}, [formData.sku]);
+
 
 
 // ============ COMPLETE handleSubmit FUNCTION WITH ALL VALIDATIONS ============
@@ -996,29 +958,52 @@ const handleSubmit = async (
       percentage: 10,
     });
 
+      const res = await productsService.getAll({
+    searchTerm: formData.name
+  });
+
+  const items = res.data?.data?.items ?? [];
+
+ const nameExists = items.some((p: any) =>
+  p.name?.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
+  (!isEditMode || p.id !== productId)
+);
+
+  if (nameExists) {
+    toast.error('❌ Product name already exists. Please use a unique name.');
+    target.removeAttribute("data-submitting");
+    setIsSubmitting(false);
+    setSubmitProgress(null);
+    return;
+  }
     // ============================================================
     // SECTION 1: BASIC VALIDATION
     // ============================================================
 
     // 1.1 Required Fields
-    if (!formData.name || !formData.sku) {
-      toast.warning("Please fill in required fields: Product Name and SKU");
+    if (!formData.name) {
+      toast.warning("Please fill in Product Name");
       target.removeAttribute("data-submitting");
       setIsSubmitting(false);
       setSubmitProgress(null);
       return;
     }
 
-    // 1.2 NAME VALIDATION
-   const PRODUCT_NAME_REGEX =/^[A-Za-z0-9\u00C0-\u024F\s.,()'"\/&+%\-]+$/;
-
-    if (!PRODUCT_NAME_REGEX.test(formData.name)) {
-      toast.error("Product name contains unsupported characters.");
-      target.removeAttribute("data-submitting");
-      setIsSubmitting(false);
-      setSubmitProgress(null);
-      return;
+    // For variable products, auto-generate SKU from name if not provided
+    if (!formData.sku?.trim()) {
+      if (formData.productType === 'variable') {
+        const autoSku = formData.name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').replace(/-+/g, '-').slice(0, 20);
+        setFormData(prev => ({ ...prev, sku: autoSku }));
+        formData.sku = autoSku;
+      } else {
+        toast.warning("Please fill in required field: SKU");
+        target.removeAttribute("data-submitting");
+        setIsSubmitting(false);
+        setSubmitProgress(null);
+        return;
+      }
     }
+
 
     // 1.X FULL DESCRIPTION VALIDATION (REQUIRED FOR PUBLISH)
     if (!isDraft) {
@@ -1033,45 +1018,58 @@ const handleSubmit = async (
       const descLength = getPlainText(formData.fullDescription).length;
       if (descLength > 2000) {
         formData.fullDescription = truncateHtmlByTextLength(formData.fullDescription, 2000);
-        toast.info("Full description trimmed to 2000 characters");
+        toast.info("Full description trimmed to 5000 characters");
       }
     }
 
-    // 1.3 SKU VALIDATION - Length
-    if (formData.sku.length < 3) {
-      toast.error("SKU must be at least 3 characters long.");
-      target.removeAttribute("data-submitting");
-      setIsSubmitting(false);
-      setSubmitProgress(null);
-      return;
-    }
-
-    // ADD THIS NEW VALIDATION BEFORE LENGTH CHECK
-    const skuValidation = validateSkuFormat(formData.sku);
-    if (!skuValidation.isValid) {
-      toast.error(skuValidation.error, { autoClose: 5000 });
-      target.removeAttribute("data-submitting");
-      setIsSubmitting(false);
-      setSubmitProgress(null);
-      return;
-    }
-
-    setSubmitProgress({
-      step: "Checking SKU availability...",
-      percentage: 20,
-    });
-
-    // 1.4 SKU VALIDATION - Uniqueness (SKIP IN EDIT MODE)
-    if (!isEditMode) {
-      const skuExists = await checkSkuExists(formData.sku);
-      if (skuExists) {
-        toast.error("SKU already exists. Please use a unique SKU.");
+    // 1.3 SKU VALIDATION (skip strict check for variable products - SKU may be auto-generated)
+    if (formData.productType !== 'variable') {
+      if (formData.sku.length < 3) {
+        toast.error("SKU must be at least 3 characters long.");
+        target.removeAttribute("data-submitting");
+        setIsSubmitting(false);
+        setSubmitProgress(null);
+        return;
+      }
+      const skuValidation = validateSkuFormat(formData.sku);
+      if (!skuValidation.isValid) {
+        toast.error(skuValidation.error, { autoClose: 5000 });
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
         setSubmitProgress(null);
         return;
       }
     }
+
+// ================= SKU UNIQUENESS CHECK (OPTIMIZED) =================
+setSubmitProgress({
+  step: "Checking SKU availability...",
+  percentage: 20,
+});
+
+try {
+  const res = await productsService.getAll({
+    searchTerm: formData.sku
+  });
+
+  const items = res.data?.data?.items ?? [];
+
+  const skuExists = items.some((p: any) =>
+   p.sku?.toUpperCase().trim() === formData.sku.toUpperCase().trim() &&
+    (!isEditMode || p.id !== productId) // edit safe
+  );
+
+  if (skuExists) {
+    toast.error("❌ SKU already exists. Please use a unique SKU.");
+    target.removeAttribute("data-submitting");
+    setIsSubmitting(false);
+    setSubmitProgress(null);
+    return;
+  }
+
+} catch (error) {
+  console.warn("⚠️ SKU check failed:", error);
+}
 
     // 1.5 PRICE VALIDATION
     if (formData.price && parseFloat(formData.price.toString()) < 0) {
@@ -1082,8 +1080,8 @@ const handleSubmit = async (
       return;
     }
 
-    // 1.5 PRICE VALIDATION (REQUIRED FOR PUBLISH)
-    if (!isDraft) {
+    // 1.5 PRICE VALIDATION (REQUIRED FOR PUBLISH - skip for variable products)
+    if (!isDraft && formData.productType !== 'variable') {
       const price = Number(formData.price);
       if (isNaN(price) ) {
         toast.error("Price is required");
@@ -1094,8 +1092,8 @@ const handleSubmit = async (
       }
     }
 
-    // 1.6 STOCK VALIDATION (REQUIRED WHEN TRACKING)
-    if (!isDraft && formData.manageInventory === "track") {
+    // 1.6 STOCK VALIDATION (REQUIRED WHEN TRACKING - skip for variable products)
+    if (!isDraft && formData.productType !== 'variable' && formData.manageInventory === "track") {
       const stock = Number(formData.stockQuantity);
       if (isNaN(stock)) {
         toast.error("Stock quantity is required when inventory is tracked.");
@@ -1104,6 +1102,15 @@ const handleSubmit = async (
         setSubmitProgress(null);
         return;
       }
+    }
+
+    // 1.7 VARIANT VALIDATION (REQUIRED FOR VARIABLE PRODUCTS)
+    if (!isDraft && formData.productType === 'variable' && productVariants.length === 0) {
+      toast.error("Variable products must have at least one variant. Please add variants in the Variants tab.");
+      target.removeAttribute("data-submitting");
+      setIsSubmitting(false);
+      setSubmitProgress(null);
+      return;
     }
 
     setSubmitProgress({
@@ -1185,6 +1192,25 @@ const handleSubmit = async (
         }
       }
     }
+if (!formData.nextDayDeliveryEnabled) {
+  setFormData(prev => ({
+    ...prev,
+    nextDayDeliveryCutoffTime: ''
+  }));
+}
+
+    if (
+  formData.nextDayDeliveryEnabled &&
+  !formData.nextDayDeliveryCutoffTime
+) {
+  toast.error('❌ Next-Day Delivery cutoff time required');
+
+  target.removeAttribute("data-submitting");
+  setIsSubmitting(false);
+  setSubmitProgress(null);
+
+  return;
+}
 
     // ============================================================
     // SECTION 4A: GROUPED SUBSCRIPTION CONFLICT VALIDATION BLOCK
@@ -1432,8 +1458,9 @@ const handleSubmit = async (
     // ============================================================
     // SECTION 8: BUILD PRODUCT DATA
     // ============================================================
+    // Only non-variation attributes go to the attributes array
     const attributesArray = productAttributes
-      .filter((attr) => attr.name && attr.value)
+      .filter((attr) => !attr.isVariation && attr.name && attr.value)
       .map((attr) => ({
         id: attr.id,
         name: attr.name,
@@ -1456,6 +1483,10 @@ const handleSubmit = async (
         weight: cleanedVariant.weight ? parseFloat(cleanedVariant.weight.toString()) : null,
         stockQuantity: parseInt(cleanedVariant.stockQuantity.toString()) || 0,
         trackInventory: cleanedVariant.trackInventory ?? true,
+        // NEW: option values as comma-separated string
+        optionValues: Array.isArray(variant.optionValues) && variant.optionValues.length > 0
+          ? variant.optionValues.filter((v: string) => v).join(',')
+          : null,
         // USE CLEANED OPTIONS (null if incomplete)
         option1Name: cleanedVariant.option1Name,
         option1Value: cleanedVariant.option1Value,
@@ -1463,7 +1494,7 @@ const handleSubmit = async (
         option2Value: cleanedVariant.option2Value,
         option3Name: cleanedVariant.option3Name,
         option3Value: cleanedVariant.option3Value,
-        imageUrl: null,
+        imageUrl: cleanedVariant.imageUrl?.startsWith('blob') ? null : (cleanedVariant.imageUrl || null),
         isDefault: cleanedVariant.isDefault || false,
         displayOrder: cleanedVariant.displayOrder || 0,
         isActive: cleanedVariant.isActive ?? true,
@@ -1471,6 +1502,19 @@ const handleSubmit = async (
         barcode: cleanedVariant.barcode || null,
       };
     });
+
+    // Build options array from variation attributes (WooCommerce-style unified)
+    const guidRegexOpt = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const optionsArray = productAttributes
+      .filter(a => a.isVariation && a.name && a.value)
+      .map((a, index) => ({
+        ...(a.id && guidRegexOpt.test(a.id) ? { id: a.id } : {}),
+        name: a.name.trim(),
+        values: a.value.trim(),
+        displayType: a.displayType || 'buttons',
+        position: a.position || index + 1,
+        isActive: true,
+      }));
 
     // Clean cart quantities based on active mode
 // ======================================
@@ -1602,7 +1646,8 @@ allowedQuantities: cleanedCartData.allowedQuantities,
       productAvailabilityRange: formData.productAvailabilityRange || null,
       notReturnable: formData.notReturnable ?? false,
 
-      // Attributes & Variants
+      // Options, Attributes & Variants
+      options: optionsArray.length > 0 ? optionsArray : [],
       attributes: attributesArray.length > 0 ? attributesArray : [],
       variants: variantsArray.length > 0 ? variantsArray : [],
     };
@@ -1660,7 +1705,7 @@ allowedQuantities: cleanedCartData.allowedQuantities,
     }
 
     // Loyalty & Pharma
-    productData.loyaltyPointsEnabled = formData.loyaltyPointsEnabled ?? true;
+    productData.excludeFromLoyaltyPoints = formData.excludeFromLoyaltyPoints ?? true;
     productData.isPharmaProduct = formData.isPharmaProduct ?? false;
 
     // Shipping
@@ -1676,6 +1721,11 @@ allowedQuantities: cleanedCartData.allowedQuantities,
     // Delivery Options
     if (formData.sameDayDeliveryEnabled !== undefined) productData.sameDayDeliveryEnabled = formData.sameDayDeliveryEnabled;
     if (formData.nextDayDeliveryEnabled !== undefined) productData.nextDayDeliveryEnabled = formData.nextDayDeliveryEnabled;
+    if (formData.nextDayDeliveryCutoffTime) {
+  productData.nextDayDeliveryCutoffTime = formData.nextDayDeliveryCutoffTime;
+} else {
+  productData.nextDayDeliveryCutoffTime = null;
+}
     if (formData.nextDayDeliveryFree !== undefined)
 productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
     if (formData.standardDeliveryEnabled !== undefined) productData.standardDeliveryEnabled = formData.standardDeliveryEnabled;
@@ -1794,7 +1844,7 @@ productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
 
       if (!currentProductId) {
         console.error("Failed to extract product ID from response");
-        toast.error("Product created but ID not found. Cannot upload images.");
+        toast.error("Product created but ID not found.");
         setIsSubmitting(false);
         setSubmitProgress(null);
         setTimeout(() => router.push("/admin/products"), 2000);
@@ -2376,43 +2426,16 @@ if (name === 'nextDayDeliveryEnabled') {
 
 
 
-  const removeCrossSellProduct = (productId: string) => {
-    setFormData({
-      ...formData,
-      crossSellProducts: formData.crossSellProducts.filter(id => id !== productId)
-    });
-  };
-
-  const filteredProducts = availableProducts.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredProductsCross = availableProducts.filter(p =>
-    p.name.toLowerCase().includes(searchTermCross.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTermCross.toLowerCase())
-  );
-
-// ✅ ADD THIS NEW HANDLER FUNCTION
-const handleGroupedProductsChange = (selectedOptions: any) => {
-  const selectedIds = selectedOptions.map((option: any) => option.value);
-  setSelectedGroupedProducts(selectedIds);
-  
-  // Update formData with comma-separated IDs
-  setFormData(prev => ({
-    ...prev,
-    requiredProductIds: selectedIds.join(',')
-  }));
-};
-
-
-  // Product Attribute handlers (matching backend ProductAttributeCreateDto)
-  const addProductAttribute = () => {
+  // Product Attribute handlers (WooCommerce-style: unified attributes with "Used for variations" toggle)
+  const addProductAttribute = (isVariation = false) => {
     const newAttr: ProductAttribute = {
-      id: Date.now().toString(),
+      id: `attr-${Date.now()}`,
       name: '',
       value: '',
-      displayOrder: productAttributes.length + 1
+      displayOrder: productAttributes.length + 1,
+      isVariation,
+      displayType: isVariation ? 'buttons' : undefined,
+      position: isVariation ? productAttributes.filter(a => a.isVariation).length + 1 : undefined,
     };
     setProductAttributes([...productAttributes, newAttr]);
   };
@@ -2425,6 +2448,20 @@ const handleGroupedProductsChange = (selectedOptions: any) => {
     setProductAttributes(productAttributes.map(attr =>
       attr.id === id ? { ...attr, [field]: value } : attr
     ));
+  };
+
+  // Toggle "Used for variations" on an attribute
+  const toggleAttributeVariation = (id: string) => {
+    setProductAttributes(productAttributes.map(attr => {
+      if (attr.id !== id) return attr;
+      const nowVariation = !attr.isVariation;
+      return {
+        ...attr,
+        isVariation: nowVariation,
+        displayType: nowVariation ? (attr.displayType || 'buttons') : undefined,
+        position: nowVariation ? productAttributes.filter(a => a.isVariation).length + 1 : undefined,
+      };
+    }));
   };
  
 
@@ -2766,7 +2803,7 @@ useEffect(() => {
 {/* ============================================================ */}
 {/* ✅ COMPLETE HEADER WITH EDIT MODE & VALIDATION */}
 {/* ============================================================ */}
-<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-4">
+<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-3">
   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
     {/* ========== Left Side - Title & Status ========== */}
     <div className="flex items-center gap-4">
@@ -2794,7 +2831,7 @@ useEffect(() => {
       <div>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Main Title */}
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl lg:text-2xl font-bold tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
             {isEditMode ? "Edit Product" : "Create New Product"}
           </h1>
 
@@ -2827,15 +2864,7 @@ useEffect(() => {
           )} */}
         </div>
 
-        {/* Status Text */}
-        <p className="text-sm text-slate-400 mt-1">
-          {isSubmitting 
-            ? submitProgress?.step || 'Processing...' 
-            : missingFields.length > 0
-            ? `${missingFields.length} required field${missingFields.length !== 1 ? 's' : ''} remaining`
-            : 'All required fields filled ✓'
-          }
-        </p>
+     
       </div>
     </div>
 
@@ -3068,6 +3097,31 @@ useEffect(() => {
 
       {/* Main Content */}
       <div className="w-full">
+         {missingFields.length > 0 && (
+          <div className="flex items-center gap-2 mb-2 px-1 py-1 bg-orange-500/10 border border-orange-500/30 rounded-lg flex-wrap">
+            
+            <svg
+              className="w-4 h-4 text-orange-400 flex-shrink-0"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+
+            <span className="text-xs font-medium text-orange-400">
+              {missingFields.length} required field
+              {missingFields.length !== 1 ? "s" : ""}:
+            </span>
+
+            <span className="text-xs text-orange-300">
+              {missingFields.join(", ")}
+            </span>
+          </div>
+          )}
         {/* Main Form */}
         <div className="w-full">
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-2">
@@ -3098,10 +3152,21 @@ useEffect(() => {
                     <Tag className="h-4 w-4" />
                     Attributes
                   </TabsTrigger>
-                  <TabsTrigger value="variants" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
-                    <Package className="h-4 w-4" />
-                    Variants
-                  </TabsTrigger>
+
+                  {formData.productType === "variable" && (
+                    <TabsTrigger value="variants" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
+                      <Package className="h-4 w-4" />
+                      Variants
+                      {productVariants.length > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 text-xs bg-violet-500/30 text-violet-300 rounded-full font-medium">
+                          {productVariants.length}
+                        </span>
+                      )}
+                      {productVariants.length === 0 && (
+                        <span className="ml-1 w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="No variants added" />
+                      )}
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger value="seo" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
                     <Globe className="h-4 w-4" />
                     SEO
@@ -3120,25 +3185,10 @@ useEffect(() => {
     <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">Basic Info</h3>
 
     <div className="grid gap-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
-          Product Name <span className="text-red-500">*</span>
-        </label>
-        <input
-  type="text"
-  name="name"
+<ProductNameInput
   value={formData.name}
-  onChange={handleChange}
-  placeholder="Enter product name"
-  className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-  required
-  minLength={3}
-  maxLength={150}
-  pattern="^[A-Za-z0-9\s\-.,()'/]+$"
-  title="Product name must be 3–150 characters and cannot contain emojis or special characters like @, #, $, %."
+  onChange={(val) => setFormData({ ...formData, name: val })}
 />
-
-      </div>
 
 <div className="space-y-4">
 
@@ -3175,93 +3225,25 @@ useEffect(() => {
     height={400}
     required={true}
     // minLength={50}
-    maxLength={2000}
+    maxLength={5000}
     showCharCount={true}
-    // showHelpText="Detailed product information with formatting (50-2000 characters)"
+    // showHelpText="Detailed product information with formatting (50-5000 characters)"
   />
 
 </div>
 
 
  <div className="grid md:grid-cols-3 gap-4">
-{/* ✅ SKU FIELD - Updated with flexible format support */}
+{/* SKU FIELD */}
 <div>
-  <label className="block text-sm font-medium text-slate-300 mb-2">
-    SKU (Stock Keeping Unit) <span className="text-red-500">*</span>
-  </label>
-  
-  <div className="relative">
-    <input
-      type="text"
-      name="sku"
-      value={formData.sku}
-      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-        const input = e.target.value;
-        // ✅ Convert to uppercase and remove invalid characters (spaces, special chars except hyphen)
-        const sanitized = input.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-        
-        setFormData({ ...formData, sku: sanitized });
-        
-        // Clear error on typing
-        if (skuError) setSkuError('');
-      }}
-      onBlur={() => {
-        if (formData.sku && formData.sku.length >= 3) {
-          checkSkuExists(formData.sku);
-        } else if (formData.sku && formData.sku.length > 0 && formData.sku.length < 3) {
-          setSkuError('SKU must be at least 3 characters');
-        }
-      }}
-      placeholder="641256412 or PROD-001"
-      maxLength={30}
-      className={`w-full px-4 py-2.5 bg-slate-900 border rounded-lg text-white placeholder-slate-500 focus:ring-2 transition-all uppercase font-mono ${
-        skuError 
-          ? 'border-red-500 focus:ring-red-500' 
-          : formData.sku && !checkingSku && formData.sku.length >= 3
-            ? 'border-green-500 focus:ring-green-500' 
-            : 'border-slate-700 focus:ring-violet-500'
-      }`}
-      required
-    />
-    
-    {/* Status Icons */}
-    {checkingSku && (
-      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-        <svg className="animate-spin h-5 w-5 text-violet-400" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </div>
-    )}
-    
-    {!checkingSku && skuError && (
-      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-        <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-        </svg>
-      </div>
-    )}
-    
-    {!checkingSku && !skuError && formData.sku && formData.sku.length >= 3 && (
-      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-        <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-        </svg>
-      </div>
-    )}
-  </div>
-  
-  {/* Error Message */}
-  {skuError && (
-    <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
-      <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-      </svg>
-      <p className="text-xs text-red-400">{skuError}</p>
-    </div>
+  <SKUInput
+    value={formData.sku}
+    onChange={(val) => setFormData({ ...formData, sku: val })}
+    isVariableProduct={formData.productType === 'variable'}
+  />
+  {formData.productType === 'variable' && !formData.sku && (
+    <p className="mt-1 text-xs text-slate-500 italic">Leave blank to auto-generate from product name</p>
   )}
-  
-
 </div>
 
 
@@ -3347,6 +3329,20 @@ useEffect(() => {
 
       </div>
 
+{/* Variable product guidance banner */}
+{formData.productType === 'variable' && (
+  <div className="flex items-start gap-3 bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-3">
+    <Package className="h-5 w-5 text-violet-400 mt-0.5 flex-shrink-0" />
+    <div className="text-sm">
+      <span className="font-semibold text-violet-300">Variable Product selected — </span>
+      <span className="text-slate-300">Price and stock are managed per variant. Go to the <strong className="text-violet-300">Variants</strong> tab to define options (Color, Size…) and generate variants.</span>
+      {productVariants.length > 0 && (
+        <span className="ml-2 text-emerald-400 font-medium">✓ {productVariants.length} variant{productVariants.length !== 1 ? 's' : ''} added</span>
+      )}
+    </div>
+  </div>
+)}
+
 {/* ✅ UPDATED Product Type Row with Edit Button */}
 <div className="grid md:grid-cols-2 gap-4">
   <div>
@@ -3365,6 +3361,7 @@ useEffect(() => {
         >
           <option value="simple">Simple Product</option>
           <option value="grouped">Grouped Product</option>
+          <option value="variable">Variable Product</option>
         </select>
 
 {/* ✅ Edit Button with Linked Count INSIDE */}
@@ -3836,14 +3833,14 @@ useEffect(() => {
       </div>
       <button
         type="button"
-        onClick={() => setFormData(prev => ({ ...prev, loyaltyPointsEnabled: !prev.loyaltyPointsEnabled }))}
+        onClick={() => setFormData(prev => ({ ...prev, excludeFromLoyaltyPoints: !prev.excludeFromLoyaltyPoints }))}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-          formData.loyaltyPointsEnabled ? 'bg-emerald-500' : 'bg-slate-600'
+          formData.excludeFromLoyaltyPoints ? 'bg-emerald-500' : 'bg-slate-600'
         }`}
       >
         <span
           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-            formData.loyaltyPointsEnabled ? 'translate-x-6' : 'translate-x-1'
+            formData.excludeFromLoyaltyPoints ? 'translate-x-6' : 'translate-x-1'
           }`}
         />
       </button>
@@ -4169,7 +4166,7 @@ useEffect(() => {
 
 
 {/* ====================================================================== */}
-{/* ✅ VAT / TAX SETTINGS - ADD PRODUCT PAGE WITH DEFAULT RATE */}
+{/* ✅ VAT / TAX SETTINGS - ADD PRODUCT PAGE WITH PROPER DROPDOWN */}
 {/* ====================================================================== */}
 
 <div className="space-y-4">
@@ -4177,103 +4174,205 @@ useEffect(() => {
     VAT / Tax Settings
   </h3>
 
+{/* VAT Exempt Toggle */}
+<label className="flex items-center gap-3 cursor-pointer">
+  <input
+    type="checkbox"
+    name="vatExempt"
+    checked={formData.vatExempt}
+    onChange={(e) => {
+      const isExempt = e.target.checked;
+      setFormData(prev => ({
+        ...prev,
+        vatExempt: isExempt,
+        vatRateId: isExempt ? '' : prev.vatRateId  // Clear rate if exempt
+      }));
+    }}
+    className="w-4 h-4 rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
+  />
+  <div>
+    <span className="text-sm font-medium text-slate-300">
+      VAT Exempt (Zero Rated)
+    </span>
+    <p className="text-xs text-slate-400">
+      Check this box if product is VAT exempt or zero-rated
+    </p>
+  </div>
+</label>
 
-
-  {/* ✅ VAT RATE SELECTOR - Only show when NOT exempt */}
- 
+  {/* VAT Rate Selector - Show when NOT exempt */}
+  {!formData.vatExempt && (
     <div className="relative">
-      {/* Label & Preview Button */}
+      {/* Label with Required Indicator */}
       <div className="flex items-center justify-between gap-3 mb-2">
         <label className="block text-sm font-medium text-slate-300">
-          VAT Rate (Please select an applicable rate)
-          <span className="text-red-400">*</span>
+          VAT Rate
+          <span className="text-red-400 ml-1">*</span>
+          <span className="text-xs text-slate-500 ml-2">(Required when product is taxable)</span>
         </label>
-
-   
+        
+        {/* Selected Rate Preview */}
+        {formData.vatRateId && (
+          <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+            Selected: {dropdownsData.vatRates.find(v => v.id === formData.vatRateId)?.name || ''}
+          </span>
+        )}
       </div>
 
-      {/* Search Input */}
+      {/* Search Input - Always shows current selection */}
       <div className="relative">
         <input
           type="text"
-          placeholder="Search VAT rate..."
+          placeholder="Search or select VAT rate..."
           value={
-            showVatDropdown 
-              ? vatSearch  // Search mode
-              : formData.vatRateId === '' && formData.vatExempt
-                ? 'No Tax (0%)'  // 0% selected
-                : formData.vatRateId
-                  ? (() => {
-                      const selected = dropdownsData.vatRates.find((v: any) => v.id === formData.vatRateId);
-                      return selected ? `${selected.name} (${selected.rate}%)` : '';
-                    })()
-                  : ''  // Empty
+            formData.vatRateId
+              ? (() => {
+                  const selected = dropdownsData.vatRates.find((v: any) => v.id === formData.vatRateId);
+                  return selected ? `${selected.name} (${selected.rate}%)` : '';
+                })()
+              : vatSearch || ''
           }
           onChange={(e) => {
             setVatSearch(e.target.value);
             if (!showVatDropdown) {
               setShowVatDropdown(true);
             }
+            // Clear selection when user starts typing
+            if (formData.vatRateId) {
+              setFormData(prev => ({ ...prev, vatRateId: '' }));
+            }
           }}
           onFocus={() => {
             setShowVatDropdown(true);
-            setVatSearch('');
           }}
-          className="w-full px-3 py-2 pr-10 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all cursor-pointer"
+          className="w-full px-3 py-2.5 pr-10 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
         />
         
-        {/* Clear Button */}
-        {(formData.vatRateId || formData.vatExempt) && !showVatDropdown && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setFormData({ 
-                ...formData, 
-                vatRateId: '',
-                vatExempt: true
-              });
-              setVatSearch('');
-           
-            }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400 transition-colors z-10"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-
         {/* Dropdown Icon */}
-        {!showVatDropdown && (
-          <svg 
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        )}
+        <svg 
+          className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform duration-200 ${showVatDropdown ? 'rotate-180' : ''}`}
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
 
-
-      {/* Close dropdown overlay */}
+      {/* Dropdown List */}
       {showVatDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => {
-            setShowVatDropdown(false);
-            setVatSearch('');
-          }} 
-        />
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => {
+              setShowVatDropdown(false);
+              setVatSearch('');
+            }} 
+          />
+          
+          {/* Dropdown Menu */}
+          <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+            {/* Search Input inside dropdown */}
+            <div className="sticky top-0 p-2 bg-slate-800 border-b border-slate-700">
+              <input
+                type="text"
+                placeholder="Search VAT rates..."
+                value={vatSearch}
+                onChange={(e) => setVatSearch(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            
+            {/* Options */}
+            <div className="py-1">
+              {dropdownsData.vatRates.length === 0 ? (
+                <div className="px-4 py-3 text-center text-sm text-slate-400">
+                  No VAT rates available
+                </div>
+              ) : (
+                filteredVATRates.map((vat) => (
+                  <button
+                    key={vat.id}
+                    type="button"
+                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between group hover:bg-slate-700 ${
+                      formData.vatRateId === vat.id 
+                        ? 'bg-violet-500/20 text-violet-400' 
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        vatRateId: vat.id,
+                        vatExempt: false // Ensure not exempt when rate selected
+                      }));
+                      setVatSearch('');
+                      setShowVatDropdown(false);
+                      toast.success(`VAT rate set to ${vat.name} (${vat.rate}%)`);
+                    }}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{vat.name}</span>
+                      <span className="text-xs text-slate-400">{vat.rate}%</span>
+                    </div>
+                    {formData.vatRateId === vat.id && (
+                      <svg className="w-4 h-4 text-violet-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Validation Message */}
+      {!formData.vatRateId && !formData.vatExempt && (
+        <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          Please select a VAT rate
+        </p>
+      )}
+
+      {/* Info Box for 0% Rate */}
+      {formData.vatRateId && (
+        (() => {
+          const selectedVat = dropdownsData.vatRates.find(v => v.id === formData.vatRateId);
+          if (selectedVat?.rate === 0) {
+            return (
+              <div className="mt-2 flex items-start gap-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <Info className="w-3 h-3 text-blue-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-300">
+                  You've selected a 0% VAT rate. The product will be taxable at 0%.
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()
       )}
     </div>
+  )}
 
-
- 
+  {/* Info when VAT Exempt */}
+  {formData.vatExempt && (
+    <div className="flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+      <svg className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      </svg>
+      <div>
+        <p className="text-sm font-medium text-green-400">VAT Exempt (Zero Rated)</p>
+        <p className="text-xs text-green-400/80">No VAT will be charged on this product</p>
+      </div>
+    </div>
+  )}
 </div>
-
 
 </TabsContent>
 
@@ -4312,7 +4411,8 @@ useEffect(() => {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Stock Quantity <span className="text-red-500">*</span>
+              Stock Quantity 
+              {/* <span className="text-red-500">*</span> */}
             </label>
             <input
               type="number"
@@ -4885,18 +4985,40 @@ useEffect(() => {
           </div>
 {/* Next Day Delivery Free */}
 {formData.nextDayDeliveryEnabled && (
-  <label className="flex items-center gap-2 cursor-pointer group ml-6">
-    <input
-      type="checkbox"
-      name="nextDayDeliveryFree"
-      checked={formData.nextDayDeliveryFree}
-      onChange={handleChange}
-      className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-    />
-    <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-      🎁 Next-Day Delivery Free
-    </span>
-  </label>
+  <>
+    {/* FREE OPTION */}
+    <label className="flex items-center gap-2 cursor-pointer group ml-6">
+      <input
+        type="checkbox"
+        name="nextDayDeliveryFree"
+        checked={formData.nextDayDeliveryFree}
+        onChange={handleChange}
+        className="rounded bg-slate-800/50 border-slate-700 text-violet-500"
+      />
+      <span className="text-sm text-slate-300">
+        🎁 Next-Day Delivery Free
+      </span>
+    </label>
+
+    {/* 🔥 CUTOFF TIME */}
+    <div className="ml-6 mt-2">
+      <label className="block text-md text-slate-400 mb-1">
+        Cutoff Time <span className="text-red-400">*</span>
+      </label>
+
+      <input
+        type="time"
+        name="nextDayDeliveryCutoffTime"
+        value={formData.nextDayDeliveryCutoffTime || ''}
+        onChange={handleChange}
+        className="w-40 px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:ring-2 focus:ring-violet-500"
+      />
+
+      <p className="text-xs text-slate-500 mt-1">
+        Order before this time for next-day delivery
+      </p>
+    </div>
+  </>
 )}
       
         {/* Standard Delivery */}
@@ -5024,27 +5146,21 @@ useEffect(() => {
 
 {/* Related Products Tab */}
 <TabsContent value="related-products" className="space-y-6 mt-2">
-  <RelatedProductsSelector
-    type="related"
-    selectedProductIds={formData.relatedProducts}
-    availableProducts={availableProducts}
-    brands={dropdownsData.brands}
-    categories={dropdownsData.categories}
-    onProductsChange={(productIds) => {
-      setFormData(prev => ({ ...prev, relatedProducts: productIds }));
-    }}
-  />
+ <RelatedProductsSelector
+  type="related"
+  selectedProductIds={formData.relatedProducts}
+  onProductsChange={(productIds) => {
+    setFormData(prev => ({ ...prev, relatedProducts: productIds }));
+  }}
+/>
 
-  <RelatedProductsSelector
-    type="cross-sell"
-    selectedProductIds={formData.crossSellProducts}
-    availableProducts={availableProducts}
-    brands={dropdownsData.brands}
-    categories={dropdownsData.categories}
-    onProductsChange={(productIds) => {
-      setFormData(prev => ({ ...prev, crossSellProducts: productIds }));
-    }}
-  />
+<RelatedProductsSelector
+  type="cross-sell"
+  selectedProductIds={formData.crossSellProducts}
+  onProductsChange={(productIds) => {
+    setFormData(prev => ({ ...prev, crossSellProducts: productIds }));
+  }}
+/>
 
       {/* Info Box */}
       <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-4">
@@ -5059,149 +5175,228 @@ useEffect(() => {
 
 
               {/* Product Attributes Tab */}
-              <TabsContent value="product-attributes" className="space-y-2 mt-2">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">Product Attributes</h3>
-                      <p className="text-sm text-slate-400">
-                        Add custom attributes like warranty, brand info, material details etc.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addProductAttribute}
-                      className="px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <Tag className="h-4 w-4" />
-                      Add Attribute
-                    </button>
+              <TabsContent value="product-attributes" className="space-y-3 mt-2">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Product Attributes</h3>
+                    <p className="text-sm text-slate-400">Define attributes. Toggle <span className="text-violet-300 font-medium">Used for variations</span> to use an attribute for generating variants (like Color, Size).</p>
                   </div>
+                  <button type="button" onClick={() => addProductAttribute(false)}
+                    className="px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors flex items-center gap-2 text-sm">
+                    <Plus className="h-4 w-4" /> Add Attribute
+                  </button>
+                </div>
 
-                  {productAttributes.length === 0 ? (
-                   <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-4 text-center">
-  <Tag className="h-8 w-8 text-slate-600 mx-auto mb-2" />
-
-  <h3 className="text-sm font-medium text-white mb-1">
-    No Product Attributes Yet
-  </h3>
-
-  <p className="text-xs text-slate-400">
-    Click “Add Attribute” to add product information
-  </p>
-</div>
-
-                  ) : (
-                    <div className="space-y-3">
-                      {productAttributes.map((attr, index) => (
-                        <div key={attr.id} className="bg-slate-800/30 border border-slate-700 rounded-xl p-4">
-                          <div className="flex items-start gap-4">
-                            <div className="flex-1 grid grid-cols-3 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                  {index+1} . Attribute Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={attr.name}
-                                  onChange={(e) => updateProductAttribute(attr.id, 'name', e.target.value)}
-                                  placeholder="e.g., Warranty, Material, Brand"
-                                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                  Value <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={attr.value}
-                                  onChange={(e) => updateProductAttribute(attr.id, 'value', e.target.value)}
-                                  placeholder="e.g., 1 Year, Cotton, Nike"
-                                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
-                                  Display Order
-                                </label>
-                                <input
-                                  type="number"
-                                  value={attr.displayOrder}
-                                  onChange={(e) => updateProductAttribute(attr.id, 'displayOrder', parseInt(e.target.value) || 0)}
-                                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                />
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeProductAttribute(attr.id)}
-                              className="mt-8 p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
+                {/* Variation attributes section (WooCommerce-style) */}
+                {productAttributes.some(a => a.isVariation) && (
+                  <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-violet-400" />
+                      <span className="text-sm font-semibold text-violet-300">Variation Attributes</span>
+                      <span className="text-xs text-slate-400">— used to generate variants in the Variants tab</span>
+                    </div>
+                    <div className="space-y-2">
+                      {productAttributes.filter(a => a.isVariation).map((attr, idx) => (
+                        <div key={attr.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg px-3 py-2">
+                          <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                          <span className="text-sm font-medium text-white w-24 truncate">{attr.name || <span className="text-slate-500 italic">unnamed</span>}</span>
+                          <span className="text-slate-600">→</span>
+                          <span className="text-sm text-slate-300 flex-1 truncate">{attr.value || <span className="text-slate-500 italic">no values</span>}</span>
+                          <span className="text-xs bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded-full">{attr.displayType || 'buttons'}</span>
                         </div>
                       ))}
                     </div>
-                  )}
-
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                    <h4 className="font-semibold text-sm text-blue-400 mb-2">💡 Attribute Examples</h4>
-                    <ul className="text-sm text-slate-400 space-y-1">
-                      <li>• Warranty: 1 Year Manufacturer Warranty</li>
-                      <li>• Material: 100% Cotton</li>
-                      <li>• Brand: Nike</li>
-                      <li>• Country of Origin: Made in India</li>
-                    </ul>
                   </div>
-                </div>
+                )}
+
+                {/* Attributes list */}
+                {productAttributes.length === 0 ? (
+                  <div className="bg-slate-800/30 border border-slate-700 border-dashed rounded-xl p-8 text-center">
+                    <Tag className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-white mb-1">No attributes yet</p>
+                    <p className="text-xs text-slate-500 mb-3">Add product info (Material, Warranty) or variation attributes (Color, Size)</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <button type="button" onClick={() => addProductAttribute(false)}
+                        className="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                        + Regular Attribute
+                      </button>
+                      <button type="button" onClick={() => addProductAttribute(true)}
+                        className="px-3 py-1.5 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 border border-violet-500/40 rounded-lg transition-colors">
+                        + Variation Attribute (Color, Size…)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {productAttributes.map((attr, index) => (
+                      <div key={attr.id}
+                        className={`border rounded-xl p-4 transition-all ${attr.isVariation ? 'bg-violet-500/5 border-violet-500/30' : 'bg-slate-800/30 border-slate-700'}`}>
+                        <div className="flex items-start gap-3">
+                          {/* Index */}
+                          <span className="text-xs text-slate-500 mt-3 w-5 text-right flex-shrink-0">{index + 1}.</span>
+
+                          {/* Fields */}
+                          <div className="flex-1 space-y-3">
+                            <div className={`grid gap-3 ${attr.isVariation ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
+                              {/* Name */}
+                              <div>
+                                <label className="block text-xs font-medium text-slate-400 mb-1">Attribute Name</label>
+                                <input type="text" value={attr.name}
+                                  onChange={(e) => updateProductAttribute(attr.id, 'name', e.target.value)}
+                                  placeholder={attr.isVariation ? "e.g., Color, Size, Material" : "e.g., Warranty, Brand"}
+                                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+                              </div>
+                              {/* Value */}
+                              <div>
+                                <label className="block text-xs font-medium text-slate-400 mb-1">
+                                  {attr.isVariation ? 'Values (comma-separated)' : 'Value'}
+                                </label>
+                                <input type="text" value={attr.value}
+                                  onChange={(e) => updateProductAttribute(attr.id, 'value', e.target.value)}
+                                  placeholder={attr.isVariation ? "e.g., Red, Blue, Green" : "e.g., 100% Cotton"}
+                                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+                                {attr.isVariation && attr.value && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {attr.value.split(',').map(v => v.trim()).filter(Boolean).map((v, i) => (
+                                      <span key={i} className="px-2 py-0.5 text-xs bg-violet-500/20 text-violet-300 rounded-full">{v}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Display type (only for variation) */}
+                              {attr.isVariation && (
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-400 mb-1">Display As</label>
+                                  <select value={attr.displayType || 'buttons'}
+                                    onChange={(e) => updateProductAttribute(attr.id, 'displayType', e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                                    <option value="buttons">Buttons</option>
+                                    <option value="dropdown">Dropdown</option>
+                                    <option value="swatch">Color Swatch</option>
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* "Used for variations" toggle */}
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-700/50">
+                              <button type="button" onClick={() => toggleAttributeVariation(attr.id)}
+                                className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg transition-all ${
+                                  attr.isVariation
+                                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40 hover:bg-violet-500/30'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-600 hover:bg-slate-700'
+                                }`}>
+                                <span className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${attr.isVariation ? 'bg-violet-400 border-violet-400' : 'border-slate-500'}`} />
+                                {attr.isVariation ? '✓ Used for variations' : 'Used for variations'}
+                              </button>
+                              {attr.isVariation && (
+                                <span className="text-xs text-slate-500 italic">Goes to Variants tab</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Delete */}
+                          <button type="button" onClick={() => removeProductAttribute(attr.id)}
+                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors flex-shrink-0">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add more */}
+                    <div className="flex gap-2 pt-1">
+                      <button type="button" onClick={() => addProductAttribute(false)}
+                        className="flex-1 py-2 text-xs border border-dashed border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300 rounded-lg transition-colors">
+                        + Add Regular Attribute
+                      </button>
+                      <button type="button" onClick={() => addProductAttribute(true)}
+                        className="flex-1 py-2 text-xs border border-dashed border-violet-500/40 text-violet-400 hover:border-violet-500/60 hover:text-violet-300 rounded-lg transition-colors">
+                        + Add Variation Attribute
+                      </button>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
 
 {/* ========================================== */}
-{/* VARIANTS TAB Add Page- NEW COMPONENTS */}
+{/* VARIANTS TAB - WooCommerce Style          */}
 {/* ========================================== */}
 <TabsContent value="variants" className="space-y-4">
- {/* Product Options Manager */}
-  <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-4">
-    <ProductOptionsManager
-      options={productOptions}
-      onOptionsChange={setProductOptions}
-      maxOptions={3}
-      disabled={isSubmitting}
-    />
-  </div>
+  {/* Variation options summary (sourced from Attributes tab) */}
+  {(() => {
+    const varAttrs = productAttributes.filter(a => a.isVariation && a.name && a.value);
+    const varOptions = varAttrs.map((a, i) => ({
+      id: a.id,
+      name: a.name,
+      values: a.value.split(',').map((v: string) => v.trim()).filter(Boolean),
+      displayType: a.displayType || 'buttons',
+      position: i + 1,
+      isActive: true,
+    }));
+    return (
+      <>
+        {/* Options summary */}
+        <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <Settings className="h-4 w-4 text-violet-400" /> Variation Options
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Defined in the Attributes tab. Go there to add or change options.</p>
+            </div>
+          </div>
+          {varOptions.length === 0 ? (
+            <div className="border border-dashed border-slate-600 rounded-lg p-4 text-center">
+              <p className="text-sm text-slate-400 mb-2">No variation attributes defined yet.</p>
+              <p className="text-xs text-slate-500">Go to <strong className="text-violet-300">Attributes</strong> tab → Add Attribute → toggle <strong className="text-violet-300">Used for variations</strong></p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {varOptions.map((opt) => (
+                <div key={opt.id} className="flex items-center gap-3 bg-slate-900/50 rounded-lg px-3 py-2.5">
+                  <span className="text-sm font-semibold text-white w-24 flex-shrink-0">{opt.name}</span>
+                  <span className="text-slate-600 flex-shrink-0">→</span>
+                  <div className="flex flex-wrap gap-1 flex-1">
+                    {opt.values.map((v: string, i: number) => (
+                      <span key={i} className="px-2 py-0.5 text-xs bg-violet-500/20 text-violet-300 rounded-full font-medium">{v}</span>
+                    ))}
+                  </div>
+                  <span className="text-xs text-slate-500">{opt.displayType}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-  {/* Product Variants Manager (now includes Generate button internally) */}
-  <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-4">
-    <ProductVariantsManager
-      variants={productVariants}
-      options={productOptions}
-      productSku={formData.sku}
-      productName={formData.name}
-      productId={productId || undefined}
-      onVariantsChange={setProductVariants}
-      disabled={isSubmitting}
-      variantSkuErrors={variantSkuErrors}
-      onVariantImageUpload={handleVariantImageUpload}
-    />
-  </div>
-  {/* ============================================ */}
-  {/* HELP SECTION */}
-  {/* ============================================ */}
-  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-    <div className="flex items-start gap-3">
-      <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
-      <div>
-        <h4 className="font-semibold text-sm text-blue-400 mb-2">How Options & Variants Work</h4>
-        <ul className="text-xs text-slate-400 space-y-1">
-          <li>• <strong className="text-white">Options:</strong> Define selectable types (Color: Red Blue Green | Size: S M L)</li>
-          <li>• <strong className="text-white">Generate Variants:</strong> Auto-creates all combinations (Red-S, Red-M, Blue-S...)</li>
-          <li>• <strong className="text-white">Manual Add:</strong> Add specific variants with custom details</li>
-          <li>• <strong className="text-white">Save Product First:</strong> Variant images upload after product creation</li>
-          <li>• Each variant has unique SKU, price, and stock</li>
-        </ul>
-      </div>
+        {/* Variants Manager */}
+        <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-4">
+          <ProductVariantsManager
+            variants={productVariants}
+            options={varOptions}
+            productSku={formData.sku}
+            productName={formData.name}
+            productId={productId || undefined}
+            onVariantsChange={setProductVariants}
+            disabled={isSubmitting}
+            variantSkuErrors={variantSkuErrors}
+            onVariantImageUpload={handleVariantImageUpload}
+          />
+        </div>
+      </>
+    );
+  })()}
+
+  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+    <div className="flex items-start gap-2">
+      <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+      <ul className="text-xs text-slate-400 space-y-1">
+        <li>• <strong className="text-white">Step 1:</strong> Go to <strong className="text-violet-300">Attributes</strong> tab → Add attribute (e.g., Color) → enable <strong className="text-violet-300">Used for variations</strong></li>
+        <li>• <strong className="text-white">Step 2:</strong> Come back here → click <strong className="text-white">Generate All Variants</strong></li>
+        <li>• <strong className="text-white">Step 3:</strong> Set price, stock, SKU per variant (SKU auto-generates if left blank)</li>
+        <li>• Variant images upload after product is first saved</li>
+      </ul>
     </div>
   </div>
 </TabsContent>
@@ -5662,11 +5857,7 @@ useEffect(() => {
     </button>
   </div>
 </TabsContent>
-
-
-
-
-            </Tabs>
+</Tabs>
           </div>
         </div>
       </div>
@@ -5674,7 +5865,6 @@ useEffect(() => {
 <GroupedProductModal
   isOpen={isGroupedModalOpen}
   onClose={() => setIsGroupedModalOpen(false)}
-  simpleProducts={simpleProducts || []} // ✅ Safe default
   selectedGroupedProducts={selectedGroupedProducts || []} // ✅ Correct (with 's')
   automaticallyAddProducts={formData.automaticallyAddProducts || false}
   mainProductPrice={parseFloat(String(formData.price || 0))} // ✅ SAFE

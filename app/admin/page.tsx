@@ -13,7 +13,8 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import { dashboardService, DashboardPeriod, DashboardStats  } from "@/lib/services/dashboard";
-import { API_BASE_URL } from "@/lib/api";
+
+import { formatCurrency, getOrderProductImage } from "./_utils/formatUtils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -26,21 +27,6 @@ const PERIODS: Period[] = [
   { key: "6month",  label: "6m"     },
   { key: "year",     label: "1y"     },
 ];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-const getOrderProductImage = (imageUrl?: string): string => {
-  if (!imageUrl) return "/no-image.png";
-
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
-
-function formatCurrency(v: number) {
-  return `£${v.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 
 function formatRelTime(dateStr: string) {

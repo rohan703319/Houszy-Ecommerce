@@ -1,3 +1,5 @@
+export const revalidate = 300;
+
 import React from "react";
 import Link from "next/link";
 import CommentForm from "./CommentForm";
@@ -16,7 +18,7 @@ export async function generateMetadata({
 
   const apiURL = `${API_BASE}/api/BlogPosts/slug/${encodeURIComponent(slug)}?includeComments=false`;
 
-  const res = await fetch(apiURL, { cache: "no-store" });
+  const res = await fetch(apiURL, { next: { revalidate: 300 } });
   const resp = await res.json();
   const post = resp?.data;
 
@@ -257,15 +259,19 @@ export default async function BlogDetailPage({
             )}
 
             {/* Featured Image */}
-            {post.featuredImageUrl && (
-              <div className="mt-4 w-full rounded-xl overflow-hidden">
-                <img
-                  src={absoluteUrl(post.featuredImageUrl)!}
-                  alt={post.title}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            )}
+           {(post.featuredImageUrl || post.thumbnailImageUrl) && (
+  <div className="mt-2 mb-2 w-full rounded-xl overflow-hidden">
+    <img
+      src={
+        (post.featuredImageUrl || post.thumbnailImageUrl)?.startsWith("http")
+          ? (post.featuredImageUrl || post.thumbnailImageUrl)
+          : `${process.env.NEXT_PUBLIC_API_URL}${post.featuredImageUrl || post.thumbnailImageUrl}`
+      }
+      alt={post.title}
+      className="w-full h-full object-contain"
+    />
+  </div>
+)}
 
             {/* Body */}
             <article

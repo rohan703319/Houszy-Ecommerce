@@ -9,10 +9,9 @@ import {
   Coins,
   Gift,
   Star,
-  TrendingUp,
-  Calendar,
+ 
   Percent,
-  PoundSterling,
+ 
   ShoppingBag,
   Users,
   Crown,
@@ -22,8 +21,7 @@ import {
   AlertCircle,
   Info,
   Edit,
-  Eye,
-  EyeOff,
+ 
   RefreshCw,
   ChevronDown,
   ChevronUp,
@@ -76,6 +74,9 @@ export default function LoyaltyConfigPage() {
       if (cfg.expiryWarningDays <= 0) newErrors.expiryWarningDays = 'Must be at least 1 day';
       if (cfg.expiryWarningDays >= cfg.pointsExpiryMonths * 30) newErrors.expiryWarningDays = 'Warning period too long';
     }
+    if (cfg.maxPointsPerRedemption <= 0) {
+  newErrors.maxPointsPerRedemption = 'Must be greater than 0';
+}
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -90,7 +91,7 @@ export default function LoyaltyConfigPage() {
       if (response.data?.success && response.data.data) {
         setConfig(response.data.data);
       } else {
-        toast.error(response.error || 'Failed to load loyalty configuration');
+       toast.error(response.data?.message || 'Failed to load loyalty configuration');
       }
     } catch (error: any) {
       console.error('Error fetching config:', error);
@@ -134,12 +135,15 @@ export default function LoyaltyConfigPage() {
 
       if (response.data?.success) {
         toast.success('Loyalty configuration updated successfully!');
-        setConfig(response.data.data || editedConfig);
+        setConfig({
+  ...editedConfig,
+  ...(response.data.data || {})
+});
         setIsModalOpen(false);
         setEditedConfig(null);
         setErrors({});
       } else {
-        toast.error(response.error || 'Failed to update configuration');
+     toast.error(response.data?.message || 'Failed to update configuration');
       }
     } catch (error: any) {
       console.error('Error updating config:', error);
@@ -251,7 +255,7 @@ export default function LoyaltyConfigPage() {
       </div>
 
       {/* KEY METRICS - 4 CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         
         {/* Points Per Pound */}
         <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 rounded-xl p-3 hover:border-cyan-500/50 transition-all">
@@ -316,6 +320,24 @@ export default function LoyaltyConfigPage() {
             </div>
           </div>
         </div>
+        <div className="bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 rounded-xl p-3 hover:border-pink-500/50 transition-all">
+  <div className="flex items-center gap-2.5">
+    <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center shrink-0">
+      <Coins className="h-5 w-5 text-pink-400" />
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-slate-400 text-xs font-medium">Max Points / Order</p>
+      <p className="text-white text-xl font-bold">
+        {config.maxPointsPerRedemption}
+      </p>
+      <p className="text-slate-500 text-[10px] mt-0.5">
+        = £{config.redemptionRate > 0
+  ? (config.maxPointsPerRedemption / config.redemptionRate).toFixed(2)
+  : '0.00'} max
+      </p>
+    </div>
+  </div>
+</div>
       </div>
 
       {/* TIER SYSTEM */}
@@ -634,7 +656,7 @@ export default function LoyaltyConfigPage() {
                       max="99999"
                       step="0.1"
                       maxLength={5}
-                      value={editedConfig.pointsPerPound || ''}
+                      value={editedConfig.pointsPerPound ?? ''}
                       onChange={(e) => {
                         const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
                         if (e.target.value.length <= 5) {
@@ -674,7 +696,7 @@ export default function LoyaltyConfigPage() {
                       max="999999"
                       step="0.01"
                       maxLength={6}
-                      value={editedConfig.minimumOrderAmountForPoints || ''}
+                      value={editedConfig.minimumOrderAmountForPoints ?? ''}
                       onChange={(e) => {
                         const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
                         if (e.target.value.length <= 6) {
@@ -704,7 +726,7 @@ export default function LoyaltyConfigPage() {
                     <p className="text-xs text-slate-500 mt-1">Max 6 digits (e.g., 999999)</p>
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -716,7 +738,7 @@ export default function LoyaltyConfigPage() {
                     </label>
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -731,146 +753,159 @@ export default function LoyaltyConfigPage() {
               </div>
 
               {/* Points Redemption - WITH NaN FIX + DIGIT RESTRICTIONS */}
-              <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700">
-                <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-                  <Gift className="h-5 w-5 text-green-400" />
-                  Points Redemption
-                </h3>
+         <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700">
+  <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+    <Gift className="h-5 w-5 text-green-400" />
+    Points Redemption
+  </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">
-                      Redemption Rate (points = £1) <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="999999"
-                      maxLength={6}
-                      value={editedConfig.redemptionRate || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        if (e.target.value.length <= 6) {
-                          setEditedConfig({ ...editedConfig, redemptionRate: value });
-                          if (value <= 0) {
-                            setErrors({...errors, redemptionRate: 'Must be > 0'});
-                          } else {
-                            const newErrors = {...errors};
-                            delete newErrors.redemptionRate;
-                            setErrors(newErrors);
-                          }
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.currentTarget.value.length >= 6 && e.key !== 'Backspace' && e.key !== 'Delete') {
-                          e.preventDefault();
-                        }
-                      }}
-                      className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 ${
-                        errors.redemptionRate ? 'border-red-500' : 'border-slate-600'
-                      }`}
-                      placeholder="e.g., 100"
-                    />
-                    {errors.redemptionRate && (
-                      <p className="text-xs text-red-400 mt-1">{errors.redemptionRate}</p>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">
-                      {editedConfig.redemptionRate || 0} points = £1 discount (Max 6 digits)
-                    </p>
-                  </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">
-                      Minimum Redemption Points <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="999999"
-                      maxLength={6}
-                      value={editedConfig.minimumRedemptionPoints || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        if (e.target.value.length <= 6) {
-                          setEditedConfig({ ...editedConfig, minimumRedemptionPoints: value });
-                          if (value < 0) {
-                            setErrors({...errors, minimumRedemptionPoints: 'Cannot be negative'});
-                          } else {
-                            const newErrors = {...errors};
-                            delete newErrors.minimumRedemptionPoints;
-                            setErrors(newErrors);
-                          }
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.currentTarget.value.length >= 6 && e.key !== 'Backspace' && e.key !== 'Delete') {
-                          e.preventDefault();
-                        }
-                      }}
-                      className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 ${
-                        errors.minimumRedemptionPoints ? 'border-red-500' : 'border-slate-600'
-                      }`}
-                      placeholder="e.g., 500"
-                    />
-                    {errors.minimumRedemptionPoints && (
-                      <p className="text-xs text-red-400 mt-1">{errors.minimumRedemptionPoints}</p>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">Max 6 digits (e.g., 999999)</p>
-                  </div>
+    {/* Row 1 */}
 
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-2">
-                      Max Redemption % of Order <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      maxLength={3}
-                      value={editedConfig.maxRedemptionPercentOfOrder || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? 0 : parseInt(e.target.value);
-                        if (value <= 100 && e.target.value.length <= 3) {
-                          setEditedConfig({ ...editedConfig, maxRedemptionPercentOfOrder: value });
-                          if (value < 0 || value > 100) {
-                            setErrors({...errors, maxRedemptionPercentOfOrder: 'Must be 0-100'});
-                          } else {
-                            const newErrors = {...errors};
-                            delete newErrors.maxRedemptionPercentOfOrder;
-                            setErrors(newErrors);
-                          }
-                        }
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.currentTarget.value.length >= 3 && e.key !== 'Backspace' && e.key !== 'Delete') {
-                          e.preventDefault();
-                        }
-                      }}
-                      className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500 ${
-                        errors.maxRedemptionPercentOfOrder ? 'border-red-500' : 'border-slate-600'
-                      }`}
-                      placeholder="e.g., 50"
-                    />
-                    {errors.maxRedemptionPercentOfOrder && (
-                      <p className="text-xs text-red-400 mt-1">{errors.maxRedemptionPercentOfOrder}</p>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">Max 3 digits (0-100%)</p>
-                  </div>
+    {/* Redemption Rate */}
+    <div>
+      <label className="block text-sm text-slate-400 mb-2">
+        Redemption Rate (points = £1) <span className="text-red-400">*</span>
+      </label>
+      <input
+        type="number"
+        min="1"
+        max="999999"
+        value={editedConfig.redemptionRate ?? ''}
+        onChange={(e) => {
+          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+          setEditedConfig({ ...editedConfig, redemptionRate: value });
 
-                  <div className="col-span-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editedConfig.roundDownRedemptionValue}
-                        onChange={(e) => setEditedConfig({ ...editedConfig, roundDownRedemptionValue: e.target.checked })}
-                        className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-violet-500 focus:ring-violet-500"
-                      />
-                      <span className="text-sm text-slate-300">Round down redemption value to nearest penny</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
+          if (value <= 0) {
+            setErrors({ ...errors, redemptionRate: 'Must be > 0' });
+          } else {
+            const newErrors = { ...errors };
+            delete newErrors.redemptionRate;
+            setErrors(newErrors);
+          }
+        }}
+        className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white ${
+          errors.redemptionRate ? 'border-red-500' : 'border-slate-600'
+        }`}
+        placeholder="100"
+      />
+    </div>
+
+    {/* Minimum Redemption */}
+    <div>
+      <label className="block text-sm text-slate-400 mb-2">
+        Minimum Redemption Points <span className="text-red-400">*</span>
+      </label>
+      <input
+        type="number"
+        min="0"
+        max="999999"
+        value={editedConfig.minimumRedemptionPoints ?? ''}
+        onChange={(e) => {
+          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+          setEditedConfig({ ...editedConfig, minimumRedemptionPoints: value });
+
+          if (value < 0) {
+            setErrors({ ...errors, minimumRedemptionPoints: 'Cannot be negative' });
+          } else {
+            const newErrors = { ...errors };
+            delete newErrors.minimumRedemptionPoints;
+            setErrors(newErrors);
+          }
+        }}
+        className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white ${
+          errors.minimumRedemptionPoints ? 'border-red-500' : 'border-slate-600'
+        }`}
+        placeholder="500"
+      />
+    </div>
+
+    {/* Row 2 */}
+
+    {/* Max % */}
+    <div>
+      <label className="block text-sm text-slate-400 mb-2">
+        Max Redemption % of Order <span className="text-red-400">*</span>
+      </label>
+      <input
+        type="number"
+        min="0"
+        max="100"
+        value={editedConfig.maxRedemptionPercentOfOrder ?? ''}
+        onChange={(e) => {
+          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+          setEditedConfig({ ...editedConfig, maxRedemptionPercentOfOrder: value });
+
+          if (value < 0 || value > 100) {
+            setErrors({ ...errors, maxRedemptionPercentOfOrder: 'Must be 0-100' });
+          } else {
+            const newErrors = { ...errors };
+            delete newErrors.maxRedemptionPercentOfOrder;
+            setErrors(newErrors);
+          }
+        }}
+        className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white ${
+          errors.maxRedemptionPercentOfOrder ? 'border-red-500' : 'border-slate-600'
+        }`}
+        placeholder="50"
+      />
+    </div>
+
+    {/* Max Points Per Order */}
+    <div>
+      <label className="block text-sm text-slate-400 mb-2">
+        Max Points Per Order <span className="text-red-400">*</span>
+      </label>
+      <input
+        type="number"
+        min="100"
+        max="999999"
+        value={editedConfig.maxPointsPerRedemption ?? ''}
+        onChange={(e) => {
+          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+          setEditedConfig({ ...editedConfig, maxPointsPerRedemption: value });
+
+          if (value <= 0) {
+            setErrors({ ...errors, maxPointsPerRedemption: 'Must be > 0' });
+          } else {
+            const newErrors = { ...errors };
+            delete newErrors.maxPointsPerRedemption;
+            setErrors(newErrors);
+          }
+        }}
+        className={`w-full px-3 py-2 bg-slate-900/50 border rounded-lg text-white ${
+          errors.maxPointsPerRedemption ? 'border-red-500' : 'border-slate-600'
+        }`}
+        placeholder="1000"
+      />
+      <p className="text-xs text-slate-500 mt-1">
+        = £{editedConfig.redemptionRate > 0
+  ? ((editedConfig.maxPointsPerRedemption || 0) / editedConfig.redemptionRate).toFixed(2)
+  : '0.00'}
+      </p>
+    </div>
+
+    {/* Row 3 (Full width) */}
+
+    <div className="col-span-2">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={editedConfig.roundDownRedemptionValue}
+          onChange={(e) =>
+            setEditedConfig({ ...editedConfig, roundDownRedemptionValue: e.target.checked })
+          }
+          className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-violet-500"
+        />
+        <span className="text-sm text-slate-300">
+          Round down redemption value to nearest penny
+        </span>
+      </label>
+    </div>
+
+  </div>
+</div>
 
               {/* Tier System - WITH NaN FIX + DIGIT RESTRICTIONS */}
               <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700">
@@ -902,7 +937,7 @@ export default function LoyaltyConfigPage() {
                         min="0"
                         max="999999"
                         maxLength={6}
-                        value={editedConfig.silverTierThreshold || ''}
+                        value={editedConfig.silverTierThreshold ?? ''}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (e.target.value.length <= 6) {
@@ -944,7 +979,7 @@ export default function LoyaltyConfigPage() {
                         min="0"
                         max="999999"
                         maxLength={6}
-                        value={editedConfig.goldTierThreshold || ''}
+                        value={editedConfig.goldTierThreshold ?? ''}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (e.target.value.length <= 6) {
@@ -1005,7 +1040,7 @@ export default function LoyaltyConfigPage() {
                         min="0"
                         max="99999"
                         maxLength={5}
-                        value={editedConfig.firstOrderBonusPoints || ''}
+                        value={editedConfig.firstOrderBonusPoints ?? ''}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (e.target.value.length <= 5) {
@@ -1048,7 +1083,7 @@ export default function LoyaltyConfigPage() {
             min="0"
             max="99999"
             maxLength={5}
-            value={editedConfig.reviewBonusPoints || ''}
+            value={editedConfig.reviewBonusPoints ?? ''}
             onChange={(e) => {
               const value = e.target.value === '' ? 0 : parseInt(e.target.value);
               if (e.target.value.length <= 5) {
@@ -1072,7 +1107,7 @@ export default function LoyaltyConfigPage() {
             min="1"
             max="99"
             maxLength={2}
-            value={editedConfig.maxReviewBonusPerProduct || ''}
+            value={editedConfig.maxReviewBonusPerProduct ?? ''}
             onChange={(e) => {
               const value = e.target.value === '' ? 1 : parseInt(e.target.value);
               if (e.target.value.length <= 2) {
@@ -1115,7 +1150,7 @@ export default function LoyaltyConfigPage() {
                         min="0"
                         max="99999"
                         maxLength={5}
-                        value={editedConfig.referralBonusPoints || ''}
+                        value={editedConfig.referralBonusPoints ?? ''}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (e.target.value.length <= 5) {
@@ -1165,7 +1200,7 @@ export default function LoyaltyConfigPage() {
                         min="1"
                         max="999"
                         maxLength={3}
-                        value={editedConfig.pointsExpiryMonths || ''}
+                        value={editedConfig.pointsExpiryMonths ?? ''}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (e.target.value.length <= 3) {
@@ -1204,7 +1239,7 @@ export default function LoyaltyConfigPage() {
                         min="1"
                         max="99"
                         maxLength={2}
-                        value={editedConfig.expiryWarningDays || ''}
+                        value={editedConfig.expiryWarningDays ?? ''}
                         onChange={(e) => {
                           const value = e.target.value === '' ? 0 : parseInt(e.target.value);
                           if (e.target.value.length <= 2) {

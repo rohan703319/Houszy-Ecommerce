@@ -112,7 +112,7 @@ const handleSubscribe = async (e: React.FormEvent) => {
     placeholder="Email address"
     value={email}
     onChange={(e) => setEmail(e.target.value)}
-    className="flex-1 p-2 rounded text-sm text-black min-w-0"
+    className="flex-1 p-1 rounded text-xs text-black min-w-0"
   />
   <button
     type="submit"

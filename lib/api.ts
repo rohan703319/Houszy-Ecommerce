@@ -62,61 +62,66 @@ class ApiClient {
     );
 
     // ✅ RESPONSE INTERCEPTOR - FIXED!
-    this.client.interceptors.response.use(
-      (response) => {
-        console.log(`✅ API Response: ${response.status} ${response.config?.url}`);
+this.client.interceptors.response.use(
+  (response) => {
+    console.log(`✅ API Response: ${response.status} ${response.config?.url}`);
+    return response;
+  },
 
-        // ✅ Log warnings for 4xx but don't reject
-        if (response.status >= 400 && response.status < 500) {
-          console.warn(`⚠️ Client error: ${response.status}`, response.data);
-        }
+  (error: AxiosError) => {
+    console.group('🚨 API ERROR');
 
-        return response;
-      },
-      (error: AxiosError) => {
-        // ✅ DETAILED ERROR LOGGING
-        console.group('🚨 API ERROR DETAILS');
-        console.log('Error Code:', error.code);
-        console.log('Error Message:', error.message);
-        console.log('Has Response?', !!error.response);
-        console.log('Has Request?', !!error.request);
+    const status = error.response?.status;
+    const url = error.config?.url;
+    const method = error.config?.method?.toUpperCase();
 
-        if (error.config) {
-          console.log('Request URL:', `${error.config.baseURL}${error.config.url}`);
-          console.log('Request Method:', error.config.method?.toUpperCase());
-        }
+    console.log('📍 URL:', `${error.config?.baseURL}${url}`);
+    console.log('📍 Method:', method);
+    console.log('📍 Code:', error.code);
+    console.log('📍 Message:', error.message);
 
-        if (error.response) {
-          // ✅ Server responded with error
-          console.log('Response Status:', error.response.status);
-          console.log('Response Data:', error.response.data);
-          console.log('Response Headers:', error.response.headers);
-        } else if (error.request) {
-          // ✅ No response received
-          console.log('Request Made:', 'Yes');
-          console.log('Response Received:', 'No');
-          console.log('Possible Issues:', [
-            '1. Server is down or not responding',
-            '2. CORS policy blocking request',
-            '3. Network/Internet connection issue',
-            '4. Firewall blocking request',
-            '5. Invalid API URL'
-          ]);
-        }
+    if (error.response) {
+      // ✅ BACKEND ERROR (REAL RESPONSE)
+      console.log('📦 Status:', status);
+      console.log('📦 Data:', error.response.data);
 
-        console.groupEnd();
+    } else if (error.request) {
+      // ❌ NETWORK ERROR (YOUR CURRENT CASE)
+      console.log('❌ NETWORK FAILURE');
 
-        // ✅ Handle 401 Unauthorized
-        if (error.response?.status === 401 && typeof window !== 'undefined') {
-          console.warn('⚠️ Unauthorized - Redirecting to login');
-          localStorage.removeItem('authToken');
-          window.location.href = '/login';
-        }
+      // 🔥 ADD THIS (CRITICAL)
+      const payloadSize = error.config?.data
+        ? JSON.stringify(error.config.data).length / 1024
+        : 0;
 
-        // ✅ FIX: MUST reject error for catch blocks to work!
-        return Promise.reject(error);
+      console.log('📦 Payload Size (KB):', payloadSize);
+
+      if (payloadSize > 500) {
+        console.warn('⚠️ Payload too large → likely backend drop');
       }
-    );
+
+      console.log('Possible Causes:', [
+        'Server crash / timeout',
+        'Payload too large',
+        'CORS issue',
+        'Invalid JSON structure'
+      ]);
+
+    } else {
+      console.log('⚠️ Unknown error:', error.message);
+    }
+
+    console.groupEnd();
+
+    // ✅ AUTH HANDLING
+    if (status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
   }
 
   private async request<T>(
@@ -138,15 +143,14 @@ class ApiClient {
       });
 
       // ✅ Handle API success: false in response body
-      if (response.data?.success === false) {
-        const apiError = response.data?.message || response.data?.error || 'API operation failed';
-        console.warn('⚠️ API returned success: false -', apiError);
-        return {
-          error: apiError,
-          status: response.status,
-          data: response.data
-        };
-      }
+if (response.data?.success === false) {
+  return {
+    error: response.data.message || 'Operation failed',
+    status: response.status,
+    data: response.data,
+    errors: response.data.errors || []
+  };
+}
 
       // ✅ This shouldn't happen now (removed validateStatus)
       // But keep as safety check

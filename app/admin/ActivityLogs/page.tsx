@@ -5,7 +5,7 @@ import Select from "react-select";
 import {
   Search,
   X,
-  Calendar,
+ 
   Eye,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +20,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  TrendingUp,
+ 
   AlertCircle,
   Clock,
   User,
@@ -46,6 +46,7 @@ import {
 } from "@/lib/services/activityLog";
 import { useDebounce } from "../_hooks/useDebounce";
 import { formatRelativeDate } from "@/lib/services/loyaltyPoints";
+import { formatValue } from "../_utils/formatUtils";
 
 // ✅ Types
 type SortField = "createdOnUtc" | "activityLogType" | "userName" | "entityName";
@@ -138,13 +139,7 @@ const formatLabel = (key: string) =>
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (str) => str.toUpperCase());
 
-const formatValue = (value: any) => {
-  if (value === null || value === undefined) return "-";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "string" && value.includes("T") && value.includes(":"))
-    return new Date(value).toLocaleString();
-  return value.toString();
-};
+
 // ✅ Confirmation Modal Component
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -498,39 +493,53 @@ const fetchActivityLogs = useCallback(async () => {
 const generateExcel = (logs: any[]) => {
   try {
     const excelData = logs.map((log) => ({
-      ID: log.id,
-      User: log.userName || log.user || "N/A",
-      Action: log.action,
-      Module: log.module || "N/A",
-      Description: log.description || "N/A",
+      ID: log.id || "N/A",
+
+      User: log.userName || "N/A",
+
+      Action: log.activityLogType || "N/A",
+
+      Module: log.entityName || "N/A",
+
+      Description: log.comment || "N/A",
+
       "IP Address": log.ipAddress || "N/A",
-      Status: log.status || "N/A",
-      "Created At": new Date(log.createdAt).toLocaleString(),
+
+      Status: log.entityDetails?.status || "N/A",
+
+      "Order Number": log.entityDetails?.orderNumber || "N/A",
+
+      "Total Amount": log.entityDetails?.totalAmount ?? "N/A",
+
+      "Customer Email": log.entityDetails?.customerEmail || "N/A",
+
+      "Order Date": log.entityDetails?.orderDate
+        ? new Date(log.entityDetails.orderDate).toLocaleString()
+        : "N/A",
+
+      "Is Deleted": log.entityDetails?.isDeleted ?? "N/A",
+
+      "Created At": log.createdOnUtc
+        ? new Date(log.createdOnUtc).toLocaleString()
+        : "N/A",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-    // Auto column width
-    const columnWidths = Object.keys(excelData[0] || {}).map((key) => ({
-      wch: Math.max(
-        key.length,
-        ...excelData.map((row: any) => String(row[key]).length)
-      ),
-    }));
-
-    worksheet["!cols"] = columnWidths;
+ const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+  wch: Math.max(
+    key.length,
+    ...excelData.map((row) => String((row as Record<string, any>)[key] ?? "").length)
+  ),
+}));
+    worksheet["!cols"] = colWidths;
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Activity Logs");
 
-    const fileName = `activity_logs_${new Date()
-      .toISOString()
-      .split("T")[0]}.xlsx`;
-
-    XLSX.writeFile(workbook, fileName);
-  } catch (error) {
-    console.error("Excel export error:", error);
-    toast.error("Failed to export logs");
+    XLSX.writeFile(workbook, `activity_logs_${Date.now()}.xlsx`);
+  } catch (err) {
+    console.error(err);
   }
 };
 const handleExportSelected = () => {

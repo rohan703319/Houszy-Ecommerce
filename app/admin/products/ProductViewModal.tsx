@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Eye,
@@ -26,8 +26,9 @@ import {
   Copy,
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api-config';
-import { Product } from '../../../lib/services/products';
+import productsService, { Product } from '../../../lib/services/products';
 import MediaViewerModal, { MediaItem } from './MediaViewerModal';
+import { formatDate } from '../_utils/formatUtils';
 
 // ==========================================
 // HELPER COMPONENTS
@@ -133,13 +134,15 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
   onClose,
   loading,
 }) => {
+
+  
   // MEDIA VIEWER STATE
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
   const [mediaToView, setMediaToView] = useState<MediaItem | MediaItem[]>([]);
   // Active tab state — replaces manual DOM manipulation
   const [activeTab, setActiveTab] = useState('overview');
 
-  if (!isOpen || !product) return null;
+
 
   // HELPER: GET YOUTUBE EMBED URL
   const getYouTubeEmbedUrl = (url: string): string | null => {
@@ -156,6 +159,35 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
     setMediaViewerOpen(true);
   };
 
+  const relatedIds = product?.relatedProductIds?.split(',').filter(Boolean) || [];
+const crossSellIds = product?.crossSellProductIds?.split(',').filter(Boolean) || [];
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+  const fetchRelations = async () => {
+    if (!product) return;
+
+    try {
+      const related = await Promise.all(
+        relatedIds.map(id => productsService.getById(id))
+      );
+
+      const cross = await Promise.all(
+        crossSellIds.map(id => productsService.getById(id))
+      );
+
+      setRelatedProducts(related.map(r => r.data?.data));
+      setCrossSellProducts(cross.map(r => r.data?.data));
+
+    } catch (e) {
+      console.error("Relation fetch failed", e);
+    }
+  };
+
+  fetchRelations();
+}, [product]);
+  if (!isOpen || !product) return null;
   // HELPER: VIEW PRODUCT IMAGES
   const viewProductImages = (startIndex: number = 0) => {
     if (!product.images || product.images.length === 0) return;
@@ -176,6 +208,8 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
 
     openMediaViewer(mediaItems);
   };
+
+
  // ✅ NEW: VIEW VARIANT IMAGES
   const viewVariantImages = (clickedVariantIndex: number) => {
     if (!product.variants || product.variants.length === 0) return;
@@ -207,6 +241,8 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
     setMediaViewerOpen(true);
   };
 
+
+
   // HELPER: VIEW PRODUCT VIDEOS
   const viewProductVideos = (startIndex: number = 0) => {
     if (!product.videoUrls) return;
@@ -237,6 +273,7 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
 
     openMediaViewer(mediaItems);
   };
+  
   return (
     <>
       <div
@@ -282,7 +319,7 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
           ) : (
             <>
               {/* TABS */}
-              <div className="flex items-center gap-1 px-3 border-b border-slate-700">
+              <div className="flex items-center gap-1 px-2 border-b border-slate-700">
                 {[
                   { id: 'overview', label: 'Overview', icon: <Info className="w-4 h-4" /> },
                   { id: 'pricing', label: 'Pricing', icon: <PoundSterling className="w-4 h-4" /> },
@@ -311,11 +348,11 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
               </div>
 
               {/* TAB CONTENT - SCROLLABLE */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
                 {/* TAB 1: OVERVIEW */}
                 <div id="content-overview" className={activeTab !== 'overview' ? 'hidden' : ''}>
                   {/* Basic Info */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
                    <div className="md:col-span-3 p-3 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-lg border border-violet-500/30">
     <p className="text-xs text-violet-400 font-bold mb-1">
       Product Name
@@ -348,11 +385,7 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                       value={product.productType?.toUpperCase()}
                       icon={<Package className="w-3.5 h-3.5" />}
                     />
-                    <InfoField
-  label="Status"
-  value={product.isActive ? "Active" : "Inactive"}
-  icon={<Activity className="w-3.5 h-3.5" />}
-/>
+
 
 
 
@@ -371,6 +404,11 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                       value={product.displayOrder?.toString() || '1'}
                       icon={<FileText className="w-3.5 h-3.5" />}
                     />
+                    <InfoField label="Slug" value={product.slug} />
+<InfoField label="Status" value={product.status} />
+
+
+{/* <InfoField label="SEO URL" value={product.searchEngineFriendlyPageName} /> */}
                   </div>
 
           
@@ -378,7 +416,7 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                   {(product as any).categories &&
                     Array.isArray((product as any).categories) &&
                     (product as any).categories.length > 0 && (
-                      <div className="p-4 bg-blue-500/5 rounded-lg border border-blue-500/30 mb-4">
+                      <div className="p-4 bg-blue-500/5 rounded-lg border border-blue-500/30 mb-2">
                         <p className="text-xs text-blue-400 font-bold mb-2 flex items-center gap-2">
                           <Filter className="w-3.5 h-3.5" />
                           Categories ({(product as any).categories.length})
@@ -427,6 +465,7 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                     <ToggleField label="Visible" value={product.visibleIndividually} />
                     <ToggleField label="Homepage" value={product.showOnHomepage} />
                     <ToggleField label="Mark as New" value={product.markAsNew} />
+                    
                   </div>
 
                   {/* IDs */}
@@ -445,6 +484,19 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                       </div>
                     )}
                   </div>
+                  <div className="grid grid-cols-3 gap-3">
+  <InfoField label="Rating" value={product.averageRating} />
+  <InfoField label="Reviews" value={product.reviewCount} />
+  <InfoField label="Views" value={product.viewCount} />
+</div>
+ <h1 className=' p-2 text-white '>Timleine</h1>
+                  <div className="grid grid-cols-4 gap-3 pt-1 ">
+  <InfoField label="Created By" value={product.createdBy}  />
+  <InfoField label="Created At" value={formatDate(product.createdAt)} />
+  <InfoField label="Update By" value={product.updatedBy} />
+  <InfoField label="Update At" value={formatDate(product.updatedAt)} />
+
+</div>
 
                   {/* Admin Comment */}
                   {product.adminComment && (
@@ -463,9 +515,9 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                 {/* TAB 2: PRICING */}
                 <div id="content-pricing" className={activeTab !== 'pricing' ? 'hidden' : ''}>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    <div className="p-4 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg border border-green-500/40">
+                    <div className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg border border-green-500/40">
                       <p className="text-xs text-green-400 font-bold mb-1">Price</p>
-                      <p className="text-2xl text-white font-bold">£{product.price?.toFixed(2)}</p>
+                      <p className="text-xl text-white font-bold">£{product.price?.toFixed(2)}</p>
                     </div>
 
                     {product.oldPrice && (
@@ -495,6 +547,9 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                     <ToggleField label="Disable Wishlist" value={product.disableWishlistButton} />
                     <ToggleField label="Call For Price" value={product.callForPrice} />
                     <ToggleField label="Customer Enters Price" value={product.customerEntersPrice} />
+                    <InfoField label="Loyalty Points" value={product.loyaltyPointsEarnable?.toString()} />
+<InfoField label="Subscription Discount" value={`${product.subscriptionDiscountPercentage}%`} />
+<InfoField label="Loyalty Message" value={product.loyaltyPointsMessage} />
                   </div>
                 </div>
 
@@ -523,7 +578,9 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                         {product.stockQuantity ?? 0}
                       </p>
                     </div>
-
+<InfoField label="Stock Status" value={product.stockStatus} />
+<InfoField label="Low Stock Threshold" value={product.lowStockThreshold?.toString()} />
+<InfoField label="Backorder Mode" value={product.backorderMode} />
                     <InfoField
                       label="Manage Method"
                       value={product.manageInventoryMethod?.toUpperCase()}
@@ -562,42 +619,52 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
                 {/* TAB 4: SHIPPING */}
                 <div id="content-shipping" className={activeTab !== 'shipping' ? 'hidden' : ''}>
                   {/* Dimensions Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    {product.weight && product.weight > 0 && (
-                      <InfoField
-                        label="Weight"
-                        value={`${product.weight} ${product.weightUnit || 'kg'}`}
-                        icon={<Scale className="w-3.5 h-3.5" />}
-                      />
-                    )}
-                    {product.length && product.length > 0 && (
-                      <InfoField
-                        label="Length"
-                        value={`${product.length} ${product.dimensionUnit || 'cm'}`}
-                        icon={<Ruler className="w-3.5 h-3.5" />}
-                      />
-                    )}
-                    {product.width && product.width > 0 && (
-                      <InfoField
-                        label="Width"
-                        value={`${product.width} ${product.dimensionUnit || 'cm'}`}
-                        icon={<Ruler className="w-3.5 h-3.5" />}
-                      />
-                    )}
-                    {product.height && product.height > 0 && (
-                      <InfoField
-                        label="Height"
-                        value={`${product.height} ${product.dimensionUnit || 'cm'}`}
-                        icon={<Ruler className="w-3.5 h-3.5" />}
-                      />
-                    )}
-                  </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+
+  {Number(product?.weight) > 0 && (
+    <InfoField
+      label="Weight"
+      value={`${product.weight} ${product.weightUnit || "kg"}`}
+      icon={<Scale className="w-3.5 h-3.5" />}
+    />
+  )}
+
+  {Number(product?.length) > 0 && (
+    <InfoField
+      label="Length"
+      value={`${product.length} ${product.dimensionUnit || "cm"}`}
+      icon={<Ruler className="w-3.5 h-3.5" />}
+    />
+  )}
+
+  {Number(product?.width) > 0 && (
+    <InfoField
+      label="Width"
+      value={`${product.width} ${product.dimensionUnit || "cm"}`}
+      icon={<Ruler className="w-3.5 h-3.5" />}
+    />
+  )}
+
+  {Number(product?.height) > 0 && (
+    <InfoField
+      label="Height"
+      value={`${product.height} ${product.dimensionUnit || "cm"}`}
+      icon={<Ruler className="w-3.5 h-3.5" />}
+    />
+  )}
+
+</div>
 
                   {/* Basic Shipping Toggles */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
                     <ToggleField label="Requires Shipping" value={product.requiresShipping} />
                     <ToggleField label="Ship Separately" value={product.shipSeparately} />
                     <ToggleField label="Free Shipping" value={product.isFreeShipping} />
+                    <InfoField label="Dispatch Days" value={product.estimatedDispatchDays?.toString()} />
+<ToggleField label="Ship Separately" value={product.shipSeparately} />
+<ToggleField label="Same Day Delivery" value={product.sameDayDeliveryEnabled} />
+<ToggleField label="Next Day Delivery" value={product.nextDayDeliveryEnabled} />
+<ToggleField label="Standard Delivery" value={product.standardDeliveryEnabled} />
                   </div>
 
                   {/* ✅ NEW: DELIVERY OPTIONS SECTION */}
@@ -1060,10 +1127,189 @@ const ProductViewModal: React.FC<ProductViewModalProps> = ({
 
                   {(!product.relatedProducts || product.relatedProducts.length === 0) &&
                     (!product.crossSellProducts || product.crossSellProducts.length === 0) && (
-                      <div className="p-8 bg-slate-800/30 rounded-lg border border-slate-700 text-center">
-                        <ShoppingCart className="w-12 h-12 text-slate-600 mx-auto mb-2" />
-                        <p className="text-slate-400 font-semibold">No product relations configured</p>
-                      </div>
+                  <div className="space-y-4">
+
+  {/* RELATED */}
+  {relatedProducts.length > 0 && (
+    <div>
+      <p className="text-xs text-blue-400 font-bold mb-2">
+        Related Products ({relatedProducts.length})
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {relatedProducts.map((p) => (
+         <div
+  key={p.id}
+  className="flex gap-3 p-3 bg-slate-800/60 border border-slate-700 rounded-xl hover:border-cyan-500 transition-all"
+>
+  {/* IMAGE */}
+  <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 bg-slate-900">
+    {p.images?.[0]?.imageUrl ? (
+      <img
+        src={
+          p.images[0].imageUrl.startsWith("http")
+            ? p.images[0].imageUrl
+            : `${API_BASE_URL.replace('/api','')}${p.images[0].imageUrl}`
+        }
+        className="w-full h-full object-cover"
+        onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+      />
+    ) : (
+      <Package className="w-6 h-6 text-slate-600 m-auto" />
+    )}
+  </div>
+
+  {/* CONTENT */}
+ <div className="flex-1 min-w-0 flex justify-between gap-2">
+
+  {/* LEFT SIDE */}
+  <div className="min-w-0">
+    {/* NAME */}
+   <a
+  href={`/products/${p.slug}`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-sm text-white font-semibold line-clamp-1 hover:text-cyan-400 transition-colors cursor-pointer"
+>
+  {p.name}
+</a>
+
+    {/* SKU */}
+    <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+      SKU: {p.sku || "N/A"}
+    </p>
+
+    {/* BRAND + CATEGORY */}
+    <div className="flex flex-wrap gap-1 mt-1 text-[11px] text-white">
+      <span className="px-1.5 py-0.5 bg-slate-700/50 rounded"
+      title='brand'>
+        {p.brandName || "No Brand"}
+      </span>
+
+      <span className="px-1.5 py-0.5 text-white bg-blue-700/80 rounded"
+      title='category'>
+        {p.categories?.[0]?.categoryName || "No Category"}
+      </span>
+    </div>
+  </div>
+
+  {/* RIGHT SIDE */}
+  <div className="flex flex-col items-end justify-between text-right">
+
+    {/* LABEL */}
+    <span className="text-[10px] text-slate-500 uppercase tracking-wide">
+      Price
+    </span>
+
+    {/* PRICE */}
+    <p className="text-green-400 text-base font-bold">
+      £{Number(p.price || 0).toFixed(2)}
+    </p>
+
+  </div>
+
+</div>
+</div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* CROSS SELL */}
+  {crossSellProducts.length > 0 && (
+    <div>
+      <p className="text-xs text-purple-400 font-bold mb-2">
+        Cross Sell Products ({crossSellProducts.length})
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {crossSellProducts.map((p) => (
+      <div
+  key={p.id}
+  className="flex gap-3 p-3 bg-slate-800/60 border border-slate-700 rounded-xl hover:border-cyan-500 transition-all"
+>
+  {/* IMAGE */}
+  <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 bg-slate-900">
+    {p.images?.[0]?.imageUrl ? (
+      <img
+        src={
+          p.images[0].imageUrl.startsWith("http")
+            ? p.images[0].imageUrl
+            : `${API_BASE_URL.replace('/api','')}${p.images[0].imageUrl}`
+        }
+        className="w-full h-full object-cover"
+        onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+      />
+    ) : (
+      <Package className="w-6 h-6 text-slate-600 m-auto" />
+    )}
+  </div>
+
+  {/* CONTENT */}
+ <div className="flex-1 min-w-0 flex justify-between gap-2">
+
+  {/* LEFT SIDE */}
+  <div className="min-w-0">
+    {/* NAME */}
+  <a
+  href={`/products/${p.slug}`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-sm text-white font-semibold line-clamp-1 hover:text-cyan-400 transition-colors cursor-pointer"
+>
+  {p.name}
+</a>
+
+    {/* SKU */}
+    <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+      SKU: {p.sku || "N/A"}
+    </p>
+
+    {/* BRAND + CATEGORY */}
+    <div className="flex flex-wrap gap-1 mt-1 text-[11px] text-slate-400">
+      <span className="px-1.5 py-0.5 bg-slate-700/50 rounded"
+      title='brand'>
+        {p.brandName || "No Brand"}
+      </span>
+
+      <span className="px-1.5 py-0.5 text-white bg-blue-700/80 rounded"
+      title='main category'>
+        {p.categories?.[0]?.categoryName || "No Category"}
+      </span>
+    </div>
+  </div>
+
+  {/* RIGHT SIDE */}
+  <div className="flex flex-col items-end justify-between text-right">
+
+    {/* LABEL */}
+    <span className="text-[10px] text-slate-500 uppercase tracking-wide">
+      Price
+    </span>
+
+    {/* PRICE */}
+    <p className="text-green-400 text-base font-bold">
+      £{Number(p.price || 0).toFixed(2)}
+    </p>
+
+  </div>
+
+</div>
+</div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* EMPTY */}
+  {relatedProducts.length === 0 && crossSellProducts.length === 0 && (
+    <div className="p-8 bg-slate-800/30 rounded-lg border border-slate-700 text-center">
+      <ShoppingCart className="w-12 h-12 text-slate-600 mx-auto mb-2" />
+      <p className="text-slate-400 font-semibold">No product relations configured</p>
+    </div>
+  )}
+
+</div>
                     )}
                 </div>
 

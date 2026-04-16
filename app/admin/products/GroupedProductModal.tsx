@@ -1,12 +1,13 @@
 // components/admin/GroupedProductModal.tsx - WITH SEARCHABLE BRAND & CATEGORY FILTERS
-import { SimpleProduct } from '@/lib/services';
+import { brandsService, Product, productsService, SimpleProduct } from '@/lib/services';
+import { categoriesService } from '@/lib/services/categories';
 import { X, Package, Gift, TrendingDown, PoundSterling, Calculator, AlertCircle, Search, Filter, Check, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
 interface GroupedProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  simpleProducts: SimpleProduct[];
+
   selectedGroupedProducts: string[];
   automaticallyAddProducts: boolean;
   
@@ -41,7 +42,6 @@ interface GroupedProductModalProps {
 export const GroupedProductModal = ({
   isOpen,
   onClose,
-  simpleProducts,
   selectedGroupedProducts,
   automaticallyAddProducts,
   mainProductPrice = 0,
@@ -67,6 +67,8 @@ export const GroupedProductModal = ({
   const [localShowPrices, setLocalShowPrices] = useState(showIndividualPrices);
   const [localApplyToAll, setLocalApplyToAll] = useState(applyDiscountToAllItems);
 
+  
+
   // ⭐⭐⭐ FILTER STATE ⭐⭐⭐
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
@@ -82,12 +84,102 @@ export const GroupedProductModal = ({
   const brandDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
+const [products, setProducts] = useState<Product[]>([]);
+const [brands, setBrands] = useState<any[]>([]);
+const [categories, setCategories] = useState<any[]>([]);
+
+const [loadingProducts, setLoadingProducts] = useState(false);
+const [page, setPage] = useState(1);
+
+const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+
+
+useEffect(() => {
+  const t = setTimeout(() => {
+    setDebouncedSearch(searchTerm);
+  }, 400);
+
+  return () => clearTimeout(t);
+}, [searchTerm]);
+
+useEffect(() => {
+  const fetchDropdowns = async () => {
+    const [brandRes, categoryRes] = await Promise.all([
+      brandsService.getAll({ includeInactive: true }),
+      categoriesService.getAll({
+        includeInactive: true,
+        includeSubCategories: true
+      })
+    ]);
+
+    const brandData = brandRes.data?.data?.items || [];
+
+    const rawCategories = categoryRes.data?.data?.items || [];
+
+    const flatten = (cats: any[]): any[] => {
+      let res: any[] = [];
+      for (const c of cats) {
+        res.push(c);
+        if (c.subCategories?.length) {
+          res = res.concat(flatten(c.subCategories));
+        }
+      }
+      return res;
+    };
+
+    setBrands(brandData);
+    setCategories(flatten(rawCategories));
+  };
+
+  fetchDropdowns();
+}, []);
+
+
+const fetchProducts = async () => {
+  setLoadingProducts(true);
+
+  try {
+    const isSearchMode = debouncedSearch.length >= 3;
+
+    const params: any = {
+      // ✅ DEFAULT (ALWAYS APPLY)
+      productType: "Simple",
+
+      // ✅ OPTIONAL FILTERS
+      brandId: selectedBrand !== "all" ? selectedBrand : undefined,
+      categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+    };
+
+    if (isSearchMode) {
+      params.searchTerm = debouncedSearch;
+    } else {
+      params.page = page;
+      params.pageSize = 250;
+    }
+
+    const res = await productsService.getAll(params);
+
+    const items = res.data?.data?.items || [];
+
+    setProducts(items);
+
+  } catch (e) {
+    console.error(e);
+    setProducts([]);
+  } finally {
+    setLoadingProducts(false);
+  }
+};
   // VALIDATION ERRORS STATE
   const [errors, setErrors] = useState({
     percentage: '',
     amount: '',
     specialPrice: ''
   });
+
+  useEffect(() => {
+  fetchProducts();
+}, [debouncedSearch, selectedBrand, selectedCategory, page]);
 
   useEffect(() => {
     setLocalDiscountType(bundleDiscountType);
@@ -118,58 +210,7 @@ export const GroupedProductModal = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ⭐⭐⭐ EXTRACT UNIQUE BRANDS & CATEGORIES ⭐⭐⭐
-  const brands = useMemo(() => {
-    const brandSet = new Map<string, string>();
-    simpleProducts.forEach(product => {
-      if (product.brandId && product.brandName) {
-        brandSet.set(product.brandId, product.brandName);
-      }
-    });
-    return Array.from(brandSet, ([id, name]) => ({ id, name }));
-  }, [simpleProducts]);
 
-  const categories = useMemo(() => {
-    const categorySet = new Map<string, string>();
-    simpleProducts.forEach(product => {
-      if (product.categories && product.categories.length > 0) {
-        const primaryCategory = product.categories.find(c => c.isPrimary) || product.categories[0];
-        if (primaryCategory) {
-          categorySet.set(primaryCategory.categoryId, primaryCategory.categoryName);
-        }
-      }
-    });
-    return Array.from(categorySet, ([id, name]) => ({ id, name }));
-  }, [simpleProducts]);
-
-  // ⭐ FILTERED BRANDS & CATEGORIES (FOR SEARCHABLE DROPDOWN)
-  const filteredBrands = useMemo(() => {
-    return brands.filter(brand =>
-      brand.name.toLowerCase().includes(brandSearchTerm.toLowerCase())
-    );
-  }, [brands, brandSearchTerm]);
-
-  const filteredCategories = useMemo(() => {
-    return categories.filter(category =>
-      category.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
-    );
-  }, [categories, categorySearchTerm]);
-
-  // ⭐⭐⭐ FILTERED PRODUCTS ⭐⭐⭐
-  const filteredProducts = useMemo(() => {
-    return simpleProducts.filter(product => {
-      const matchesSearch = searchTerm === '' || 
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesBrand = selectedBrand === 'all' || product.brandId === selectedBrand;
-
-      const matchesCategory = selectedCategory === 'all' || 
-        (product.categories && product.categories.some(c => c.categoryId === selectedCategory));
-
-      return matchesSearch && matchesBrand && matchesCategory;
-    });
-  }, [simpleProducts, searchTerm, selectedBrand, selectedCategory]);
 
   // ⭐⭐⭐ HANDLE BRAND SELECTION ⭐⭐⭐
   const handleBrandSelect = (brandId: string, brandName: string) => {
@@ -222,7 +263,7 @@ export const GroupedProductModal = ({
 
   // CALCULATE BUNDLE PRICE
   const calculateBundlePrice = () => {
-    const selected = simpleProducts.filter(p => selectedProducts.includes(p.id));
+    const selected = products.filter(p => selectedProducts.includes(p.id));
     
     const bundleItemsTotal = selected.reduce((sum, p) => 
       sum + parseFloat(p.price.toString()), 0
@@ -363,18 +404,25 @@ export const GroupedProductModal = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Search */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name or SKU..."
-                    className="w-full pl-9 pr-3 py-2 bg-slate-900/70 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  />
-                </div>
-              </div>
+  <label className="block text-xs font-medium text-slate-300 mb-1.5">Search</label>
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <input
+      type="text"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      placeholder="Search by name or SK (min 3 chars)..."
+      className="w-full pl-9 pr-3 py-2 bg-slate-900/70 border border-slate-600 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+    />
+  </div>
+
+  {/* 🔥 ADD THIS */}
+  {searchTerm.length > 0 && searchTerm.length < 3 && (
+    <p className="mt-1 text-[11px] text-amber-400">
+      Type at least 3 characters to search
+    </p>
+  )}
+</div>
 
               {/* ⭐ SEARCHABLE BRAND FILTER ⭐ */}
               <div className="relative" ref={brandDropdownRef}>
@@ -406,8 +454,8 @@ export const GroupedProductModal = ({
                     >
                       All Brands ({brands.length})
                     </div>
-                    {filteredBrands.length > 0 ? (
-                      filteredBrands.map(brand => (
+                    {brands.length > 0 ? (
+                      brands.map(brand => (
                         <div
                           key={brand.id}
                           onClick={() => handleBrandSelect(brand.id, brand.name)}
@@ -455,8 +503,8 @@ export const GroupedProductModal = ({
                     >
                       All Categories ({categories.length})
                     </div>
-                    {filteredCategories.length > 0 ? (
-                      filteredCategories.map(category => (
+                    {categories.length > 0 ? (
+                      categories.map(category => (
                         <div
                           key={category.id}
                           onClick={() => handleCategorySelect(category.id, category.name)}
@@ -479,7 +527,7 @@ export const GroupedProductModal = ({
             <div className="mt-3 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-slate-400">
-                  Showing <span className="text-white font-semibold">{filteredProducts.length}</span> of <span className="text-white font-semibold">{simpleProducts.length}</span> products
+                  Showing <span className="text-white font-semibold">{products.length}</span> of <span className="text-white font-semibold">{products.length}</span> products
                 </p>
                 {selectedBrand !== 'all' && (
                   <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded text-xs">
@@ -533,7 +581,7 @@ export const GroupedProductModal = ({
               )}
             </div>
 
-            {filteredProducts.length === 0 ? (
+            {products.length === 0 ? (
               <div className="p-6 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center">
                 <AlertCircle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
                 <p className="text-sm font-medium text-amber-400">No products found</p>
@@ -541,9 +589,9 @@ export const GroupedProductModal = ({
               </div>
             ) : (
               <div className="border border-slate-700 rounded-xl bg-slate-900/50 max-h-90 h-64 overflow-y-auto">
-                {filteredProducts.map((product) => {
+                {products.map((product) => {
                   const isSelected = selectedProducts.includes(product.id);
-                  const primaryCategory = product.categories?.find(c => c.isPrimary) || product.categories?.[0];
+           
                   
                   return (
                     <label
@@ -569,12 +617,15 @@ export const GroupedProductModal = ({
 
                       {/* Product Image */}
                       {product.images && product.images.length > 0 && (
-                        <img
-                          src={product.images.find(img => img.isMain)?.imageUrl || product.images[0].imageUrl}
-                          alt={product.name}
-                          className="w-12 h-12 rounded-lg object-cover border border-slate-700"
-                           onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                        />
+                       <img
+  src={
+    product.images?.find((img: any) => img.isMain)?.imageUrl ||
+    product.images?.[0]?.imageUrl ||
+    "/placeholder.png"
+  }
+  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+  className="w-12 h-12 rounded-lg object-cover border border-slate-700"
+/>
                       )}
 
                       {/* Product Info */}
@@ -592,12 +643,7 @@ export const GroupedProductModal = ({
                                   <span className="text-xs text-cyan-400">{product.brandName}</span>
                                 </>
                               )}
-                              {primaryCategory && (
-                                <>
-                                  <span className="text-slate-600">•</span>
-                                  <span className="text-xs text-violet-400">{primaryCategory.categoryName}</span>
-                                </>
-                              )}
+                             
                             </div>
                           </div>
                           

@@ -4,36 +4,33 @@
   import { useRouter } from "next/navigation";
   import {
     Package,
-    Clock,
+
     CheckCircle,
     X,
     Search,
-    FilterX,
-    ChevronLeft,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
+  
     Eye,
-    Trash2,
+
     AlertCircle,
-    Filter,
+
     Pause,
     Play,
     Ban,
-    Calendar,
+
     PoundSterling,
-    TrendingUp,
+
     User,
-    MapPin,
+
     ShoppingBag,
     SkipForward,
-    ChevronDown,
+
     RefreshCw,
   } from "lucide-react";
   import { useToast } from "@/app/admin/_components/CustomToast";
   import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
   import { subscriptionsService, Subscription } from "@/lib/services/subscriptions";
   import { API_BASE_URL } from "@/lib/api";
+import { formatDate } from "../_utils/formatUtils";
 
   // ✅ Product interface
   interface Product {
@@ -525,10 +522,10 @@
           >
             <option value="all">All Frequencies</option>
             <option value="Weekly">Weekly</option>
-            <option value="BiWeekly">Bi-Weekly</option>
+            {/* <option value="BiWeekly">Bi-Weekly</option> */}
             <option value="Monthly">Monthly</option>
-            <option value="BiMonthly">Bi-Monthly</option>
-            <option value="Quarterly">Quarterly</option>
+            {/* <option value="BiMonthly">Bi-Monthly</option>
+            <option value="Quarterly">Quarterly</option> */}
           </select>
 
           {/* PRODUCT DROPDOWN (UNCHANGED LOGIC) */}
@@ -602,7 +599,7 @@
             <tr>
               <th className="py-2.5 px-3 text-left">Product</th>
               <th className="py-2.5 px-3 text-left">Customer</th>
-              <th className="py-2.5 px-3 text-center">Freq</th>
+              <th className="py-2.5 px-3 text-center">Frequency</th>
               <th className="py-2.5 px-3 text-center">Price</th>
               <th className="py-2.5 px-3 text-left">Next</th>
               <th className="py-2.5 px-3 text-center">Status</th>
@@ -625,8 +622,8 @@
                     </div>
                     <div className="min-w-0">
                       <p className="text-white text-xs font-medium truncate">{subscription.productName}</p>
-                      <p className="text-[10px] text-slate-500">SKU: {subscription.productSku}</p>
-                      <p className="text-[10px] text-slate-500">Qty: {subscription.quantity}</p>
+                      <p className="text-[12px] text-sky-400">SKU: {subscription.productSku}</p>
+                      <p className="text-[12px] text-slate-200">Qty: {subscription.quantity}</p>
                       {subscription.variantName && (
                         <p className="text-[10px] text-violet-400">{subscription.variantName}</p>
                       )}
@@ -634,14 +631,14 @@
                   </div>
                 </td>
 
-                <td className="py-2.5 px-3 text-xs">
+                <td className="py-2.5 px-3 text-sm">
                   <p className="text-white">{subscription.shippingFullName}</p>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[12px] text-slate-500">
                     {subscription.shippingCity}, {subscription.shippingState}
                   </p>
                 </td>
 
-                <td className="py-2.5 px-3 text-center text-xs">
+                <td className="py-2.5 px-3 text-center text-white text-xs">
                   {subscription.frequencyDisplay}
                 </td>
 
@@ -656,9 +653,7 @@
                 </td>
 
                 <td className="py-2.5 px-3 text-xs text-slate-400">
-                  {subscription.nextDeliveryDate
-                    ? new Date(subscription.nextDeliveryDate).toLocaleDateString()
-                    : "-"}
+                 {formatDate(subscription.nextDeliveryDate)}
                 </td>
 
                 <td className="py-2.5 px-3 text-center text-xs">
@@ -954,9 +949,7 @@
                         <div>
                           <p className="text-slate-400 text-sm mb-1">Start Date</p>
                           <p className="text-white">
-                            {new Date(
-                              viewingSubscription.startDate
-                            ).toLocaleDateString()}
+                               {formatDate(viewingSubscription.startDate)}
                           </p>
                         </div>
                         {viewingSubscription.nextDeliveryDate && (
@@ -965,9 +958,7 @@
                               Next Delivery
                             </p>
                             <p className="text-white">
-                              {new Date(
-                                viewingSubscription.nextDeliveryDate
-                              ).toLocaleDateString()}
+                                {formatDate(viewingSubscription.nextDeliveryDate)}
                             </p>
                           </div>
                         )}
@@ -1047,10 +1038,7 @@
                               Cancelled At
                             </p>
                             <p className="text-white text-sm">
-                              {viewingSubscription.cancelledAt &&
-                                new Date(
-                                  viewingSubscription.cancelledAt
-                                ).toLocaleString()}
+                                  {formatDate(viewingSubscription.cancelledAt)}
                             </p>
                           </div>
                           {viewingSubscription.cancellationReason && (

@@ -2,36 +2,22 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Package, ShoppingCart, X, ChevronDown } from 'lucide-react';
+import { getProductImage } from '../_utils/formatUtils';
+import { Product, productsService } from '@/lib/services/products';
+import { brandsService } from '@/lib/services/brands';
+import { categoriesService } from '@/lib/services/categories';
 
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  price: string;
-  brandId?: string | null;
-  brandName?: string;
-  categories?: Array<{
-    categoryId: string;
-    categoryName: string;
-    isPrimary?: boolean;
-  }>;
-}
+
 
 interface RelatedProductsSelectorProps {
   type: 'related' | 'cross-sell';
   selectedProductIds: string[];
-  availableProducts: Product[];
-  brands: Array<{ id: string; name: string }>;
-  categories: Array<{ id: string; name: string }>;
   onProductsChange: (productIds: string[]) => void;
 }
 
 export default function RelatedProductsSelector({
   type,
   selectedProductIds,
-  availableProducts,
-  brands,
-  categories,
   onProductsChange
 }: RelatedProductsSelectorProps) {
   const [productSearch, setProductSearch] = useState('');
@@ -40,7 +26,15 @@ export default function RelatedProductsSelector({
   
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  
+ 
+  const [products, setProducts] = useState<Product[]>([]);
+const [loadingProducts, setLoadingProducts] = useState(false);
+const [page, setPage] = useState(1);
+const [totalCount, setTotalCount] = useState(0);
+const [brands, setBrands] = useState<any[]>([]);
+const [categories, setCategories] = useState<any[]>([]);
+
+const [debouncedSearch, setDebouncedSearch] = useState(productSearch);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -64,6 +58,93 @@ export default function RelatedProductsSelector({
   }[type];
 
   const Icon = config.icon;
+
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedSearch(productSearch);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [productSearch]);
+
+const fetchDropdownData = async () => {
+  try {
+    const [brandRes, categoryRes] = await Promise.all([
+      brandsService.getAll({ includeInactive: true }),
+      categoriesService.getAll({
+        includeInactive: true,
+        includeSubCategories: true,
+      }),
+    ]);
+
+    // 🔥 brands
+    const brandsData = brandRes.data?.data?.items || [];
+
+    // 🔥 categories (FLATTEN)
+    const rawCategories = categoryRes.data?.data?.items || [];
+
+    const flatten = (cats: any[]): any[] => {
+      let res: any[] = [];
+      for (const c of cats) {
+        res.push(c);
+        if (c.subCategories?.length) {
+          res = res.concat(flatten(c.subCategories));
+        }
+      }
+      return res;
+    };
+
+    const categoriesData = flatten(rawCategories);
+
+    setBrands(brandsData);
+    setCategories(categoriesData);
+
+  } catch (e) {
+    console.error("Dropdown fetch error", e);
+  }
+};
+useEffect(() => {
+  fetchDropdownData();
+}, []);
+
+const fetchProducts = async () => {
+  setLoadingProducts(true);
+
+  try {
+    const isSearchMode = debouncedSearch.length >= 3;
+
+    const params: any = {
+      categoryId: selectedCategories[0],
+      brandId: selectedBrands[0],
+    };
+
+    if (isSearchMode) {
+      // 🔥 SEARCH MODE (NO PAGINATION)
+      params.searchTerm = debouncedSearch;
+    } else {
+      // 🔥 NORMAL MODE
+      params.page = page;
+      params.pageSize = 250;
+    }
+
+    const res = await productsService.getAll(params);
+
+    const items = res.data?.data?.items || [];
+
+    setProducts(items);
+    setTotalCount(res.data?.data?.totalCount || items.length);
+
+  } catch (e) {
+    console.error(e);
+    setProducts([]);
+    setTotalCount(0);
+  } finally {
+    setLoadingProducts(false);
+  }
+};
+useEffect(() => {
+  fetchProducts();
+}, [debouncedSearch, selectedBrands, selectedCategories, page]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -109,51 +190,36 @@ export default function RelatedProductsSelector({
       onProductsChange([...selectedProductIds, productId]);
     }
   };
+const fetchSelectedProducts = async () => {
+  if (selectedProductIds.length === 0) return;
 
-  // Filter brands
-  const filteredBrands = useMemo(() => {
-    return brands.filter(brand =>
-      brand.name.toLowerCase().includes(brandSearch.toLowerCase())
+  try {
+    const res = await Promise.all(
+      selectedProductIds.map(id => productsService.getById(id))
     );
-  }, [brands, brandSearch]);
 
-  // Filter categories
-  const filteredCategories = useMemo(() => {
-    return categories.filter(category =>
-      category.name.toLowerCase().includes(categorySearch.toLowerCase())
-    );
-  }, [categories, categorySearch]);
+    const data = res
+      .map(r => r.data?.data)
+      .filter((p): p is Product => Boolean(p));
 
-  // Filter products
-  const filteredProducts = useMemo(() => {
-    return availableProducts.filter(product => {
-      // Search filter
-      const matchesSearch =
-        !productSearch ||
-        product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        product.sku.toLowerCase().includes(productSearch.toLowerCase());
-
-      // Brand filter
-      const matchesBrand =
-        selectedBrands.length === 0 ||
-        (product.brandId && selectedBrands.includes(product.brandId));
-
-      // Category filter
-      const matchesCategory =
-        selectedCategories.length === 0 ||
-        (product.categories &&
-          product.categories.some(cat =>
-            selectedCategories.includes(cat.categoryId)
-          ));
-
-      return matchesSearch && matchesBrand && matchesCategory;
+    setProducts(prev => {
+      const map = new Map(prev.map(p => [p.id, p]));
+      data.forEach(p => map.set(p.id, p));
+      return Array.from(map.values());
     });
-  }, [availableProducts, productSearch, selectedBrands, selectedCategories]);
 
+  } catch (e) {
+    console.error("Selected products fetch error", e);
+  }
+};
+
+useEffect(() => {
+  fetchSelectedProducts();
+}, [selectedProductIds]);
   // Get selected products
-  const selectedProducts = selectedProductIds
-    .map(id => availableProducts.find(p => p.id === id))
-    .filter(Boolean) as Product[];
+const selectedProducts = selectedProductIds
+  .map(id => products.find(p => p.id === id))
+  .filter(Boolean) as Product[];
 
   return (
     <div className="space-y-4">
@@ -198,7 +264,7 @@ export default function RelatedProductsSelector({
                 {/* Header */}
                 <div className="sticky top-0 bg-slate-800 border-b border-slate-700 px-4 py-2 flex justify-between items-center">
                   <span className="text-xs text-slate-400">
-                    {filteredCategories.length} categor{filteredCategories.length !== 1 ? 'ies' : 'y'}
+                    {categories.length} categor{categories.length !== 1 ? 'ies' : 'y'}
                   </span>
                   <button
                     type="button"
@@ -211,8 +277,8 @@ export default function RelatedProductsSelector({
 
                 {/* Category List */}
                 <div className="max-h-64 overflow-y-auto">
-                  {filteredCategories.length > 0 ? (
-                    filteredCategories.map(category => (
+                  {categories.length > 0 ? (
+                    categories.map(category => (
                       <label
                         key={category.id}
                         className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
@@ -266,7 +332,7 @@ export default function RelatedProductsSelector({
                 {/* Header */}
                 <div className="sticky top-0 bg-slate-800 border-b border-slate-700 px-4 py-2 flex justify-between items-center">
                   <span className="text-xs text-slate-400">
-                    {filteredBrands.length} brand{filteredBrands.length !== 1 ? 's' : ''}
+                    {brands.length} brand{brands.length !== 1 ? 's' : ''}
                   </span>
                   <button
                     type="button"
@@ -279,8 +345,8 @@ export default function RelatedProductsSelector({
 
                 {/* Brand List */}
                 <div className="max-h-64 overflow-y-auto">
-                  {filteredBrands.length > 0 ? (
-                    filteredBrands.map(brand => (
+                  {brands.length > 0 ? (
+                    brands.map(brand => (
                       <label
                         key={brand.id}
                         className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
@@ -327,7 +393,7 @@ export default function RelatedProductsSelector({
                 {/* Header */}
                 <div className="sticky top-0 bg-slate-800 border-b border-slate-700 px-4 py-2 flex justify-between items-center">
                   <span className="text-xs text-slate-400">
-                    {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+                    {products.length} product{products.length !== 1 ? 's' : ''}
                   </span>
                   <button
                     type="button"
@@ -340,39 +406,64 @@ export default function RelatedProductsSelector({
 
                 {/* Product List */}
                 <div className="max-h-64 overflow-y-auto">
-                  {filteredProducts.length > 0 ? (
-                    filteredProducts.map(product => (
-                      <label
-                        key={product.id}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedProductIds.includes(product.id)}
-                          onChange={() => toggleProduct(product.id)}
-                          className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">
-                            {product.name}
-                          </p>
-                          <p className="text-xs text-slate-400 truncate">
-                            SKU: {product.sku} • £{product.price}
-                          </p>
-                          {product.brandName && (
-                            <p className="text-xs text-slate-500 truncate">
-                              {product.brandName}
-                            </p>
-                          )}
-                        </div>
-                      </label>
-                    ))
-                  ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">
-                      No products found
-                    </div>
-                  )}
-                </div>
+
+  {/* 🔥 TYPE MESSAGE */}
+  {debouncedSearch && debouncedSearch.length < 3 && (
+    <div className="px-4 py-4 text-sm text-slate-400 text-center">
+      Type at least 3 characters...
+    </div>
+  )}
+
+  {/* 🔥 LOADER */}
+  {loadingProducts && (
+    <div className="px-4 py-4 text-sm text-slate-400 text-center">
+      Loading products...
+    </div>
+  )}
+
+  {/* 🔥 LIST */}
+  {!loadingProducts && debouncedSearch.length >= 3 && products.length === 0 && (
+    <div className="px-4 py-4 text-sm text-slate-500 text-center">
+      No products found
+    </div>
+  )}
+
+  {!loadingProducts && products.map(product => {
+    const imageUrl = getProductImage(product.images || []);
+
+    return (
+      <label
+        key={product.id}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50"
+      >
+        <input
+          type="checkbox"
+          checked={selectedProductIds.includes(product.id)}
+          onChange={() => toggleProduct(product.id)}
+        />
+
+        {/* IMAGE */}
+       <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+  <img
+    src={imageUrl || "/no-image.png"}
+    onError={(e) => {
+      (e.currentTarget as HTMLImageElement).src = "/no-image.png";
+    }}
+    className="w-full h-full object-cover"
+  />
+</div>
+
+        {/* INFO */}
+        <div className="flex-1">
+          <p className="text-sm text-white">{product.name}</p>
+          <p className="text-xs text-slate-400">
+            SKU: {product.sku} • £{product.price.toFixed(2)}
+          </p>
+        </div>
+      </label>
+    );
+  })}
+</div>
               </div>
             )}
           </div>
@@ -388,11 +479,13 @@ export default function RelatedProductsSelector({
           
           {selectedBrands.map(brandId => {
             const brand = brands.find(b => b.id === brandId);
+            
             return brand ? (
               <span
                 key={brandId}
                 className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500/20 text-violet-400 text-xs rounded-lg border border-violet-500/30"
               >
+                
                 {brand.name}
                 <button
                   type="button"
@@ -453,33 +546,48 @@ export default function RelatedProductsSelector({
             </button>
           </div>
           <div className="border border-slate-700 rounded-xl p-4 space-y-2 bg-slate-800/30 max-h-64 overflow-y-auto">
-            {selectedProducts.map(product => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700 rounded-lg"
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-slate-700/50 rounded flex items-center justify-center flex-shrink-0">
-                    <Icon className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm text-white truncate">
-                      {product.name}
-                    </p>
-                    <p className="text-xs text-slate-400 truncate">
-                      SKU: {product.sku} • £{product.price}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toggleProduct(product.id)}
-                  className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-all flex-shrink-0 ml-2"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+      {selectedProducts.map(product => {
+  const imageUrl = getProductImage(product?.images || []);
+
+  return (
+    <div
+      key={product.id}
+      className="flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700 rounded-lg"
+    >
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+
+        {/* 🔥 IMAGE */}
+        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 flex-shrink-0">
+          <img
+            src={imageUrl || "/no-image.png"}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "/no-image.png";
+            }}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* TEXT */}
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm text-white truncate">
+            {product.name}
+          </p>
+          <p className="text-xs text-slate-400 truncate">
+            SKU: {product.sku} • £{Number(product.price).toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => toggleProduct(product.id)}
+        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-all flex-shrink-0 ml-2"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+})}
           </div>
         </div>
       )}

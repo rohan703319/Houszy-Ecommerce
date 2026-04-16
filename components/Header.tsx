@@ -341,10 +341,10 @@ useEffect(() => {
 
       {/* ⭐ MAIN HEADER */}
       <div className="bg-white shadow-md">
-        <div className="flex items-center h-14 md:h-16 px-3 md:px-6 lg:px-20 gap-2">
+       <div className="flex items-center h-14 md:h-16 px-1 md:px-6 lg:px-20 gap-2"> 
 
           {/* LEFT: Hamburger + Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
@@ -358,7 +358,7 @@ useEffect(() => {
                 alt="Direct Care Logo"
                 width={150}
                 height={50}
-                className="h-8 w-auto md:h-[80px] md:w-[240px] object-contain"
+                className="h-7 w-auto md:h-[80px] md:w-[240px] object-contain"
                 priority
               />
             </Link>
@@ -368,7 +368,7 @@ useEffect(() => {
           <div className="flex-1 md:hidden" />
 
           {/* RIGHT: Mobile Icons (search + wishlist + cart + account) */}
-          <div className="flex items-center gap-1.5 md:hidden flex-shrink-0">
+          <div className="flex items-center gap-0.5 md:hidden flex-shrink-0">
             <button
               onClick={() => setMobileSearchOpen((v) => !v)}
               aria-label="Search"
@@ -408,7 +408,7 @@ useEffect(() => {
             ) : (
               <button
                 onClick={() =>router.push("/account")}
-                className="px-2.5 py-1 text-[11px] font-semibold text-white bg-[#445D41] rounded-full"
+                className="px-2 py-1 text-[10px] font-semibold text-white bg-[#445D41] rounded-full"
               >
                 Login
               </button>
@@ -748,7 +748,7 @@ useEffect(() => {
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
                   onFocus={() => results.length > 0 && setShowSearchDropdown(true)}
-                  className="w-full rounded-full pl-9 pr-4 py-2 text-sm border border-[#445D41] focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+                  className="w-full rounded-full pl-9 pr-4 py-2 text-[16px] border border-[#445D41] focus:outline-none focus:ring-2 focus:ring-[#445D41]"
                 />
               </div>
               <button
@@ -1104,14 +1104,59 @@ useEffect(() => {
           </div>
 
           {/* ── Drawer Footer ── */}
-          <div className="border-t bg-gray-50 px-4 py-3 flex-shrink-0">
-            <div className="flex gap-3">
-              <Link href="#"><Image src="/social/facebook.svg" alt="fb" width={26} height={26} /></Link>
-              <Link href="#"><Image src="/social/instagram.svg" alt="ig" width={26} height={26} /></Link>
-              <Link href="#"><Image src="/social/twitter.svg" alt="tw" width={26} height={26} /></Link>
-              <Link href="#"><Image src="/social/youtube.svg" alt="yt" width={26} height={26} /></Link>
-            </div>
-          </div>
+         <div className="border-t bg-gray-50 px-4 py-3 flex-shrink-0">
+  <div className="flex gap-3">
+
+    <a
+      href="https://www.facebook.com/people/Direct-Care-Ltd/61558629399491/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Image src="/social/facebook.svg" alt="fb" width={26} height={26} />
+    </a>
+
+    <a
+      href="https://www.instagram.com/directcare_ltd/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Image src="/social/instagram.svg" alt="ig" width={26} height={26} />
+    </a>
+
+    <a
+      href="https://x.com/directcare_ltd"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Image src="/social/x.svg" alt="x" width={26} height={26} />
+    </a>
+
+    <a
+      href="https://youtube.com/@directcareltd?si=OrPTm-hf0BRKSCj8"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Image src="/social/youtube.svg" alt="yt" width={26} height={26} />
+    </a>
+
+    <a
+      href="https://uk.pinterest.com/directcare_ltd/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Image src="/social/pinterest.svg" alt="pinterest" width={26} height={26} />
+    </a>
+
+    <a
+      href="https://www.tiktok.com/@directcare_ltd/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Image src="/social/tiktok.svg" alt="tiktok" width={26} height={26} />
+    </a>
+
+  </div>
+</div>
         </aside>
       </div>
       {showLogoutModal && (

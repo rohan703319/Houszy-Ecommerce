@@ -2,7 +2,6 @@
 
 import { apiClient } from '../api';
 import { API_ENDPOINTS } from '../api-config';
-import { customersService, Customer } from './customers';
 
 // ============================================================
 // LOYALTY POINTS INTERFACES
@@ -29,16 +28,82 @@ export interface LoyaltyBalance {
 export interface LoyaltyTransaction {
   id: string;
   userId: string;
-  orderId?: string | null;
-  transactionType: 'Earned' | 'Redeemed' | 'FirstOrderBonus' | 'ReviewBonus' | 'ReferralBonus' | 'Expired' | 'Adjustment';
+
+  transactionType: 
+    | 'Earned'
+    | 'Redeemed'
+    | 'FirstOrderBonus'
+    | 'ReviewBonus'
+    | 'ReferralBonus'
+    | 'Expired'
+    | 'Adjustment';
+
   points: number;
+  absolutePoints: number;
+
   balanceBefore: number;
   balanceAfter: number;
+
   description: string;
-  referenceId?: string | null;
-  expiresAt?: string | null;
-  isExpired: boolean;
+
   createdAt: string;
+  expiresAt?: string;
+  isExpired: boolean;
+
+  orderId?: string;
+  orderNumber?: string;
+  orderDate?: string;
+  orderTotal?: number;
+  orderStatus?: string;
+
+  products?: {
+    productName: string;
+    productSku: string;
+    variantName?: string;
+    quantity: number;
+    unitPrice: number;
+    productImageUrl: string;
+  }[];
+}
+// ============================================================
+// NEW: Aggregated User Response from /api/loyalty/users
+// ============================================================
+
+export interface LoyaltyUser {
+  userId: string;
+  fullName: string;
+  email: string;
+  currentBalance: number;
+  redemptionValue: number;
+  totalPointsEarned: number;
+  totalPointsRedeemed: number;
+  totalPointsExpired: number;
+  tierLevel: 'Bronze' | 'Silver' | 'Gold';
+  lastActivity?: string | null;
+}
+
+export interface LoyaltyUsersApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    items: LoyaltyUser[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+    stats: {
+      totalUsers: number;
+      totalPointsBalance: number;
+      totalPointsEarned: number;
+      totalPointsRedeemed: number;
+      averagePointsPerUser: number;
+      goldUsers: number;
+      silverUsers: number;
+      bronzeUsers: number;
+    };
+  };
 }
 
 export interface LoyaltyBalanceApiResponse {
@@ -51,8 +116,12 @@ export interface LoyaltyBalanceApiResponse {
 export interface LoyaltyHistoryApiResponse {
   success: boolean;
   message: string;
-  data?: LoyaltyTransaction[];
-  errors?: string[] | null;
+  data?: {
+    items: LoyaltyTransaction[];
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
 }
 
 export interface LoyaltyHistoryQueryParams {
@@ -64,26 +133,49 @@ export interface LoyaltyHistoryQueryParams {
 }
 
 // ============================================================
-// ADMIN INTERFACES - ✅ FIXED: Extends Customer properly
-// ============================================================
-
-export interface AdminLoyaltyUser extends Customer {
-  // Loyalty fields added to Customer type
-  currentBalance: number;
-  redemptionValue: number;
-  totalPointsEarned: number;
-  totalPointsRedeemed: number;
-  tierLevel: 'Bronze' | 'Silver' | 'Gold';
-  lastEarnedAt: string | null;
-  lastRedeemedAt: string | null;
-  loyaltyBalance: LoyaltyBalance | null;
-}
-
-// ============================================================
-// LOYALTY POINTS SERVICE
+// LOYALTY POINTS SERVICE - UPDATED
 // ============================================================
 
 export const loyaltyPointsService = {
+  /**
+   * ✅ NEW: Get all users with loyalty data (aggregated from backend)
+   * GET /api/loyalty/users?page=1&pageSize=20&tierLevel=Gold&searchTerm=arun&sortBy=balance&sortDirection=desc
+   */
+  getAllUsersWithLoyalty: async (params?: {
+    page?: number;
+    pageSize?: number;
+    searchTerm?: string;
+    tierLevel?: 'Gold' | 'Silver' | 'Bronze' | string;
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+  }) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+      if (params?.searchTerm) queryParams.append('searchTerm', params.searchTerm);
+      if (params?.tierLevel && params.tierLevel !== 'all') queryParams.append('tierLevel', params.tierLevel);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortDirection) queryParams.append('sortDirection', params.sortDirection);
+
+      const endpoint = queryParams.toString() 
+        ? `/api/loyalty/users?${queryParams.toString()}`
+        : '/api/loyalty/users';
+
+      const response = await apiClient.get<LoyaltyUsersApiResponse>(endpoint);
+      
+      return {
+        success: response.data?.success || false,
+        message: response.data?.message || '',
+        data: response.data?.data || null,
+      };
+    } catch (error) {
+      console.error('Error fetching loyalty users:', error);
+      throw error;
+    }
+  },
+
   /**
    * Get current user's loyalty balance
    * GET /api/loyalty/balance
@@ -112,121 +204,10 @@ export const loyaltyPointsService = {
   },
 
   /**
-   * ✅ ADMIN: Get all customers with their loyalty data
-   * Uses customers API + fetches loyalty balance for each
-   */
-  getAllCustomersWithLoyalty: async (params?: {
-    page?: number;
-    pageSize?: number;
-    searchTerm?: string;
-    isActive?: boolean;
-    sortBy?: string;
-    sortDirection?: 'asc' | 'desc';
-    
-  }) => {
-    try {
-      // Step 1: Get all customers
-      const customersResponse = await customersService.getAll({
-        page: params?.page || 1,
-        pageSize: params?.pageSize || 25,
-        searchTerm: params?.searchTerm,
-        isActive: params?.isActive,
-        sortBy: params?.sortBy,
-        sortDirection: params?.sortDirection || 'desc',
-      });
-
-      if (!customersResponse.data?.success || !customersResponse.data.data) {
-        return {
-          success: false,
-          message: 'Failed to fetch customers',
-          data: null,
-        };
-      }
-
-      const customers = customersResponse.data.data.items;
-
-      // Step 2: Fetch loyalty balance for each customer
-      const customersWithLoyalty = await Promise.all(
-        customers.map(async (customer): Promise<AdminLoyaltyUser> => {
-          try {
-            // Try to get loyalty balance for this customer
-            const loyaltyResponse = await apiClient.get<LoyaltyBalanceApiResponse>(
-              `${API_ENDPOINTS.loyaltyPoints.balance}?userId=${customer.id}`
-            );
-
-            if (loyaltyResponse.data?.success && loyaltyResponse.data.data) {
-              const loyalty = loyaltyResponse.data.data;
-
-              // hasAccount === false means the user has no orders / no real loyalty account
-              if (loyalty.hasAccount === false) {
-                return {
-                  ...customer,
-                  currentBalance: 0,
-                  redemptionValue: 0,
-                  totalPointsEarned: 0,
-                  totalPointsRedeemed: 0,
-                  tierLevel: 'Bronze' as const,
-                  lastEarnedAt: null,
-                  lastRedeemedAt: null,
-                  loyaltyBalance: null,
-                };
-              }
-
-              return {
-                ...customer,
-                currentBalance: loyalty.currentBalance,
-                redemptionValue: loyalty.redemptionValue,
-                totalPointsEarned: loyalty.totalPointsEarned,
-                totalPointsRedeemed: loyalty.totalPointsRedeemed,
-                tierLevel: loyalty.tierLevel,
-                lastEarnedAt: loyalty.lastEarnedAt,
-                lastRedeemedAt: loyalty.lastRedeemedAt,
-                loyaltyBalance: loyalty,
-              };
-            }
-          } catch (error) {
-            // If loyalty API fails, customer has no loyalty data
-            console.log(`No loyalty data for customer ${customer.id}`);
-          }
-
-          // Return customer with default loyalty values
-          return {
-            ...customer,
-            currentBalance: 0,
-            redemptionValue: 0,
-            totalPointsEarned: 0,
-            totalPointsRedeemed: 0,
-            tierLevel: 'Bronze',
-            lastEarnedAt: null,
-            lastRedeemedAt: null,
-            loyaltyBalance: null,
-          };
-        })
-      );
-
-      return {
-        success: true,
-        message: 'Customers with loyalty data fetched successfully',
-        data: {
-          items: customersWithLoyalty,
-          totalCount: customersResponse.data.data.totalCount,
-          currentPage: customersResponse.data.data.page,
-          pageSize: customersResponse.data.data.pageSize,
-          totalPages: customersResponse.data.data.totalPages,
-        },
-      };
-    } catch (error) {
-      console.error('Error fetching customers with loyalty:', error);
-      throw error;
-    }
-  },
-
-  /**
    * Get specific user's balance by userId
    */
   getUserBalance: async (userId: string) => {
     try {
-      // Try with userId parameter
       const response = await apiClient.get<LoyaltyBalanceApiResponse>(
         `${API_ENDPOINTS.loyaltyPoints.balance}?userId=${userId}`
       );
@@ -240,42 +221,31 @@ export const loyaltyPointsService = {
   /**
    * Get specific user's history by userId
    */
-  getUserHistory: async (userId: string, params?: LoyaltyHistoryQueryParams) => {
-    try {
-      const queryParams = new URLSearchParams();
-      queryParams.append('userId', userId);
-      
-      if (params?.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString());
-      if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
-      if (params?.transactionType) queryParams.append('transactionType', params.transactionType);
-      if (params?.startDate) queryParams.append('startDate', params.startDate);
-      if (params?.endDate) queryParams.append('endDate', params.endDate);
+getUserHistory: async (userId: string, params?: LoyaltyHistoryQueryParams) => {
+  try {
+    const queryParams = new URLSearchParams();
 
-      const endpoint = `${API_ENDPOINTS.loyaltyPoints.history}?${queryParams.toString()}`;
+    if (params?.pageNumber) queryParams.append('page', params.pageNumber.toString());
+    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
 
-      const response = await apiClient.get<LoyaltyHistoryApiResponse>(endpoint);
-      return response;
-    } catch (error) {
-      console.error(`Failed to get history for user ${userId}:`, error);
-      throw error;
-    }
-  },
+    const endpoint = `/api/loyalty/history/${userId}?${queryParams.toString()}`;
+
+    return await apiClient.get<LoyaltyHistoryApiResponse>(endpoint);
+  } catch (error) {
+    console.error(`Failed to get history for user ${userId}:`, error);
+    throw error;
+  }
+}
 };
 
 // ============================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (same as before)
 // ============================================================
 
-/**
- * Format points with commas
- */
 export const formatPoints = (points: number): string => {
   return points.toLocaleString('en-GB');
 };
 
-/**
- * Get tier color
- */
 export const getTierColor = (tier: string): {
   bg: string;
   text: string;
@@ -308,9 +278,6 @@ export const getTierColor = (tier: string): {
   }
 };
 
-/**
- * Get transaction type color and label
- */
 export const getTransactionTypeInfo = (type: string): {
   label: string;
   color: string;
@@ -377,9 +344,6 @@ export const getTransactionTypeInfo = (type: string): {
   }
 };
 
-/**
- * Format relative date
- */
 export const formatRelativeDate = (dateString: string): string => {
   const date = new Date(dateString);
   const now = new Date();
@@ -402,9 +366,6 @@ export const formatRelativeDate = (dateString: string): string => {
   return years === 1 ? '1 year ago' : `${years} years ago`;
 };
 
-/**
- * Format expiry date with warning
- */
 export const formatExpiryDate = (expiresAt: string | null | undefined): {
   text: string;
   isExpiringSoon: boolean;
@@ -452,33 +413,6 @@ export const formatExpiryDate = (expiresAt: string | null | undefined): {
   };
 };
 
-/**
- * Calculate redemption value in pounds
- */
-export const calculateRedemptionValueInPounds = (
-  points: number,
-  redemptionRate: number = 100
-): number => {
-  return points / redemptionRate;
-};
-
-/**
- * Check if transaction is a gain (positive points)
- */
-export const isGainTransaction = (transaction: LoyaltyTransaction): boolean => {
-  return transaction.points > 0;
-};
-
-/**
- * Check if transaction is a loss (negative points)
- */
-export const isLossTransaction = (transaction: LoyaltyTransaction): boolean => {
-  return transaction.points < 0;
-};
-
-/**
- * Format date to readable string
- */
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-GB', {

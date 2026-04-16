@@ -1,3 +1,6 @@
+// ISR: regenerate every 5 minutes — serves static HTML from CDN under high traffic
+export const revalidate = 300;
+
 import CategoriesClient from "@/components/CategoriesClient";
 
 interface Category {
@@ -12,7 +15,7 @@ async function getAllCategories(baseUrl: string): Promise<Category[]> {
   try {
     const res = await fetch(
       `${baseUrl}/api/Categories?includeInactive=false&includeSubCategories=false&isActive=true&isDeleted=false`,
-      { cache: "no-store" }
+      { next: { revalidate: 300 } }
     );
 
     // ✅ response fail handle

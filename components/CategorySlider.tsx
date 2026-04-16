@@ -102,7 +102,7 @@ export default function CategorySlider({
                   </div>
 
                   {/* ===== TITLE ===== */}
-                  <h3 className="font-semibold text-gray-900 text-xs md:text-base text-center pb-1 md:pb-2 px-1 line-clamp-2">
+                  <h3 className="font-semibold text-gray-900 text-xs md:text-sm text-center pb-1 md:pb-2 px-1 line-clamp-2">
                     {category.name}
                   </h3>
                 </CardContent>

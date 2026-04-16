@@ -1,5 +1,6 @@
 import { apiClient } from '../api';
 import { API_ENDPOINTS } from '../api-config';
+import { BrandFaq } from './brandFaqs';
 
 // --- Brand TypeScript Interfaces ---
 export interface Brand {
@@ -9,7 +10,7 @@ export interface Brand {
   slug: string;
   logoUrl?: string;
   isPublished: boolean;
-  isDeleted: boolean; 
+  isDeleted: boolean;
   isActive: boolean;
   showOnHomepage: boolean;
   displayOrder: number;
@@ -21,84 +22,116 @@ export interface Brand {
   updatedAt?: string;
   createdBy?: string;
   updatedBy?: string;
+  faqs?: BrandFaq[];
 }
 
+// ✅ LIST - Matches your JSON structure
+export interface BrandListResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    items: Brand[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    hasPrevious: boolean;
+    hasNext: boolean;
+    stats: {
+      totalBrands: number;
+      totalPublished: number;
+      totalUnpublished: number;
+      totalActive: number;
+      totalInactive: number;
+      totalShowOnHomepage: number;
+    };
+  };
+}
+
+// ✅ SINGLE (create/update response)
+export interface SingleBrandResponse {
+  success: boolean;
+  message?: string;
+  data: Brand;
+}
+
+// ✅ CREATE DTO - matches your JSON fields
 export interface CreateBrandDto {
   name: string;
   description: string;
   logoUrl?: string;
   isPublished?: boolean;
-  isActive?: boolean;  // ✅ ADD THIS
+  isActive?: boolean;
   showOnHomepage?: boolean;
   displayOrder?: number;
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
 }
-export interface CreateBrandDto {
-  id?: string;
-  name: string;
-  description: string;
-  logoUrl?: string;
-  isPublished?: boolean;
-  isActive?: boolean;  // ✅ ADD THIS
-  showOnHomepage?: boolean;
-  displayOrder?: number;
-  metaTitle?: string;
-  metaDescription?: string;
-  metaKeywords?: string;
-}
 
+// ✅ UPDATE DTO (same as Create for partial updates)
+export type UpdateBrandDto = Partial<CreateBrandDto>;
 
- export interface BrandApiResponse {
+// ✅ API RESPONSE for operations that return data array directly
+export interface BrandApiResponse {
   success: boolean;
   message?: string;
   data: Brand[];
 }
 
+// ✅ STATS (if you need a simplified stats object)
 export interface BrandStats {
   totalBrands: number;
-  publishedBrands: number;
-  homepageBrands: number;
-  totalProducts: number;
-}
 
+  totalPublished: number;
+  totalUnpublished: number;
+
+  totalActive: number;
+  totalInactive: number;
+
+  totalShowOnHomepage: number;
+
+  // optional (agar backend de)
+  totalProducts?: number;
+}
 // --- Main Brand Service ---
 export const brandsService = {
-  // Get all brands (with optional config: params/headers)
+  // Get all brands (with pagination)
   getAll: (config: any = {}) =>
-    apiClient.get<BrandApiResponse>(API_ENDPOINTS.brands, config),
+    apiClient.get<BrandListResponse>(API_ENDPOINTS.brands, config),
 
   // Get single brand by ID
   getById: (id: string, config: any = {}) =>
-    apiClient.get<Brand>(`${API_ENDPOINTS.brands}/${id}`, config),
+    apiClient.get<SingleBrandResponse>(`${API_ENDPOINTS.brands}/${id}`, config),
 
   // Create new brand
   create: (data: CreateBrandDto, config: any = {}) =>
-    apiClient.post<Brand>(API_ENDPOINTS.brands, data, config),
+    apiClient.post<SingleBrandResponse>(API_ENDPOINTS.brands, data, config),
 
   // Update brand by ID
-  update: (id: string, data: Partial<CreateBrandDto>, config: any = {}) =>
-    apiClient.put<Brand>(`${API_ENDPOINTS.brands}/${id}`, data, config),
+  update: (id: string, data: UpdateBrandDto, config: any = {}) =>
+    apiClient.put<SingleBrandResponse>(`${API_ENDPOINTS.brands}/${id}`, data, config),
 
-  // Delete brand by ID
+  // Delete brand by ID (soft delete)
   delete: (id: string, config: any = {}) =>
     apiClient.delete<void>(`${API_ENDPOINTS.brands}/${id}`, config),
 
-restore: (id: string) =>
-  apiClient.post<void>(`${API_ENDPOINTS.brands}/${id}/restore`),
-  // ---- Logo Upload (Brand) ----
-uploadLogo: async (file: File, params?: Record<string, any>) => {
-  const formData = new FormData();
-  formData.append("logo", file); // ✅ Backend expects 'logo', NOT 'image'
-  const searchParams = params ? "?" + new URLSearchParams(params).toString() : "";
-  return apiClient.post<{ success: boolean; message: string; data: string }>(
-    API_ENDPOINTS.uploadBrandLogo + searchParams,
-    formData
-  );
-},
+  // Restore soft-deleted brand
+  restore: (id: string) =>
+    apiClient.post<void>(`${API_ENDPOINTS.brands}/${id}/restore`),
 
-  // ---- Logo Delete (Brand) ----
+  // Upload logo for brand
+  uploadLogo: async (file: File, params?: Record<string, any>) => {
+    const formData = new FormData();
+    formData.append("logo", file);
+    const searchParams = params ? "?" + new URLSearchParams(params).toString() : "";
+    return apiClient.post<{ success: boolean; message: string; data: string }>(
+      API_ENDPOINTS.uploadBrandLogo + searchParams,
+      formData
+    );
+  },
+
+  // Delete brand logo
   deleteLogo: (logoUrl: string) =>
     apiClient.delete<void>(API_ENDPOINTS.deleteBrandLogo, { params: { imageUrl: logoUrl } }),
 };

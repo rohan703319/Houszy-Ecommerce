@@ -1,4 +1,6 @@
 // app/offers/[slug]/page.tsx
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import DiscountProductsClient from "./DiscountProductsClient";
 import { ChevronRight, Clock, ShoppingBag, Tag, BadgePercent } from "lucide-react";

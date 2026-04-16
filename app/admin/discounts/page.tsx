@@ -1,12 +1,11 @@
 "use client";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, X, } from "lucide-react";
 
 
 import { useToast } from "@/app/admin/_components/CustomToast";
 
 import {
-  CreateDiscountDto,
   Discount,
   DiscountLimitationType,
   discountsService,
@@ -18,6 +17,10 @@ import { DiscountUsageHistory } from "@/lib/services/discounts";
 import DiscountModals from "./DiscountModals";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { useDebounce } from "../_hooks/useDebounce";
+import { getImageUrl } from "../_utils/formatUtils";
+import ImagePreviewModal from "../_components/ImagePreviewModal";
+
+
 
 
 // ========== INTERFACES ==========
@@ -55,6 +58,8 @@ interface FormData {
   assignedProductIds: string[];
   assignedCategoryIds: string[];
   assignedManufacturerIds: string[];
+  desktopBannerImageUrl: string | null;
+  mobileBannerImageUrl: string | null;
 }
 
 // ========== CATEGORY HELPER FUNCTIONS ==========
@@ -257,11 +262,13 @@ export default function DiscountsPage() {
   const [dateRangeFilter, setDateRangeFilter] = useState({ startDate: "", endDate: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 const [deletedFilter, setDeletedFilter] = useState<"notDeleted" | "deleted">("notDeleted");
 const [statusConfirm, setStatusConfirm] = useState<Discount | null>(null);
 const [restoreConfirm, setRestoreConfirm] = useState<Discount | null>(null);
 const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 const [isRestoring, setIsRestoring] = useState(false);
+const [imageModal, setImageModal] = useState<Discount | null>(null);
 const debouncedSearch = useDebounce(searchTerm, 400);
 
   const [formData, setFormData] = useState<FormData>({
@@ -285,6 +292,8 @@ const debouncedSearch = useDebounce(searchTerm, 400);
     assignedProductIds: [],
     assignedCategoryIds: [],
     assignedManufacturerIds: [],
+    desktopBannerImageUrl: null,
+    mobileBannerImageUrl: null,
   });
 
   // Fetch data on mount
@@ -294,31 +303,32 @@ const debouncedSearch = useDebounce(searchTerm, 400);
   }, []);
 
   // Fetch dropdown data
-  const fetchDropdownData = async () => {
-    try {
-      const [categoriesRes, productsRes] = await Promise.all([
-        categoriesService.getAll(),
-        productsService.getAll({ pageSize: 1000 }),
-      ]);
+const fetchDropdownData = async () => {
+  try {
+    const [categoriesRes, productsRes] = await Promise.all([
+      categoriesService.getAll(),
+      productsService.getAll({ pageSize: 1000 }), // Adjust pageSize as needed
+    ]);
 
-      if (categoriesRes?.data) {
-        const c = categoriesRes.data as any;
-        if (c.success && Array.isArray(c.data)) {
-          setCategories(c.data);
-        }
-      }
+    // ================= CATEGORIES =================
+    const categoriesData = Array.isArray(categoriesRes?.data?.data?.items)
+      ? categoriesRes.data.data.items
+      : [];
 
-      if (productsRes?.data) {
-        const p = productsRes.data as any;
-        if (p.success && p.data?.items) {
-          setProducts(p.data.items);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching dropdown data:", error);
-      toast.error("Failed to load dropdown data");
-    }
-  };
+    setCategories(categoriesData);
+
+    // ================= PRODUCTS =================
+    const productsData = Array.isArray(productsRes?.data?.data?.items)
+      ? productsRes.data.data.items
+      : [];
+
+    setProducts(productsData);
+
+  } catch (error) {
+    console.error("Error fetching dropdown data:", error);
+    toast.error("Failed to load dropdown data");
+  }
+};
 
   // Fetch discounts
 const fetchDiscounts = async () => {
@@ -549,11 +559,21 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   // ✅ Admin Comment Validation
-  if (!formData.adminComment || !formData.adminComment.trim()) {
-    toast.error("Admin comment is required");
+  if (!formData.discountPercentage ) {
+    toast.error("Discount percentage is required");
     return;
   }
-
+  if (formData.adminComment.length > 500) {
+    toast.error("Admin comment must be 500 characters or less");
+    return;
+  }
+// 🔥 NEW: Validation for AssignedToCategories
+  if (formData.discountType === "AssignedToCategories") {
+    if (formData.assignedProductIds.length === 0) {
+      toast.error("At least one product must be selected from the category");
+      return;
+    }
+  }
   try {
     const payload = {
       ...formData,
@@ -613,6 +633,8 @@ const handleEdit = (discount: Discount) => {
     assignedManufacturerIds: discount.assignedManufacturerIds
       ? discount.assignedManufacturerIds.split(",").filter((id) => id.trim())
       : [],
+    desktopBannerImageUrl: discount.desktopBannerImageUrl ?? null,
+    mobileBannerImageUrl: discount.mobileBannerImageUrl ?? null,
   });
   setShowModal(true);
   setProductCategoryFilter("");
@@ -642,12 +664,65 @@ const handleEdit = (discount: Discount) => {
       assignedProductIds: [],
       assignedCategoryIds: [],
       assignedManufacturerIds: [],
+      desktopBannerImageUrl: null,
+      mobileBannerImageUrl: null,
     });
     setEditingDiscount(null);
     setProductCategoryFilter("");
     setProductBrandFilter("");
   };
 
+const handleUploadBannerImage = async (
+  discountId: string,
+  file: File,
+  type: "desktop" | "mobile"
+) => {
+  try {
+    const res = await discountsService.uploadBannerImage(discountId, file, type);
+
+    const json = res.data as {
+      success: boolean;
+      data: string;
+    };
+
+    if (json.success) {
+      setFormData((prev) => ({
+        ...prev,
+        [type === "desktop"
+          ? "desktopBannerImageUrl"
+          : "mobileBannerImageUrl"]: json.data,
+      }));
+      fetchDiscounts();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleDeleteBannerImage = async (
+  discountId: string,
+  type: "desktop" | "mobile"
+) => {
+  try {
+    const res = await discountsService.deleteBannerImage(discountId, type);
+
+    const json = res.data as {
+      success: boolean;
+    };
+
+    if (json.success) {
+      setFormData((prev) => ({
+        ...prev,
+        [type === "desktop"
+          ? "desktopBannerImageUrl"
+          : "mobileBannerImageUrl"]: null,
+      }));
+      fetchDiscounts();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
   // Handle delete
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
@@ -1124,9 +1199,28 @@ const filteredDiscounts = discounts.filter((discount) => {
                 {/* NAME */}
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-md bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-xs">
-                      {getDiscountTypeIcon(discount.discountType)}
-                    </div>
+                    <div
+  className="w-8 h-8 rounded-md overflow-hidden border border-slate-600 cursor-pointer"
+  onClick={() => setImageModal(discount)}
+>
+  {discount.desktopBannerImageUrl ? (
+    <img
+      src={getImageUrl(discount.desktopBannerImageUrl)}
+      className="w-full h-full object-cover"
+      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+    />
+  ) : discount.mobileBannerImageUrl ? (
+    <img
+      src={getImageUrl(discount.mobileBannerImageUrl)}
+      className="w-full h-full object-cover"
+      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-pink-500 text-xs">
+      {getDiscountTypeIcon(discount.discountType)}
+    </div>
+  )}
+</div>
 
                     <div className="min-w-0">
                       <p
@@ -1462,8 +1556,10 @@ const filteredDiscounts = discounts.filter((discount) => {
         isLoading={isDeleting}
       />
 
-
 <DiscountModals
+  // 🔥 YAHI EK CHANGE HAI - KEY PROP ADD KARO
+  key={`${showModal}-${editingDiscount?.id}-${formData.assignedProductIds.join(',')}`}
+  discounts={discounts}
   showModal={showModal}
   setShowModal={setShowModal}
   viewingDiscount={viewingDiscount}
@@ -1480,7 +1576,7 @@ const filteredDiscounts = discounts.filter((discount) => {
   categoryOptions={categoryOptions}
   brandOptions={brandOptions}
   filteredProductOptions={filteredProductOptions}
-  categoryFilteredProductOptions={categoryFilteredProductOptions} // ✅ THIS IS KEY
+  categoryFilteredProductOptions={categoryFilteredProductOptions}
   productCategoryFilter={productCategoryFilter}
   setProductCategoryFilter={setProductCategoryFilter}
   productBrandFilter={productBrandFilter}
@@ -1501,6 +1597,8 @@ const filteredDiscounts = discounts.filter((discount) => {
   dateRangeFilter={dateRangeFilter}
   setDateRangeFilter={setDateRangeFilter}
   handleViewUsageHistory={handleViewUsageHistory}
+  handleUploadBannerImage={handleUploadBannerImage}
+  handleDeleteBannerImage={handleDeleteBannerImage}
 />
       <ConfirmDialog
   isOpen={!!statusConfirm}
@@ -1524,7 +1622,76 @@ const filteredDiscounts = discounts.filter((discount) => {
   cancelText="Cancel"
   isLoading={isRestoring}
 />
+{imageModal && (
+  <div
+    className="fixed inset-0 bg-black/80 backdrop-blur-md z-[40] flex items-center justify-center p-4"
+    onClick={() => setImageModal(null)}
+  >
+    <div
+      className="bg-slate-900 border border-slate-700 rounded-xl max-w-4xl w-full p-4 space-y-4"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-white font-semibold text-lg">
+          {imageModal.name}
+        </h2>
 
+        <button
+          onClick={() => setImageModal(null)}
+          className="p-2 hover:bg-red-500/20 bg-red-500/20 text-white rounded-lg"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* IMAGES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {/* DESKTOP */}
+        <div>
+          <p className="text-sm text-slate-400 mb-2">Desktop Banner</p>
+
+          {imageModal.desktopBannerImageUrl ? (
+          <img
+  src={getImageUrl(imageModal.desktopBannerImageUrl)}
+  className="w-full h-56 object-cover rounded-lg border border-slate-600 cursor-pointer hover:scale-105 transition"
+  onClick={() => setPreviewImage(imageModal.desktopBannerImageUrl)}
+  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+/>
+          ) : (
+            <div className="h-56 flex items-center justify-center bg-slate-800 rounded-lg text-slate-500">
+              No Desktop Image
+            </div>
+          )}
+        </div>
+
+        {/* MOBILE */}
+        <div>
+          <p className="text-sm text-slate-400 mb-2">Mobile Banner</p>
+
+          {imageModal.mobileBannerImageUrl ? (
+          <img
+  src={getImageUrl(imageModal.mobileBannerImageUrl)}
+  className="w-full h-56 object-cover rounded-lg border border-slate-600 cursor-pointer hover:scale-105 transition"
+  onClick={() => setPreviewImage(imageModal.mobileBannerImageUrl)}
+  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+/>
+          ) : (
+            <div className="h-56 flex items-center justify-center bg-slate-800 rounded-lg text-slate-500">
+              No Mobile Image
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
+<ImagePreviewModal
+  imageUrl={previewImage}
+  onClose={() => setPreviewImage(null)}
+/>
     </div>
   );
 }

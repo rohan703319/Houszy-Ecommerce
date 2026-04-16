@@ -18,10 +18,7 @@ import {
   Check,
   XCircle,
   Filter,
-  Tag,
-  Layers,
-  Grid,
-  MapPin,
+   
   Truck,
   CreditCard,
   ChevronDown,
@@ -42,44 +39,8 @@ import {
 import { Order } from '@/lib/services/orders';
 import { addressLookupService } from '@/lib/services/AddressLookup';
 import { API_BASE_URL } from '@/lib/api';
-const getOrderProductImage = (imageUrl?: any): string => {
-  if (!imageUrl) return "/no-image.png";
+import { getProductImage, getThumbnailImage } from '../_utils/formatUtils';
 
-  // अगर array आया
-  if (Array.isArray(imageUrl)) {
-    imageUrl = imageUrl[0];
-  }
-
-  // अगर object आया { url: "" }
-  if (typeof imageUrl === "object" && imageUrl.url) {
-    imageUrl = imageUrl.url;
-  }
-
-  // अगर string नहीं है
-  if (typeof imageUrl !== "string") {
-    return "/no-image.png";
-  }
-
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
-const getProductImage = (images: any[]): string => {
-  if (!images || images.length === 0) return "";
-
-  const mainImage = images.find((img: any) => img.isMain) || images[0];
-  let imageUrl = mainImage.imageUrl || "";
-
-  // 🔥 If already full URL → return directly
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  // 🔥 Otherwise attach base URL (for local uploads)
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
 // ===========================
 // INTERFACES
 // ===========================
@@ -88,7 +49,7 @@ interface Product {
   id: string;
   name: string;
   sku: string;
-  slug: string;
+   slug?: string; // ✅ optional
   description?: string;
   shortDescription?: string;
   productType: 'Simple' | 'Grouped';
@@ -290,7 +251,7 @@ const [showShippingAddress, setShowShippingAddress] = useState(true);
 
   const [billingAddressChanged, setBillingAddressChanged] = useState(false);
   const [shippingAddressChanged, setShippingAddressChanged] = useState(false);
-
+const isSearching = useRef(false);
   // ✅ Operations tracking
   const [operations, setOperations] = useState<any[]>([]);
   const [editedItems, setEditedItems] = useState<Map<string, number>>(new Map());
@@ -319,7 +280,7 @@ const newlyAddedItems = operations.filter(
   useEffect(() => {
     if (isOpen) {
       loadFilterOptions();
-      loadProducts();
+   
       prefillAddresses();
       validateOrderStatus();
     }
@@ -342,7 +303,21 @@ const newlyAddedItems = operations.filter(
 
   return () => clearTimeout(timer);
 }, [billingQuery]);
+useEffect(() => {
+  if (!searchQuery || searchQuery.length < 2) {
+    setSearchResults([]);
+    setSearching(false);
+    return;
+  }
 
+  setSearching(true); // ✅ ONLY HERE
+
+  const timer = setTimeout(() => {
+    searchProducts(searchQuery);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [searchQuery, filters]);
 useEffect(() => {
   const timer = setTimeout(async () => {
     if (shippingQuery.length >= 3) {
@@ -471,72 +446,51 @@ const handleShippingSelect = async (id: string) => {
   };
 
   // ✅ Load Filter Options
-  const loadFilterOptions = async () => {
-    setLoadingFilters(true);
-    try {
-      const brandsResponse = await brandsService.getAll({
-        params: { includeInactive: true },
-      });
+const loadFilterOptions = async () => {
+  setLoadingFilters(true);
 
-      const brandsData = brandsResponse?.data?.data || [];
-      const sortedBrands = brandsData.sort((a: Brand, b: Brand) => {
-        if (a.isActive !== b.isActive) {
-          return a.isActive ? -1 : 1;
-        }
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return dateB - dateA;
-      });
+  try {
+    // ================= BRANDS =================
+    const brandsResponse = await brandsService.getAll({
+      params: { includeInactive: true },
+    });
 
-      setBrands(sortedBrands);
+    const brandsData = Array.isArray(brandsResponse?.data?.data?.items)
+      ? brandsResponse.data.data.items
+      : [];
 
-      const categoriesResponse = await categoriesService.getAll({
-        params: { includeInactive: true, includeSubCategories: true },
-      });
-
-      const categoriesData = categoriesResponse?.data?.data || [];
-      const sortedCategories = sortCategoriesRecursive(categoriesData);
-
-      setCategories(sortedCategories);
-    } catch (error) {
-      console.error('Error loading filters:', error);
-      toast.error('Failed to load filter options');
-    } finally {
-      setLoadingFilters(false);
-    }
-  };
-
-  // ✅ Load All Products
-  const loadProducts = async () => {
-    try {
-      const productsResponse = await productsService.getAll({
-        page: 1,
-        pageSize: 10000,
-      });
-
-      if (productsResponse?.data?.success && productsResponse?.data?.data?.items) {
-        const items: any[] = productsResponse.data.data.items;
-
-        const mappedProducts = items
-          .map((p) => ({
-            ...p,
-            slug: p.slug || '',
-            sku: p.sku || '',
-          }))
-          .sort((a, b) => {
-            if (a.isPublished !== b.isPublished) {
-              return a.isPublished ? -1 : 1;
-            }
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-          });
-
-        setAllProducts(mappedProducts);
+    const sortedBrands = [...brandsData].sort((a: Brand, b: Brand) => {
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? -1 : 1;
       }
-    } catch (error) {
-      console.error('Error loading products:', error);
-      toast.error('Failed to load products');
-    }
-  };
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    setBrands(sortedBrands);
+
+    // ================= CATEGORIES =================
+    const categoriesResponse = await categoriesService.getAll({
+      params: { includeInactive: true, includeSubCategories: true },
+    });
+
+    const categoriesData = Array.isArray(categoriesResponse?.data?.data?.items)
+      ? categoriesResponse.data.data.items
+      : [];
+
+    const sortedCategories = sortCategoriesRecursive([...categoriesData]);
+
+    setCategories(sortedCategories);
+
+  } catch (error) {
+    console.error('Error loading filters:', error);
+    toast.error('Failed to load filter options');
+  } finally {
+    setLoadingFilters(false);
+  }
+};
+
 
   // Using prevIsOpen ref so a remount with isOpen=true doesn't clear operations.
 const prevIsOpen = useRef(isOpen);
@@ -560,97 +514,74 @@ useEffect(() => {
 
 
   // ✅ Client-side Search & Filter
-const searchProducts = (query: string) => {
+const searchProducts = async (query: string) => {
   if (!query || query.length < 2) {
     setSearchResults([]);
     return;
   }
 
-  setSearching(true);
+
 
   try {
-    const lowerQuery = query.toLowerCase();
+    const res = await productsService.getAll({
+      searchTerm: query,
 
-    let filtered = allProducts.filter((product) => {
-      // ================================
-      // 🔴 1️⃣ Exclude products already in order
-      // ================================
+      // ✅ FIXED PARAMS
+      brandId: filters.brandId?.value || undefined,
+      categoryId: filters.categoryId?.value || undefined,
+
+      productType: filters.productType?.value
+        ? filters.productType.value.charAt(0).toUpperCase() +
+          filters.productType.value.slice(1).toLowerCase()
+        : undefined,
+
+  
+    });
+
+    console.log("API RESPONSE:", res.data);
+
+    let items = res.data?.data?.items || [];
+
+    // ❗ IF EMPTY → DEBUG HERE
+    if (items.length === 0) {
+      console.warn("⚠️ No products found from API");
+    }
+
+    // ✅ NORMALIZE
+items = items.map((p: any) => ({
+  ...p,
+  slug: p.slug || "",
+
+ productType: p.productType === "Grouped" ? "Grouped" : "Simple",// fallback
+}));
+
+    // ✅ FILTER
+    items = items.filter((product: any) => {
       const alreadyInOrder = order.orderItems.some(
         (item) => item.productId === product.id
       );
 
-      // ================================
-      // 🔴 2️⃣ Exclude products already newly added in this edit session
-      // ================================
-const alreadyAddedNow = operations.some(
-  (op) =>
-    op.operationType === OrderEditOperationType.AddItem &&
-    op.productId &&
-    op.productId === product.id
-);
-      if (alreadyInOrder || alreadyAddedNow) {
-        return false;
-      }
-
-      // ================================
-      // 🔍 3️⃣ Search by name or SKU
-      // ================================
-      const matchesSearch =
-        product.name?.toLowerCase().includes(lowerQuery) ||
-        product.sku?.toLowerCase().includes(lowerQuery);
-
-      // ================================
-      // 🏷 4️⃣ Product Type Filter
-      // ================================
-      const matchesProductType = filters.productType
-        ? product.productType?.toLowerCase() === filters.productType.value.toLowerCase()
-        : true;
-
-      // ================================
-      // 🏢 5️⃣ Brand Filter
-      // ================================
-      const matchesBrand = filters.brandId
-        ? product.brandId === filters.brandId.value
-        : true;
-
-      // ================================
-      // 📂 6️⃣ Category Filter
-      // ================================
-      const matchesCategory = filters.categoryId
-        ? product.categories?.some(
-            (c: any) => c.categoryId === filters.categoryId?.value
-          )
-        : true;
-
-      return (
-        matchesSearch &&
-        matchesProductType &&
-        matchesBrand &&
-        matchesCategory
+      const alreadyAddedNow = operations.some(
+        (op) =>
+          op.operationType === OrderEditOperationType.AddItem &&
+          op.productId === product.id
       );
+
+      return !alreadyInOrder && !alreadyAddedNow;
     });
 
-    // Limit results
-    filtered = filtered.slice(0, 20);
+setSearchResults(items as Product[]);
 
-    setSearchResults(filtered);
   } catch (error) {
-    console.error('Search error:', error);
-    toast.error('Failed to search products');
+    console.error("Search error:", error);
+    toast.error("Failed to search products");
     setSearchResults([]);
   } finally {
     setSearching(false);
   }
 };
-
   // ✅ Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      searchProducts(searchQuery);
-    }, 300);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, filters, allProducts]);
 
   // ===========================
   // ITEM OPERATIONS
@@ -708,7 +639,7 @@ useEffect(() => {
 
     const displayName = variant?.name || product.name || 'Unknown Product';
     const displaySku = variant?.sku || product.sku || '';
-    const displayImage = product.images?.[0] ?? null;
+  const displayImage = getProductImage(product.images || []);
 
     const operation = {
       operationType: OrderEditOperationType.AddItem,
@@ -1038,6 +969,7 @@ useEffect(() => {
                   options={[
                     { value: 'Simple', label: 'Simple' },
                     { value: 'Grouped', label: 'Grouped' },
+                    { value: 'variable', label: 'Variable' },
                   ]}
                   isClearable
                   placeholder="Type"
@@ -1099,13 +1031,18 @@ useEffect(() => {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+  setSearchQuery(e.target.value);
+ 
+}}
                   placeholder="Search products by name or SKU..."
                   className="w-full pl-9 pr-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-violet-400 animate-spin" />
-                )}
+ {searching && (
+  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+    <Loader2 className="h-4 w-4 text-violet-400 animate-[spin_0.6s_linear_infinite] will-change-transform" />
+  </div>
+)}
               </div>
 
               {/* Search Results */}
@@ -1129,6 +1066,7 @@ useEffect(() => {
   src={getProductImage(product.images || [])}
   alt={product.name}
   className="w-full h-full object-cover"
+    onError={(e) => (e.currentTarget.src = "/placeholder.png")}
 />
   </div>
 
@@ -1218,9 +1156,10 @@ useEffect(() => {
             <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700">
               {item.productImageUrl ? (
               <img
-  src={getOrderProductImage(item.productImageUrl)}
+  src={getThumbnailImage(item.productImageUrl)}
   alt={item.productName}
   className="w-full h-full object-cover"
+    onError={(e) => (e.currentTarget.src = "/placeholder.png")}
 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -1330,6 +1269,7 @@ useEffect(() => {
                   src={productImage}
                   alt={productName}
                   className="w-full h-full object-cover"
+                  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

@@ -84,32 +84,41 @@ export default function TopBrandsSlider({
           <Link href={`/brands/${brand.slug}`}>
 
 <Card
-  className="w-full h-[160px] md:h-[200px] lg:h-[230px] bg-white rounded-2xl
-             shadow-[0_4px_20px_rgba(0,0,0,0.08)]
-             hover:shadow-[0_6px_25px_rgba(0,0,0,0.12)]
-             transition-all duration-300 flex flex-col items-center justify-between py-3 md:py-6"
+  className="group w-full h-[170px] md:h-[210px] lg:h-[240px]
+             bg-white rounded-2xl border border-gray-100
+             shadow-sm md:hover:shadow-xl
+             transition-all duration-300
+             flex flex-col items-center justify-between
+             py-4 md:py-6 px-3
+             md:hover:-translate-y-1"
 >
   <CardContent className="p-0 w-full flex flex-col items-center justify-between h-full">
 
     {/* BIG LOGO LIKE DIRECT CARE */}
  {/* FIXED IMAGE WRAPPER */}
-<div className="w-[80px] h-[80px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px] flex items-center justify-center overflow-hidden">
-  <img
-    src={
+<div className="w-[90px] h-[90px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px]
+                flex items-center justify-center
+                rounded-xl bg-gray-50
+                md:group-hover:bg-white
+                transition-all duration-300 p-2">
+ <img
+  src={
     brand.logoUrl
       ? brand.logoUrl.startsWith("http")
         ? brand.logoUrl
         : `${baseUrl}${brand.logoUrl}`
       : "/placeholder.jpg"
   }
-    alt={brand.name}
-    className="w-auto h-full object-contain"
+  alt={brand.name}
+  className="w-auto h-full object-contain transition-transform duration-300 md:group-hover:scale-105"
   style={{ objectPosition: "center" }}
-  />
+/>
 </div>
 
     {/* BRAND NAME EXACT STYLE */}
-    <h3 className="font-semibold text-gray-900 text-xs md:text-base text-center pb-1 md:pb-2 px-1 line-clamp-1">
+    <h3 className="font-semibold text-gray-800 text-xs md:text-sm lg:text-base text-center
+               px-2 line-clamp-1
+               md:group-hover:text-[#445D41] transition-colors duration-300">
       {brand.name}
     </h3>
 

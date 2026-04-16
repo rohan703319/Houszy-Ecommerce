@@ -122,6 +122,7 @@ const navigation: NavigationItem[] = [
       { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban },
       { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText },
       { name: 'Comments', href: '/admin/comments', icon: MessageSquare },
+      { name: 'Contacts', href: '/admin/contact', icon: Mail },
     ],
   },
   {

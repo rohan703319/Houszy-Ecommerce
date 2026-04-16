@@ -15,13 +15,15 @@ import {
   AlertTriangle,
   Bell,
   CreditCard,
-  ShieldAlert
+  ShieldAlert,
+  AlertCircle
 } from 'lucide-react';
 import {
   orderService,
   Order,
   OrderStatus,
   CancelOrderRequest,
+  formatCurrency,
 } from '../../../lib/services/orders'; // ✅ FIXED PATH
 import { useToast } from '@/app/admin/_components/CustomToast';
 import ConfirmDialog from '../_components/ConfirmDialog';
@@ -32,46 +34,236 @@ interface OrderActionsModalProps {
   onClose: () => void;
   order: Order;
   action: string;
-  onSuccess: () => void;
+  onSuccess: (nextAction?: string) => void;
 }
 
 // ✅ Valid status transitions matching backend UpdateOrderStatusCommandHandler
+// type OrderStatus =
+//   | 'Processing'
+//   | 'Shipped'
+//   | 'Delivered'
+//   | 'Returned'
+//   | 'Cancelled';
 
+
+const OrderStatusHelper = ({
+  status,
+  deliveryMethod,
+  collectionStatus,
+  shipments,
+  orderItems
+}: {
+  status: OrderStatus;
+  deliveryMethod: string;
+  collectionStatus?: string;
+  shipments?: any[];
+  orderItems?: any[];
+}) => {
+  const isClickAndCollect = deliveryMethod === 'ClickAndCollect';
+  
+  // ✅ Check if there are multiple shipments (more than 1)
+  const hasMultipleShipments = shipments && shipments.length > 1;
+  
+  // ✅ Define the complete flow sequence in order
+  const getFlowSequence = (): string[] => {
+    if (isClickAndCollect) {
+      return ['Processing', 'Ready', 'Collected'];
+    }
+    
+    // Home Delivery flow
+    const sequence = ['Processing'];
+    if (hasMultipleShipments) {
+      sequence.push('PartiallyShipped');
+    }
+    sequence.push('Shipped', 'Delivered');
+    
+    // Add Returned only if status is Delivered or Returned
+    if (status === 'Delivered' || status === 'Returned') {
+      sequence.push('Returned');
+    }
+    
+    return sequence;
+  };
+  
+  const flowSequence = getFlowSequence();
+  
+  // ✅ Get current index in the sequence
+  const currentStatusIndex = flowSequence.indexOf(status);
+  
+  // ✅ Check if a step should be active (current or any previous step)
+  const isStepActive = (stepLabel: string): boolean => {
+    const stepIndex = flowSequence.indexOf(stepLabel);
+    
+    // Step not found in sequence
+    if (stepIndex === -1) return false;
+    
+    // For Click & Collect
+    if (isClickAndCollect) {
+      if (stepLabel === 'Ready' && collectionStatus === 'Ready') return true;
+      if (stepLabel === 'Collected' && collectionStatus === 'Collected') return true;
+      // For Processing, check if current status is Processing or beyond
+      if (stepLabel === 'Processing') {
+        return currentStatusIndex >= stepIndex;
+      }
+      return stepIndex <= currentStatusIndex;
+    }
+    
+    // For Home Delivery
+    // PartiallyShipped should only be active if there are multiple shipments
+    if (stepLabel === 'PartiallyShipped' && !hasMultipleShipments) {
+      return false;
+    }
+    
+    // Mark step as active if it's the current step or any previous step
+    return stepIndex <= currentStatusIndex;
+  };
+  
+  // ✅ Get flow steps for display (with show/hide logic)
+  const getFlowSteps = () => {
+    if (isClickAndCollect) {
+      return [
+        { label: 'Processing', hint: 'Order is being prepared', show: true },
+        { label: 'Ready', hint: 'Ready for collection', show: true },
+        { label: 'Collected', hint: 'Order collected by customer', show: true },
+      ];
+    }
+    
+    // Home Delivery Flow
+    const steps: { label: string; hint: string; show: boolean }[] = [
+      { label: 'Processing', hint: 'Order is being prepared', show: true },
+    ];
+    
+    // ✅ ONLY show PartiallyShipped when there are MULTIPLE shipments
+    if (hasMultipleShipments) {
+      steps.push({
+        label: 'PartiallyShipped',
+        hint: 'Some items shipped',
+        show: true
+      });
+    }
+    
+    steps.push(
+      { label: 'Shipped', hint: 'All items shipped', show: true },
+      { label: 'Delivered', hint: 'Order delivered', show: true }
+    );
+    
+    // Show Returned only for delivered orders
+    if (status === 'Delivered' || status === 'Returned') {
+      steps.push({
+        label: 'Returned',
+        hint: 'Returned by customer',
+        show: true
+      });
+    }
+    
+    return steps;
+  };
+  
+  const flow = getFlowSteps().filter(step => step.show);
+  
+  if (!flow.length) return null;
+  
+  // ✅ Get current step hint
+  const getCurrentHint = () => {
+    if (isClickAndCollect) {
+      if (collectionStatus === 'Collected') return 'Order has been collected';
+      if (collectionStatus === 'Ready') return 'Order is ready for collection';
+      const currentStep = flow.find((s) => s.label === status);
+      return currentStep?.hint || '';
+    }
+    
+    // For Home Delivery - show partial hint ONLY if multiple shipments
+    if (hasMultipleShipments && status !== 'Shipped' && status !== 'Delivered' && status !== 'Returned') {
+      return 'Multiple shipments - Some items shipped, remaining pending';
+    }
+    
+    const currentStep = flow.find((s) => s.label === status);
+    return currentStep?.hint || '';
+  };
+  
+  return (
+    <div className="mt-3 rounded-xl border border-slate-700/50 bg-slate-900/40 p-3">
+      <p className="text-xs text-slate-400 mb-2">
+        Order Flow Guide {hasMultipleShipments && '(Multiple Shipments)'}
+      </p>
+      
+      <div className="flex flex-wrap items-center gap-2">
+        {flow.map((step, index) => {
+          const isActive = isStepActive(step.label);
+          
+          return (
+            <div key={step.label} className="flex items-center gap-2">
+              {/* Step */}
+              <div
+                className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
+                  isActive
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-sm shadow-emerald-500/20'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
+              >
+                {step.label === 'PartiallyShipped' ? 'Partially Shipped' : step.label}
+              </div>
+              
+              {/* Arrow */}
+              {index < flow.length - 1 && (
+                <span className="text-slate-600 text-xs">→</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* Hint */}
+      <p className="text-[11px] text-slate-500 mt-2">
+        {getCurrentHint()}
+      </p>
+      
+      {/* Show shipment info if multiple shipments */}
+      {hasMultipleShipments && (
+        <div className="mt-2 pt-2 border-t border-slate-700/50">
+          <p className="text-[10px] text-cyan-400">
+            📦 {shipments.length} shipments created for this order
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 export const getValidStatusTransitions = (
   currentStatus: OrderStatus,
-  deliveryMethod: string
+  deliveryMethod: string,
+  itemCount: number
 ): OrderStatus[] => {
+
+  const isClickAndCollect = deliveryMethod === 'ClickAndCollect';
 
   const transitions: Record<OrderStatus, OrderStatus[]> = {
 
-    Pending: [
-      'Confirmed',
-      'Processing'
-    ],
+    Pending: ['Confirmed', 'Processing'],
 
-    Confirmed: deliveryMethod === 'ClickAndCollect'
-      ? ['Processing']
-      : ['Processing', 'Shipped'],
+    Confirmed: ['Processing'],
 
-    Processing: deliveryMethod === 'ClickAndCollect'
-      ? []  // Click & Collect uses Mark Ready instead
-      : ['Shipped', 'PartiallyShipped'],
+    CancellationRequested: [],
 
-    Shipped: [
-      'Delivered',
-      'Returned'
-    ],
+    Processing: isClickAndCollect
+      ? [] // handled via Ready → Collected flow
+      : (itemCount > 1
+          ? ['Shipped', 'PartiallyShipped']
+          : ['Shipped']),
 
-    PartiallyShipped: [
-      'Shipped',
-      'Delivered'
-    ],
+    Shipped: isClickAndCollect
+      ? []
+      : ['Delivered'],
 
-    Delivered: [
-      'Returned'
-    ],
+    PartiallyShipped: isClickAndCollect
+      ? []
+      : ['PartiallyShipped', 'Shipped'],
 
-    // Terminal states
+    Delivered: ['Returned'],
+
+    // 🔥 IMPORTANT (your missing piece)
+    Collected: [],
+
     Cancelled: [],
     Returned: [],
     Refunded: []
@@ -79,116 +271,124 @@ export const getValidStatusTransitions = (
 
   return transitions[currentStatus] || [];
 };
+
+
 // ✅ Status display info
 const getStatusDisplayInfo = (status: OrderStatus) => {
-  const statusMap: Record<OrderStatus, { label: string; color: string; icon: JSX.Element }> = {
-    'Pending': { 
-      label: 'Pending', 
-      color: 'text-yellow-400', 
-      icon: <Clock className="w-4 h-4" /> 
+  const statusMap: Record<
+    OrderStatus,
+    { label: string; color: string; icon: JSX.Element }
+  > = {
+    Pending: {
+      label: 'Pending',
+      color: 'text-yellow-400',
+      icon: <Clock className="w-4 h-4" />
     },
-    'Confirmed': { 
-      label: 'Confirmed', 
-      color: 'text-blue-400', 
-      icon: <CheckCircle className="w-4 h-4" /> 
+    Confirmed: {
+      label: 'Confirmed',
+      color: 'text-blue-400',
+      icon: <CheckCircle className="w-4 h-4" />
     },
-    'Processing': { 
-      label: 'Processing', 
-      color: 'text-cyan-400', 
-      icon: <Package className="w-4 h-4" /> 
+    Processing: {
+      label: 'Processing',
+      color: 'text-cyan-400',
+      icon: <Package className="w-4 h-4" />
     },
-    'Shipped': { 
-      label: 'Shipped', 
-      color: 'text-purple-400', 
-      icon: <Truck className="w-4 h-4" /> 
+    CancellationRequested: {
+      label: 'Cancellation Requested',
+      color: 'text-amber-300',
+      icon: <AlertCircle className="w-4 h-4" />
     },
-    'PartiallyShipped': { 
-      label: 'Partially Shipped', 
-      color: 'text-indigo-400', 
-      icon: <Truck className="w-4 h-4" /> 
+
+    Shipped: {
+      label: 'Shipped',
+      color: 'text-purple-400',
+      icon: <Truck className="w-4 h-4" />
     },
-    'Delivered': { 
-      label: 'Delivered', 
-      color: 'text-green-400', 
-      icon: <CheckCircle className="w-4 h-4" /> 
+    PartiallyShipped: {
+      label: 'Partially Shipped',
+      color: 'text-indigo-400',
+      icon: <Truck className="w-4 h-4" />
     },
-    'Cancelled': { 
-      label: 'Cancelled', 
-      color: 'text-red-400', 
-      icon: <XCircle className="w-4 h-4" /> 
+
+    Delivered: {
+      label: 'Delivered',
+      color: 'text-green-400',
+      icon: <CheckCircle className="w-4 h-4" />
     },
-    'Returned': { 
-      label: 'Returned', 
-      color: 'text-orange-400', 
-      icon: <Package className="w-4 h-4" /> 
+
+    // ✅ ADD THIS (missing)
+    Collected: {
+      label: 'Collected',
+      color: 'text-green-400',
+      icon: <CheckCircle className="w-4 h-4" />
     },
-    'Refunded': { 
-      label: 'Refunded', 
-      color: 'text-pink-400', 
-      icon: <XCircle className="w-4 h-4" /> 
+
+    Cancelled: {
+      label: 'Cancelled',
+      color: 'text-red-400',
+      icon: <XCircle className="w-4 h-4" />
+    },
+    Returned: {
+      label: 'Returned',
+      color: 'text-orange-400',
+      icon: <Package className="w-4 h-4" />
+    },
+    Refunded: {
+      label: 'Refunded',
+      color: 'text-pink-400',
+      icon: <XCircle className="w-4 h-4" />
     },
   };
 
-  return statusMap[status] || statusMap['Pending'];
+  return statusMap[status] || statusMap.Pending;
 };
 
 // ✅ NEW: Check if order is paid
 const isOrderPaid = (order: Order): boolean => {
-  if (!order.payments || order.payments.length === 0) return false;
-
-  const paidStatuses = ['Successful', 'Completed'];
-
-  return order.payments.some((payment) =>
-    paidStatuses.includes(payment.status)
+  return ['Successful', 'Completed', 'PartiallyRefunded'].includes(
+    order.paymentStatus ?? ''
   );
 };
 
 // ✅ NEW: Get payment status display
 const getPaymentStatusDisplay = (order: Order) => {
-  if (!order.payments || order.payments.length === 0) {
-    return { 
-      label: 'No Payment', 
-      color: 'text-red-400', 
-      icon: <AlertTriangle className="w-4 h-4" /> 
-    };
-  }
+  const status = order.paymentStatus ?? 'Pending';
 
-  const payment = order.payments[0];
-  const statusMap: Record<string, { label: string; color: string; icon: JSX.Element }> = {
-    'Successful': { 
-      label: 'Paid', 
-      color: 'text-green-400', 
-      icon: <CheckCircle className="w-4 h-4" /> 
+  const statusMap = {
+    Successful: {
+      label: 'Paid',
+      color: 'text-green-400',
+      icon: <CheckCircle className="w-4 h-4" />,
     },
-    'Completed': { 
-      label: 'Paid', 
-      color: 'text-green-400', 
-      icon: <CheckCircle className="w-4 h-4" /> 
+    Completed: {
+      label: 'Paid',
+      color: 'text-green-400',
+      icon: <CheckCircle className="w-4 h-4" />,
     },
-    
-    'Pending': { 
-      label: 'Payment Pending', 
-      color: 'text-yellow-400', 
-      icon: <Clock className="w-4 h-4" /> 
+    PartiallyRefunded: {
+      label: 'Partially Refunded',
+      color: 'text-amber-400',
+      icon: <AlertTriangle className="w-4 h-4" />,
     },
-    'Processing': { 
-      label: 'Processing Payment', 
-      color: 'text-blue-400', 
-      icon: <Loader2 className="w-4 h-4 animate-spin" /> 
+    Refunded: {
+      label: 'Refunded',
+      color: 'text-purple-400',
+      icon: <XCircle className="w-4 h-4" />,
     },
-    'Failed': { 
-      label: 'Payment Failed', 
-      color: 'text-red-400', 
-      icon: <XCircle className="w-4 h-4" /> 
+    Pending: {
+      label: 'Payment Pending',
+      color: 'text-yellow-400',
+      icon: <Clock className="w-4 h-4" />,
     },
-    'Refunded': { 
-      label: 'Refunded', 
-      color: 'text-purple-400', 
-      icon: <XCircle className="w-4 h-4" /> 
+    Failed: {
+      label: 'Payment Failed',
+      color: 'text-red-400',
+      icon: <XCircle className="w-4 h-4" />,
     },
   };
 
-  return statusMap[payment.status] || statusMap['Pending'];
+  return statusMap[status as keyof typeof statusMap] || statusMap.Pending;
 };
 
 export default function OrderActionsModal({
@@ -200,7 +400,7 @@ export default function OrderActionsModal({
 }: OrderActionsModalProps) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
-  const [showNotificationPreview, setShowNotificationPreview] = useState(false);
+  const [showNotificationPreview, setShowNotificationPreview] = useState(true);
 // inside component
 const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 const [pendingCancelRequest, setPendingCancelRequest] = useState<CancelOrderRequest | null>(null);
@@ -257,30 +457,33 @@ useEffect(() => {
   }
 }, [user]);
   // ✅ Get available statuses dynamically based on delivery method
-  const availableStatuses = getValidStatusTransitions(order.status, order.deliveryMethod);
+ const availableStatuses = getValidStatusTransitions(
+  order.status,
+  order.deliveryMethod,
+  order.orderItems.length
+);
 
   // ✅ Check payment status
   const isPaid = isOrderPaid(order);
   const paymentDisplay = getPaymentStatusDisplay(order);
 
   // ✅ Initialize shipment items when modal opens for create-shipment action
-  useEffect(() => {
-    if (isOpen && action === 'create-shipment' && order.orderItems.length > 0) {
-      setShipmentData((prev) => ({
-        ...prev,
-        selectedItems: order.orderItems.map((item) => ({
-          orderItemId: item.id,
-          quantity: item.quantity,
-        })),
-      }));
-    }
-  }, [isOpen, action, order.orderItems]);
-
+useEffect(() => {
+  if (isOpen && action === 'create-shipment') {
+    setShipmentData((prev) => ({
+      ...prev,
+      selectedItems: order.orderItems.map((item: any) => ({
+        orderItemId: item.id,
+        quantity: item.quantity // ✅ default full qty
+      }))
+    }));
+  }
+}, [isOpen, action, order.orderItems]);
   // ✅ Reset form data when modal opens/closes or action changes
 useEffect(() => {
   if (isOpen) {
     setReadyConfirmed(false);
-    setShowNotificationPreview(false);
+    setShowNotificationPreview(true);
     setCollectedData({
       collectedBy: '',
       collectorIDType: '',
@@ -309,86 +512,97 @@ useEffect(() => {
     });
   }
 }, [isOpen, action, order.status, order.shipments, isPaid, user]);
-
-  const actionHandlers: Record<string, () => Promise<void>> = {
+const actionHandlers: Record<string, () => Promise<'handled' | void>> = {
   'mark-ready': async () => {
-    await orderService.markReady(order.id);
-    toast.success('✅ Order marked as ready');
+    const res = await orderService.markReady(order.id);
+    toast.success(res?.message || 'Order marked as ready');
   },
 
   'mark-collected': async () => {
-    await orderService.markCollected({
+    const res = await orderService.markCollected({
       orderId: order.id,
       collectedBy: collectedData.collectedBy,
       collectorIDType: collectedData.collectorIDType,
       collectorIDNumber: collectedData.collectorIDNumber,
     });
-    toast.success('✅ Order marked as collected');
+    toast.success(res?.message || 'Order marked as collected');
   },
 
+  // ✅ CLEANED — NO SHIPPING INTERCEPT HERE
   'update-status': async () => {
-    await orderService.updateStatus({
+    const res = await orderService.updateStatus({
       orderId: order.id,
       newStatus: statusData.newStatus,
       adminNotes: statusData.adminNotes || undefined,
     });
-    toast.success('✅ Status updated');
+    toast.success(res?.message || 'Status updated');
   },
 
   'create-shipment': async () => {
-    await orderService.createShipment({
+    const res = await orderService.createShipment({
       orderId: order.id,
       trackingNumber: shipmentData.trackingNumber,
       carrier: shipmentData.carrier,
       shippingMethod: shipmentData.shippingMethod,
       notes: shipmentData.notes || undefined,
-      shipmentItems: shipmentData.selectedItems,
+      shipmentItems: shipmentData.selectedItems.filter(item => item.quantity > 0)
     });
-    toast.success('✅ Shipment created');
+    toast.success(res?.message || 'Shipment created');
   },
 
   'mark-delivered': async () => {
-    await orderService.markDelivered({
+    const res = await orderService.markDelivered({
       orderId: order.id,
       shipmentId: deliveredData.shipmentId,
       deliveredAt: new Date(deliveredData.deliveredAt).toISOString(),
       deliveryNotes: deliveredData.deliveryNotes || undefined,
       receivedBy: deliveredData.receivedBy || undefined,
     });
-    toast.success('✅ Order delivered');
+    toast.success(res?.message || 'Order delivered');
   }
 };
-
-const isCashOnDelivery =
-  order?.paymentMethod?.toLowerCase() === "cashondelivery" ||
-  order?.payments?.some(
-    (p: any) =>
-      p.paymentMethod?.toLowerCase() === "cashondelivery"
-  );
 
 const handleSubmit = async (e: FormEvent) => {
   e.preventDefault();
 
- if (action === 'cancel-order') {
-  const cancelRequest: CancelOrderRequest = {
-    orderId: order.id,
-    cancellationReason: cancelData.cancellationReason,
-    restoreInventory: cancelData.restoreInventory,
-    initiateRefund: cancelData.initiateRefund,
-    cancelledBy: cancelData.cancelledBy,
-  };
+  // ✅ Handle Cancel Order separately (shows confirmation dialog)
+  if (action === 'cancel-order') {
+    // Validate cancellation reason
+    if (!cancelData.cancellationReason.trim()) {
+      toast.error('Please enter a cancellation reason');
+      return;
+    }
 
-  setPendingCancelRequest(cancelRequest);
-  setShowCancelConfirm(true);
-  return;
-}
+    // Prepare cancel request
+    setPendingCancelRequest({
+      orderId: order.id,
+      cancellationReason: cancelData.cancellationReason,
+      cancelledBy: cancelData.cancelledBy,
+      restoreInventory: cancelData.restoreInventory,
+      initiateRefund: cancelData.initiateRefund,
+    });
+    
+    // Show confirmation dialog
+    setShowCancelConfirm(true);
+    return;
+  }
 
-  if (!actionHandlers[action]) return;
+  // ✅ Handle other actions
+  if (!actionHandlers[action]) {
+    toast.error('Invalid action');
+    return;
+  }
 
   try {
     setLoading(true);
-    await actionHandlers[action]();
-    onSuccess();
+
+    const result = await actionHandlers[action]();
+
+    // 🔥 DO NOT CLOSE IF HANDLED
+    if (result !== 'handled') {
+      onSuccess();
+    }
+
   } catch (error: any) {
     toast.error(error.message || 'Failed to perform action');
   } finally {
@@ -397,14 +611,30 @@ const handleSubmit = async (e: FormEvent) => {
 };
 
 
-  const updateShipmentItemQuantity = (orderItemId: string, quantity: number) => {
-    setShipmentData((prev) => ({
+const updateShipmentItemQuantity = (orderItemId: string, quantity: number) => {
+  setShipmentData((prev) => {
+    const exists = prev.selectedItems.find(i => i.orderItemId === orderItemId);
+
+    if (!exists) {
+      return {
+        ...prev,
+        selectedItems: [
+          ...prev.selectedItems,
+          { orderItemId, quantity }
+        ]
+      };
+    }
+
+    return {
       ...prev,
       selectedItems: prev.selectedItems.map((item) =>
-        item.orderItemId === orderItemId ? { ...item, quantity } : item
+        item.orderItemId === orderItemId
+          ? { ...item, quantity }
+          : item
       ),
-    }));
-  };
+    };
+  });
+};
 
   // ✅ NEW: Pharmacy verification guard
 const isPharmacyLocked =
@@ -457,8 +687,7 @@ const PharmacyWarning = () => {
     const PaymentWarning = () => {
   if (!['create-shipment', 'mark-delivered'].includes(action)) return null;
 
-  // 🔥 Hide for COD
-  if (isCashOnDelivery) return null;
+
 
   if (!isPaid) {
     return (
@@ -494,14 +723,19 @@ const PharmacyWarning = () => {
 
       return (
         <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => setShowNotificationPreview(!showNotificationPreview)}
-            className="flex items-center gap-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            {showNotificationPreview ? 'Hide' : 'Preview'} customer notification
-          </button>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+  <input
+    type="checkbox"
+    checked={showNotificationPreview}
+    onChange={(e) => setShowNotificationPreview(e.target.checked)}
+    className="rounded bg-slate-800 border-slate-600 text-cyan-500 focus:ring-cyan-500"
+  />
+
+  <div className="flex items-center gap-2 text-xs text-cyan-400">
+    <Bell className="w-3.5 h-3.5" />
+    Send customer notification
+  </div>
+</label>
           
           {showNotificationPreview && (
             <div className="mt-2 p-3 bg-cyan-500/5 border border-cyan-500/20 rounded-lg">
@@ -636,13 +870,7 @@ const PharmacyWarning = () => {
       case 'update-status':
         return (
           <div className="space-y-2">
-            <div className="flex items-center gap-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <Clock className="h-6 w-6 text-blue-400" />
-              <div>
-                <p className="text-white font-medium">Update Order Status</p>
-                <p className="text-sm text-slate-400">Change the current status of this order.</p>
-              </div>
-            </div>
+           
                <PharmacyWarning />
 {(() => {
   const currentStatusInfo = getStatusDisplayInfo(order.status);
@@ -686,17 +914,46 @@ const PharmacyWarning = () => {
               </label>
               {/* ✅ Conditionally show only valid statuses based on delivery method */}
               {availableStatuses.length > 0 ? (
-                <select
-                  value={statusData.newStatus}
-                  onChange={(e) =>
-                    setStatusData({ ...statusData, newStatus: e.target.value as OrderStatus })
-                  }
+               <select
+  value={statusData.newStatus}
+onChange={(e) => {
+  const value = e.target.value;
+
+if (value === 'Ready' && order.deliveryMethod === 'ClickAndCollect') {
+  onClose();
+  onSuccess('mark-ready');
+  return;
+}
+
+if (value === 'Collected' && order.deliveryMethod === 'ClickAndCollect') {
+  onClose();
+  onSuccess('mark-collected');
+  return;
+}
+
+// ✅ HANDLE PARTIAL FLOW ALSO
+if (
+  value === 'Shipped' ||
+  value === 'PartiallyShipped' ||
+  order.status === 'PartiallyShipped'   // 🔥 ADD THIS LINE
+) {
+  onClose();
+  onSuccess('create-shipment');
+  return;
+}
+
+  setStatusData({
+    ...statusData,
+    newStatus: value as OrderStatus,
+  });
+}}
+
                   className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                   required
                 >
                   <option value={order.status}>Select new status</option>
                   {availableStatuses.map((status) => (
-                    <option className='bg-gray-800 text-white' key={status} value={status}>
+                    <option className='bg-gray-800/80 text-white' key={status} value={status}>
                       {getStatusDisplayInfo(status).label}
                     </option>
                   ))}
@@ -723,14 +980,26 @@ const PharmacyWarning = () => {
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Admin Notes
               </label>
-              <textarea
-                value={statusData.adminNotes}
-                onChange={(e) => setStatusData({ ...statusData, adminNotes: e.target.value })}
-                placeholder="Add notes about this status change..."
-                rows={3}
-                className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-              />
+             <textarea
+  value={statusData.adminNotes}
+  onChange={(e) =>
+    setStatusData({
+      ...statusData,
+      adminNotes: e.target.value,
+    })
+  }
+  placeholder="Add notes about this status change..."
+  rows={3}
+  className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+/>
             </div>
+<OrderStatusHelper
+  status={order.status}
+  deliveryMethod={order.deliveryMethod}
+  collectionStatus={order.collectionStatus}
+  shipments={order.shipments}        // ✅ Pass shipments
+  orderItems={order.orderItems}      
+/>
           </div>
         );
 
@@ -755,7 +1024,6 @@ const PharmacyWarning = () => {
                 <p className="text-sm text-slate-400">Add tracking and shipment details.</p>
               </div>
             </div>
-
             <PaymentWarning />
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -772,7 +1040,7 @@ const PharmacyWarning = () => {
                   placeholder="e.g., 1Z999AA1234567890"
                   className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                   required
-                  disabled={!isPaid && !isCashOnDelivery}
+                  disabled={!isPaid }
                 />
               </div>
 
@@ -789,14 +1057,14 @@ const PharmacyWarning = () => {
                   placeholder="e.g., DHL, FedEx, UPS"
                   className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                   required
-                  disabled={!isPaid && !isCashOnDelivery}
+                  disabled={!isPaid}
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Shipping Method <span className="text-red-500">*</span>
+                Shipping Method 
               </label>
               <input
                 type="text"
@@ -806,8 +1074,8 @@ const PharmacyWarning = () => {
                 }
                 placeholder="e.g., Standard, Express"
                 className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                required
-                disabled={!isPaid && !isCashOnDelivery}
+         
+                disabled={!isPaid }
               />
             </div>
 
@@ -819,7 +1087,7 @@ const PharmacyWarning = () => {
                 placeholder="Additional shipment notes..."
                 rows={2}
                 className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                disabled={!isPaid && !isCashOnDelivery}
+                disabled={!isPaid}
               />
             </div>
 
@@ -828,34 +1096,83 @@ const PharmacyWarning = () => {
                 Shipment Items
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {order.orderItems.map((item) => {
-                  const shipmentItem = shipmentData.selectedItems.find(
-                    (si) => si.orderItemId === item.id
-                  );
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700"
-                    >
-                      <div className="flex-1">
-                        <p className="text-white text-sm font-medium">{item.productName}</p>
-                        <p className="text-xs text-slate-400">SKU: {item.productSku}</p>
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        max={item.quantity}
-                        value={shipmentItem?.quantity || 0}
-                        onChange={(e) =>
-                          updateShipmentItemQuantity(item.id, Number(e.target.value))
-                        }
-                        className="w-20 px-2 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-center focus:ring-2 focus:ring-violet-500"
-                        disabled={!isPaid && !isCashOnDelivery}
-                      />
-                      <span className="text-slate-400 text-sm ml-2">/ {item.quantity}</span>
-                    </div>
-                  );
-                })}
+              {order.orderItems.map((item) => {
+  const shipmentItem = shipmentData.selectedItems.find(
+    (si) => si.orderItemId === item.id
+  );
+
+  // ✅ detect shipped
+const isShipped = order.shipments?.some(shipment =>
+  shipment.shipmentItems?.some(si => si.orderItemId === item.id)
+) ?? false;
+
+  return (
+    <div
+      key={item.id}
+      className={`flex items-center justify-between p-3 rounded-lg border 
+        ${isShipped 
+          ? 'bg-emerald-500/10 border-emerald-500/30 opacity-70' 
+          : 'bg-slate-900/50 border-slate-700'
+        }`}
+    >
+      <div className="flex-1">
+        <p className="text-white text-sm font-medium flex items-center gap-2">
+          {item.productName}
+
+          {/* ✅ SHIPPED BADGE */}
+          {isShipped && (
+            <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded border border-emerald-500/30">
+              Shipped
+            </span>
+          )}
+        </p>
+
+        <p className="text-xs text-slate-400">SKU: {item.productSku}</p>
+        <p className="text-xs text-slate-500">
+  Price: {formatCurrency(item.unitPrice, order.currency)}
+</p>
+
+        {/* ✅ USER FEEDBACK */}
+        {isShipped && (
+          <p className="text-[11px] text-emerald-400 mt-1">
+            Already shipped. Quantity locked.
+          </p>
+        )}
+      </div>
+
+      <input
+        type="number"
+        min="0"
+        max={item.quantity}
+    value={shipmentItem?.quantity ?? item.quantity}
+     onChange={(e) => {
+    let value = Number(e.target.value);
+
+    // ✅ HARD LIMIT
+    if (value > item.quantity) value = item.quantity;
+    if (value < 0) value = 0;
+
+    updateShipmentItemQuantity(item.id, value);
+  }}
+        className={`w-20 px-2 py-1.5 border rounded-lg text-center
+          ${isShipped
+            ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+            : 'bg-slate-800 border-slate-600 text-white focus:ring-2 focus:ring-violet-500'
+          }`}
+        disabled={isShipped || (!isPaid  )}
+        title={
+          isShipped
+            ? 'This item is already shipped and cannot be modified'
+            : ''
+        }
+      />
+
+      <span className="text-slate-400 text-sm ml-2">
+        / {item.quantity}
+      </span>
+    </div>
+  );
+})}
               </div>
             </div>
 
@@ -900,7 +1217,7 @@ const PharmacyWarning = () => {
                     }
                     className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                     required
-                    disabled={!isPaid && !isCashOnDelivery}
+                    disabled={!isPaid  }
                   >
                     {order.shipments.map((shipment) => (
                       <option key={shipment.id} value={shipment.id}>
@@ -922,7 +1239,7 @@ const PharmacyWarning = () => {
                     }
                     className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                     required
-                    disabled={!isPaid && !isCashOnDelivery}
+                    disabled={!isPaid  }
                   />
                 </div>
 
@@ -938,7 +1255,7 @@ const PharmacyWarning = () => {
                     }
                     placeholder="Name of person who received"
                     className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    disabled={!isPaid && !isCashOnDelivery}
+                    disabled={!isPaid  }
                   />
                 </div>
 
@@ -954,7 +1271,7 @@ const PharmacyWarning = () => {
                     placeholder="Additional delivery notes..."
                     rows={3}
                     className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    disabled={!isPaid && !isCashOnDelivery}
+                    disabled={!isPaid  }
                   />
                 </div>
 
@@ -976,7 +1293,6 @@ const PharmacyWarning = () => {
             <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
               <XCircle className="h-6 w-6 text-red-400" />
               <div>
-                <p className="text-white font-medium">Cancel Order</p>
                 <p className="text-sm text-slate-400">
                   This action will cancel the order and optionally process refund.
                 </p>
@@ -1097,9 +1413,7 @@ if (isPharmacyLocked && action === 'update-status') {
   // ✅ Payment check for shipment/delivery
 if (
   ['create-shipment', 'mark-delivered'].includes(action) &&
-  !isPaid &&
-  !isCashOnDelivery
-) {
+  !isPaid ) {
   return false;
 }
   switch (action) {
@@ -1125,7 +1439,6 @@ if (
         order.deliveryMethod === 'HomeDelivery' &&
         shipmentData.trackingNumber &&
         shipmentData.carrier &&
-        shipmentData.shippingMethod &&
         shipmentData.selectedItems.some((item) => item.quantity > 0)
       );
 
@@ -1219,9 +1532,9 @@ case 'cancel-order':
     try {
       setLoading(true);
 
-      await orderService.cancelOrder(pendingCancelRequest);
+      const res = await orderService.cancelOrder(pendingCancelRequest);
 
-      toast.success('✅ Order cancelled successfully');
+      toast.success(res?.message || 'Order cancelled successfully');
       onSuccess();
     } catch (error: any) {
       toast.error(error.message || 'Failed to cancel order');

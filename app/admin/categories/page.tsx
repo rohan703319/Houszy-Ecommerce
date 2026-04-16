@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Search, FolderTree, Eye, Upload, Filter, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, CheckCircle, ChevronDown, ChevronRight as ChevronRightIcon, X, Award, Package, Copy, RotateCcw } from "lucide-react";
-import { ProductDescriptionEditor } from "../_components/SelfHostedEditor";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Plus, Edit, Trash2, Search, FolderTree, Eye, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, CheckCircle, ChevronDown, ChevronRight as ChevronRightIcon, X, Award, Package, Copy, RotateCcw, MessageCircle, HelpCircle } from "lucide-react";
+
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
-import { API_BASE_URL } from "@/lib/api";
+
 import { categoriesService, Category, CategoryStats } from "@/lib/services/categories";
 import { useRouter } from "next/navigation";
+import CategoryModal from "./CategoryModal";
+import { categoryFaqsService, Faq } from "@/lib/services/categoryFaqs";
+import { extractFilename, formatDate, getImageUrl } from "../_utils/formatUtils";
 
 export default function CategoriesPage() {
   const toast = useToast();
@@ -15,13 +18,14 @@ export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showParentDropdown, setShowParentDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [viewingCategory, setViewingCategory] = useState<Category | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [levelFilter, setLevelFilter] = useState<string>("all");
+const [pendingFaqs, setPendingFaqs] = useState<Faq[]>([]);
   const [homepageFilter, setHomepageFilter] = useState<'all' | 'yes' | 'no'>('all');
 const [deletedFilter, setDeletedFilter] = useState<'all' | 'deleted' | 'notDeleted'>('all');
 const handleRestore = async (category: Category) => {
@@ -45,7 +49,7 @@ const handleRestore = async (category: Category) => {
     setRestoreConfirm(null);
   }
 };
-  const MAX_HOMEPAGE_CATEGORIES = 50;
+  
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedParentId, setSelectedParentId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +57,7 @@ const handleRestore = async (category: Category) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 // Add after other useState declarations
 const [homepageCategories, setHomepageCategories] = useState<Category[]>([]); 
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -62,14 +67,15 @@ const [homepageCategories, setHomepageCategories] = useState<Category[]>([]);
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
-const [stats, setStats] = useState<CategoryStats>({
+const [stats, setStats] = useState({
   totalCategories: 0,
-  totalProducts: 0,
-  activeCategories: 0,
-  homepageCategories: 0  // ✅ Add this
+  totalActive: 0,
+  totalInactive: 0,
+  totalShowOnHomepage: 0,
+  totalProducts: 0
 });
 
-
+const [openFaqCategory, setOpenFaqCategory] = useState<Category | null>(null);
   const [imageDeleteConfirm, setImageDeleteConfirm] = useState<{
     categoryId: string;
     imageUrl: string;
@@ -83,36 +89,35 @@ const [stats, setStats] = useState<CategoryStats>({
     imageUrl: "",
     isActive: true,
     showOnHomepage: false,  // ✅ ADD THIS LINE
-    sortOrder: 0,
+   sortOrder: "" as number | "",
     metaTitle: "",
     metaDescription: "",
     metaKeywords: "",
     parentCategoryId: ""
   });
 
-  const toggleCategoryExpansion = (categoryId: string) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId);
-      } else {
-        newSet.add(categoryId);
+const toggleCategoryExpansion = (categoryId: string) => {
+  setExpandedCategories(prev => {
+    const newSet = new Set(prev);
+
+    if (newSet.has(categoryId)) {
+      newSet.delete(categoryId);
+    } else {
+      newSet.add(categoryId);
+
+      // 🔥 ADD THIS (key logic)
+      const category = findCategoryById(categoryId, categories);
+      if (category) {
+        const parents = getParentChain(category, categories);
+        parents.forEach(p => newSet.add(p.id));
       }
-      return newSet;
-    });
-  };
-const extractFilename = (imageUrl: string) => {
-  if (!imageUrl) return "";
-  const parts = imageUrl.split('/');
-  return parts[parts.length - 1];
+    }
+
+    return newSet;
+  });
 };
 
-const getImageUrl = (imageUrl?: string) => {
-  if (!imageUrl) return "";
-  if (imageUrl.startsWith("http")) return imageUrl;
-  const cleanUrl = imageUrl.split('?')[0];
-  return `${API_BASE_URL}${cleanUrl}`;
-};
+
 
 // Add this NEW helper function after getCategoryLevel
 const getMaxDepthOfSubtree = (category: Category, allCategories: Category[]): number => {
@@ -139,66 +144,64 @@ const fetchCategories = async () => {
   try {
     setLoading(true);
 
-    // ==============================
-    // DEFAULT PARAMS (ADMIN PANEL)
-    // ==============================
     const params: any = {
       includeSubCategories: true,
-      includeInactive: true, // admin can see inactive
-      isActive: true, // ✅ default active only
+      includeInactive: true,
+      isActive: true,
     };
 
-    // ==============================
-    // FILTER OVERRIDES
-    // ==============================
-
-    // 🔥 Deleted filter has highest priority
+    // Deleted filter
     if (deletedFilter === "deleted") {
       params.isDeleted = true;
-      delete params.isActive; // deleted me active filter remove
-    } 
-    else if (deletedFilter === "notDeleted") {
+      delete params.isActive;
+    } else if (deletedFilter === "notDeleted") {
       params.isDeleted = false;
     }
 
-    // Status filter (override default isActive)
+    // Status filter
     if (statusFilter === "active") {
       params.isActive = true;
-    } 
-    else if (statusFilter === "inactive") {
+    } else if (statusFilter === "inactive") {
       params.isActive = false;
-    } 
-    else if (statusFilter === "all") {
-      delete params.isActive; // show all
+    } else if (statusFilter === "all") {
+      delete params.isActive;
     }
 
     // Homepage filter
     if (homepageFilter === "yes") {
       params.showOnHomepage = true;
-    } 
-    else if (homepageFilter === "no") {
+    } else if (homepageFilter === "no") {
       params.showOnHomepage = false;
     }
 
-    // Search filter
-if (debouncedSearch?.trim()) {
-  params.search = debouncedSearch.trim();
-}
+ 
 
-    // Level filter
+    // Level
     if (levelFilter !== "all") {
       params.level = Number(levelFilter.replace("level", ""));
     }
 
-    // ==============================
     // API CALL
-    // ==============================
     const response = await categoriesService.getAll({ params });
-    const categoriesData: Category[] = response.data?.data || [];
 
-    // ==============================
-    // RECURSIVE SORTING
-    // ==============================
+    const categoriesData: Category[] = Array.isArray(response.data?.data?.items)
+      ? response.data.data.items
+      : [];
+
+    const statsData = response.data?.data?.stats;
+
+    // ✅ SAFE MAPPING (fix error permanently)
+    if (statsData) {
+      setStats({
+        totalCategories: statsData.totalCategories || 0,
+        totalActive: statsData.totalActive || 0,
+        totalInactive: statsData.totalInactive || 0,
+        totalShowOnHomepage: statsData.totalShowOnHomepage || 0,
+        totalProducts: statsData.totalProducts || 0
+      });
+    }
+
+    // SORT
     const sortRecursive = (cats: Category[]): Category[] => {
       return cats
         .map(cat => ({
@@ -209,12 +212,10 @@ if (debouncedSearch?.trim()) {
               : [],
         }))
         .sort((a, b) => {
-          // Active first
           if (a.isActive !== b.isActive) {
             return a.isActive ? -1 : 1;
           }
 
-          // Then newest first
           const dateA = new Date(a.createdAt || 0).getTime();
           const dateB = new Date(b.createdAt || 0).getTime();
 
@@ -225,7 +226,6 @@ if (debouncedSearch?.trim()) {
     const sortedCategories = sortRecursive(categoriesData);
 
     setCategories(sortedCategories);
-    calculateStats(sortedCategories);
 
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -233,37 +233,6 @@ if (debouncedSearch?.trim()) {
     setLoading(false);
   }
 };
-const calculateStats = (categoriesData: Category[]) => {
-  // Recursive flatten
-  const flatten = (cats: Category[]): Category[] => {
-    return cats.flatMap(cat => [
-      cat,
-      ...(cat.subCategories && cat.subCategories.length > 0
-        ? flatten(cat.subCategories)
-        : [])
-    ]);
-  };
-
-  const allCategories = flatten(categoriesData);
-
-  const totalCategories = allCategories.length;
-
-  const totalProducts = allCategories.reduce((count, cat) => {
-    return count + (cat.productCount || 0);
-  }, 0);
-
-  const activeCategories = allCategories.filter(cat => cat.isActive).length;
-
-  const homepageCategories = allCategories.filter(cat => cat.showOnHomepage).length;
-
-  setStats({
-    totalCategories,
-    totalProducts,
-    activeCategories,
-    homepageCategories
-  });
-};
-
 
 
   const findCategoryById = (id: string, categories: Category[]): Category | null => {
@@ -339,12 +308,7 @@ const calculateStats = (categoriesData: Category[]) => {
   //   return () => window.removeEventListener('focus', handleFocus);
   // }, []);
 
-const handleImageFileChange = (file: File) => {
-  setImageFile(file);
-  const previewUrl = URL.createObjectURL(file);
-  setImagePreview(previewUrl);
 
-};
 
   const handleAddSubcategory = (parentId: string, parentName: string) => {
     const parent = findCategoryById(parentId, categories);
@@ -368,7 +332,7 @@ const handleImageFileChange = (file: File) => {
       imageUrl: "",
       isActive: true,
       showOnHomepage: false,  // ✅ ADD THIS LINE
-      sortOrder: 1,
+     sortOrder: "" as number | "",
       metaTitle: "",
       metaDescription: "",
       metaKeywords: "",
@@ -381,8 +345,8 @@ useEffect(() => {
   const categoriesOnHomepage = categories.filter(cat => cat.showOnHomepage);
   setHomepageCategories(categoriesOnHomepage);
 }, [categories]);
-const homepageCount = homepageCategories.length;
-const handleDeleteImage = async (categoryId: string, imageUrl: string) => {
+
+ const handleDeleteImage = async (categoryId: string, imageUrl: string) => {
   setIsDeletingImage(true);
   try {
     const filename = extractFilename(imageUrl);
@@ -415,13 +379,38 @@ const handleDeleteImage = async (categoryId: string, imageUrl: string) => {
   }
 };
 
+const isDuplicateCategory = (
+  categories: Category[],
+  name: string,
+  editingId?: string
+): boolean => {
+  for (const cat of categories) {
+    // check current
+    if (
+      cat.name.trim().toLowerCase() === name.toLowerCase() &&
+      cat.id !== editingId
+    ) {
+      return true;
+    }
+
+    // check children recursively
+    if (cat.subCategories?.length) {
+      const found = isDuplicateCategory(
+        cat.subCategories,
+        name,
+        editingId
+      );
+      if (found) return true;
+    }
+  }
+
+  return false;
+};
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+  
 
-  // ============================================
-  // 1. NAME VALIDATION (Industry Standard)
-  // ============================================
 const name = formData.name?.trim();
 
 if (!name) {
@@ -429,398 +418,166 @@ if (!name) {
   return;
 }
 
-const CATEGORY_NAME_REGEX = /^[A-Za-z0-9\s,()&'’\-]+$/;
+// ✅ DUPLICATE CHECK
+const isDuplicate = isDuplicateCategory(
+  categories,
+  name,
+  editingCategory?.id
+);
 
-if (!CATEGORY_NAME_REGEX.test(name)) {
-  toast.error(
-    "❌ Category name may contain letters, numbers, spaces, commas (,), &, -, ' and () only"
-  );
+if (isDuplicate) {
+  toast.error("❌ Category with same name already exists");
   return;
 }
 
-
-
-  // Length validation
-  if (name.length < 3 || name.length > 100) {
-    toast.error(`❌ Category name must be between 3 and 100 characters. Current: ${name.length}`);
-    return;
-  }
-
-  // Duplicate check
-  const isDuplicateName = categories.some(
-    cat =>
-      cat.name.toLowerCase().trim() === name.toLowerCase() &&
-      cat.id !== editingCategory?.id
-  );
-  if (isDuplicateName) {
-    toast.error("❌ A category with this name already exists!");
-    return;
-  }
-
-
-
-// ============================================
-// 2. DESCRIPTION VALIDATION (Industry Standard)
-// ============================================
-
-const description = formData.description.trim();
-
-// Single check handles both empty and min length
-// if (description.length < 10) {
-//   toast.error(`❌ Description must be at least 10 characters. Current: ${description.length}`);
-//   return;
-// }
-
-// Max length
-if (description.length > 1000) {
-  toast.error(`❌ Description cannot exceed 1000 characters. Current: ${description.length}`);
-  return;
-}
-
-
-  // ============================================
-  // 3. PARENT CATEGORY VALIDATION
-  // ============================================
-  
-  if (formData.parentCategoryId) {
-    // Check if parent exists
-    const parentExists = findCategoryById(formData.parentCategoryId, categories);
-    if (!parentExists) {
-      toast.error("❌ Selected parent category does not exist");
-      return;
-    }
-
-    // Check if parent is active
-    if (!parentExists.isActive) {
-      toast.error("❌ Cannot add subcategory to an inactive parent category");
-      return;
-    }
-
-    // Check depth limit (max 3 levels)
-    const parentLevel = getCategoryLevel(parentExists, categories);
-    if (parentLevel >= 2) {
-      toast.error("❌ Maximum 3 levels allowed! Cannot add subcategory here");
-      return;
-    }
-
-    // ✅ Circular reference check (Industry Standard)
-    if (editingCategory) {
-      let currentId: string | null | undefined = formData.parentCategoryId;
-      const visited = new Set<string>();
-      let hasCircular = false;
-
-      while (currentId) {
-        if (visited.has(currentId) || currentId === editingCategory.id) {
-          hasCircular = true;
-          break;
-        }
-        visited.add(currentId);
-        const parent = findCategoryById(currentId, categories);
-        currentId = parent?.parentCategoryId;
-      }
-
-      if (hasCircular) {
-        toast.error("❌ Circular reference detected! Category cannot be its own ancestor");
-        return;
-      }
-    }
-  }
-
-  // ============================================
-  // 4. SORT ORDER VALIDATION (Industry Standard)
-  // ============================================
-  
-  // Check if it's a valid number
-  if (isNaN(formData.sortOrder)) {
-    toast.error("❌ Sort order must be a valid number");
-    return;
-  }
-
-  // Check if integer
-  if (!Number.isInteger(formData.sortOrder)) {
-    toast.error("❌ Sort order must be a whole number (no decimals)");
-    return;
-  }
-
-  // Range validation (1-1000)
-  if (formData.sortOrder < 1 || formData.sortOrder > 1000) {
-    toast.error("❌ Sort order must be between 1 and 1000");
-    return;
-  }
-
-  // ============================================
-  // 5. META FIELDS VALIDATION
-  // ============================================
-  
-  // Meta Title
-  if (formData.metaTitle) {
-    const metaTitle = formData.metaTitle.trim();
-    
-    if (metaTitle.length > 60) {
-      toast.error(`❌ Meta title should be less than 60 characters. Current: ${metaTitle.length}`);
-      return;
-    }
-
-    // Check for only spaces
-    if (/^\s+$/.test(formData.metaTitle)) {
-      toast.error("❌ Meta title cannot contain only spaces");
-      return;
-    }
-  }
-
-  // Meta Description
-  if (formData.metaDescription) {
-    const metaDesc = formData.metaDescription.trim();
-    
-    if (metaDesc.length > 160) {
-      toast.error(`❌ Meta description should be less than 160 characters. Current: ${metaDesc.length}`);
-      return;
-    }
-
-    // Check for only spaces
-    if (/^\s+$/.test(formData.metaDescription)) {
-      toast.error("❌ Meta description cannot contain only spaces");
-      return;
-    }
-  }
-
-  // Meta Keywords (Industry Standard)
-  if (formData.metaKeywords) {
-    const metaKeywords = formData.metaKeywords.trim();
-    
-    if (metaKeywords.length > 255) {
-      toast.error(`❌ Meta keywords must be less than 255 characters. Current: ${metaKeywords.length}`);
-      return;
-    }
-
-    // Check for only spaces
-    if (/^\s+$/.test(formData.metaKeywords)) {
-      toast.error("❌ Meta keywords cannot contain only spaces");
-      return;
-    }
-
-    // ✅ Format validation (comma-separated)
-    if (metaKeywords.length > 0) {
-      const keywords = metaKeywords.split(',');
-      for (const keyword of keywords) {
-        const trimmed = keyword.trim();
-        if (trimmed.length > 0 && (trimmed.length < 2 || trimmed.length > 50)) {
-          toast.error("❌ Each keyword must be between 2-50 characters");
-          return;
-        }
-      }
-    }
-  }
-
-  // ============================================
-  // 6. HOMEPAGE LIMIT VALIDATION
-  // ============================================
-  
-  if (formData.showOnHomepage) {
-    const currentHomepageCount = categories.filter(
-      cat => cat.showOnHomepage && cat.id !== editingCategory?.id
-    ).length;
-    
-    if (currentHomepageCount >= MAX_HOMEPAGE_CATEGORIES) {
-      toast.error(
-        `❌ Homepage limit reached! Only ${MAX_HOMEPAGE_CATEGORIES} categories allowed. Currently: ${currentHomepageCount}/${MAX_HOMEPAGE_CATEGORIES}`
-      );
-      return;
-    }
-  }
-
-  // ============================================
-  // 7. IMAGE VALIDATION (Industry Standard)
-  // ============================================
-  
-  if (imageFile) {
-    const allowedTypes = ['image/webp', 'image/jpeg', 'image/png'];
-    const maxSize = 10 * 1024 * 1024; // 10MB
-
-    // Type validation
-    if (!allowedTypes.includes(imageFile.type)) {
-      toast.error("❌ Only WebP, JPEG, and PNG images are allowed");
-      return;
-    }
-
-    // Size validation
-    if (imageFile.size > maxSize) {
-      const sizeMB = (imageFile.size / (1024 * 1024)).toFixed(2);
-      toast.error(`❌ Image size must be less than 10MB. Current: ${sizeMB}MB`);
-      return;
-    }
-
-    // ✅ File name length validation
-    if (imageFile.name.length > 255) {
-      toast.error("❌ Image file name is too long (max 255 characters)");
-      return;
-    }
-
-    // ✅ Dimension validation (Industry Standard)
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const img = new Image();
-        const url = URL.createObjectURL(imageFile);
-        
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          
-          const MIN_WIDTH = 200;
-          const MAX_WIDTH = 5000;
-          const MIN_HEIGHT = 200;
-          const MAX_HEIGHT = 5000;
-          
-          if (img.width < MIN_WIDTH || img.width > MAX_WIDTH) {
-            reject(`Image width must be between ${MIN_WIDTH}px and ${MAX_WIDTH}px. Current: ${img.width}px`);
-            return;
-          }
-          
-          if (img.height < MIN_HEIGHT || img.height > MAX_HEIGHT) {
-            reject(`Image height must be between ${MIN_HEIGHT}px and ${MAX_HEIGHT}px. Current: ${img.height}px`);
-            return;
-          }
-          
-          resolve();
-        };
-        
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject('Invalid or corrupted image file');
-        };
-        
-        img.src = url;
-      });
-    } catch (error: any) {
-      toast.error(`❌ ${error}`);
-      return;
-    }
-  }
-
-  // ============================================
-  // 8. PREVENT DUPLICATE SUBMISSION
-  // ============================================
-  
-  if (isSubmitting) {
-    toast.error("⏳ Please wait, processing...");
-    return;
-  }
-  
+  if (isSubmitting) return;
   setIsSubmitting(true);
 
   try {
     let finalImageUrl = formData.imageUrl;
 
-    // ============================================
-    // 9. IMAGE UPLOAD
-    // ============================================
-    
+    // =========================
+    // IMAGE UPLOAD
+    // =========================
     if (imageFile) {
-      try {
-        const uploadResponse = await categoriesService.uploadImage(imageFile, {
-          name: formData.name,
-        });
+      const uploadRes = await categoriesService.uploadImage(imageFile, { name });
 
-        if (!uploadResponse.data?.success || !uploadResponse.data?.data) {
-          throw new Error(
-            uploadResponse.data?.message || "Image upload failed (no imageUrl in response)"
-          );
-        }
+      console.log("📦 Upload Response:", uploadRes);
 
-        finalImageUrl = uploadResponse.data.data;
-
-        
-        // Delete old image if exists (in edit mode)
-        if (
-          editingCategory?.imageUrl &&
-          editingCategory.imageUrl !== finalImageUrl
-        ) {
-          const filename = extractFilename(editingCategory.imageUrl);
-          if (filename) {
-            try {
-              await categoriesService.deleteImage(filename);
-            } catch (err) {
-              // Silently fail - old image deletion is non-critical
-            }
-          }
-        }
-      } catch (uploadErr: any) {
-        toast.error(
-          uploadErr?.response?.data?.message || "Failed to upload image"
-        );
-        setIsSubmitting(false);
-        return;
+      if (!uploadRes.data?.success || !uploadRes.data?.data) {
+        throw new Error("Image upload failed");
       }
+
+      finalImageUrl = uploadRes.data.data;
     }
+console.log("imageFile:", imageFile);
 
-    // ============================================
-    // 10. PREPARE PAYLOAD
-    // ============================================
-    
-    const payload = {
-      name: name, // Already trimmed and validated
-      description: description, // Already trimmed and validated
-      imageUrl: finalImageUrl,
-      isActive: formData.isActive,
-      showOnHomepage: formData.showOnHomepage,
-      sortOrder: formData.sortOrder,
-      parentCategoryId: formData.parentCategoryId || null,
-      metaTitle: formData.metaTitle?.trim() || undefined,
-      metaDescription: formData.metaDescription?.trim() || undefined,
-      metaKeywords: formData.metaKeywords?.trim() || undefined,
-      ...(editingCategory && { id: editingCategory.id }),
-    };
+if (!imageFile) {
+  console.log("Image file missing");
+}
+    // =========================
+    // PAYLOAD
+    // =========================
+   const payload = {
+  id: editingCategory?.id, // ✅ ADD THIS
 
-    // ============================================
-    // 11. API CALL WITH ERROR HANDLING
-    // ============================================
-    
+  name,
+  description: formData.description?.trim() || "",
+
+  imageUrl: finalImageUrl || "",
+
+  isActive: !!formData.isActive,
+  showOnHomepage: !!formData.showOnHomepage,
+sortOrder: formData.sortOrder === "" ? 0 : formData.sortOrder,
+
+  parentCategoryId: formData.parentCategoryId || null,
+
+  metaTitle: formData.metaTitle || "",
+  metaDescription: formData.metaDescription || "",
+  metaKeywords: formData.metaKeywords || "",
+};
+
+    console.log("📤 Payload:", payload);
+
+    // =========================
+    // CREATE / UPDATE
+    // =========================
+    let categoryId = editingCategory?.id;
+
     if (editingCategory) {
+      console.log("✏️ EDIT MODE");
+
       await categoriesService.update(editingCategory.id, payload);
-      toast.success("✅ Category updated successfully! 🎉");
+
+      // 🔥 FAQ UPDATE / CREATE
+      console.log("📦 Pending FAQs (EDIT):", pendingFaqs);
+
+      if (pendingFaqs?.length) {
+        await Promise.all(
+          pendingFaqs.map((faq: any) => {
+            console.log("➡️ Processing FAQ:", faq);
+
+            if (faq.id) {
+              return categoryFaqsService.update(
+                editingCategory.id,
+                faq.id,
+                faq
+              );
+            } else {
+              return categoryFaqsService.create(categoryId!, {
+  question: faq.question,
+  answer: faq.answer,
+  displayOrder: faq.displayOrder,
+  isActive: faq.isActive,
+});
+            }
+          })
+        );
+      }
+
+      toast.success("✅ Category updated");
+
     } else {
-      await categoriesService.create(payload);
-      toast.success("✅ Category created successfully! 🎉");
+      console.log("🆕 CREATE MODE");
+
+      const res = await categoriesService.create(payload);
+
+      console.log("📥 CREATE RESPONSE:", res);
+
+      // 🔥 FIXED ID EXTRACTION
+     categoryId = res.data?.data?.id;
+
+      console.log("🆔 Extracted Category ID:", categoryId);
+
+      if (!categoryId) {
+        console.error("❌ Category ID missing. FULL RESPONSE:", res);
+        throw new Error("Category ID missing");
+      }
+
+      // 🔥 CREATE FAQs
+      console.log("📦 Pending FAQs (CREATE):", pendingFaqs);
+
+      if (pendingFaqs?.length) {
+        await Promise.all(
+          pendingFaqs.map((faq: any) => {
+            console.log("➡️ Creating FAQ:", faq);
+
+            return categoryFaqsService.create(categoryId!, {
+              question: faq.question,
+              answer: faq.answer,
+              displayOrder: faq.displayOrder,
+              isActive: faq.isActive,
+            });
+          })
+        );
+      } else {
+        console.warn("⚠️ No FAQs found in pendingFaqs");
+      }
+
+      toast.success("✅ Category created");
     }
 
-    // ============================================
-    // 12. CLEANUP
-    // ============================================
-    
+    // =========================
+    // CLEANUP
+    // =========================
+    await fetchCategories();
+
     if (imagePreview) URL.revokeObjectURL(imagePreview);
+
     setImageFile(null);
     setImagePreview(null);
-    await fetchCategories();
+    setPendingFaqs([]);
     setShowModal(false);
     resetForm();
 
-  } catch (error: any) {
-    // ============================================
-    // 13. ENHANCED ERROR HANDLING
-    // ============================================
-    
-    let message = "Failed to save category";
-    
-    if (error?.response?.status === 400) {
-      message = error?.response?.data?.message || "Invalid data provided";
-    } else if (error?.response?.status === 401) {
-      message = "Session expired. Please login again";
-    } else if (error?.response?.status === 403) {
-      message = "Access denied. You don't have permission";
-    } else if (error?.response?.status === 409) {
-      message = "Category with this name or slug already exists";
-    } else if (error?.response?.status === 500) {
-      message = "Server error. Please try again later";
-    } else if (error?.code === 'ECONNABORTED') {
-      message = "Request timeout. Check your internet connection";
-    } else if (error?.message) {
-      message = error.message;
-    }
-    
-    toast.error(message);
+  } catch (err: any) {
+    console.error("❌ ERROR:", err);
+    toast.error(err?.message || "Failed");
   } finally {
     setIsSubmitting(false);
   }
 };
+
 
 
 
@@ -886,7 +643,7 @@ const handleEdit = (category: Category) => {
       imageUrl: "",
       isActive: true,
         showOnHomepage: false,  // ✅ ADD THIS LINE
-      sortOrder: 1,
+      sortOrder: "",
       metaTitle: "",
       metaDescription: "",
       metaKeywords: "",
@@ -911,6 +668,8 @@ const getParentCategoryOptions = () => {
   
   return availableParents;
 };
+
+const parentOptions = getParentCategoryOptions();
 
 const clearFilters = () => {
   setStatusFilter("all");
@@ -937,6 +696,8 @@ const clearFilters = () => {
     setImageDeleteConfirm: (data: any) => void;
     onStatusToggle: (category: Category) => void; // ✅ NEW
     onRestore: (category: Category) => void;
+      onOpenFaq: (cat: Category) => void;
+      
   };
 const [statusConfirm, setStatusConfirm] = useState<Category | null>(null);
 const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -958,6 +719,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
   onAddSubcategory,
   getImageUrl,
   onStatusToggle,
+   onOpenFaq ,// 🔥 missing था
   onRestore
 }) => {
   const hasChildren =
@@ -987,7 +749,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
           style={{ paddingLeft: `${indent}px` }}
         >
           {/* Expand */}
-          {hasChildren ? (
+          {!searchTerm && hasChildren ? (
             <button
               onClick={() => onToggleExpand(category.id)}
               className="p-1 rounded hover:bg-slate-700/40"
@@ -1004,7 +766,8 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
 
           {/* Image */}
           {category.imageUrl ? (
-            <img            
+            <img    
+             onClick={() => setSelectedImageUrl(getImageUrl(category.imageUrl))}
               src={getImageUrl(category.imageUrl)}
               onError={(e) => (e.currentTarget.src = "/placeholder.png")}
               className="w-7 h-7 rounded-md object-cover border border-slate-700"
@@ -1073,16 +836,12 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
 
       {/* CREATED */}
       <td className="py-2 px-3 text-[11px] text-slate-500">
-        {category.createdAt
-          ? new Date(category.createdAt).toLocaleDateString("en-GB")
-          : "-"}
+        {formatDate(category.createdAt)}
       </td>
 
       {/* UPDATED */}
       <td className="py-2 px-3 text-[11px] text-slate-500">
-        {category.updatedAt
-          ? new Date(category.updatedAt).toLocaleDateString("en-GB")
-          : "-"}
+        {formatDate(category.updatedAt)}
       </td>
 
       {/* UPDATED BY */}
@@ -1101,15 +860,24 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
               onAddSubcategory(category.id, category.name)
             }
             disabled={!canAddSubcategory}
+              title="Add Subcategory"
             className="p-1 text-green-400 hover:bg-green-500/10 rounded-md disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
+<button
+  onClick={() => onOpenFaq(category)}
+   title="Manage FAQs"
+  className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded-md"
+>
+  <HelpCircle className="h-4 w-4" />
+</button>
 
           {/* View */}
           <button
             onClick={() => onView(category)}
             className="p-1 text-violet-400 hover:bg-violet-500/10 rounded-md"
+            title="View Category"
           >
             <Eye className="h-3.5 w-3.5" />
           </button>
@@ -1118,6 +886,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
           <button
             onClick={() => onEdit(category)}
             className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded-md"
+            title="Edit Category"
           >
             <Edit className="h-3.5 w-3.5" />
           </button>
@@ -1127,6 +896,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
             <button
               onClick={() => onRestore(category)}
               className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-md"
+               title="Restore Category"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -1134,6 +904,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
             <button
               onClick={() => onDelete(category.id, category.name)}
               className="p-1 text-red-400 hover:bg-red-500/10 rounded-md"
+              title="Delete Category"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -1153,145 +924,116 @@ const hasActiveFilters =
   homepageFilter !== 'all' ||
   deletedFilter !== 'all';
 
+const findMatchingNodes = useCallback((categories: Category[], search: string): Category[] => {
+  if (!search.trim()) return categories;
 
+  const result: Category[] = [];
+
+  const traverse = (cat: Category) => {
+    if (cat.name.toLowerCase().includes(search.toLowerCase())) {
+      result.push(cat);
+    }
+
+    if (cat.subCategories?.length) {
+      cat.subCategories.forEach(traverse);
+    }
+  };
+
+  categories.forEach(traverse);
+
+  return result;
+}, []);
 
   // ✅ Smart search in hierarchy
-const searchInHierarchy = (
-  category: Category,
-  searchTerm: string,
-  statusFilter: string,
-  levelFilter: string,
-  homepageFilter: 'all' | 'yes' | 'no',
-  deletedFilter: 'all' | 'deleted' | 'notDeleted'   // ✅ ADD
-): boolean => {
-const deletedMatch =
-  deletedFilter === 'all' ||
-  (deletedFilter === 'deleted' && category.isDeleted === true) ||
-  (deletedFilter === 'notDeleted' && category.isDeleted === false);
 
-  const nameMatch = category.name.toLowerCase().includes(searchTerm.toLowerCase());
-
-  const statusMatch =
-    statusFilter === "all" ||
-    (statusFilter === "active" && category.isActive) ||
-    (statusFilter === "inactive" && !category.isActive);
-
-  const categoryLevel = getCategoryLevel(category, categories);
-  const levelMatch =
-    levelFilter === "all" ||
-    levelFilter === `level${categoryLevel + 1}`;
-
-  // ── NEW ── Homepage match logic
-  const homepageMatch =
-    homepageFilter === 'all' ||
-    (homepageFilter === 'yes' && category.showOnHomepage === true) ||
-    (homepageFilter === 'no'  && category.showOnHomepage === false);
-
-  // All conditions must pass
-  if (nameMatch && statusMatch && levelMatch && homepageMatch && deletedMatch) {
-  return true;
-}
-
-
-  // Recurse into children if any
-  if (category.subCategories && category.subCategories.length > 0) {
-    return category.subCategories.some(child =>
-      searchInHierarchy(
-        child,
-        searchTerm,
-        statusFilter,
-        levelFilter,
-        homepageFilter,
-        deletedFilter
-      )
-    );
-  }
-
-  return false;
-};
 
 // NEW – pass the 5th argument
-const filteredCategories = categories.filter(category =>
-  searchInHierarchy(category, searchTerm, statusFilter, levelFilter, homepageFilter,deletedFilter)
-);
+const filteredCategories = useMemo(() => {
+  return findMatchingNodes(categories, debouncedSearch);
+}, [categories, debouncedSearch, findMatchingNodes]);
 
-  // ✅ Auto-expand parents when children match search
-  useEffect(() => {
-    if (searchTerm.trim() === "" && levelFilter === "all") {
-      return;
-    }
-    
-    const expandedIds = new Set<string>();
-    
-    const findMatchingPaths = (cat: Category, ancestors: string[] = []) => {
-      const nameMatch = cat.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const categoryLevel = getCategoryLevel(cat, categories);
-      const levelMatch = levelFilter === "all" || levelFilter === `level${categoryLevel + 1}`;
-      
-      if (nameMatch && levelMatch) {
-        ancestors.forEach(id => expandedIds.add(id));
-      }
-      
-      if (cat.subCategories && cat.subCategories.length > 0) {
-        cat.subCategories.forEach(child => 
-          findMatchingPaths(child, [...ancestors, cat.id])
-        );
-      }
-    };
-    
-    categories.forEach(cat => findMatchingPaths(cat));
-    setExpandedCategories(expandedIds);
-  }, [searchTerm, levelFilter, categories]);
+const getParentChain = useCallback((category: Category, all: Category[]) => {
+  const chain: Category[] = [];
+  let current = category;
+
+  while (current.parentCategoryId) {
+    const parent = findCategoryById(current.parentCategoryId, all);
+    if (!parent) break;
+
+    chain.unshift(parent);
+    current = parent;
+  }
+
+  return chain;
+}, []);
 
   // ✅ Flatten categories for display
-  const getFlattenedCategories = (): (Category & { level: number })[] => {
-    const flattened: Array<Category & { level: number }> = [];
-    
-    const addCategoryAndChildren = (category: Category, level: number) => {
-      flattened.push({ ...category, level });
-      
-      if (
-        expandedCategories.has(category.id) && 
-        category.subCategories && 
-        category.subCategories.length > 0
-      ) {
-        category.subCategories.forEach((subCat) => {
-          addCategoryAndChildren(subCat, level + 1);
-        });
-      }
-    };
-    
-    filteredCategories.forEach((rootCategory) => {
-      addCategoryAndChildren(rootCategory, 0);
-    });
-    
-    return flattened;
+
+const flattenedData = useMemo(() => {
+  const flattened: Array<Category & { level: number }> = [];
+
+  const addRecursive = (category: Category, level: number) => {
+    flattened.push({ ...category, level });
+
+    if (
+      expandedCategories.has(category.id) &&
+      category.subCategories?.length
+    ) {
+      category.subCategories.forEach(child =>
+        addRecursive(child, level + 1)
+      );
+    }
   };
 
-const flattenedData = getFlattenedCategories();
+  if (searchTerm.trim()) {
+    return filteredCategories.map(cat => ({
+      ...cat,
+      level: getCategoryLevel(cat, categories)
+    }));
+  }
 
-const totalItems = flattenedData.length;
-const totalPages = Math.ceil(totalItems / itemsPerPage);
+  categories.forEach(cat => addRecursive(cat, 0));
 
-const startIndex = (currentPage - 1) * itemsPerPage;
-const endIndex = startIndex + itemsPerPage;
+  return flattened;
 
-const currentData = flattenedData.slice(startIndex, endIndex);
+}, [categories, expandedCategories, searchTerm, filteredCategories]);
 
+const paginationData = useMemo(() => {
+  const totalItems = flattenedData.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+
+  const currentData = flattenedData.slice(startIndex, endIndex);
+
+  return {
+    totalItems,
+    totalPages,
+    startIndex,
+    endIndex,
+    currentData,
   };
+}, [flattenedData, currentPage, itemsPerPage]);
+
+const { totalItems, totalPages, startIndex, endIndex, currentData } = paginationData;
+
+const goToPage = useCallback((page: number) => {
+  setCurrentPage((prev) => Math.max(1, Math.min(page, totalPages)));
+}, [totalPages]);
 
   const goToFirstPage = () => setCurrentPage(1);
   const goToLastPage = () => setCurrentPage(totalPages);
-  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
-  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
+const goToNextPage = useCallback(() => {
+  setCurrentPage(prev => Math.min(totalPages, prev + 1));
+}, [totalPages]);
+
+const goToPreviousPage = useCallback(() => {
+  setCurrentPage(prev => Math.max(1, prev - 1));
+}, []);
 // ✅ Get total subcategories recursively
-const getTotalSubCategories = (category: Category): number => {
-  if (!category.subCategories || category.subCategories.length === 0) {
-    return 0;
-  }
+const getTotalSubCategories = useCallback((category: Category): number => {
+  if (!category.subCategories?.length) return 0;
 
   let count = category.subCategories.length;
 
@@ -1300,7 +1042,7 @@ const getTotalSubCategories = (category: Category): number => {
   });
 
   return count;
-};
+}, []);
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
@@ -1360,11 +1102,20 @@ const handleStatusUpdate = async (category: Category) => {
 
     return pages;
   };
-  useEffect(() => {
+useEffect(() => {
+  if (!searchTerm.trim()) {
+    setDebouncedSearch("");
+    setIsSearching(false);
+    return;
+  }
+
+  setIsSearching(true);
+
   const timer = setTimeout(() => {
     setDebouncedSearch(searchTerm);
-    setCurrentPage(1); // reset page on search
-  }, 600); // ⏱ 400ms delay
+    setCurrentPage(1);
+    setIsSearching(false);
+  }, 300);
 
   return () => clearTimeout(timer);
 }, [searchTerm]);
@@ -1396,7 +1147,7 @@ useEffect(() => {
       className="px-3 py-1.5 text-[11px] bg-violet-500/10 border border-violet-500/30 text-violet-300 rounded-md hover:bg-violet-500/20 transition-all flex items-center gap-1.5"
     >
       <Award className="h-3 w-3" />
-      Brands
+    Go To  Brand Page
     </button>
 
     <button
@@ -1404,7 +1155,7 @@ useEffect(() => {
       className="px-3 py-1.5 text-[11px] bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 rounded-md hover:bg-cyan-500/20 transition-all flex items-center gap-1.5"
     >
       <Package className="h-3 w-3" />
-      Products
+      Go To  Product Page
     </button>
 
     <button
@@ -1425,81 +1176,51 @@ useEffect(() => {
 {/* Stats Cards */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
 
-  {/* Total */}
-  <button
-    onClick={() => {
-      if (statusFilter === 'all') setStatusFilter('active');
-      else if (statusFilter === 'active') setStatusFilter('inactive');
-      else setStatusFilter('all');
-    }}
-    className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5 hover:border-violet-500/40 transition-all text-left"
-  >
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-violet-500/10 rounded-md flex items-center justify-center">
-        <FolderTree className="h-4 w-4 text-violet-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500">Categories</p>
-        <p className="text-lg font-semibold text-white">{stats.totalCategories}</p>
-        <p className="text-[10px] text-violet-400">
-          {statusFilter === 'all' ? 'All' : statusFilter === 'active' ? 'Active' : 'Inactive'}
-        </p>
-      </div>
-    </div>
-  </button>
-
-  {/* Products */}
+  {/* Total Categories */}
   <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-pink-500/10 rounded-md flex items-center justify-center">
-        <Package className="h-4 w-4 text-pink-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500">Products</p>
-        <p className="text-lg font-semibold text-white">{stats.totalProducts}</p>
-      </div>
-    </div>
+    <p className="text-[11px] text-slate-500">Total Categories</p>
+    <p className="text-lg font-semibold text-white">{stats.totalCategories}</p>
   </div>
 
   {/* Active */}
   <button
+    type="button"
     onClick={() => {
       if (statusFilter === 'all') setStatusFilter('active');
       else if (statusFilter === 'active') setStatusFilter('inactive');
       else setStatusFilter('all');
     }}
-    className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5 hover:border-green-500/40 transition-all text-left"
+    className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5 text-left"
   >
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-green-500/10 rounded-md flex items-center justify-center">
-        <CheckCircle className="h-4 w-4 text-green-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500">Active</p>
-        <p className="text-lg font-semibold text-white">{stats.activeCategories}</p>
-      </div>
-    </div>
+    <p className="text-[11px] text-green-400">Active</p>
+    <p className="text-lg font-semibold text-white">{stats.totalActive}</p>
   </button>
+
+  {/* Inactive */}
+  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+    <p className="text-[11px] text-red-400">Inactive</p>
+    <p className="text-lg font-semibold text-white">{stats.totalInactive}</p>
+  </div>
 
   {/* Homepage */}
   <button
+    type="button"
     onClick={() => {
       if (homepageFilter === 'all') setHomepageFilter('yes');
       else if (homepageFilter === 'yes') setHomepageFilter('no');
       else setHomepageFilter('all');
     }}
-    className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5 hover:border-cyan-500/40 transition-all text-left"
+    className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-2.5 text-left"
   >
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-cyan-500/10 rounded-md flex items-center justify-center">
-        <Award className="h-4 w-4 text-cyan-400" />
-      </div>
-      <div>
-        <p className="text-[11px] text-slate-500">Homepage</p>
-        <p className="text-lg font-semibold text-white">{stats.homepageCategories}</p>
-      </div>
-    </div>
+    <p className="text-[11px] text-cyan-400">Homepage</p>
+    <p className="text-lg font-semibold text-white">{stats.totalShowOnHomepage}</p>
   </button>
+
+  {/* Products */}
+  {/* <div className="bg-pink-500/10 border border-pink-500/20 rounded-lg p-2.5">
+    <p className="text-[11px] text-pink-400">Products</p>
+    <p className="text-lg font-semibold text-white">{stats.totalProducts}</p>
+  </div> */}
 
 </div>
 
@@ -1510,20 +1231,28 @@ useEffect(() => {
   <div className="flex flex-wrap items-center gap-2">
 
     {/* Search */}
-    <div className="relative flex-1 min-w-[200px]">
-      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-      <input
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search..."
-        className={`w-full pl-8 pr-3 py-1.5 bg-slate-800/60 border rounded-md text-white text-[12px] focus:outline-none transition-all ${
-          searchTerm
-            ? "border-violet-500 ring-1 ring-violet-500/40"
-            : "border-slate-700 focus:ring-1 focus:ring-violet-500"
-        }`}
-      />
-    </div>
+<div className="relative flex-1 min-w-[200px]">
+  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
 
+  <input
+   type="search"
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    placeholder="Search Brands By Name..."
+    className={`w-full pl-8 pr-8 py-1.5 bg-slate-800/60 border rounded-md text-white text-[12px] focus:outline-none transition-all ${
+      searchTerm
+        ? "border-violet-500 ring-1 ring-violet-500/40"
+        : "border-slate-700 focus:ring-1 focus:ring-violet-500"
+    }`}
+  />
+
+  {/* 🔥 LOADER */}
+  {isSearching && (
+    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+      <div className="w-3.5 h-3.5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  )}
+</div>
     {/* Level */}
     <select
       value={levelFilter}
@@ -1614,7 +1343,7 @@ useEffect(() => {
           <th className="py-2 px-3 text-left">Category</th>
           <th className="py-2 px-3 text-center">Products</th>
           <th className="py-2 px-3 text-center">Status</th>
-          <th className="py-2 px-3 text-center">Order</th>
+          <th className="py-2 px-3 text-center">Display Order</th>
           <th className="py-2 px-3 text-left">Created on</th>
           <th className="py-2 px-3 text-left">Updated on</th>
           <th className="py-2 px-3 text-left">Updated By</th>
@@ -1662,6 +1391,11 @@ useEffect(() => {
               setImageDeleteConfirm={setImageDeleteConfirm}
               onStatusToggle={handleStatusToggle}
               onRestore={handleRestore}
+              onOpenFaq={(cat) => {
+    setEditingCategory(cat);
+    setOpenFaqCategory(cat);
+    setShowModal(true);
+  }}
             />
           ))
         )}
@@ -1757,642 +1491,6 @@ useEffect(() => {
   )}
 </div>
 
-      {/* Modals remain the same - I can provide them if needed */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
-            <div className="p-2 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                    {editingCategory ? 'Edit Category' : 'Create New Category'}
-                  </h2>
-                  <p className="text-slate-400 text-sm mt-1">
-                    {editingCategory ? 'Update category information' : 'Add a new category to your store'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="p-2 text-slate-400 hover:text-white focus:ring-4 focus:ring-red-300 outline-none border hover:bg-red-700 rounded-lg transition-all"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            <form onSubmit={handleSubmit} className="p-2 space-y-2 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-sm">1</span>
-                  <span>Basic Information</span>
-                </h3>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Category Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Enter category name"
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    />
-                    {!formData.name && (
-                      <p className="text-xs text-amber-400 mt-1">⚠️ Category name is required before uploading image</p>
-                    )}
-                  </div>
-{/* ✅ PARENT CATEGORY - CUSTOM DROPDOWN WITH SCROLLBAR */}
-<div>
-  <label className="block text-sm font-medium text-slate-300 mb-2">
-    Parent Category
-    {/* <span className="text-red-400 ml-1">*</span> */}
-  </label>
-  
-  {/* Custom Dropdown */}
-  <div className="relative">
-    {/* Selected Display Button */}
-    <button
-      type="button"
-      onClick={() => setShowParentDropdown(!showParentDropdown)}
-      className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-xl text-white text-left focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all cursor-pointer hover:border-violet-500 flex items-center justify-between"
-    >
-      <span>
-        {formData.parentCategoryId 
-          ? (() => {
-              const selected = categories.find(c => c.id === formData.parentCategoryId);
-              if (!selected) return 'None (Root Category - Level 1)';
-              const level = getCategoryLevel(selected, categories);
-              const indent = '—'.repeat(level);
-              return `${indent} ${selected.name} ${level === 0 ? '(Level 1 - Root)' : '(Level 2 - Sub)'}`;
-            })()
-          : 'None (Root Category - Level 1)'}
-      </span>
-      <svg 
-        className={`w-5 h-5 text-violet-400 transition-transform ${showParentDropdown ? 'rotate-180' : ''}`}
-        fill="none" 
-        stroke="currentColor" 
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
-
-    {/* Dropdown Menu - NEECHE */}
-    {showParentDropdown && (
-      <>
-        {/* Backdrop to close dropdown */}
-        <div 
-          className="fixed inset-0 z-10" 
-          onClick={() => setShowParentDropdown(false)}
-        />
-        
-        {/* Dropdown List */}
-        <div className="absolute z-20 w-full mt-2 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl shadow-black/50 overflow-hidden">
-          <div className="max-h-64 overflow-y-auto custom-scrollbar">
-            {/* None Option */}
-            <button
-              type="button"
-              onClick={() => {
-                setFormData({...formData, parentCategoryId: ''});
-                setShowParentDropdown(false);
-              }}
-              className={`w-full px-4 py-3 text-left hover:bg-violet-500/20 transition-colors ${
-                !formData.parentCategoryId ? 'bg-violet-500/30 text-violet-300' : 'text-white'
-              }`}
-            >
-              None (Root Category - Level 1)
-            </button>
-
-            {/* Category Options */}
-            {getParentCategoryOptions().map((cat: any) => {
-              const level = cat.level !== undefined ? cat.level : getCategoryLevel(cat, categories);
-              const indent = '—'.repeat(level);
-              
-              if (level >= 2) return null;
-              
-              const isSelected = formData.parentCategoryId === cat.id;
-              
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    setFormData({...formData, parentCategoryId: cat.id});
-                    setShowParentDropdown(false);
-                  }}
-                  className={`w-full px-4 py-3 text-left hover:bg-violet-500/20 transition-colors border-t border-slate-700/50 ${
-                    isSelected ? 'bg-violet-500/30 text-violet-300' : 'text-white'
-                  }`}
-                >
-                  {indent} {cat.name} {level === 0 ? '(Level 1 - Root)' : '(Level 2 - Sub)'}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </>
-    )}
-  </div>
-  
-  {/* Rest of your helper text - same as before */}
-  <div className="mt-3 p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl space-y-2">
-    <p className="text-xs font-semibold text-violet-300 flex items-center gap-2">
-      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-      </svg>
-      Category Hierarchy Rules (Maximum 3 Levels)
-    </p>
-    <div className="space-y-1.5 text-xs text-slate-300 pl-6">
-      <div className="flex items-start gap-2">
-        <span className="text-green-400">✓</span>
-        <span><strong className="text-violet-300">Level 1 (Root):</strong> No parent selected - Can have children</span>
-      </div>
-      <div className="flex items-start gap-2">
-        <span className="text-green-400">✓</span>
-        <span><strong className="text-cyan-300">Level 2 (Sub):</strong> Parent is Level 1 - Can have children</span>
-      </div>
-      <div className="flex items-start gap-2">
-        <span className="text-green-400">✓</span>
-        <span><strong className="text-blue-300">Level 3 (Sub-sub):</strong> Parent is Level 2 - Cannot have children (Maximum depth)</span>
-      </div>
-      <div className="flex items-start gap-2 mt-2 pt-2 border-t border-violet-500/20">
-        <span className="text-red-400">✗</span>
-        <span className="text-red-300"><strong>Level 4:</strong> Not allowed - System will prevent creation</span>
-      </div>
-    </div>
-  </div>
-  
-  {/* Current Selection Display */}
-  {formData.parentCategoryId && (
-    <div className="mt-2 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
-      <p className="text-xs text-cyan-300">
-        <strong>Selected Parent:</strong> {categories.find(c => c.id === formData.parentCategoryId)?.name}
-        <br />
-        <strong>New Category Level:</strong> {
-          (() => {
-            const parent = findCategoryById(formData.parentCategoryId, categories);
-            if (!parent) return 'Level 2';
-            const parentLevel = getCategoryLevel(parent, categories);
-            return `Level ${parentLevel + 2}`;
-          })()
-        }
-      </p>
-    </div>
-  )}
-  
-  {!formData.parentCategoryId && (
-    <div className="mt-2 p-3 bg-violet-500/10 border border-violet-500/20 rounded-lg">
-      <p className="text-xs text-violet-300">
-        <strong>Creating Root Category (Level 1)</strong> - This can have subcategories
-      </p>
-    </div>
-  )}
-</div>
-
-
-
-                  <div>
-                    <ProductDescriptionEditor
-                      label="Description"
-                      value={formData.description}
-                      onChange={(content) => setFormData(prev => ({ 
-                        ...prev, 
-                        description: content 
-                      }))}
-                      placeholder="Enter category description with rich formatting..."
-                      height={300}
-                      required={false}
-                    />
-                  </div>
-                </div>
-              </div>
-
-{/* Category Image Section */}
-<div className="bg-slate-800/30 p-6 rounded-2xl border border-slate-700/50">
-  <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-    <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-sm">
-      2
-    </span>
-    <span>Category Image</span>
-  </h3>
-
-  <div className="space-y-4">
-    {/* Current/Preview Image Display */}
-    {(imagePreview || formData.imageUrl) && (
-      <div className="flex items-center gap-4 p-3 bg-slate-900/30 rounded-xl border border-slate-600">
-        <div
-          className="w-16 h-16 rounded-lg overflow-hidden border-2 border-violet-500/30 cursor-pointer hover:border-violet-500 transition-all"
-          onClick={() => setSelectedImageUrl(imagePreview || getImageUrl(formData.imageUrl))}
-        >
-          <img
-            src={imagePreview || getImageUrl(formData.imageUrl)}
-            alt="Category image"
-            className="w-full h-full object-cover"
-            onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-          />
-        </div>
-        <div className="flex-1">
-          <p className="text-white font-medium">
-            {imagePreview ? "New Image Selected" : "Current Image"}
-          </p>
-          <p className="text-xs text-slate-400">
-            {imagePreview ? "Will be uploaded on save" : "Click to view full size"}
-          </p>
-        </div>
-
-        {/* Change/Remove buttons */}
-        <div className="flex gap-2">
-          <label
-            className={`px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all ${
-              !formData.name
-                ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
-                : "bg-violet-500/20 text-violet-400 hover:bg-violet-500/30"
-            }`}
-          >
-            Change
-            <input
-              type="file"
-              accept="image/*"
-              disabled={!formData.name}
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageFileChange(file);
-              }}
-            />
-          </label>
-
-          {imagePreview && (
-            <button
-              type="button"
-              onClick={() => {
-                if (imagePreview) URL.revokeObjectURL(imagePreview);
-                setImageFile(null);
-                setImagePreview(null);
-                toast.success("Image selection removed");
-              }}
-              className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all text-sm font-medium"
-            >
-              Remove
-            </button>
-          )}
-
-          {/* Delete button for existing images (only in edit mode) */}
-          {editingCategory && formData.imageUrl && !imagePreview && (
-            <button
-              type="button"
-              onClick={() => {
-                if (editingCategory) {
-                  setImageDeleteConfirm({
-                    categoryId: editingCategory.id,
-                    imageUrl: formData.imageUrl!,
-                    categoryName: editingCategory.name,
-                  });
-                }
-              }}
-              className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all text-sm font-medium flex items-center gap-2"
-              title="Delete Image"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </button>
-          )}
-        </div>
-      </div>
-    )}
-
-    {/* Upload Area - Show only if no image */}
-    {!formData.imageUrl && !imagePreview && (
-      <div className="flex items-center justify-center w-full">
-        <label
-          className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl transition-all ${
-            !formData.name
-              ? "border-slate-700 bg-slate-900/20 cursor-not-allowed"
-              : "border-slate-600 bg-slate-900/30 hover:bg-slate-800/50 cursor-pointer group"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Upload
-              className={`w-6 h-6 transition-colors ${
-                !formData.name
-                  ? "text-slate-600"
-                  : "text-slate-500 group-hover:text-violet-400"
-              }`}
-            />
-            <div>
-              <p
-                className={`text-sm ${
-                  !formData.name ? "text-slate-600" : "text-slate-400"
-                }`}
-              >
-                {!formData.name ? (
-                  "Enter category name first to upload"
-                ) : (
-                  <>
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </>
-                )}
-              </p>
-              {formData.name && (
-                <p className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</p>
-              )}
-            </div>
-          </div>
-          <input
-            type="file"
-            accept="image/*"
-            disabled={!formData.name}
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImageFileChange(file);
-            }}
-          />
-        </label>
-      </div>
-    )}
-
-    {/* URL Input - Optional */}
-    {!imagePreview && (
-      <>
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-700"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-slate-800 text-slate-400">OR</span>
-          </div>
-        </div>
-        <input
-          type="text"
-          value={formData.imageUrl}
-          onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-          placeholder="Paste image URL"
-          className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-        />
-      </>
-    )}
-  </div>
-</div>
-
-
-
-              <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-sm">3</span>
-                  <span>SEO Information</span>
-                </h3>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Meta Title</label>
-                    <input
-                      type="text"
-                      value={formData.metaTitle}
-                      onChange={(e) => setFormData({...formData, metaTitle: e.target.value})}
-                      placeholder="Enter meta title for SEO"
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Meta Description</label>
-                    <textarea
-                      value={formData.metaDescription}
-                      onChange={(e) => setFormData({...formData, metaDescription: e.target.value})}
-                      placeholder="Enter meta description for SEO"
-                      rows={3}
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all resize-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Meta Keywords</label>
-                    <input
-                      type="text"
-                      value={formData.metaKeywords}
-                      onChange={(e) => setFormData({...formData, metaKeywords: e.target.value})}
-                      placeholder="Enter keywords separated by commas"
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-{/* ✅ SECTION 4: SETTINGS - REPLACE COMPLETE SECTION */}
-<div className="bg-slate-800/30 p-6 rounded-2xl border border-slate-700/50">
-  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-    <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-sm">4</span>
-    <span>Settings</span>
-  </h3>
-  
-  {/* Row 1: Active + Sort Order */}
-  <div className="grid grid-cols-2 gap-4 mb-4">
-    {/* Active Checkbox */}
-    <div>
-      <label className="block text-sm font-medium text-slate-300 mb-2">
-        Make category visible
-      </label>
-      <label className="flex items-center gap-3 p-3.5 bg-slate-900/50 border border-slate-600 rounded-xl cursor-pointer hover:border-violet-500 transition-all group">
-        <input
-          type="checkbox"
-          checked={formData.isActive}
-          onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-          className="w-5 h-5 rounded border-slate-600 text-violet-500 focus:ring-2 focus:ring-violet-500 focus:ring-offset-0 focus:ring-offset-slate-900"
-        />
-        <div>
-          <p className="text-sm font-medium text-white group-hover:text-violet-400 transition-colors">
-            Active
-          </p>
-        </div>
-      </label>
-    </div>
-
-    {/* Sort Order */}
-    <div>
-      <label className="block text-sm font-medium text-slate-300 mb-2">
-        Sort Order
-      </label>
-      <input
-        type="number"
-        min="0"
-        value={formData.sortOrder || 0}
-        onChange={(e) => {
-          const value = e.target.value;
-          setFormData({
-            ...formData,
-            sortOrder: value === '' ? 0 : parseInt(value, 10)
-          });
-        }}
-        placeholder="0"
-        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-      />
-    </div>
-  </div>
-
-  {/* Row 2: Show on Homepage - Full Width with Counter */}
-  <div>
-    <div className="flex items-center justify-between mb-2">
-      <label className="block text-sm font-medium text-slate-300">
-        Show on homepage
-      </label>
-      
-      {/* Counter Badge */}
-      <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${
-        homepageCount >= 15
-          ? 'bg-red-500/10 text-red-400 border-red-500/30'
-          : homepageCount >= 12
-          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-          : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
-      }`}>
-        {homepageCount}/15 Featured
-      </span>
-    </div>
-    
-    <label className={`flex items-center justify-between gap-3 p-4 border rounded-xl transition-all ${
-      formData.showOnHomepage
-        ? 'bg-cyan-500/10 border-cyan-500/30'
-        : 'bg-slate-900/50 border-slate-600 hover:border-cyan-500 cursor-pointer'
-    } ${
-      !formData.showOnHomepage && homepageCount >= 15
-        ? 'opacity-50 cursor-not-allowed'
-        : ''
-    }`}>
-      <div className="flex items-center gap-3 flex-1">
-        <input
-          type="checkbox"
-          checked={formData.showOnHomepage}
-          onChange={(e) => {
-            const checked = e.target.checked;
-            
-            // Prevent checking if limit reached (only for new checks)
-            if (checked && homepageCount >= 15 && !editingCategory?.showOnHomepage) {
-              toast.error(
-                `🚫 Maximum ${MAX_HOMEPAGE_CATEGORIES} categories allowed on homepage! Currently: ${homepageCount}/15`
-              );
-              return;
-            }
-            
-            setFormData({...formData, showOnHomepage: checked});
-          }}
-          disabled={!formData.showOnHomepage && homepageCount >= 15 && !editingCategory?.showOnHomepage}
-          className="w-5 h-5 rounded border-slate-600 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-        />
-        <div className="flex-1">
-          <p className="text-sm font-medium text-white">
-            Featured on Homepage
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {homepageCount >= 15 && !formData.showOnHomepage
-              ? '⚠️ Homepage limit reached'
-              : 'Display this category on the store homepage'}
-          </p>
-        </div>
-      </div>
-      
-      {/* Visual indicator */}
-      {formData.showOnHomepage && (
-        <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        </div>
-      )}
-    </label>
-    
-    {/* Warning message when close to limit */}
-    {homepageCount >= 12 && homepageCount < 15 && (
-      <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2">
-        <svg className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-        </svg>
-        <p className="text-xs text-amber-300">
-          <strong>Warning:</strong> {15 - homepageCount} {15 - homepageCount === 1 ? 'slot' : 'slots'} remaining for homepage
-        </p>
-      </div>
-    )}
-    
-    {/* Info message when limit reached */}
-    {homepageCount >= 15 && (
-      <div className="mt-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
-        <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-        </svg>
-        <div className="flex-1">
-          <p className="text-xs text-red-300">
-            <strong>Homepage Full!</strong> Remove one category from homepage to add another.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              toast.info(
-                `📋 ${homepageCount} categories currently featured on homepage. Edit them to make room.`
-              );
-            }}
-            className="text-xs text-red-400 underline mt-1 hover:text-red-300"
-          >
-            View featured categories
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
-
-<div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
-  <button
-    type="button"
-    onClick={() => {
-      setShowModal(false);
-      resetForm();
-    }}
-    disabled={isSubmitting}
-    className="px-6 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    Cancel
-  </button>
-  <button
-    type="submit"
-    disabled={isSubmitting}
-    className="px-6 py-3 bg-gradient-to-r from-violet-500 via-purple-500 to-cyan-500 text-white rounded-xl hover:shadow-xl hover:shadow-violet-500/50 transition-all font-semibold hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-  >
-    {isSubmitting ? (
-      <>
-        {/* 🔥 Spinner */}
-        <svg 
-          className="animate-spin h-5 w-5 text-white" 
-          xmlns="http://www.w3.org/2000/svg" 
-          fill="none" 
-          viewBox="0 0 24 24"
-        >
-          <circle 
-            className="opacity-25" 
-            cx="12" 
-            cy="12" 
-            r="10" 
-            stroke="currentColor" 
-            strokeWidth="4"
-          />
-          <path 
-            className="opacity-75" 
-            fill="currentColor" 
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        {editingCategory ? 'Updating Category...' : 'Creating Category...'}
-      </>
-    ) : (
-      <>
-        {editingCategory ? '✓ Update Category' : '+ Create Category'}
-      </>
-    )}
-  </button>
-</div>
-
-            </form>
-          </div>
-        </div>
-      )}
 
             {/* View Details Modal - UPDATED WITH DELETE BUTTON */}
         {viewingCategory && (
@@ -2571,13 +1669,7 @@ useEffect(() => {
                       <div className="bg-slate-900/50 p-2.5 rounded-lg">
                         <p className="text-xs text-slate-400 mb-1">Created At</p>
                         <p className="text-white text-xs font-medium">
-                          {viewingCategory.createdAt ? new Date(viewingCategory.createdAt).toLocaleString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : 'N/A'}
+                          {formatDate(viewingCategory.createdAt)}
                         </p>
                       </div>
                       <div className="bg-slate-900/50 p-2.5 rounded-lg">
@@ -2587,13 +1679,7 @@ useEffect(() => {
                       <div className="bg-slate-900/50 p-2.5 rounded-lg">
                         <p className="text-xs text-slate-400 mb-1">Updated At</p>
                         <p className="text-white text-xs font-medium">
-                          {viewingCategory.updatedAt ? new Date(viewingCategory.updatedAt).toLocaleString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          }) : 'N/A'}
+                           {formatDate(viewingCategory.updatedAt)}
                         </p>
                       </div>
                       <div className="bg-slate-900/50 p-2.5 rounded-lg">
@@ -2603,8 +1689,67 @@ useEffect(() => {
                     </div>
                   </div>
                 </div>
-              </div>
+                {/* ================= FAQ ================= */}
+<div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+
+  <div className="flex justify-between items-center mb-3">
+    <h3 className="text-white font-semibold">FAQs</h3>
+    <span className="text-xs px-2 py-1 bg-slate-700 rounded text-slate-300">
+      {viewingCategory.faqs?.length || 0}
+    </span>
+  </div>
+
+  {viewingCategory.faqs?.length ? (
+    <div className="space-y-2">
+
+      {viewingCategory.faqs.map((faq: any, i: number) => (
+        <details
+          key={faq.id}
+          className="group bg-slate-900/50 rounded-lg border border-slate-700/40 overflow-hidden"
+        >
+
+          {/* QUESTION */}
+          <summary className="cursor-pointer list-none p-3 flex justify-between items-center">
+
+            <p className="text-sm text-white font-medium">
+              {i + 1}. {faq.question}
+            </p>
+
+            <div className="flex items-center gap-2">
+
+              <span className={`text-[10px] px-2 py-0.5 rounded ${
+                faq.isActive
+                  ? "bg-green-500/10 text-green-400"
+                  : "bg-red-500/10 text-red-400"
+              }`}>
+                {faq.isActive ? "Active" : "Inactive"}
+              </span>
+
+              <span className="text-xs text-slate-500">
+                #{faq.displayOrder}
+              </span>
+
             </div>
+          </summary>
+
+          {/* ANSWER */}
+          <div className="px-3 pb-3 text-xs text-slate-400 border-t border-slate-700/40">
+            {faq.answer}
+          </div>
+
+        </details>
+      ))}
+
+    </div>
+  ) : (
+    <p className="text-slate-500 text-sm">No FAQs available</p>
+  )}
+
+</div>
+              </div>
+              
+            </div>
+            
 
             {/* ========== FIXED FOOTER ========== */}
             <div className="p-4 border-t border-slate-700/50 bg-slate-800/30 rounded-b-2xl shrink-0">
@@ -2658,8 +1803,9 @@ useEffect(() => {
       onError={(e) => (e.currentTarget.src = "/placeholder.png")}
       />
       <button
+      type="button"
         onClick={() => setSelectedImageUrl(null)}
-        className="absolute top-4 right-4 p-2 bg-slate-900/80 text-white rounded-lg hover:bg-slate-800 transition-all"
+        className="absolute top-4 right-4 p-2 bg-red-900/80 text-white rounded-lg hover:bg-slate-800 transition-all"
       >
         <X className="h-5 w-5" />
       </button>
@@ -2729,7 +1875,22 @@ useEffect(() => {
   confirmText="Restore"
   isLoading={isRestoring}
 />
-
+<CategoryModal
+  showModal={showModal}
+  setShowModal={setShowModal}
+   imageFile={imageFile}
+  setImageFile={setImageFile}
+  editingCategory={editingCategory}
+  setEditingCategory={setEditingCategory}
+  formData={formData}
+  setFormData={setFormData}
+  handleSubmit={handleSubmit}
+  isSubmitting={isSubmitting}
+  categories={categories}
+   pendingFaqs={pendingFaqs}
+  setPendingFaqs={setPendingFaqs}
+  openFaqCategory={openFaqCategory} // 🔥 add this
+/>
     </div>
   );
 }

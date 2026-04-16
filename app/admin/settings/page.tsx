@@ -6,9 +6,11 @@ import {
   Save, Upload, Eye, EyeOff, RefreshCw, Globe, Phone, MapPin,
   Clock, DollarSign, Check, AlertCircle, X, Image as ImageIcon,
   Zap, Webhook, ExternalLink, TestTube, Info, ChevronRight,
+  Plus, Trash2, Pencil,
 } from 'lucide-react';
 import { useToast } from '../_components/CustomToast';
 import { API_BASE_URL } from '@/lib/api-config';
+import GoogleMerchantSettings from './GoogleMerchantSettings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,10 +21,6 @@ interface StoreSettingsDto {
   storeTagline: string;
   storeEmail: string;
   storePhone: string;
-  storeAddress: string;
-  storeCity: string;
-  storePostalCode: string;
-  storeCountry: string;
   currency: string;
   timezone: string;
   adminPanelName: string;
@@ -78,8 +76,7 @@ interface StoreSettingsDto {
 
 const DEFAULT: StoreSettingsDto = {
   id: '', storeName: 'Direct Care', storeTagline: 'Your trusted healthcare store',
-  storeEmail: '', storePhone: '', storeAddress: '', storeCity: '', storePostalCode: '',
-  storeCountry: 'United Kingdom', currency: 'GBP', timezone: 'Europe/London',
+  storeEmail: '', storePhone: '', currency: 'GBP', timezone: 'Europe/London',
   adminPanelName: 'EcomPanel', logoUrl: null, faviconUrl: null,
   stripeEnabled: false, stripeTestMode: true, stripePublishableKey: null,
   stripeSecretKey: null, stripeWebhookSecret: null,
@@ -99,13 +96,42 @@ const DEFAULT: StoreSettingsDto = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'general',       label: 'General',      icon: Store,      color: 'text-violet-400' },
-  { id: 'payments',      label: 'Payments',      icon: CreditCard, color: 'text-emerald-400' },
-  { id: 'email',         label: 'Email / SMTP',  icon: Mail,       color: 'text-blue-400' },
-  { id: 'appearance',    label: 'Appearance',    icon: Palette,    color: 'text-pink-400' },
-  { id: 'security',      label: 'Security',      icon: Shield,     color: 'text-yellow-400' },
-  { id: 'notifications', label: 'Notifications', icon: Bell,       color: 'text-cyan-400' },
+  { id: 'general',         label: 'General',         icon: Store,      color: 'text-violet-400' },
+  { id: 'payments',        label: 'Payments',         icon: CreditCard, color: 'text-emerald-400' },
+  { id: 'email',           label: 'Email / SMTP',     icon: Mail,       color: 'text-blue-400' },
+  { id: 'appearance',      label: 'Appearance',       icon: Palette,    color: 'text-pink-400' },
+  { id: 'security',        label: 'Security',         icon: Shield,     color: 'text-yellow-400' },
+  { id: 'notifications',   label: 'Notifications',    icon: Bell,       color: 'text-cyan-400' },
+  { id: 'store-locations', label: 'Store Locations',  icon: MapPin,     color: 'text-orange-400' },
+  { id: 'google-merchant', label: 'Google Merchant',  icon: Globe,      color: 'text-emerald-400' },
 ];
+
+// ─── Store Location types ─────────────────────────────────────────────────────
+
+interface StoreLocationItem {
+  id: string;
+  name: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  postalCode: string;
+  country: string;
+  phoneNumber: string | null;
+  openingHours: string | null;
+  email: string | null;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+type StoreLocationForm = Omit<StoreLocationItem, 'id'>;
+
+const EMPTY_LOCATION: StoreLocationForm = {
+  name: '', addressLine1: '', addressLine2: null, city: '', postalCode: '',
+  country: 'United Kingdom', phoneNumber: null, openingHours: null, email: null,
+  isActive: true, displayOrder: 0,
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD'];
 const TIMEZONES  = ['UTC', 'Europe/London', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Karachi'];
@@ -161,21 +187,9 @@ const SectionCard = ({ title, description, icon: Icon, children }: {
   </div>
 );
 
-const Field = ({
-  label,
-  hint,
-  children,
-  className,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-  className?: string;
-}) => (
-  <div className={`space-y-1.5 ${className ?? ""}`}>
-    <label className="text-xs font-semibold text-slate-300 tracking-wide">
-      {label}
-    </label>
+const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-semibold text-slate-300 tracking-wide">{label}</label>
     {children}
     {hint && <p className="text-xs text-slate-500">{hint}</p>}
   </div>
@@ -247,19 +261,6 @@ function GeneralTab({ s, set }: { s: StoreSettingsDto; set: (k: keyof StoreSetti
             </div>
           </Field>
           <Field label="Favicon URL"><Input value={s.faviconUrl ?? ''} onChange={e => set('faviconUrl', e.target.value)} placeholder="/favicon.ico" /></Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Store Address" icon={MapPin}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Street Address" className="sm:col-span-2"><Input value={s.storeAddress} onChange={e => set('storeAddress', e.target.value)} placeholder="123 High Street" /></Field>
-          <Field label="City"><Input value={s.storeCity} onChange={e => set('storeCity', e.target.value)} /></Field>
-          <Field label="Postal Code"><Input value={s.storePostalCode} onChange={e => set('storePostalCode', e.target.value)} /></Field>
-          <Field label="Country">
-            <SelectEl value={s.storeCountry} onChange={e => set('storeCountry', e.target.value)}>
-              {['United Kingdom','United States','Canada','Australia','Pakistan'].map(c => <option key={c}>{c}</option>)}
-            </SelectEl>
-          </Field>
         </div>
       </SectionCard>
 
@@ -434,6 +435,268 @@ function NotificationsTab({ s, set }: { s: StoreSettingsDto; set: (k: keyof Stor
   );
 }
 
+function StoreLocationsTab() {
+  const toast = useToast();
+  const [locations, setLocations] = useState<StoreLocationItem[]>([]);
+  const [locLoading, setLocLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingLoc, setEditingLoc] = useState<StoreLocationItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [form, setForm] = useState<StoreLocationForm>(EMPTY_LOCATION);
+
+  const loadLocations = useCallback(async () => {
+    setLocLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/StoreLocations?includeInactive=true`, { headers: getAuthHeaders() });
+      const json = await res.json();
+      setLocations(json.data ?? json ?? []);
+    } catch {
+      toast.error('Failed to load store locations.');
+    } finally {
+      setLocLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadLocations(); }, [loadLocations]);
+
+  const openAdd = () => { setEditingLoc(null); setForm(EMPTY_LOCATION); setShowModal(true); };
+  const openEdit = (loc: StoreLocationItem) => { setEditingLoc(loc); setForm({ ...loc }); setShowModal(true); };
+  const setF = (k: keyof StoreLocationForm, v: any) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.addressLine1.trim() || !form.city.trim() || !form.postalCode.trim()) {
+      toast.error('Name, Address, City and Postal Code are required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editingLoc) {
+        const res = await fetch(`${API_BASE_URL}/api/StoreLocations/${editingLoc.id}`, {
+          method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error();
+        toast.success('Location updated!');
+      } else {
+        const res = await fetch(`${API_BASE_URL}/api/StoreLocations`, {
+          method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(form),
+        });
+        if (!res.ok) throw new Error();
+        toast.success('Location added!');
+      }
+      setShowModal(false);
+      loadLocations();
+    } catch {
+      toast.error('Failed to save location.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/StoreLocations/${deleteId}`, {
+        method: 'DELETE', headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Location deleted.');
+      setDeleteId(null);
+      loadLocations();
+    } catch {
+      toast.error('Failed to delete location.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400">Manage physical store locations for Click &amp; Collect</p>
+        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/20 border border-violet-500/40 text-violet-300 rounded-lg text-xs font-medium hover:bg-violet-500/30 transition-all">
+          <Plus className="w-3.5 h-3.5" /> Add Location
+        </button>
+      </div>
+
+      {locLoading ? (
+        <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 text-violet-400 animate-spin" /></div>
+      ) : locations.length === 0 ? (
+        <div className="text-center py-12 text-slate-500 text-sm">No store locations yet. Click &quot;Add Location&quot; to create one.</div>
+      ) : (
+        <div className="space-y-3">
+          {locations.map(loc => (
+            <div key={loc.id} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <MapPin className="w-4 h-4 text-orange-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-white">{loc.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${loc.isActive ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
+                        {loc.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {loc.addressLine1}{loc.addressLine2 ? `, ${loc.addressLine2}` : ''}, {loc.city}, {loc.postalCode}
+                    </p>
+                    <div className="flex flex-wrap gap-3 mt-1">
+                      {loc.phoneNumber && <span className="text-xs text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3" />{loc.phoneNumber}</span>}
+                      {loc.openingHours && <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" />{loc.openingHours}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => openEdit(loc)} className="p-1.5 text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all" title="Edit">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteId(loc.id)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="Delete">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700/60 rounded-2xl w-full max-w-xl shadow-2xl shadow-black/40 max-h-[92vh] flex flex-col">
+
+            {/* Header */}
+            <div className="flex items-center gap-3 p-5 border-b border-slate-700/50">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-4 h-4 text-orange-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-white">{editingLoc ? 'Edit Location' : 'Add New Location'}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Click &amp; Collect store details</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-5 space-y-5">
+
+              {/* Location Info */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Store className="w-3.5 h-3.5" /> Location Info
+                </p>
+                <Field label="Location Name *">
+                  <Input value={form.name} onChange={e => setF('name', e.target.value)} placeholder="e.g. Main Branch — Birmingham" />
+                </Field>
+                <div className="flex items-center justify-between px-3 py-2.5 bg-slate-800/40 border border-slate-700/40 rounded-lg">
+                  <div>
+                    <span className="text-sm text-slate-300 font-medium">Active</span>
+                    <p className="text-xs text-slate-500 mt-0.5">Visible to customers for Click &amp; Collect</p>
+                  </div>
+                  <button type="button" onClick={() => setF('isActive', !form.isActive)}
+                    className={`relative inline-flex h-5 w-9 rounded-full transition-colors duration-200 flex-shrink-0 ${form.isActive ? 'bg-orange-500' : 'bg-slate-700'}`}>
+                    <span className={`inline-block w-4 h-4 mt-0.5 rounded-full bg-white shadow transform transition-transform duration-200 ${form.isActive ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800" />
+
+              {/* Address */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5" /> Address
+                </p>
+                <Field label="Address Line 1 *">
+                  <Input value={form.addressLine1} onChange={e => setF('addressLine1', e.target.value)} placeholder="Unit / Building / Street number" />
+                </Field>
+                <Field label="Address Line 2">
+                  <Input value={form.addressLine2 ?? ''} onChange={e => setF('addressLine2', e.target.value || null)} placeholder="Street name, area (optional)" />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="City *">
+                    <Input value={form.city} onChange={e => setF('city', e.target.value)} placeholder="Birmingham" />
+                  </Field>
+                  <Field label="Postal Code *">
+                    <Input value={form.postalCode} onChange={e => setF('postalCode', e.target.value)} placeholder="B6 7RT" />
+                  </Field>
+                </div>
+                <Field label="Country">
+                  <Input value={form.country} onChange={e => setF('country', e.target.value)} />
+                </Field>
+              </div>
+
+              <div className="border-t border-slate-800" />
+
+              {/* Contact & Hours */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5" /> Contact &amp; Hours
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Phone Number">
+                    <Input value={form.phoneNumber ?? ''} onChange={e => setF('phoneNumber', e.target.value || null)} placeholder="01213260060" />
+                  </Field>
+                  <Field label="Email">
+                    <Input type="email" value={form.email ?? ''} onChange={e => setF('email', e.target.value || null)} placeholder="store@example.com" />
+                  </Field>
+                </div>
+                <Field label="Opening Hours" hint="e.g. Mon–Fri: 9am–6pm, Sat: 10am–4pm">
+                  <Input value={form.openingHours ?? ''} onChange={e => setF('openingHours', e.target.value || null)} placeholder="Mon–Fri: 9am–6pm" />
+                </Field>
+                <Field label="Display Order" hint="Lower number = shown first">
+                  <Input type="number" value={form.displayOrder} onChange={e => setF('displayOrder', Number(e.target.value))} min={0} className="w-32" />
+                </Field>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 p-5 border-t border-slate-700/50 bg-slate-900/60 rounded-b-2xl">
+              <span className="text-xs text-slate-600">* Required fields</span>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg border border-slate-700/50 transition-all">
+                  Cancel
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg text-white text-sm font-semibold hover:from-orange-600 hover:to-amber-600 transition-all disabled:opacity-60 shadow-lg shadow-orange-500/20">
+                  {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {saving ? 'Saving…' : editingLoc ? 'Update Location' : 'Add Location'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm">
+            <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-5 h-5 text-red-400" />
+            </div>
+            <h3 className="text-sm font-semibold text-white text-center mb-2">Delete Location?</h3>
+            <p className="text-xs text-slate-400 text-center mb-5">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2 text-sm text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/40 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-all disabled:opacity-60">
+                {deleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -538,18 +801,20 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-white">{currentTab.label}</h2>
             </div>
 
-            {activeTab === 'general'       && <GeneralTab       s={settings} set={setField} />}
-            {activeTab === 'payments'      && <PaymentsTab      s={settings} set={setField} />}
-            {activeTab === 'email'         && <EmailTab         s={settings} set={setField} />}
-            {activeTab === 'appearance'    && <AppearanceTab    s={settings} set={setField} />}
-            {activeTab === 'security'      && <SecurityTab      s={settings} set={setField} />}
-            {activeTab === 'notifications' && <NotificationsTab s={settings} set={setField} />}
+            {activeTab === 'general'         && <GeneralTab         s={settings} set={setField} />}
+            {activeTab === 'payments'        && <PaymentsTab        s={settings} set={setField} />}
+            {activeTab === 'email'           && <EmailTab           s={settings} set={setField} />}
+            {activeTab === 'appearance'      && <AppearanceTab      s={settings} set={setField} />}
+            {activeTab === 'security'        && <SecurityTab        s={settings} set={setField} />}
+            {activeTab === 'notifications'   && <NotificationsTab   s={settings} set={setField} />}
+            {activeTab === 'store-locations' && <StoreLocationsTab />}
+            {activeTab === 'google-merchant' && <GoogleMerchantSettings />}
           </div>
         </div>
       )}
 
-      {/* Sticky save bar */}
-      {!loading && !error && (
+      {/* Sticky save bar — not shown for Store Locations (has its own CRUD) */}
+      {!loading && !error && activeTab !== 'store-locations' && activeTab !== 'google-merchant' && (
         <div className="sticky bottom-4 flex justify-end pointer-events-none">
           <div className="bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-xl px-4 py-3 flex items-center gap-3 shadow-xl pointer-events-auto">
             <span className="text-xs text-slate-400 hidden sm:block">Saved to database</span>

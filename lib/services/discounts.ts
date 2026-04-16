@@ -34,6 +34,8 @@ export interface Discount {
   maximumDiscountedQuantity: number | null;
   appliedToSubOrders: boolean;
   adminComment: string;
+  desktopBannerImageUrl: string | null;
+  mobileBannerImageUrl: string | null;
   assignedProductIds: string;
   assignedCategoryIds: string;
   assignedManufacturerIds: string;
@@ -273,6 +275,58 @@ export const discountsService = {
       throw error;
     }
   },
+
+  // Upload banner image
+uploadBannerImage: async (
+  id: string,
+  file: File,
+  type: "desktop" | "mobile" = "desktop",
+  config: any = {}
+) => {
+  if (!id?.trim()) {
+    throw new Error("Discount ID is required");
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    return await apiClient.post(
+      `${API_ENDPOINTS.discounts}/${id}/upload-banner-image?type=${type}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        ...config,
+      }
+    );
+  } catch (error: any) {
+    console.error("Error uploading banner image:", error);
+    throw error;
+  }
+},
+
+// Delete banner image
+deleteBannerImage: async (
+  id: string,
+  type: "desktop" | "mobile" = "desktop",
+  config: any = {}
+) => {
+  if (!id?.trim()) {
+    throw new Error("Discount ID is required");
+  }
+
+  try {
+    return await apiClient.delete(
+      `${API_ENDPOINTS.discounts}/${id}/delete-banner-image?type=${type}`,
+      config
+    );
+  } catch (error: any) {
+    console.error("Error deleting banner image:", error);
+    throw error;
+  }
+},
 
   /**
    * Get usage history for a discount
