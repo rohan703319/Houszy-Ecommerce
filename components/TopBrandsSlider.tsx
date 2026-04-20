@@ -84,43 +84,29 @@ export default function TopBrandsSlider({
           <Link href={`/brands/${brand.slug}`}>
 
 <Card
-  className="group w-full h-[170px] md:h-[210px] lg:h-[240px]
-             bg-white rounded-2xl border border-gray-100
-             shadow-sm md:hover:shadow-xl
+  className="group w-full h-[130px] md:h-[150px] lg:h-[170px]
+             bg-white rounded-xl border border-gray-200
+             flex items-center justify-center
              transition-all duration-300
-             flex flex-col items-center justify-between
-             py-4 md:py-6 px-3
-             md:hover:-translate-y-1"
+             hover:shadow-md hover:-translate-y-1"
 >
-  <CardContent className="p-0 w-full flex flex-col items-center justify-between h-full">
+  <CardContent className="p-0 flex items-center justify-center w-full h-full">
 
-    {/* BIG LOGO LIKE DIRECT CARE */}
- {/* FIXED IMAGE WRAPPER */}
-<div className="w-[90px] h-[90px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px]
-                flex items-center justify-center
-                rounded-xl bg-gray-50
-                md:group-hover:bg-white
-                transition-all duration-300 p-2">
- <img
-  src={
-    brand.logoUrl
-      ? brand.logoUrl.startsWith("http")
-        ? brand.logoUrl
-        : `${baseUrl}${brand.logoUrl}`
-      : "/placeholder.jpg"
-  }
-  alt={brand.name}
-  className="w-auto h-full object-contain transition-transform duration-300 md:group-hover:scale-105"
-  style={{ objectPosition: "center" }}
-/>
-</div>
-
-    {/* BRAND NAME EXACT STYLE */}
-    <h3 className="font-semibold text-gray-800 text-xs md:text-sm lg:text-base text-center
-               px-2 line-clamp-1
-               md:group-hover:text-[#445D41] transition-colors duration-300">
-      {brand.name}
-    </h3>
+    <div className="w-full h-full flex items-center justify-center px-2">
+      <img
+        src={
+          brand.logoUrl
+            ? brand.logoUrl.startsWith("http")
+              ? brand.logoUrl
+              : `${baseUrl}${brand.logoUrl}`
+            : "/placeholder.jpg"
+        }
+        alt={brand.name}
+        className="max-h-[75%] w-auto object-contain
+                   transition-transform duration-300
+                   md:group-hover:scale-105"
+      />
+    </div>
 
   </CardContent>
 </Card>

@@ -513,8 +513,8 @@ const refundedAmount =
               />
             </div>
             <div className="flex-1">
-              <p className="font-medium text-sm line-clamp-2">{item.productName}</p>
-              <p className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</p>
+              <p className="font-medium text-sm text-[#445D41] line-clamp-2">{item.productName}</p>
+              <p className="text-xs text-black mt-1">Qty: {item.quantity}</p>
             </div>
             <div className="text-right text-sm font-semibold">
               £{item.totalPrice.toFixed(2)}

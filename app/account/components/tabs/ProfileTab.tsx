@@ -309,7 +309,7 @@ toast.success(data?.message || "Profile updated successfully");
 
   {/* FIRST NAME */}
   <div>
-    <label className="text-sm font-medium">First Name</label>
+    <label className="text-sm font-medium">First Name *</label>
     <Input
       value={form.firstName}
      onChange={(e) => {

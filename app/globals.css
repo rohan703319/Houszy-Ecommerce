@@ -91,9 +91,9 @@ html {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.5);
 }
-input, textarea, select {
+/* input, textarea, select {
   font-size: 16px !important;
-}
+} */
 
 /* Remove number input arrows */
 input[type="number"]::-webkit-inner-spin-button,

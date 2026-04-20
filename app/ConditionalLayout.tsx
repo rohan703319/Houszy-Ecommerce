@@ -8,9 +8,11 @@ import ScrollToTop from "@/components/ScrollToTop";
 export default function ConditionalLayout({
   children,
   categories,
+  deliveryStrip,
 }: {
   children: React.ReactNode;
   categories: any[];
+  deliveryStrip: any[];
 }) {
   const pathname = usePathname();
 
@@ -40,7 +42,10 @@ export default function ConditionalLayout({
   // ✅ Main site par Header + Footer dikhega with proper spacing
   return (
   <div className="min-h-screen flex flex-col">
-    <Header ssrCategories={categories} />
+   <Header 
+  ssrCategories={categories} 
+  deliveryStrip={deliveryStrip}
+/>
 
     {/* main will push footer to bottom */}
     <main className="flex-1 pt-[108px] md:pt-[152px]">

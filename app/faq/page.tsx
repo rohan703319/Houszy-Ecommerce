@@ -7,42 +7,42 @@ const faqs = [
   {
     question: "Who is Direct Care?",
     answer:
-      "Direct Care is an online platform offering a wide range of healthcare and wellness products with reliable delivery services.",
+      "Direct Care is the UK’s leading online retailer specialising in baby and child care, skincare items, and a broad range of everyday essentials. We are the best in the digital marketplace, offering an extensive selection of products from reputable brands. Our customers enjoy the luxury of accessing a vast array of items from the comfort of their own homes, ensuring a convenient shopping experience. For more information about our products and services, please click here.",
   },
   {
     question: "What is the best way to get in touch with your Customer Care team?",
     answer:
-      "You can contact our customer support via phone or email. Our team is always ready to assist you.",
+      "You can reach our Customer Care team through multiple channels:\n\nPhone: Call us at +441216616357/+441214616835 for immediate assistance.\nEmail: Send your queries to customersupport@direct-care.co.uk",
   },
   {
     question: "What are the steps to place an order with Direct Care?",
     answer:
-      "Browse products, add them to your cart, proceed to checkout, and complete your payment securely.",
+      "Placing an order with Direct Care is simple:\n\nBrowse: Visit our website and browse through our range of products.\n\nSelect: Choose the items you wish to purchase and add them to your cart.\n\nCheckout: Proceed to checkout, where you will need to provide your shipping and payment information.\n\nConfirm: Review your order and confirm the purchase.",
   },
   {
     question: "How can I keep track of my order's status?",
     answer:
-      "Once your order is dispatched, you will receive a tracking link via email.",
+      "You can track your order status through the following methods:\n\nOrder Confirmation Email: Check the email you received after placing your order for tracking details.\n\nAccount Dashboard: Log in to your Direct Care account and navigate to the ‘Order History’ section.\n\nCustomer Care: Contact our Customer Care team for updates on your order status.",
   },
   {
     question: "What is the usual time frame for refund processing?",
     answer:
-      "Refunds are usually processed within 3–4 working days after inspection.",
+      "Refunds are typically processed within 3-4 working days from the date of approval. The exact timeline may vary depending on your payment method and bank processing times. Please note that certain conditions or exceptions may apply, and our Customer Care team will provide detailed information during the refund process.",
   },
   {
     question: "Which types of payment do you accept?",
     answer:
-      "We accept major payment methods including debit/credit cards and online payment options.",
+      "We accept a variety of payment methods to ensure a convenient shopping experience:\n\nCredit/Debit Cards: Visa, MasterCard, American Express\n\nDigital Wallets: PayPal, Google Pay",
   },
   {
     question: "What should I do to qualify for free delivery?",
     answer:
-      "Orders above £35 qualify for free delivery.",
+      "To qualify for free delivery, you must meet the following criteria:\n\nMinimum Order Value: Orders over £35 qualify for free standard delivery.\n\nEligible Locations: Free delivery is available within the UK mainland. Additional charges may apply for remote areas.",
   },
   {
     question: "How can I return my purchase?",
     answer:
-      "You can return items within 30 days by contacting our support team and following the return process.",
+      "You have the right to return your items within 30 days. For additional information, please refer to our complete returns policy.",
   },
 ];
 
@@ -57,13 +57,11 @@ export default function FAQPage() {
     <div className="bg-gray-50 min-h-screen">
 
       {/* 🔥 HERO */}
-      <div className="bg-[#445D41] text-white py-3 text-center">
-        <h1 className="text-3xl md:text-5xl font-bold">
+      <div className="bg-[#445D41] text-white py-2 text-center">
+        <h1 className="text-xl md:text-3xl font-bold">
           Frequently Asked Questions
         </h1>
-        <p className="mt-3 text-sm md:text-lg opacity-90">
-          Quick answers to common queries
-        </p>
+       
       </div>
 
       {/* 🔥 FAQ LIST */}
@@ -79,7 +77,7 @@ export default function FAQPage() {
                 onClick={() => toggle(index)}
                 className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition"
               >
-                <span className="text-sm md:text-base font-medium text-gray-900">
+                <span className="text-sm md:text-base font-semibold text-gray-900">
                   {faq.question}
                 </span>
 
@@ -91,17 +89,19 @@ export default function FAQPage() {
               </button>
 
               {/* ANSWER */}
-              <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  openIndex === index
-                    ? "max-h-40 opacity-100"
-                    : "max-h-0 opacity-0"
-                }`}
-              >
-                <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
-                  {faq.answer}
-                </div>
-              </div>
+           <div
+  className={`grid transition-all duration-300 ${
+    openIndex === index
+      ? "grid-rows-[1fr] opacity-100"
+      : "grid-rows-[0fr] opacity-0"
+  }`}
+>
+  <div className="overflow-hidden">
+    <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+      {faq.answer}
+    </div>
+  </div>
+</div>
 
             </div>
           ))}

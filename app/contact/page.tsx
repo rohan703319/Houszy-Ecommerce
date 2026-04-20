@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import {
   Mail, Phone, MapPin, Clock, User, Building2,
   Send, CheckCircle, AlertCircle, ChevronRight,
@@ -32,34 +32,89 @@ export default function ContactPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-
+const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-const validateForm = () => {
-  if (!form.name.trim()) return "Name is required";
-  if (!form.email.trim()) return "Email is required";
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(form.email)) return "Invalid email";
+const validateField = (name: string, value: string) => {
+  let error = "";
 
-  if (!form.subject.trim()) return "Subject is required";
+  if (name === "name" && !value.trim()) {
+    error = "Name is required";
+  }
 
-  if (form.message.trim().length < 10)
-    return "Message must be at least 10 characters";
+  if (name === "email") {
+    if (!value.trim()) error = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+      error = "Invalid email";
+  }
 
-  // phone validation (optional but pro)
-  if (form.phone.length < 6)
-    return "Enter valid phone number";
+  if (name === "subject" && !value.trim()) {
+    error = "Subject is required";
+  }
 
-  return null;
+  if (name === "message") {
+    if (value.trim().length < 10)
+      error = "Minimum 10 characters required";
+  }
+
+ if (name === "phone") {
+  const digits = value.replace("+44", "");
+
+  if (!digits) {
+    error = "Phone is required";
+  } else if (digits.length < 10) {
+    error = "Enter valid UK number";
+  }
+}
+
+  setFieldErrors(prev => ({
+    ...prev,
+    [name]: error,
+  }));
+};
+const validateAllFields = () => {
+  const errors: Record<string, string> = {};
+
+  if (!form.name.trim()) {
+    errors.name = "Name is required";
+  }
+
+  if (!form.email.trim()) {
+    errors.email = "Email is required";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    errors.email = "Invalid email";
+  }
+
+  if (!form.subject.trim()) {
+    errors.subject = "Subject is required";
+  }
+
+  if (form.message.trim().length < 10) {
+    errors.message = "Minimum 10 characters required";
+  }
+
+const digits = form.phone.replace("+44", "");
+
+if (!digits) {
+  errors.phone = "Phone is required";
+} else if (digits.length < 10) {
+  errors.phone = "Enter valid UK number";
+}
+
+  setFieldErrors(errors);
+
+  return Object.keys(errors).length === 0;
 };
  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+   if (loading) return; 
+const isValid = validateAllFields();
 
-  const validationError = validateForm();
-  if (validationError) {
-    setError(validationError);
-    return;
-  }
+if (!isValid) {
+  setError("Please fill the required details above");
+  return;
+}
+
 
   setError("");
   setLoading(true);
@@ -81,27 +136,31 @@ const validateForm = () => {
       setLoading(false);
     }
   };
-
+useEffect(() => {
+  const hasError = Object.values(fieldErrors).some(e => e);
+  if (!hasError) {
+    setError("");
+  }
+}, [fieldErrors]);
   return (
     <div className="bg-gray-50 min-h-screen">
 
       {/* HERO */}
-      <div className="bg-gradient-to-r from-[#445D41] via-[#3a5237] to-[#2d4029] text-white">
-        <div className="max-w-7xl mx-auto px-4 py-6 md:py-4">
-          <nav className="flex items-center gap-1.5 text-sm text-white/60 mb-4">
-            <Link href="/" className="hover:text-white transition-colors">Home</Link>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span className="text-white">Contact Us</span>
-          </nav>
-          <h1 className="text-3xl md:text-4xl font-extrabold leading-tight">Get in Touch</h1>
-          <p className="mt-2 text-white/75 text-base max-w-lg">
-            Have a question about your order, a product or our pharmacy services?
-            Our team is here to help — Mon to Sat, 9am–6pm.
-          </p>
-        </div>
-      </div>
+<div className="bg-white border-b">
+  <div className="max-w-7xl mx-auto px-4 py-2">
+    <nav className="flex items-center gap-1.5 text-xs text-gray-500">
+      <Link href="/" className="hover:text-gray-800 transition-colors">
+        Home
+      </Link>
+      <ChevronRight className="h-3.5 w-3.5" />
+      <span className="text-gray-800 font-medium">
+        Contact us
+      </span>
+    </nav>
+  </div>
+</div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* LEFT — Contact Info + Map */}
         <div className="space-y-5">
@@ -166,7 +225,7 @@ const validateForm = () => {
               <Building2 className="h-5 w-5 text-[#445D41]" />
               <p className="font-semibold text-gray-900 text-sm">Business Information</p>
             </div>
-            <div className="space-y-1.5 text-sm text-gray-600">
+            <div className="space-y-1.5 text-sm black">
               <p><span className="font-medium text-gray-800">Owner:</span> Brijesh Kumar</p>
               <p><span className="font-medium text-gray-800">Pharmacist:</span> Surabhi Kumari (2057840)</p>
               <p><span className="font-medium text-gray-800">Complaints:</span>{" "}
@@ -202,203 +261,245 @@ const validateForm = () => {
         </div>
 
         {/* RIGHT — Form */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8">
+<div className="lg:col-span-2">
+  <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
 
-            {success ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Message Sent!</h2>
-                <p className="text-gray-500 max-w-sm mx-auto mb-6">
-                  Thank you for contacting us. We've sent a confirmation to your email and will respond within 24 hours.
-                </p>
-                <button
-                  onClick={() => { setSuccess(false); setForm({ name:"",email:"",phone:"",orderNumber:"",category:"General",subject:"",message:"" }); }}
-                  className="px-6 py-2.5 bg-[#445D41] text-white rounded-xl font-semibold hover:bg-[#3a5237] transition-colors text-sm"
-                >
-                  Send Another Message
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Send Us a Message</h2>
+    {success ? (
+      <div className="text-center py-10 px-5">
+        <CheckCircle className="h-9 w-9 text-green-500 mx-auto mb-2" />
+        <h2 className="text-base font-semibold text-gray-900">Message Sent!</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Thank you for contacting us. We've sent a confirmation to your email and will respond within 24 hours.
+        </p>
+
+        <button
+          onClick={() => {
+            setSuccess(false);
+            setForm({ name:"",email:"",phone:"",orderNumber:"",category:"General",subject:"",message:"" });
+          }}
+          className="mt-3 px-4 py-1.5 bg-[#445D41] text-white text-xs rounded-md hover:bg-[#3a5237]"
+        >
+          Send Message Again
+        </button>
+      </div>
+    ) : (
+      <>
+        {/* HEADER */}
+        <div className="px-5 py-2 border-b bg-gray-50">
+          <h2 className="text-xl font-bold text-gray-900">Send Us a Message</h2>
                   <p className="text-sm text-gray-500 mt-1">Fill in the form below and we'll get back to you as soon as possible.</p>
-                </div>
 
-                {error && (
-                  <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
-                    <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                )}
+        </div>
 
-                {/* Category selector */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">What can we help you with?</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {CATEGORIES.map(({ value, label, icon: Icon }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => set("category", value)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                          form.category === value
-                            ? "bg-[#445D41] text-white border-[#445D41]"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-[#445D41] hover:text-[#445D41]"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+        <div className="px-5 py-4 space-y-4">
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Name + Email */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={form.name}
-                        onChange={e => set("name", e.target.value)}
-                        placeholder="John Smith"
-                        required
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#445D41]/30 focus:border-[#445D41] outline-none transition"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Email Address <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={form.email}
-                        onChange={e => set("email", e.target.value)}
-                        placeholder="john@example.com"
-                        required
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#445D41]/30 focus:border-[#445D41] outline-none transition"
-                      />
-                    </div>
-                  </div>
+ 
 
-                  {/* Phone + Order Number */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
-                     <input
-  type="tel"
-  value={form.phone}
-  maxLength={13}
-  onChange={(e) => {
-    let value = e.target.value;
+          {/* CATEGORY */}
+          <div>
+            <label className="text-xs font-medium black mb-1 block">
+              Select Issue
+            </label>
 
-    // ensure +44 always present
-    if (!value.startsWith("+44")) {
-      value = "+44";
-    }
+            <div className="relative">
+              <select
+                value={form.category}
+                onChange={(e) => set("category", e.target.value)}
+                className="w-full h-9 px-2.5 pr-7 text-xs border border-gray-300 rounded-md bg-white
+                           focus:border-[#445D41] focus:ring-1 focus:ring-[#445D41]/30 outline-none appearance-none"
+              >
+                {CATEGORIES.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
 
-    // allow only numbers after +44
-    const cleaned = "+44" + value.replace(/^\+44/, "").replace(/\D/g, "");
-
-    set("phone", cleaned);
-  }}
-  onKeyDown={(e) => {
-    // prevent deleting +44
-    if (
-      (e.key === "Backspace" || e.key === "Delete") &&
-      form.phone.length <= 3
-    ) {
-      e.preventDefault();
-    }
-  }}
-  placeholder="+44 7123 456789"
-  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#445D41]/30 focus:border-[#445D41] outline-none transition"
-/>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Order Number
-                        <span className="text-xs text-gray-400 font-normal ml-1">(if applicable)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={form.orderNumber}
-                        onChange={e => set("orderNumber", e.target.value)}
-                        placeholder="e.g. DC-2024-00123"
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#445D41]/30 focus:border-[#445D41] outline-none transition"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Subject */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Subject <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={form.subject}
-                      onChange={e => set("subject", e.target.value)}
-                      placeholder="Brief description of your enquiry"
-                      required
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#445D41]/30 focus:border-[#445D41] outline-none transition"
-                    />
-                  </div>
-
-                  {/* Message */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Message <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={form.message}
-                      onChange={e => set("message", e.target.value)}
-                      placeholder="Please describe your issue or question in detail..."
-                      required
-                      rows={5}
-                      minLength={10}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#445D41]/30 focus:border-[#445D41] outline-none transition resize-none"
-                    />
-                    <p className="text-xs text-gray-400 mt-1 text-right">{form.message.length} characters</p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#445D41] hover:bg-[#3a5237] text-white font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Send Message
-                      </>
-                    )}
-                  </button>
-
-                  <p className="text-xs text-gray-400 text-center">
-                    By submitting this form you agree to our{" "}
-                    <Link href="/privacy-policy" className="underline hover:text-[#445D41]">Privacy Policy</Link>.
-                    We will never share your data.
-                  </p>
-                </form>
-              </>
-            )}
+              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 rotate-90 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
-          {/* FAQ prompt */}
-          <div className="mt-5 bg-[#445D41]/5 border border-[#445D41]/20 rounded-2xl p-5 flex items-center justify-between gap-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-2">
+
+            {/* GRID */}
+            <div className="grid sm:grid-cols-2 gap-1">
+
+              <div className="space-y-1">
+                <label className="text-[11px] black">Full Name *</label>
+                <input
+                  value={form.name}
+                 onChange={(e) => {
+  set("name", e.target.value);
+  validateField("name", e.target.value);
+}}
+                  required
+                 className={`w-full h-9 px-2.5 text-xs border rounded-md outline-none
+${fieldErrors.name ? "border-red-400" : "border-gray-300"}
+focus:border-[#445D41]`}
+                />
+                {fieldErrors.name && (
+  <p className="text-[10px] text-red-500">{fieldErrors.name}</p>
+)}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] black">Email *</label>
+                <input
+                  type="email"
+                  value={form.email}
+                 onChange={(e) => {
+  set("email", e.target.value);
+  validateField("email", e.target.value);
+}}
+                  required
+                  className={`w-full h-9 px-2.5 text-xs border rounded-md outline-none
+${fieldErrors.email ? "border-red-400" : "border-gray-300"}
+focus:border-[#445D41]`}
+                />
+                {fieldErrors.email && (
+  <p className="text-[10px] text-red-500">{fieldErrors.email}</p>
+)}
+              </div>
+
+            <div className="space-y-1">
+  <label className="text-[11px] black">Phone *</label>
+
+  <div className={`flex items-center border rounded-md overflow-hidden
+    ${fieldErrors.phone ? "border-red-400" : "border-gray-300"}
+    focus-within:border-[#445D41]`}>
+
+    {/* +44 badge */}
+    <div className="px-2 text-xs bg-gray-100 text-gray-700 border-r">
+      +44
+    </div>
+
+   <input
+  type="tel"
+  required
+  maxLength={10}
+  inputMode="numeric"
+      value={form.phone.replace("+44", "")}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/\D/g, "");
+        const final = "+44" + cleaned;
+
+        set("phone", final);
+        validateField("phone", final);
+      }}
+      className="w-full h-9 px-2 text-xs outline-none"
+      placeholder="7xxxxxxxxx"
+    />
+  </div>
+
+  {fieldErrors.phone && (
+    <p className="text-[10px] text-red-500">
+      {fieldErrors.phone}
+    </p>
+  )}
+</div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] black">Order Number</label>
+                <input
+                  value={form.orderNumber}
+                  onChange={(e) => set("orderNumber", e.target.value)}
+                  className="w-full h-9 px-2.5 text-xs border border-gray-300 rounded-md focus:border-[#445D41] outline-none"
+                />
+              </div>
+
+            </div>
+
+            {/* SUBJECT */}
+            <div className="space-y-1">
+              <label className="text-[11px] black">Subject *</label>
+              <input
+                value={form.subject}
+                onChange={(e) => {
+  set("subject", e.target.value);
+  validateField("subject", e.target.value);
+}}
+                required
+               className={`w-full h-9 px-2.5 text-xs border rounded-md outline-none
+${fieldErrors.subject ? "border-red-400" : "border-gray-300"}
+focus:border-[#445D41]`}
+              />
+              {fieldErrors.subject && (
+  <p className="text-[10px] text-red-500">
+    {fieldErrors.subject}
+  </p>
+)}
+            </div>
+
+            {/* MESSAGE */}
+            <div className="space-y-1">
+              <label className="text-[11px] black">Message *</label>
+              <textarea
+                value={form.message}
+               onChange={(e) => {
+  set("message", e.target.value);
+  validateField("message", e.target.value);
+}}
+                rows={3}
+                required
+               className={`w-full px-2.5 py-2 text-xs border rounded-md resize-none outline-none
+${fieldErrors.message ? "border-red-400" : "border-gray-300"}
+focus:border-[#445D41]`}
+              />
+            {fieldErrors.message && (
+  <p className="text-[10px] text-red-500">{fieldErrors.message}</p>
+)}
+            </div>
+
+            {/* FOOTER */}
+    <div className="mt-4 pt-4 border-t">
+
+  {/* ERROR */}
+  {error && (
+    <div className="mb-2 text-xs text-red-600 flex items-center gap-1">
+      <AlertCircle size={14} />
+      {error}
+    </div>
+  )}
+
+  {/* BUTTON FULL WIDTH */}
+  <button
+    type="submit"
+    disabled={loading}
+    className={`w-full h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200
+    ${
+      loading
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-[#445D41] hover:bg-[#3a5237] text-white shadow-md hover:shadow-lg"
+    }`}
+  >
+    {loading ? (
+      <>
+        <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+        Sending...
+      </>
+    ) : (
+      <>
+        <Send size={16} />
+        Send Message
+      </>
+    )}
+  </button>
+
+  {/* SMALL TRUST TEXT */}
+  <p className="text-[10px] text-gray-400 text-center mt-2">
+    We usually respond within 24 hours
+  </p>
+
+</div>
+
+          </form>
+        </div>
+      </>
+    )}
+  </div>
+
+  {/* FAQ (restore premium style) */}
+  <div className="mt-5 bg-[#445D41]/5 border border-[#445D41]/20 rounded-2xl p-5 flex items-center justify-between gap-4">
             <div>
               <p className="font-semibold text-gray-900 text-sm">Looking for quick answers?</p>
               <p className="text-xs text-gray-500 mt-0.5">Check our FAQ for instant help with common questions.</p>
@@ -410,7 +511,8 @@ const validateForm = () => {
               View FAQ
             </Link>
           </div>
-        </div>
+
+</div>
       </div>
     </div>
   );

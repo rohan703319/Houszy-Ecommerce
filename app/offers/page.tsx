@@ -100,7 +100,7 @@ export default async function OffersPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-2">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-sm text-gray-500 mb-0">
+        <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-0">
           <Link href="/" className="hover:text-[#445D41] transition-colors">Home</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="font-semibold text-gray-800">Offers</span>
@@ -157,11 +157,11 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
     >
       {/* Banner Image */}
       {bannerUrl ? (
-        <div className="relative h-40 overflow-hidden">
+       <div className="relative w-full bg-white flex items-center justify-center">
          <img
   src={`${apiBase}${bannerUrl}`}
   alt={d.name}
-  className="w-full h-full object-contain bg-white group-hover:scale-105 transition-transform duration-300"
+  className="w-full h-full object-contain bg-white md:group-hover:scale-105 transition-transform duration-300"
 />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           <div className="absolute top-3 right-3 bg-red-600 text-white text-sm font-bold px-3 py-1.5 rounded-xl shadow-lg">

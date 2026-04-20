@@ -195,7 +195,7 @@ export default async function BlogDetailPage({
         <div className="bg-white shadow-lg rounded-2xl p-4 md:p-8 border min-h-full">
 
             {/* Breadcrumb */}
-            <nav className="hidden md:flex text-sm text-gray-500 mb-2 -mt-5 items-center gap-1">
+            <nav className="hidden md:flex text-xs text-gray-500 mb-2 -mt-5 items-center gap-1">
               <Link href="/" className="hover:underline text-blue-600">Home</Link>
               <span>/</span>
               <Link href="/blog" className="hover:underline text-blue-600">Blog</Link>
@@ -224,7 +224,7 @@ export default async function BlogDetailPage({
 
             {/* Meta */}
             <div className="mt-3 flex flex-wrap items-center gap-1 sm:gap-4 text-gray-600 text-xs md:text-sm">
-              <span>✍️ {post.authorName}</span>
+           <span>✍️ {post.authorName?.trim() || "Direct Care"}</span>
               <span>•</span>
               <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
               <span>•</span>

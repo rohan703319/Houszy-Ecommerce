@@ -248,7 +248,7 @@ if (product.orderMinimumQuantity > 1) {
 <GenderBadge gender={product.gender} />
           {/* DISCOUNT BADGE — smaller */}
           {discountBadge && (
-            <div className="absolute top-2 right-2 z-20">
+            <div className="absolute top-1 right-2 z-20">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
                 <div className="flex flex-col items-center leading-none">
                   <span className="text-[10px] md:text-xs font-extrabold">
@@ -260,16 +260,28 @@ if (product.orderMinimumQuantity > 1) {
             </div>
           )}
           {/* COUPON BADGE — smaller */}
-          {!discountBadge && hasActiveCoupon && (
-            <div className="absolute top-2 right-2 z-20">
-              <div className="w-10 h-10 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
-                <div className="flex flex-col items-center leading-none text-center px-0.5">
-                  <span className="text-[8px] font-extrabold leading-tight">COUPON</span>
-                  <span className="text-[7px] font-semibold leading-tight">Avail</span>
-                </div>
-              </div>
-            </div>
-          )}
+{!discountBadge && hasActiveCoupon && (
+  <div className="absolute top-1 md:top-2 right-1 md:right-2 z-20">
+    <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
+
+      <div className="flex flex-col items-center text-center">
+        <span className="flex items-center gap-1 text-[9px]">
+          Coupon
+        </span>
+        <span className="text-[9px] opacity-90">
+          Available
+        </span>
+      </div>
+
+      {/* hole */}
+      <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
+
+      {/* string effect */}
+      <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
+
+    </div>
+  </div>
+)}
           {/* VAT Relief — bottom left on image */}
           {product.vatExempt && (
             <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
@@ -310,7 +322,7 @@ if (product.orderMinimumQuantity > 1) {
     }
   }}
   className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all
-    ${discountBadge || hasActiveCoupon ? "top-14" : "top-2"}
+    ${discountBadge || hasActiveCoupon ? "top-12" : "top-2"}
     ${
       isInWishlist(defaultVariant?.id ?? product.id)
         ? "bg-green-50 border-green-200"
@@ -366,17 +378,17 @@ if (product.orderMinimumQuantity > 1) {
 
         {/* PRICE */}
         <div className="flex items-center gap-1 md:gap-2 mb-1">
-          <span className="text-base md:text-xl font-bold text-[#445D41]">
+          <span className="text-sm md:text-xl font-bold text-[#445D41]">
             £{finalPrice.toFixed(2)}
           </span>
           {finalPrice < basePrice && (
-            <span className="text-sm text-gray-400 line-through">
+            <span className="text-xs md:text-sm text-gray-400 line-through">
               £{basePrice.toFixed(2)}
             </span>
           )}
           {!product.vatExempt && vatRate !== null && (
-            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-md whitespace-nowrap">
-              ({vatRate}% VAT)
+            <span className="text-[9px] md:text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap">
+              {vatRate}% VAT
             </span>
           )}
         </div>

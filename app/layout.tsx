@@ -40,7 +40,31 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } catch (error) {
     console.error("❌ Categories API failed:", error);
   }
+let deliveryStrip: any[] = [];
 
+try {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/DeliveryStrip`,
+    {
+      next: { revalidate: 600 }, // same as categories ✅
+    }
+  );
+
+  if (res.ok) {
+    const json = await res.json();
+
+    if (json?.success) {
+      deliveryStrip = json.data
+        .filter((item: any) => item.isActive && !item.isDeleted)
+        .sort(
+          (a: any, b: any) =>
+            (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+        );
+    }
+  }
+} catch (error) {
+  console.error("❌ DeliveryStrip API failed:", error);
+}
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -56,7 +80,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AuthProvider>
             <CartProvider>
               <WishlistProvider>
-                <ConditionalLayout categories={categories}>
+             <ConditionalLayout 
+  categories={categories} 
+  deliveryStrip={deliveryStrip}
+>
                   {children}
                 </ConditionalLayout>
               </WishlistProvider>

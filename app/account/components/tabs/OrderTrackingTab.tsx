@@ -38,12 +38,15 @@ export default function OrderTrackingTab() {
         </div>
       </div>
 
-      {/* 
-        🔌 BACKEND READY
-        When API arrives:
-        - submit tracking number
-        - render timeline here
-      */}
+    <div className="mt-6 border border-dashed border-gray-300 rounded-lg p-4 text-center bg-gray-50">
+  <p className="text-sm font-medium text-gray-700">
+    🚧 Order Tracking Coming Soon
+  </p>
+
+  <p className="text-xs text-gray-500 mt-1">
+    We are currently working on this feature. You will be able to track your orders here soon.
+  </p>
+</div>
     </div>
   );
 }

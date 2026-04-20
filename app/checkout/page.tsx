@@ -244,6 +244,7 @@ const [shippingAddressSuggestions, setShippingAddressSuggestions] = useState<Add
 const [showShippingSuggestions, setShowShippingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  
 const clearFieldError = (key: string) => {
   setFieldErrors(prev => {
     if (!prev[key]) return prev;
@@ -251,6 +252,11 @@ const clearFieldError = (key: string) => {
     return rest;
   });
 };
+useEffect(() => {
+  if (Object.keys(fieldErrors).length === 0) {
+    setError(null);
+  }
+}, [fieldErrors]);
 const handleAddressSelect = (addr: any | null) => {
   if (!addr) {
     // Clear form for new address
@@ -287,6 +293,16 @@ const handleAddressSelect = (addr: any | null) => {
     .replace(/\D/g, "");
 
   setBillingPhone(cleaned);
+   setFieldErrors((prev) => {
+    const updated = { ...prev };
+    delete updated.billingFirstName;
+    delete updated.billingPhone;
+    delete updated.billingAddress1;
+    delete updated.billingPostalCode;
+    delete updated.billingCity;
+    delete updated.billingState;
+    return updated;
+  });
   if (shippingSameAsBilling) {
     setShippingFirstName(addr.firstName);
     setShippingLastName(addr.lastName);
@@ -753,6 +769,14 @@ setAddressQuery(""); // 🔥 clear search input after select
     setBillingState(state);
     setBillingPostalCode(postcode);
     setBillingCountry(country);
+    setFieldErrors((prev) => {
+  const updated = { ...prev };
+  delete updated.billingAddress1;
+  delete updated.billingPostalCode;
+  delete updated.billingCity;
+  delete updated.billingState;
+  return updated;
+});
     // 🔹 Shipping (respect checkbox)
     if (shippingSameAsBilling) {
       setShippingAddress1(line1);
@@ -862,7 +886,7 @@ const validateAndBuildPayload = async (): Promise<any | null> => {
   }
   if (!billingFirstName.trim()) errors.billingFirstName = "First name is required";  
   if (!billingPhone.trim()) errors.billingPhone = "Phone number is required";
-  if (deliveryMethod === "HomeDelivery") {
+  
     if (!billingAddress1.trim()) errors.billingAddress1 = "Address line 1 is required";
     if (!billingPostalCode.trim()) errors.billingPostalCode = "Postcode is required";
      // ✅ ADD THESE TWO LINES
@@ -891,7 +915,7 @@ if (deliveryMethod === "HomeDelivery" && !shippingSameAsBilling) {
     errors.shippingState = "Shipping county / state is required";
 }
 
-  }
+  
   if (deliveryMethod === "ClickAndCollect" && !selectedStoreId) {
   errors.selectedStore = "Please select a store";
 }
@@ -985,6 +1009,9 @@ if (!isAuthenticated) {
 if (!checkoutItems || checkoutItems.length === 0) {
   return <EmptyCart />;
 }
+const effectivePostcode = (
+  shippingSameAsBilling ? billingPostalCode : shippingPostalCode
+).trim();
   return (
     <div className="max-w-7xl mx-auto px-3 py-3">
      <h1 className="flex items-center gap-1.5 text-base font-bold mb-2">
@@ -1282,8 +1309,14 @@ setShippingAddressQuery("");
     )}
   </div>
 )}
+{!effectivePostcode && (
+  <div className="bg-yellow-50 border border-yellow-200 text-xs text-yellow-700 p-2 rounded">
+    Enter postcode to see delivery methods
+  </div>
+)}
           {/* DELIVERY METHOD SELECTOR */}
-<div className="bg-white p-3 rounded shadow">
+{effectivePostcode && (
+  <div className="bg-white p-3 rounded shadow">
   <h2 className="text-sm font-semibold mb-2">Delivery method</h2>
   <div className="flex flex-col gap-1.5">
     <label className="flex items-center gap-2 text-sm">
@@ -1296,6 +1329,7 @@ setShippingAddressQuery("");
     </label>
   </div>
 </div>
+)}
 {deliveryMethod === "ClickAndCollect" && (
   <div className="bg-white p-3 rounded shadow">
     <h2 className="text-sm font-semibold mb-2">Select Store</h2>
@@ -1305,38 +1339,56 @@ setShippingAddressQuery("");
     ) : stores.length === 0 ? (
       <p className="text-xs text-gray-400">No stores available</p>
     ) : (
-      <div className="flex flex-col gap-2">
-        {stores.map((store) => (
-          <label
-            key={store.id}
-            className={`border rounded-lg p-2 cursor-pointer ${
-              selectedStoreId === store.id
-                ? "border-[#445D41] bg-[#445D41]/5"
-                : "border-gray-200"
-            }`}
-          >
-            <input
-              type="radio"
-              name="store"
-              checked={selectedStoreId === store.id}
-              onChange={() => setSelectedStoreId(store.id)}
-              className="mr-2"
-            />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  {stores.map((store) => {
+    const isSelected = selectedStoreId === store.id;
 
-            <div>
-              <p className="text-sm font-semibold">{store.name}</p>
-              <p className="text-xs text-gray-500">
-                {store.addressLine1}, {store.city}, {store.postalCode}
-              </p>
-              {store.openingHours && (
-                <p className="text-[11px] text-gray-400">
-                  {store.openingHours}
-                </p>
-              )}
-            </div>
-          </label>
-        ))}
-      </div>
+    return (
+      <label
+        key={store.id}
+        className={`flex items-start gap-3 h-full rounded-xl border p-3 cursor-pointer transition-all ${
+          isSelected
+            ? "border-[#445D41] bg-[#445D41]/5 shadow-sm"
+            : "border-gray-200 hover:border-[#445D41]/40"
+        }`}
+      >
+        {/* Radio */}
+        <input
+          type="radio"
+          name="store"
+          checked={isSelected}
+          onChange={() => setSelectedStoreId(store.id)}
+          className="mt-1 accent-[#445D41]"
+        />
+
+        {/* Content */}
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-gray-900">
+              {store.name}
+            </p>
+
+            {isSelected && (
+              <span className="text-[10px] bg-[#445D41] text-white px-2 py-0.5 rounded">
+                Selected
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-600 mt-0.5">
+            {store.addressLine1}, {store.city}, {store.postalCode}
+          </p>
+
+          {store.openingHours && (
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {store.openingHours}
+            </p>
+          )}
+        </div>
+      </label>
+    );
+  })}
+</div>
     )}
   </div>
 )}
@@ -1355,7 +1407,7 @@ setShippingAddressQuery("");
     ) : shippingOptions.length === 0 ? (
       <p className="text-xs text-gray-400">Enter your postcode above to see delivery options.</p>
     ) : (
-      <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {shippingOptions.map((opt: any) => (
           <label
            key={opt.deliveryOptionId}
@@ -1424,7 +1476,7 @@ setShippingAddressQuery("");
       <img
         src={it.image}
         alt={"no img"}
-        className="w-12 h-12 object-cover rounded flex-shrink-0"
+        className="w-16 h-16 object-cover rounded flex-shrink-0"
       />
 
       <div className="flex-1">

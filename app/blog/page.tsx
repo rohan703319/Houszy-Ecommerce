@@ -76,12 +76,15 @@ export default async function BlogPage() {
 
   // Sort: displayOrder asc -> publishedAt desc
   visiblePosts.sort((a: any, b: any) => {
+ 
     const oa = typeof a.displayOrder === "number" ? a.displayOrder : 9999;
     const ob = typeof b.displayOrder === "number" ? b.displayOrder : 9999;
     if (oa !== ob) return oa - ob;
     return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
   });
-
+   const getPostCount = (catId: number) => {
+  return visiblePosts.filter((p: any) => p.blogCategoryId === catId).length;
+};
  return (
   <main className="min-h-screen bg-gray-100 pt-[0.5rem] pb-[2.5rem]">
     <h1 className="sr-only">
@@ -133,7 +136,7 @@ export default async function BlogPage() {
                   {cat.name}
                 </h3>
                 <p className="text-[10px] text-gray-500">
-                  {cat.blogPostCount ?? 0} posts
+                 {getPostCount(cat.id)} posts
                 </p>
               </div>
             </Link>

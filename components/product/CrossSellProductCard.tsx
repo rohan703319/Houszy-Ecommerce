@@ -254,16 +254,28 @@ const handleAddToCart = () => {
           </div>
         )}
         {/* Coupon badge — smaller */}
-        {!discountBadge && hasActiveCoupon && (
-          <div className="absolute top-2 right-2 z-20">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
-              <div className="flex flex-col items-center leading-none text-center px-0.5">
-                <span className="text-[8px] font-extrabold leading-tight">COUPON</span>
-                <span className="text-[7px] font-semibold leading-tight">Avail</span>
-              </div>
-            </div>
-          </div>
-        )}
+    {!discountBadge && hasActiveCoupon && (
+  <div className="absolute top-1 right-1 z-20">
+    <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
+
+      <div className="flex flex-col items-center text-center">
+        <span className="flex items-center gap-1 text-[9px]">
+          Coupon
+        </span>
+        <span className="text-[9px] opacity-90">
+          Available
+        </span>
+      </div>
+
+      {/* hole */}
+      <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
+
+      {/* string effect */}
+      <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
+
+    </div>
+  </div>
+)}
         {/* VAT Relief — bottom left on image */}
         {product.vatExempt && (
           <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
@@ -329,7 +341,7 @@ const handleAddToCart = () => {
         {discountBadge && <span className="line-through text-xs text-gray-400">£{basePrice.toFixed(2)}</span>}
         {!product.vatExempt && vatRate !== null && (
           <span className="text-[10px] font-semibold text-green-700 bg-green-100 px-1 py-0.5 rounded whitespace-nowrap">
-            ({vatRate}% VAT)
+            {vatRate}% VAT
           </span>
         )}
       </div>
@@ -353,7 +365,7 @@ const handleAddToCart = () => {
   <Button
   disabled={stock === 0 || product.disableBuyButton === true}
   onClick={handleAddToCart}
-  className={`flex-1 h-[30px] text-[10px] px-1.5 rounded-lg font-semibold ${
+  className={`flex-1 h-[30px] text-[9px] px-1 rounded-lg font-semibold ${
     stock === 0
       ? "bg-red-700 text-white cursor-not-allowed"
       : "bg-[#445D41] hover:bg-black text-white"

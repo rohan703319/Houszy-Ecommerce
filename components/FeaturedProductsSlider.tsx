@@ -293,7 +293,7 @@ const shouldShowMinWarning = (product: any) => {
 
   pagination={{ clickable: true, dynamicBullets: true }}
 
-  loop={false} // 🔥 MOST IMPORTANT FIX
+  loop={true} // 🔥 MOST IMPORTANT FIX
 
   watchSlidesProgress={true}
   resistanceRatio={0.85}
@@ -400,7 +400,7 @@ const backorderState = getBackorderUIState({
 )}
 {/* Offer badge — top right, smaller */}
 {discountBadge && (
-  <div className="absolute top-2 right-2 z-20">
+  <div className="absolute top-1 right-2 z-20">
     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
       <div className="flex flex-col items-center leading-none">
         {discountBadge.type === "percent" ? (
@@ -420,12 +420,24 @@ const backorderState = getBackorderUIState({
 )}
 {/* Coupon badge — top right, smaller */}
 {!discountBadge && hasActiveCoupon && (
-  <div className="absolute top-2 right-2 z-20">
-    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
-      <div className="flex flex-col items-center leading-none text-center px-0.5">
-        <span className="text-[8px] font-extrabold leading-tight">COUPON</span>
-        <span className="text-[7px] font-semibold leading-tight">Avail</span>
+  <div className="absolute top-1 md:top-2 right-1 md:right-2 z-20">
+    <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
+
+      <div className="flex flex-col items-center text-center">
+        <span className="flex items-center gap-1 text-[9px]">
+          Coupon
+        </span>
+        <span className="text-[9px] opacity-90">
+          Available
+        </span>
       </div>
+
+      {/* hole */}
+      <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
+
+      {/* string effect */}
+      <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
+
     </div>
   </div>
 )}
@@ -459,7 +471,7 @@ const backorderState = getBackorderUIState({
 }
   }}
   className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all ${
-    (discountBadge || hasActiveCoupon) ? "top-14 sm:top-14" : "top-2"
+    (discountBadge || hasActiveCoupon) ? "top-12" : "top-2"
   } ${
     isInWishlist(defaultVariant?.id ?? product.id)
       ? "bg-green-50 border-green-200"
@@ -542,7 +554,7 @@ const backorderState = getBackorderUIState({
     )}
     {!product.vatExempt && vatRate !== null && (
       <span className="text-[8px] sm:text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded whitespace-nowrap leading-none">
-        ({vatRate}% VAT)
+        {vatRate}% VAT
       </span>
     )}
   </div>

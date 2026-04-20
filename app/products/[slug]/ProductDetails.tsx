@@ -1584,7 +1584,7 @@ const handleRemoveCoupon = () => {
     />
   </div>
 
-<div className="absolute top-3 right-3 flex flex-col gap-2 z-30">
+<div className="absolute top-1 md:top-3 right-1 md:right-3 flex flex-col gap-2 z-30">
 {/* Wishlist */}
 <Button
   size="icon"
@@ -1700,16 +1700,24 @@ if (appliedCoupon) {
 // 🥉 PRIORITY 3: COUPON AVAILABLE (NOT APPLIED)
 if (hasCouponAvailable) {
   return (
-    <div className="absolute top-3 left-4 z-20">
-      <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-lg ring-2 ring-white">
-        <div className="flex flex-col items-center leading-none">
-          <span className="text-[11px] md:text-sm font-extrabold tracking-wide">
-            COUPON
+    <div className="absolute top-2 md:top-3 left-2 md:left-4 z-20">
+      <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[11px] md:text-sm font-semibold px-3 py-1.5 md:px-4 md:py-2 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight max-w-[120px] md:max-w-none">
+
+        <div className="flex flex-col items-center text-center">
+          <span className="text-[10px] md:text-sm font-semibold">
+           🎟 Coupon  
           </span>
-          <span className="text-[9px] md:text-xs font-semibold">
+          <span className="text-[9px] md:text-xs opacity-90">
             Available
           </span>
         </div>
+
+        {/* hole */}
+        <span className="absolute -top-1 left-3 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
+
+        {/* string */}
+        <span className="absolute -top-3 left-[14px] w-[1px] h-3 bg-gray-300"></span>
+
       </div>
     </div>
   );

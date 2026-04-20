@@ -1,142 +1,85 @@
 "use client";
 
-import { Building2, ShieldCheck, Users, Mail } from "lucide-react";
-
 export default function CompanyInfoPage() {
   return (
     <div className="bg-gray-50 min-h-screen">
 
-      {/* 🔥 HERO */}
-      <div className="bg-[#445D41] text-white py-3 px-4 text-center">
-        <h1 className="text-3xl md:text-5xl font-bold">
-          About Direct Care
+      {/* HERO */}
+      <div className="bg-[#445D41] text-white py-2 px-2 text-center">
+        <h1 className="text-xl md:text-3xl font-bold">
+          Our Company
         </h1>
-        <p className="mt-3 text-sm md:text-lg opacity-90 max-w-2xl mx-auto">
-          Your trusted destination for health, beauty, and everyday essentials.
-        </p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-12 space-y-10">
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
 
-        {/* 🏢 ABOUT */}
+        {/* ABOUT */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <Building2 className="text-[#445D41]" />
-            <h2 className="text-lg font-semibold">Our Company</h2>
-          </div>
+          <h2 className="text-lg font-semibold mb-3">About Direct Care</h2>
 
-          <p className="text-sm text-gray-600 leading-relaxed mb-3">
-            At Direct Care, we are dedicated to transforming the online shopping experience 
-            for customers across the UK by offering high-quality personal care and health products 
-            at affordable prices.
+          <p className="text-sm black leading-relaxed mb-3">
+            At Direct Care, we are dedicated to transforming the online shopping experience for our customers in the UK by offering high-quality personal care, health products, and more at affordable prices. Established in 2012, our mission is to provide a smooth shopping experience, catering to diverse needs from baby and child care to beauty, skincare, and health essentials.
           </p>
 
-          <p className="text-sm text-gray-600 leading-relaxed">
-            Established in 2012, our mission is to provide a smooth and reliable shopping experience, 
-            catering to diverse needs including baby care, skincare, beauty products, and health essentials.
+          <p className="text-sm black leading-relaxed">
+            Direct Care is a trusted platform designed to be your go-to destination for beauty and cosmetic products, skincare items, baby and child items, stop-smoking aids, incontinence products, and vitamin supplements. Our commitment to quality and convenience ensures that our customers receive the best products from brands they love, delivered quickly to their doorstep.
           </p>
         </div>
 
-        {/* 🛍️ WHAT WE OFFER */}
+        {/* INFORMATION */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">
-            What We Offer
-          </h2>
+          <h2 className="text-lg font-semibold mb-3">Information</h2>
 
-          <p className="text-sm text-gray-600 mb-3">
-            Direct Care is your go-to platform for:
+<p className="text-sm black">
+  <strong>Owner name:</strong> Brijesh Kumar
+</p>
+
+<p className="text-sm black">
+  <strong>Superintendent pharmacist:</strong>{" "}
+  <span className="font-semibold underline">
+    Surabhi Kumari (2057840)
+  </span>
+</p>
+
+<p className="text-sm black">
+  <strong>Pharmacy address:</strong> Unit 38A, Plume Street, Aston, Birmingham
+</p>
+
+<p className="text-sm black">
+  <strong>GPhC registration number:</strong> Awaiting
+</p>
+
+<p className="text-sm black mt-4">
+  <strong>Drop us an email</strong> if you have any complaints, concerns, or feedback at{" "}
+  <span className="font-semibold underline">
+    Suby@direct-care.co.uk
+  </span>
+</p>
+
+          <p className="text-sm black mt-4">
+            Drop us an email if you have any complaints, concerns, or feedback at Suby@direct-care.co.uk
           </p>
 
-          <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
-            <li>Beauty & cosmetic products</li>
-            <li>Skincare essentials</li>
-            <li>Baby & child care items</li>
-            <li>Stop-smoking aids</li>
-            <li>Incontinence products</li>
-            <li>Vitamin & supplement range</li>
-          </ul>
-
-          <p className="text-sm text-gray-600 mt-3">
-            We ensure fast delivery and provide products from trusted brands you love.
+          <p className="text-sm black mt-4 leading-relaxed">
+            To complain about a pharmacy, you should first contact the pharmacy directly on their registered email address or phone number to try and resolve the issue. If you are not satisfied, you can then escalate your complaint to the local or national ombudsman or through your local Integrated Care Board (ICB). The complaint should be made within 12 months of the incident, and you should receive a response acknowledging the complaint within three working days, with a full response provided within a specified timeframe, typically under six months.
           </p>
         </div>
 
-        {/* 🛡️ INFORMATION */}
+        {/* HERITAGE */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <ShieldCheck className="text-[#445D41]" />
-            <h2 className="text-lg font-semibold">Business Information</h2>
-          </div>
+          <h2 className="text-lg font-semibold mb-3">Our Heritage</h2>
 
-          <ul className="text-sm text-gray-600 space-y-2">
-            <li><strong>Owner:</strong> Brijesh Kumar</li>
-            <li><strong>Superintendent Pharmacist:</strong> Surabhi Kumar (2057840)</li>
-            <li><strong>Address:</strong> Unit 38A, Plume Street, Aston, Birmingham</li>
-            <li><strong>GPhC Registration:</strong> Awaiting</li>
-          </ul>
-
-          <p className="text-sm text-gray-600 mt-3">
-            For complaints or feedback, email us at{" "}
-            <span className="font-medium">Suby@direct-care.co.uk</span>
+          <p className="text-sm black leading-relaxed">
+            Direct Care was born out of a vision to transform the way UK consumers access and purchase essential products. We continue to innovate and enhance our services, maintaining our dedication to extraordinary customer experience and satisfaction. Our goal is to simplify your shopping process, providing a reliable and user-friendly platform for all your personal care and health needs.
           </p>
         </div>
 
-        {/* ⚖️ COMPLAINT POLICY */}
-        <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-xl">
-          <h2 className="text-lg font-semibold text-yellow-800 mb-3">
-            Complaints & Escalation
-          </h2>
-
-          <p className="text-sm text-yellow-800 leading-relaxed">
-            If you have any concerns, please contact us directly first via email or phone. 
-            If the issue is not resolved, you may escalate it to your local ombudsman or 
-            Integrated Care Board (ICB).
-          </p>
-
-          <p className="text-sm text-yellow-800 mt-2">
-            Complaints should be made within 12 months. You will receive an acknowledgement 
-            within 3 working days and a full response within the required timeframe.
-          </p>
-        </div>
-
-        {/* 🌍 HERITAGE */}
+        {/* COMMITMENT */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <Users className="text-[#445D41]" />
-            <h2 className="text-lg font-semibold">Our Heritage</h2>
-          </div>
+          <h2 className="text-lg font-semibold mb-3">Our Commitment</h2>
 
-          <p className="text-sm text-gray-600 leading-relaxed">
-            Direct Care was founded with a vision to transform how UK consumers 
-            access essential products. We continuously innovate to enhance our 
-            services while maintaining a strong commitment to customer satisfaction.
-          </p>
-        </div>
-
-        {/* 🚀 COMMITMENT */}
-        <div className="bg-green-50 border border-green-200 p-6 rounded-xl">
-          <h2 className="text-lg font-semibold text-green-700 mb-3">
-            Our Commitment
-          </h2>
-
-          <p className="text-sm text-green-700 leading-relaxed">
-            We are committed to making online shopping convenient, reliable, and 
-            sustainable. Our goal is to provide affordable, high-quality products 
-            while delivering an exceptional customer experience every time.
-          </p>
-        </div>
-
-        {/* 📩 CONTACT CTA */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm text-center">
-          <Mail className="mx-auto text-[#445D41] mb-3" size={26} />
-          <h3 className="font-semibold mb-2">
-            Need Help?
-          </h3>
-          <p className="text-sm text-gray-600">
-            Reach out to our support team anytime at{" "}
-            <span className="font-medium">
-              customersupport@direct-care.co.uk
-            </span>
+          <p className="text-sm black leading-relaxed">
+            We are dedicated to making online shopping for essential products not only convenient but also sustainable. By leveraging cutting-edge retail models and innovative strategies, we aim to change how you buy your everyday necessities, ensuring you receive affordable, high-quality products every time.
           </p>
         </div>
 

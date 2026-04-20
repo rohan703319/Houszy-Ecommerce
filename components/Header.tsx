@@ -12,6 +12,13 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useDebounce } from "@/app/hooks/useDebounce";
 import { usePathname } from "next/navigation";
+
+const iconMap: Record<string, any> = {
+  Zap: Zap,
+  Truck: Truck,
+  MousePointerClickIcon: MousePointerClickIcon,
+  BikeIcon: BikeIcon,
+};
 interface Category {
   id: string;
   name: string;
@@ -21,9 +28,11 @@ interface Category {
 }
 export default function Header({
   ssrCategories = [],
+  deliveryStrip = [],
   className = "",
 }: {
   ssrCategories?: Category[];
+  deliveryStrip?: any[];
   className?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,6 +44,7 @@ export default function Header({
     .filter((c: any) => c.showOnHomepage === true)
     .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 );
+
  // Mobile drawer shows ALL parent categories (not just homepage ones)
 const [mobileCategories] = useState<Category[]>(
   (ssrCategories || [])
@@ -62,32 +72,16 @@ const [showLogoutModal, setShowLogoutModal] = useState(false);
 };
 
 
-  const mobileTopMessages = [
-    {
-      icon: <Truck size={20} />,
-      title: "NEXT DAY DELIVERY",
-      subtitle: "GET IT JUST FOR £4.49",
-      link: "/delivery/next-day",
-    },
-    {
-      icon: <Truck size={20} />,
-      title: "STANDARD DELIVERY",
-      subtitle: "FREE SHIPPING OVER £35",
-      link: "/delivery/standard",
-    },
-    {
-      icon: <Package size={20} />,
-      title: "CLICK & COLLECT",
-      subtitle: "FREE ON ORDERS OVER £30",
-      link: "/delivery/click-and-collect",
-    },
-    {
-      icon: <Bike size={20} />,
-      title: "SPECIAL DELIVERY GUARANTEED-1PM",
-      subtitle: "ROYAL MAIL SPECIAL DELIVERY FOR £18.99",
-      link: "/delivery/special",
-    },
-  ];
+ const mobileTopMessages = deliveryStrip.map((item) => {
+  const Icon = iconMap[item.icon] || Truck;
+
+  return {
+    icon: <Icon size={20} />,
+    title: item.title,
+    subtitle: item.subtitle,
+    link: `/delivery/${item.slug}`,
+  };
+});
 const renderStars = (rating: number) => {
   const fullStars = Math.floor(rating);
   const hasHalf = rating % 1 >= 0.5;
@@ -126,12 +120,15 @@ useEffect(() => {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      setCurrentMsg((p) => (p + 1) % mobileTopMessages.length);
-    }, 3000);
-    return () => clearInterval(t);
-  }, []);
+ useEffect(() => {
+  if (mobileTopMessages.length === 0) return;
+
+  const t = setInterval(() => {
+    setCurrentMsg((p) => (p + 1) % mobileTopMessages.length);
+  }, 3000);
+
+  return () => clearInterval(t);
+}, [mobileTopMessages]);
 
   const [results, setResults] = useState<any[]>([]);
 const [searchLoading, setSearchLoading] = useState(false);
@@ -263,79 +260,58 @@ useEffect(() => {
       {/* ⭐ TOP BAR */}
       <div className="bg-[#445D41] text-white w-full h-[52px]">
         {/* Mobile Slider */}
-        {isClient && (
-          <div className="lg:hidden h-full flex items-center px-4">
-          <Link
-  href={mobileTopMessages[currentMsg].link}
-  className="flex items-center justify-center gap-3 w-full"
->
-              <span className="text-white text-xl flex-shrink-0">
-                {mobileTopMessages[currentMsg].icon}
-              </span>
-              <div className="flex flex-col text-left leading-tight">
-                <span className="font-bold text-[13px] tracking-wide text-white">
-                  {mobileTopMessages[currentMsg].title}
-                </span>
-                <span className="text-[11px] text-white opacity-90">
-                  {mobileTopMessages[currentMsg].subtitle}
-                </span>
-              </div>
-           </Link>
-          </div>
-        )}
+        {isClient && mobileTopMessages.length > 0 && (
+  <div className="lg:hidden h-full flex items-center px-4">
+    <Link
+      href={mobileTopMessages[currentMsg]?.link || "#"}
+      className="flex items-center justify-center gap-3 w-full"
+    >
+      <span className="text-white text-xl flex-shrink-0">
+        {mobileTopMessages[currentMsg]?.icon}
+      </span>
+
+      <div className="flex flex-col text-left leading-tight">
+        <span className="font-bold text-[13px] tracking-wide text-white">
+          {mobileTopMessages[currentMsg]?.title}
+        </span>
+
+        <span className="text-[11px] text-white opacity-90">
+          {mobileTopMessages[currentMsg]?.subtitle}
+        </span>
+      </div>
+    </Link>
+  </div>
+)}
 
         {/* Desktop Grid */}
         <div className="hidden lg:block h-full">
-          <div className="w-full grid grid-cols-4 items-center px-6 lg:px-10 xl:px-16 gap-8">
-            <a 
-              href="/delivery/next-day" 
-              className="flex items-center gap-3 cursor-pointer hover:bg-[#334a2c] py-2 px-3 rounded transition-colors duration-200"
-            >
-              <span className="text-white flex-shrink-0">
-                <Zap size={20} />
-              </span>
-              <div className="text-left leading-tight">
-                <h4 className="font-bold text-[13px] tracking-wide">NEXT DAY DELIVERY</h4>
-                <p className="text-[11px] opacity-90">GET IT JUST FOR £4.49</p>
-              </div>
-            </a>
-            <a 
-              href="/delivery/standard" 
-              className="flex items-center gap-3 cursor-pointer hover:bg-[#334a2c] py-2 px-3 rounded transition-colors duration-200"
-            >
-              <span className="text-white flex-shrink-0">
-                <Truck size={20} />
-              </span>
-              <div className="text-left leading-tight">
-                <h4 className="font-bold text-[13px] tracking-wide">STANDARD DELIVERY</h4>
-                <p className="text-[11px] opacity-90">FREE SHIPPING OVER £35</p>
-              </div>
-            </a>
-            <a 
-              href="/delivery/click-and-collect" 
-              className="flex items-center gap-3 cursor-pointer hover:bg-[#334a2c] py-2 px-3 rounded transition-colors duration-200"
-            >
-              <span className="text-white flex-shrink-0">
-                <MousePointerClickIcon size={20} />
-              </span>
-              <div className="text-left leading-tight">
-                <h4 className="font-bold text-[13px] tracking-wide">CLICK & COLLECT</h4>
-                <p className="text-[11px] opacity-90">FREE ON ORDERS OVER £30</p>
-              </div>
-            </a>
-            <a 
-              href="/delivery/special" 
-              className="flex items-center gap-3 cursor-pointer hover:bg-[#334a2c] py-2 px-3 rounded transition-colors duration-200"
-            >
-              <span className="text-white flex-shrink-0">
-                <BikeIcon size={20} />
-              </span>
-              <div className="text-left leading-tight">
-                <h4 className="font-bold text-[13px] tracking-wide">SPECIAL DELIVERY 1PM</h4>
-                <p className="text-[11px] opacity-90">ROYAL MAIL SPECIAL DELIVERY FOR £18.99</p>
-              </div>
-            </a>
+        <div className="w-full grid grid-cols-4 items-center px-6 lg:px-10 xl:px-16 gap-8">
+  {deliveryStrip.length > 0 &&
+    deliveryStrip.map((item) => {
+      const Icon = iconMap[item.icon] || Truck;
+
+      return (
+        <Link
+          key={item.id}
+          href={`/delivery/${item.slug}`}
+          className="flex items-center gap-3 cursor-pointer hover:bg-[#334a2c] py-2 px-3 rounded transition-colors duration-200"
+        >
+          <span className="text-white flex-shrink-0">
+            <Icon size={20} />
+          </span>
+
+          <div className="text-left leading-tight">
+            <h4 className="font-semibold text-[clamp(10px,0.8vw,13px)] tracking-wide">
+              {item.title}
+            </h4>
+            <p className="text-[clamp(9px,0.7vw,11px)] opacity-90">
+              {item.subtitle}
+            </p>
           </div>
+        </Link>
+      );
+    })}
+</div>
         </div>
       </div>
 
@@ -588,7 +564,7 @@ useEffect(() => {
   {/* Wishlist */}
   <Link
     href="/wishlist"
-    className="relative flex items-center hover:text-red-500 transition"
+    className="relative flex items-center hover:text-[#445D41] transition"
   >
     <Heart
       size={24}
@@ -648,7 +624,7 @@ useEffect(() => {
   }}
 >
 
-      <nav className="flex items-center h-9 border-y-2 text-sm font-bold border-[#445d41] text-black px-20 gap-3 whitespace-nowrap overflow-x-auto scrollbar-hide">
+      <nav className="flex items-center h-9 border-y-2 text-[11px] lg:text-[12px] xl:text-[13px] font-bold border-[#445d41] text-[#445D41] px-4 md:px-8 lg:px-12 xl:px-20 gap-1 lg:gap-1.5 xl:gap-2 whitespace-nowrap overflow-x-auto scrollbar-hide">
           
             {categories.map((cat) => (
               <div
@@ -674,7 +650,7 @@ useEffect(() => {
                   {cat.name}
                   {cat.subCategories && cat.subCategories.length > 0 && (
                     <ChevronDown
-                      size={16}
+                      size={12}
                       className={`transition-transform duration-300 ease-in-out ${
                         activeCategory?.id === cat.id && hovered ? "rotate-180" : "rotate-0"
                       }`}
@@ -686,15 +662,15 @@ useEffect(() => {
              {/* 🔥 OFFERS — RIGHT END */}
 <Link
   href="/offers"
-  className="group relative flex items-center gap-1 py-2 px-2 rounded-md 
+  className="group relative flex items-center gap-0.5 py-2 px-2 rounded-md 
   font-bold text-red-500 overflow-hidden"
 >
   {/* Glow */}
   <span className="absolute inset-0 bg-yellow-400/10 opacity-0 group-hover:opacity-100 transition rounded-md"></span>
 
   {/* Content */}
-  <div className="relative z-10 flex items-center gap-1 animate-[scalePulse_1s_infinite]">
-    <GiftIcon size={16} />
+  <div className="relative z-10 flex items-center gap-0.5 animate-[scalePulse_1s_infinite]">
+    <GiftIcon size={12} />
     <span className="tracking-wide">Offers</span>
   </div>
 </Link>

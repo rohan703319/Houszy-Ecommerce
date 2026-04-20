@@ -122,6 +122,7 @@ const MegaMenu: React.FC<MegaMenuProps> = ({ activeMainCategory }) => {
     useState<Category | null>(null);
 
   const brandScrollRef = useRef<HTMLDivElement>(null);
+const [canScroll, setCanScroll] = useState(false);
 
   /* =====================
      Fetch Brands
@@ -150,6 +151,24 @@ const MegaMenu: React.FC<MegaMenuProps> = ({ activeMainCategory }) => {
   /* =====================
      Helpers
   ===================== */
+useEffect(() => {
+  const el = brandScrollRef.current;
+  if (!el) return;
+
+  const checkScroll = () => {
+    // +1 buffer to avoid pixel rounding bugs
+    const isScrollable = el.scrollWidth > el.clientWidth + 1;
+    setCanScroll(isScrollable);
+  };
+
+  checkScroll();
+
+  // ResizeObserver → more reliable than window resize
+  const observer = new ResizeObserver(checkScroll);
+  observer.observe(el);
+
+  return () => observer.disconnect();
+}, [brands.length]);
 
   const getMaxDiscount = (cat: Category | null) => {
     if (!cat?.assignedDiscounts?.length) return null;
@@ -194,7 +213,7 @@ const theme =
 
   return (
    <div className="absolute left-20 top-full z-50">
-     <div className="w-[1200px] bg-white shadow-lg rounded-b-md overflow-hidden">
+    <div className="w-[clamp(780px,75vw,1100px)] bg-white shadow-lg rounded-b-md overflow-hidden">
         <div className="flex min-h-[300px]">
           {/* LEFT COLUMN */}
           <div className="w-1/3 bg-gray-50 border-r border-gray-200 overflow-y-auto scrollbar-hide">
@@ -251,11 +270,23 @@ const theme =
                   </Link>
                 ))}
               </div>
-            ) : (
-              <div className="p-8 text-gray-400 italic">
-                Hover a subcategory →
-              </div>
-            )}
+           ) : (
+  <div className="flex flex-col items-center justify-center h-full text-center px-6">
+    
+    <p className="text-sm text-gray-500">
+      No further categories
+    </p>
+<Link href={`/category/${activeSubCategory?.slug}`}>
+    <p className="text-base font-semibold text-[#445D41] mt-1">
+      Explore {activeSubCategory?.name}
+    </p>
+
+    <span className="mt-3 text-xs text-gray-400">
+      Browse products in this section →
+    </span>
+</Link>
+  </div>
+)}
           </div>
 
           {/* RIGHT COLUMN */}
@@ -295,20 +326,49 @@ const theme =
                   </div>
                 </div>
               </Link>
-            ) : (
-              <div className="h-full min-h-[260px] rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center text-gray-400">
-                <span className="font-medium">No active offers</span>
-              </div>
-            )}
+         ) : (
+  <div className="relative h-full min-h-[260px] rounded-2xl overflow-hidden bg-gradient-to-br from-[#f8faf7] to-[#eef5ec] p-5 flex flex-col justify-between shadow-md">
+    
+    {/* Subtle Pattern */}
+    <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(#445D41_1px,transparent_1px)] [background-size:16px_16px]" />
+
+    {/* Top Badge */}
+    <div className="relative z-10">
+      <span className="inline-block text-[10px] font-semibold px-3 py-1 rounded bg-[#445D41]/10 text-[#445D41] uppercase tracking-wide">
+        Currently
+      </span>
+    </div>
+
+    {/* Center Content */}
+    <div className="relative z-10 text-center">
+      <p className="text-lg font-semibold text-gray-700">
+        No Offers Available
+      </p>
+      <p className="text-sm text-gray-500 mt-1">
+        in {activeMainCategory.name}
+      </p>
+    </div>
+
+    {/* Bottom Hint */}
+    <div className="relative z-10 text-center">
+      <span className="text-xs text-gray-400">
+        New deals coming soon 🚀
+      </span>
+    </div>
+  </div>
+)}
           </div>
         </div>
         {/* BRAND ROW */}
-<div className="relative border-t border-gray-200 bg-white px-8 py-4 group">
-         <button
-  onClick={() => scrollBrands("left")}
-  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300" >
-  <ChevronLeft className="h-5 w-5 text-gray-700" />
-</button>
+<div className="relative border-t border-gray-200 bg-white px-8 py-1 group">
+       {canScroll && (
+  <button
+    onClick={() => scrollBrands("left")}
+    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+  >
+    <ChevronLeft className="h-5 w-5 text-gray-700" />
+  </button>
+)}
           <div
             ref={brandScrollRef}
             className="flex gap-16 overflow-x-auto px-6 scrollbar-hide"
@@ -329,11 +389,14 @@ const theme =
               </Link>
             ))}
           </div>
-         <button
-  onClick={() => scrollBrands("right")}
-  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300" >
-  <ChevronRight className="h-5 w-5 text-gray-700"/>
-</button>
+        {canScroll && (
+  <button
+    onClick={() => scrollBrands("right")}
+    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+  >
+    <ChevronRight className="h-5 w-5 text-gray-700" />
+  </button>
+)}
         </div>
       </div>
     </div>

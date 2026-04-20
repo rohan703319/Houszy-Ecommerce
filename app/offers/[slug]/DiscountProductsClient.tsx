@@ -23,8 +23,8 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
 
-  const [sortBy, setSortBy] = useState<"name" | "price">("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+ const [sortBy, setSortBy] = useState<string>("default");
+const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
@@ -145,21 +145,43 @@ const price = getFinalPrice(item);
     });
 
     return [...unique].sort((a, b) => {
-      const stockA = a.variantForCard?.stockQuantity ?? a.productData?.stockQuantity ?? 0;
-      const stockB = b.variantForCard?.stockQuantity ?? b.productData?.stockQuantity ?? 0;
-      if (stockA <= 0 && stockB > 0) return 1;
-      if (stockA > 0 && stockB <= 0) return -1;
-    const priceA = getFinalPrice(a);
-const priceB = getFinalPrice(b);
-      if (sortBy === "price") {
-        const cmp = priceA - priceB;
-        return sortDirection === "asc" ? cmp : -cmp;
-      }
-      const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
-      const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
-      const cmp = nameA.localeCompare(nameB);
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
+  const stockA =
+    a.variantForCard?.stockQuantity ??
+    a.productData?.stockQuantity ??
+    0;
+
+  const stockB =
+    b.variantForCard?.stockQuantity ??
+    b.productData?.stockQuantity ??
+    0;
+
+  // ✅ STOCK PRIORITY
+  if (stockA <= 0 && stockB > 0) return 1;
+  if (stockA > 0 && stockB <= 0) return -1;
+
+  // ⭐ TOP RATED
+  if (sortBy === "rating") {
+    const ratingA = a.productData.averageRating ?? 0;
+    const ratingB = b.productData.averageRating ?? 0;
+    return ratingB - ratingA;
+  }
+
+  // 💰 PRICE
+  const priceA = getFinalPrice(a);
+  const priceB = getFinalPrice(b);
+
+  if (sortBy === "price") {
+    const cmp = priceA - priceB;
+    return sortDirection === "asc" ? cmp : -cmp;
+  }
+
+  // ✅ DEFAULT (MOST IMPORTANT)
+  if (sortBy === "default") {
+    return 0;
+  }
+
+  return 0;
+});
   }, [products, selectedCategories, selectedBrands, priceRange, minRating, sortBy, sortDirection]);
 
   const resetFilters = () => {
@@ -167,11 +189,23 @@ const priceB = getFinalPrice(b);
   };
   const activeFilterCount = selectedCategories.length + selectedBrands.length + (minRating > 0 ? 1 : 0);
 
-  const handleSortChange = (value: string) => {
-    const [by, dir] = value.split("-");
-    setSortBy(by as "name" | "price");
+const handleSortChange = (value: string) => {
+  if (value === "default") {
+    setSortBy("default");
+    setSortDirection("asc");
+    return;
+  }
+
+  const [by, dir] = value.split("-");
+
+  setSortBy(by);
+
+  if (by === "rating") {
+    setSortDirection("desc"); // ⭐ always high → low
+  } else {
     setSortDirection(dir as "asc" | "desc");
-  };
+  }
+};
 
   const filterContent = (
     <>
@@ -246,12 +280,12 @@ const priceB = getFinalPrice(b);
       {/* Sort/filter bar */}
       <div className="hidden md:flex items-center justify-between gap-4 mb-4">
         <p className="text-sm text-gray-500">{flattenedProducts.length} products</p>
-        <select value={`${sortBy}-${sortDirection}`} onChange={e => handleSortChange(e.target.value)}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]">
-          <option value="name-asc">A–Z</option>
-          <option value="name-desc">Z–A</option>
-          <option value="price-asc">Price: Low–High</option>
-          <option value="price-desc">Price: High–Low</option>
+        <select value={sortBy === "default" ? "default" : `${sortBy}-${sortDirection}`} onChange={e => handleSortChange(e.target.value)}
+          className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]">
+         <option value="default">Default Sorting</option>
+<option value="price-asc">Price: Low-High</option>
+<option value="price-desc">Price: High-Low</option>
+<option value="rating-desc">Sort by: Popularity⭐</option>
         </select>
       </div>
 
@@ -264,12 +298,12 @@ const priceB = getFinalPrice(b);
             <span className="inline-flex items-center justify-center bg-[#445D41] text-white text-xs rounded-full w-4 h-4">{activeFilterCount}</span>
           )}
         </button>
-        <select value={`${sortBy}-${sortDirection}`} onChange={e => handleSortChange(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700">
-          <option value="name-asc">Name: A–Z</option>
-          <option value="name-desc">Name: Z–A</option>
-          <option value="price-asc">Price: Low–High</option>
-          <option value="price-desc">Price: High–Low</option>
+        <select value={sortBy === "default" ? "default" : `${sortBy}-${sortDirection}`} onChange={e => handleSortChange(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-xs font-medium text-gray-700">
+           <option value="default">Default Sorting</option>
+<option value="price-asc">Price: Low-High</option>
+<option value="price-desc">Price: High-Low</option>
+<option value="rating-desc">Sort by: Popularity⭐</option>
         </select>
       </div>
 

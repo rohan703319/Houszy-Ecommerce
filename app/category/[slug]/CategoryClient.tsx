@@ -402,7 +402,13 @@ const flattenedProducts = useMemo(() => {
 
   return sortDirection === "asc" ? comparison : -comparison;
 }
+if (sortBy === "rating") {
+  const ratingA = a.productData.averageRating ?? 0;
+  const ratingB = b.productData.averageRating ?? 0;
 
+  // ✅ always high → low
+  return ratingB - ratingA;
+}
     if (sortBy === "price") {
       const comparison = getCardPrice(a) - getCardPrice(b);
       return sortDirection === "asc" ? comparison : -comparison;
@@ -549,11 +555,18 @@ useEffect(() => {
     [router, searchParams, urlSlug]
   );
 
-  const handleSortChange = useCallback((value: string) => {
-    const [newSortBy, newDirection] = value.split("-");
-    setSortBy(newSortBy);
+const handleSortChange = useCallback((value: string) => {
+  const [newSortBy, newDirection] = value.split("-");
+
+  setSortBy(newSortBy);
+
+  // ✅ force desc for rating (top rated always highest first)
+  if (newSortBy === "rating") {
+    setSortDirection("desc");
+  } else {
     setSortDirection(newDirection as "asc" | "desc");
-  }, []);
+  }
+}, []);
 const [showPharmaModal, setShowPharmaModal] = useState(false);
 const [pendingProduct, setPendingProduct] = useState<{
   product: any;
@@ -585,8 +598,8 @@ const resetFilters = useCallback(() => {
   setSelectedBrands([]);
   setSelectedSubCategories([]);
   setMinRating(0);
-  setSortBy("name");
-  setSortDirection("asc");
+ setSortBy(initialSortBy);
+setSortDirection(initialSortDirection as "asc" | "desc");
   setDragRange(null); // clear any in-progress drag
 
   const params = new URLSearchParams();
@@ -792,12 +805,14 @@ if (product.orderMinimumQuantity > 1) {
   <select
     value={`${sortBy}-${sortDirection}`}
     onChange={(e) => handleSortChange(e.target.value)}
-    className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+    className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
   >
-    <option value="name-asc">A-Z</option>
-    <option value="name-desc">Z-A</option>
-    <option value="price-asc">Low-High</option>
-    <option value="price-desc">High-Low</option>
+    <option value={`${initialSortBy}-${initialSortDirection}`}>
+    Default Sorting
+  </option>
+    <option value="price-asc">Sort by price: Low-High</option>
+    <option value="price-desc">Sort by price: High-Low</option>
+    <option value="rating-desc">Sort by: Popularity⭐</option>
   </select>
 
 </div>
@@ -824,16 +839,18 @@ if (product.orderMinimumQuantity > 1) {
             onChange={(e) => handleSortChange(e.target.value)}
             className="px-2 md:px-4 py-2 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
           >
-            <option value="name-asc">A-Z</option>
-            <option value="name-desc">Z-A</option>
-            <option value="price-asc">Low-High</option>
-            <option value="price-desc">High-Low</option>
+       <option value={`${initialSortBy}-${initialSortDirection}`}>
+    Default Sorting
+  </option>
+            <option value="price-asc">Price: Low-High</option>
+            <option value="price-desc">Price: High-Low</option>
+            <option value="rating-desc">Sort by: Popularity⭐</option>
           </select>
         </div>
         {/* Category header */}
         <div className="flex gap-8">
        
-        <aside className=" hidden lg:block w-64 flex-shrink-0 sticky top-24 h-[calc(100vh-96px)] overflow-y-auto overscroll-contain pr-2 hide-scrollbar " >
+       <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-24 h-[calc(100vh-96px)] overflow-y-auto pr-2 hide-scrollbar">
 
   <Card className="shadow-sm">
     <CardContent className="p-6">
@@ -862,10 +879,11 @@ if (product.orderMinimumQuantity > 1) {
   <div className="mb-1">
     <h3 className="font-bold text-sm text-gray-900 mb-0">Subcategories</h3>
 
-    <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-      {allSubCategories
-        .filter((sub) => sub.productCount > 0)
-        .map((sub) => (
+    <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-2">
+   {[...allSubCategories] // 👈 clone (important)
+  .filter((sub) => sub.productCount > 0)
+  .sort((a, b) => a.name.localeCompare(b.name)) // 🔥 alphabetical
+  .map((sub) => (
         <label
           key={sub.id}
           className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded-md transition"

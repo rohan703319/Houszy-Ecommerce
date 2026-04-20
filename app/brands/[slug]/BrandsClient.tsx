@@ -39,14 +39,26 @@ const [brandLoading, setBrandLoading] = useState(false);
 const [showFilters, setShowFilters] = useState(false);
 const activeFilterCount =
   selectedCategories.length + (minRating > 0 ? 1 : 0);
-  const [sortBy, setSortBy] = useState<"name" | "price">("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+ const [sortBy, setSortBy] = useState<string>("default");
+const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const handleSortChange = (value: string) => {
-    const [by, dir] = value.split("-");
-    setSortBy(by as "name" | "price");
+const handleSortChange = (value: string) => {
+  if (value === "default") {
+    setSortBy("default");
+    setSortDirection("asc");
+    return;
+  }
+
+  const [by, dir] = value.split("-");
+
+  setSortBy(by);
+
+  if (by === "rating") {
+    setSortDirection("desc"); // 🔥 always high → low
+  } else {
     setSortDirection(dir as "asc" | "desc");
-  };
+  }
+};
 
   const categories = useMemo(() => {
     const map = new Map<string, any>();
@@ -188,16 +200,14 @@ const flattenedProducts = useMemo(() => {
   if (isOutA !== isOutB) {
     return isOutA ? 1 : -1;
   }
-    if (sortBy === "name") {
 
-      const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
-      const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
+// ⭐ TOP RATED
+if (sortBy === "rating") {
+  const ratingA = a.productData.averageRating ?? 0;
+  const ratingB = b.productData.averageRating ?? 0;
 
-      const comparison = nameA.localeCompare(nameB);
-
-      return sortDirection === "asc" ? comparison : -comparison;
-    }
-
+  return ratingB - ratingA; // high → low
+}
     if (sortBy === "price") {
 
       const comparison = getCardPrice(a) - getCardPrice(b);
@@ -219,7 +229,7 @@ const flattenedProducts = useMemo(() => {
     const nextPage = page + 1;
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/Products/by-brand/${brandSlug}?page=${nextPage}&pageSize=${PAGE_SIZE}&sortDirection=asc&isPublished=true`
+      `${process.env.NEXT_PUBLIC_API_URL}/api/Products/by-brand/${brandSlug}?page=${nextPage}&pageSize=${PAGE_SIZE}&sortDirection=${sortDirection}&isPublished=true`
     );
 
     const data = await res.json();
@@ -359,14 +369,14 @@ const flattenedProducts = useMemo(() => {
 
   {/* Sort */}
   <select
-    value={`${sortBy}-${sortDirection}`}
+   value={sortBy === "default" ? "default" : `${sortBy}-${sortDirection}`} 
     onChange={(e) => handleSortChange(e.target.value)}
-    className="px-4 py-1 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+   className="w-auto max-w-[160px] px-2 py-2 border border-gray-300 rounded-lg bg-white text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
   >
-    <option value="name-asc">Name: A–Z</option>
-    <option value="name-desc">Name: Z–A</option>
-    <option value="price-asc">Price: Low to High</option>
-    <option value="price-desc">Price: High to Low</option>
+   <option value="default">Default Sorting</option>
+<option value="price-asc">Price: Low-High</option>
+<option value="price-desc">Price: High-Low</option>
+<option value="rating-desc">Sort by: Popularity⭐</option>
   </select>
 
 </div>

@@ -91,24 +91,48 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
     <div className="min-h-screen bg-gray-50">
       {/* DISCOUNT HERO */}
       {bannerUrl ? (
-        <div className="relative h-52 md:h-64 overflow-hidden">
-          <img src={`${baseUrl}${bannerUrl}`} alt={discount.name} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-          <div className="absolute inset-0 flex items-center">
-            <div className="max-w-7xl mx-auto px-4 w-full">
-              <div className="text-white max-w-xl">
-                <div className="inline-flex items-center gap-2 bg-[#445D41] text-white text-sm font-bold px-3 py-1.5 rounded-xl mb-3">
-                  <BadgePercent className="h-4 w-4" />
-                  {formatDiscount(discount)}
-                </div>
-                <h1 className="text-2xl md:text-3xl font-extrabold leading-tight">{discount.name}</h1>
-                {discount.endDate && (
-                  <p className="mt-1.5 text-white/80 text-sm">Until {formatDate(discount.endDate)}</p>
-                )}
-              </div>
-            </div>
-          </div>
+       <div className="relative h-52 md:h-64 overflow-hidden bg-black">
+  
+  {/* 🔥 Background blur layer */}
+  <img
+    src={`${baseUrl}${bannerUrl}`}
+    alt={discount.name}
+    className="absolute inset-0 w-full h-full object-cover blur-sm scale-110 opacity-50"
+  />
+
+  {/* 🔥 Main sharp image (contain) */}
+  <img
+    src={`${baseUrl}${bannerUrl}`}
+    alt={discount.name}
+    className="absolute inset-0 w-full h-full object-contain"
+  />
+
+  {/* 🔥 Overlay */}
+  <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+
+  {/* 🔥 Content */}
+  <div className="absolute inset-0 flex items-center">
+    <div className="max-w-7xl mx-auto px-4 w-full">
+      <div className="text-white max-w-xl">
+        
+        <div className="inline-flex items-center gap-2 bg-red-500 text-white text-sm font-bold px-3 py-1.5 rounded-xl mb-3">
+          <BadgePercent className="h-4 w-4" />
+          {formatDiscount(discount)}
         </div>
+
+        <h1 className="text-xl md:text-2xl font-extrabold leading-tight">
+          {discount.name}
+        </h1>
+
+        {discount.endDate && (
+          <p className="mt-1.5 text-white/80 text-sm">
+            Until {formatDate(discount.endDate)}
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
       ) : (
         <div className="bg-gradient-to-r from-[#445D41] via-[#3a5237] to-[#2d4029] text-white">
           <div className="max-w-7xl mx-auto px-4 py-10">
@@ -143,7 +167,7 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
 
       <main className="max-w-7xl mx-auto px-4 py-2">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-sm text-gray-500 mb-1 flex-wrap">
+        <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-1 flex-wrap">
           <Link href="/" className="hover:text-[#445D41] transition-colors">Home</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <Link href="/offers" className="hover:text-[#445D41] transition-colors">Offers</Link>
