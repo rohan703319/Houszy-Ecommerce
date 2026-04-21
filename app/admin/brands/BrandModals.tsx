@@ -911,6 +911,8 @@ ${
               src={getImageUrl(viewingBrand.logoUrl)}
               className="w-14 h-14 rounded-lg object-cover border border-violet-500/30"
               onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                 onClick={() => setSelectedImageUrl(getImageUrl(viewingBrand.logoUrl))}
+                                       
             />
           ) : (
             <div className="w-14 h-14 rounded-lg bg-violet-600 flex items-center justify-center text-white font-bold">

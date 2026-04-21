@@ -32,7 +32,7 @@ export default function ShippingPage() {
           </div>
 
           <p className="text-sm black mb-3">
-            Orders above <strong>£35 qualify for free delivery</strong>. Once your order is confirmed and your goods are dispatched from our Direct Care Warehouse, we will notify you by email. This email will include the following:
+            Orders above <strong>£35 qualify for free delivery</strong>. Once your order is confirmed and your goods are dispatched from our<strong> Direct Care Warehouse,</strong> we will notify you by email. This email will include the following:
           </p>
 
           <ul className="list-disc pl-5 text-sm black space-y-1">

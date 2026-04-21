@@ -16,8 +16,8 @@ import { useToast } from "@/app/admin/_components/CustomToast";
 import { useRouter } from "next/navigation";
 import MediaViewerModal, { MediaItem } from "../products/MediaViewerModal";
 import ConfirmDialog from "../_components/ConfirmDialog";
-import { API_BASE_URL } from "@/lib/api";
-import { getImageUrl } from "@/app/lib/getImageUrl";
+import { getImageUrl } from "../_utils/formatUtils";
+
 
 interface ProductImage {
   id: string;

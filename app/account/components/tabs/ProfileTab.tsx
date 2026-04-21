@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import {
   Mail,
   Phone,
@@ -39,10 +39,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/toast/CustomToast";
 export default function ProfileTab({ user, initials }: any) {
 const { accessToken, refreshProfile } = useAuth();
+const router = useRouter();
 const toast = useToast();
 const [profile, setProfile] = useState<any>(user);
   const [editOpen, setEditOpen] = useState(false);
-
+const handleRedirect = (tab: string) => {
+  router.push(`/account?tab=${tab}`);
+};
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -258,10 +261,31 @@ toast.success(data?.message || "Profile updated successfully");
 
       {/* STATS */}
      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-  <Stat icon={<ShoppingBag />} label="Total Orders" value={user.totalOrders ?? 0} />
-  <Stat icon={<PoundSterling />} label="Total Spent" value={`£${user.totalSpent?.toFixed(2) ?? "0.00"}`} />
-  <Stat icon={<Gift />} label="Loyalty Points" value={`${user.loyaltyPoints?.currentBalance ?? 0} pts`} />
-  <Stat icon={<Calendar />} label="Member Since" value={user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"} />
+ <Stat
+  icon={<ShoppingBag />}
+  label="Total Orders"
+  value={user.totalOrders ?? 0}
+  onClick={() => handleRedirect("orders")}
+/>
+
+<Stat
+  icon={<PoundSterling />}
+  label="Total Spent"
+  value={`£${user.totalSpent?.toFixed(2) ?? "0.00"}`}
+/>
+
+<Stat
+  icon={<Gift />}
+  label="Loyalty Points"
+  value={`${user.loyaltyPoints?.currentBalance ?? 0} pts`}
+  onClick={() => handleRedirect("loyalty")}
+/>
+
+<Stat
+  icon={<Calendar />}
+  label="Member Since"
+  value={user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
+/>
 </div>
 
       {/* DETAILS */}
@@ -335,7 +359,7 @@ toast.success(data?.message || "Profile updated successfully");
 
   {/* PHONE */}
  <div>
-  <label className="text-sm font-medium">Phone Number</label>
+  <label className="text-sm font-medium">Phone Number *</label>
  <div className="flex">
   <span className="px-3 flex items-center bg-gray-100 border border-r-0 rounded-l-lg">
     +44

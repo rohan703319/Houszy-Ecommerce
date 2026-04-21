@@ -206,11 +206,21 @@ const handleSubscribe = async (e: React.FormEvent) => {
 
       {/* Bottom Strip */}
       <div className="bg-black text-white opacity-90 text-sm flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-3 gap-2 md:gap-0">
-        <p className="text-xs md:text-sm text-center md:text-left">© 2024 Direct Care All Rights Reserved</p>
+        <p className="text-xs md:text-sm text-center md:text-left">© 2026 Direct Care All Rights Reserved</p>
         <div>
           <Image src="/payments/visa.png" alt="visa" width={120} height={35} className="md:w-[160px]" />
         </div>
-        <p className="text-xs md:text-sm">Developed By Mezzex</p>
+        <p className="text-xs md:text-sm">
+    Developed By{" "}
+    <a
+      href="https://www.mezzex.com/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-semibold hover:text-gray-300 transition"
+    >
+      Mezzex
+    </a>
+  </p>
       </div>
     </footer>
   );

@@ -187,32 +187,58 @@ export default function CustomersPage() {
   const generateExcel = (customersToExport: Customer[]) => {
     if (!customersToExport?.length) return;
 
-    const excelData = customersToExport.map((customer) => {
-      const tier = customer.tierLevel || "Bronze";
-      const totalOrders = customer.totalOrders ?? 0;
-      const totalSpent = customer.totalSpent ?? 0;
-      const avgOrderValue = totalOrders > 0 ? (totalSpent / totalOrders).toFixed(2) : "0.00";
-      const lastOrderDate = customer.orders?.[0]?.orderDate;
-      const daysSinceLastOrder = lastOrderDate
-        ? Math.floor((Date.now() - new Date(lastOrderDate).getTime()) / (1000 * 60 * 60 * 24))
-        : "N/A";
+const excelData = customersToExport.map((customer) => {
+  return {
+    // CUSTOMER
+    "Customer Name": customer.fullName,
+    Email: customer.email,
+    Phone: customer.phoneNumber,
+    Gender: customer.gender,
+    "Account Type": customer.accountType,
+    Status: customer.isActive ? "Active" : "Inactive",
 
-      return {
-        "Customer Name": customer.fullName || "N/A",
-        Email: customer.email || "N/A",
-        Phone: customer.phoneNumber || "N/A",
-        Gender: customer.gender || "N/A",
-        "Account Type": customer.accountType || "Personal",
-        "Total Orders": totalOrders,
-        "Total Spent (£)": totalSpent.toFixed(2),
-        "Avg Order Value (£)": avgOrderValue,
-        Status: customer.isActive ? "Active" : "Inactive",
-        Tier: tier.toUpperCase(),
-        "Registration Date": customer.createdAt ? formatDate(customer.createdAt) : "N/A",
-        "Last Login": customer.lastLoginAt ? formatDate(customer.lastLoginAt) : "Never",
-        "Days Since Last Order": daysSinceLastOrder,
-      };
-    });
+    // ADDRESS
+    "Address": customer.addresses
+      ?.map(
+        (a) =>
+          `${a.addressLine1}, ${a.city}, ${a.state}, ${a.country} (${a.postalCode})`
+      )
+      .join(" | "),
+
+    // STATS
+    "Total Orders": customer.totalOrders,
+    "Total Spent": customer.totalSpent,
+
+    // ORDERS FULL
+    "Orders": customer.orders
+      ?.map(
+        (o) =>
+          `${o.orderNumber} | ${o.status} | ${o.totalAmount} ${o.currency}`
+      )
+      .join("\n"),
+
+    // ORDER ITEMS
+    "Products": customer.orders
+      ?.flatMap((o) => o.items || [])
+      .map(
+        (i) =>
+          `${i.productName} | SKU:${i.productSku} | Qty:${i.quantity} | £${i.unitPrice}`
+      )
+      .join("\n"),
+
+    // PAYMENT
+    "Payments": customer.orders
+      ?.map(
+        (o) =>
+          `${o.payment?.paymentMethod} | ${o.payment?.status} | ${o.payment?.transactionId}`
+      )
+      .join("\n"),
+
+    // DATES
+    "Created": customer.createdAt ? formatDate(customer.createdAt) : "",
+    "Last Login": customer.lastLoginAt ? formatDate(customer.lastLoginAt) : "",
+  };
+});
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const keys = Object.keys(excelData[0] || {});
@@ -506,7 +532,7 @@ const modalTier = selectedCustomer
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <input
               type="search"
-              placeholder="Search by name, email, or phone..."
+              placeholder="Search by name,email or phone..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className="w-full pl-9 pr-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"

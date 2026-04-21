@@ -206,7 +206,7 @@ const handleForgotPassword = async (e: React.FormEvent) => {
       setForgotOpen(false);
       setForgotEmail("");
       setForgotSuccessMessage("");
-    }, 2000);
+    }, 4000);
   } finally {
     setForgotLoading(false);
   }

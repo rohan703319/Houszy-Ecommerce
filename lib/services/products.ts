@@ -6,6 +6,18 @@ import { API_ENDPOINTS } from '../api-config';
 // INTERFACES - PRODUCT DATA
 // ==========================================
 
+// ============================================
+// TYPES
+// ============================================
+export interface AdminCommentHistory {
+  id: string;
+  productId: string;
+  oldComment: string | null;
+  newComment: string | null;
+  changedBy: string;
+  changedAt: string;
+}
+
 export interface ProductImage {
   id: string;
   imageUrl: string;
@@ -514,6 +526,31 @@ getAll: async (params?: ProductQueryParams) => {
     return apiClient.get<ApiResponse<Product>>(`${API_ENDPOINTS.products}/${id}`);
   },
 
+    // ✅ NEW: Admin Comment History
+  getAdminCommentHistory: async (productId: string) => {
+    return apiClient.get<ApiResponse<AdminCommentHistory[]>>(
+      `${API_ENDPOINTS.products}/${productId}/admin-comment-history`
+    );
+  },
+
+
+searchSummary: async (params: {
+  name?: string;
+  sku?: string;
+  includeHomepageCount?: boolean;
+}) => {
+  return apiClient.get<
+    ApiResponse<{
+      nameFound?: boolean;
+      nameMatchedCount?: number;
+      skuFound?: boolean;
+      skuMatchedCount?: number;
+      homepageCount?: number;
+    }>
+  >(`${API_ENDPOINTS.products}/search-summary`, {
+    params,
+  });
+},
   create: async (data: CreateProductDto) => {
     return apiClient.post<ApiResponse<Product>>(API_ENDPOINTS.products, data);
   },
@@ -877,15 +914,9 @@ importExcel: async (file: File) => {
       `${API_ENDPOINTS.products}/${productId}/images/${imageId}`,
       data
     ),
-  // ==========================================
-  // 📊 ADMIN COMMENT HISTORY
-  // ==========================================
 
-  getAdminCommentHistory: async (productId: string) => {
-    return apiClient.get<ApiResponse<any[]>>(
-      `${API_ENDPOINTS.products}/${productId}/admin-comment-history`
-    );
-  },
+
+ 
 
   // ==========================================
   // 📧 BACK-IN-STOCK SUBSCRIPTIONS

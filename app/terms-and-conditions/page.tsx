@@ -25,7 +25,7 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold mb-3">Introduction</h2>
 
           <p className="text-sm black leading-relaxed mb-3">
-            We are Direct Care Ltd, our company is registered in England and Wales (Company Number: 06874500), with our business operations based in England and our registered office located at:
+            We are Direct Care Ltd, our company is registered in England and Wales <strong>(Company Number: 06874500), </strong>with our business operations based in England and our registered office located at:
           </p>
 
           <p className="text-sm font-semibold black leading-relaxed">
@@ -148,7 +148,7 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold mb-3">Contact Information</h2>
 
           <p className="text-sm black">
-            You can reach us by phone at +441216616357/+441214616835 or via email at customersupport@direct-care.co.uk.
+            You can reach us by phone at <strong>+441216616357/+441214616835 or via email at customersupport@direct-care.co.uk.</strong>
           </p>
         </div>
 

@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
   inventoryBulkUpload: "/api/Products/inventory/bulk-upload",
   PharmacyQuestions: '/api/pharmacy-questions',
 
+  deliveryStrip: "/api/DeliveryStrip",
   // Product Lock & Takeover System
   productLock: {
     acquireLock: (productId: string) => `/api/Products/${productId}/acquire-lock`,

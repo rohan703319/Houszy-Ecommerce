@@ -332,6 +332,7 @@ const [orderSummary, setOrderSummary] = useState<{
 
 
   const [isPlacing, setIsPlacing] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 // ✅ Terms & Newsletter states
 const [acceptTerms, setAcceptTerms] = useState(true);
 const [subscribeNewsletter, setSubscribeNewsletter] = useState(false);
@@ -1022,10 +1023,17 @@ const effectivePostcode = (
         {/* LEFT: Billing + Shipping */}
         <div className="lg:col-span-2 space-y-2">
           {isAuthenticated && (
+<div className={isLocked ? "pointer-events-none opacity-60" : ""}>
   <SavedAddressesSection onSelect={handleAddressSelect} />
+</div>
 )}
-
-          <div className="bg-white p-3 lg:p-6 rounded shadow">
+{isLocked && (
+  <div className="bg-yellow-50 border border-yellow-200 text-xs text-yellow-700 p-2 rounded mb-2">
+    Order is locked for payment. You cannot edit details now.
+  </div>
+)}
+    <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
+  <div className="bg-white p-3 lg:p-6 rounded shadow">
             <h2 className="text-sm font-semibold mb-2 lg:text-lg lg:mb-3">Billing details</h2>
            <div className="grid grid-cols-2 gap-2">
    <div className="flex flex-col space-y-0.5 col-span-2">
@@ -1140,8 +1148,10 @@ const effectivePostcode = (
 </div>
           </div>
         </div>
+        </fieldset>
    {/* Shipping */}
 {deliveryMethod === "HomeDelivery" && (
+ <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
   <div className="bg-white p-3 lg:p-6 rounded shadow">
     <h2 className="text-sm font-semibold mb-2 lg:text-lg lg:mb-3">Shipping details</h2>
     <div className="flex items-center gap-2 mb-2">
@@ -1307,7 +1317,8 @@ setShippingAddressQuery("");
     ) : (
       <div className="text-xs text-gray-600">Shipping will use billing address.</div>
     )}
-  </div>
+ </div>
+</fieldset>
 )}
 {!effectivePostcode && (
   <div className="bg-yellow-50 border border-yellow-200 text-xs text-yellow-700 p-2 rounded">
@@ -1316,6 +1327,7 @@ setShippingAddressQuery("");
 )}
           {/* DELIVERY METHOD SELECTOR */}
 {effectivePostcode && (
+ <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
   <div className="bg-white p-3 rounded shadow">
   <h2 className="text-sm font-semibold mb-2">Delivery method</h2>
   <div className="flex flex-col gap-1.5">
@@ -1329,8 +1341,10 @@ setShippingAddressQuery("");
     </label>
   </div>
 </div>
+</fieldset>
 )}
 {deliveryMethod === "ClickAndCollect" && (
+ <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
   <div className="bg-white p-3 rounded shadow">
     <h2 className="text-sm font-semibold mb-2">Select Store</h2>
 
@@ -1391,9 +1405,11 @@ setShippingAddressQuery("");
 </div>
     )}
   </div>
+</fieldset>
 )}
 {/* SHIPPING OPTIONS */}
 {deliveryMethod === "HomeDelivery" && shippingOptions.length > 0 && (
+ <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
   <div className="bg-white p-3 rounded shadow">
     <h2 className="text-sm font-semibold mb-2">Delivery options</h2>
     {shippingQuoteLoading ? (
@@ -1447,12 +1463,13 @@ setShippingAddressQuery("");
       </div>
     )}
   </div>
+</fieldset>
 )}
 
           {/* Order notes */}
           <div className="bg-white p-3 rounded shadow">
             <label className="block text-xs font-medium mb-1">Order notes (optional)</label>
-            <textarea value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Order notes" rows={2} className="w-full border p-1.5 text-sm rounded" />
+            <textarea disabled={isLocked} value={notes} onChange={(e)=>setNotes(e.target.value)} placeholder="Order notes" rows={2} className="w-full border p-1.5 text-sm rounded" />
           </div>
         </div>
         {/* RIGHT: Summary + coupon */}
@@ -1681,6 +1698,7 @@ if (!intentJson?.data?.clientSecret) {
 }
       setStripeOrderId(orderId);
       setStripeClientSecret(intentJson.data.clientSecret);
+      setIsLocked(true);
       setIsPlacing(false);
     }}
    className={`w-full py-2 text-sm rounded transition flex items-center justify-center gap-2 ${

@@ -176,6 +176,7 @@ export interface Order {
   dispatchedAt?: string;
   dispatchNote?: string;
   subtotalAmount: number;
+  totalPaidAmount: number;
   taxAmount: number;
   shippingAmount: number;
   discountAmount: number;

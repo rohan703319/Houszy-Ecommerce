@@ -36,7 +36,7 @@ export default function CompanyInfoPage() {
 
 <p className="text-sm black">
   <strong>Superintendent pharmacist:</strong>{" "}
-  <span className="font-semibold underline">
+  <span className="font-semibold">
     Surabhi Kumari (2057840)
   </span>
 </p>
@@ -51,15 +51,10 @@ export default function CompanyInfoPage() {
 
 <p className="text-sm black mt-4">
   <strong>Drop us an email</strong> if you have any complaints, concerns, or feedback at{" "}
-  <span className="font-semibold underline">
+  <span className="font-semibold">
     Suby@direct-care.co.uk
   </span>
 </p>
-
-          <p className="text-sm black mt-4">
-            Drop us an email if you have any complaints, concerns, or feedback at Suby@direct-care.co.uk
-          </p>
-
           <p className="text-sm black mt-4 leading-relaxed">
             To complain about a pharmacy, you should first contact the pharmacy directly on their registered email address or phone number to try and resolve the issue. If you are not satisfied, you can then escalate your complaint to the local or national ombudsman or through your local Integrated Care Board (ICB). The complaint should be made within 12 months of the incident, and you should receive a response acknowledging the complaint within three working days, with a full response provided within a specified timeframe, typically under six months.
           </p>

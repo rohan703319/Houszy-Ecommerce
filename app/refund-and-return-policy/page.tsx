@@ -72,7 +72,7 @@ export default function RefundPage() {
           </h2>
 
           <p className="text-sm black mb-3">
-            Our customer service team is available between 8am to 8pm to assist you, so feel free to call +441216616357/+441214616835 or email customersupport@direct-care.co.uk. If you choose to reach out through email, you are advised to provide all the necessary details of your return request, including:
+            Our customer service team is available between 8am to 8pm to assist you, so feel free to call<strong> +441216616357/+441214616835 or email customersupport@direct-care.co.uk.</strong> If you choose to reach out through email, you are advised to provide all the necessary details of your return request, including:
           </p>
 
           <ul className="list-disc pl-5 text-sm black space-y-1">
@@ -93,7 +93,7 @@ export default function RefundPage() {
         {/* ADDRESS */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
           <p className="text-sm black">
-            Direct Care Warehouse address: Spacebox Business Park Unit 38A, Plume Street, B6 7RT, Birmingham, United Kingdom.
+           Direct Care Warehouse address:<strong> Spacebox Business Park Unit 38A, Plume Street, B6 7RT, Birmingham, United Kingdom.</strong> 
           </p>
 
           <p className="text-sm black mt-3">
@@ -119,7 +119,7 @@ export default function RefundPage() {
           </h2>
 
           <div className="space-y-2 text-sm black">
-           Call our customer service team at +441216616357/+441214616835 or email customersupport@direct-care.co.uk. for any questions about our refund and return policy.
+           Call our customer service team at <strong>+441216616357/+441214616835 or email customersupport@direct-care.co.uk.</strong> for any questions about our refund and return policy.
           </div>
         </div>
 

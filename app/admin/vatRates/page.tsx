@@ -862,7 +862,7 @@ const clearFilters = () => {
     setStatusFilter(e.target.value);
     setCurrentPage(1);
   }}
-  className={`p-2 bg-gray-800/60 border rounded-md text-white text-[11px] focus:outline-none transition-all
+  className={`p-2 bg-gray-800/90 border rounded-md text-white text-[11px] focus:outline-none transition-all
   ${
     statusFilter !== "all"
       ? "border-violet-500 bg-violet-500/10"

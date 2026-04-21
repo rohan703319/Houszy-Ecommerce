@@ -53,7 +53,14 @@ async function getProduct(slug: string) {
     if (!json.success) return null;
 
     const product = json.data;
-
+// ✅ PRODUCTION SAFE CHECK
+if (
+  !product ||
+  product.status !== "Active" ||
+  product.isPublished !== true
+) {
+  return null;
+}
     // ✅ IMPORTANT: Variant logic preserve
     let selectedVariantId: string | undefined = undefined;
 

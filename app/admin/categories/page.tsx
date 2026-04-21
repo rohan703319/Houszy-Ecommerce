@@ -1585,17 +1585,7 @@ useEffect(() => {
                           <p className="text-white font-semibold">{viewingCategory.sortOrder}</p>
                         </div>
                       </div>
-                      <div className="bg-slate-900/50 p-3 rounded-lg">
-                        <p className="text-xs text-slate-400 mb-1">Description</p>
-                        {viewingCategory.description ? (
-                          <div
-                            className="text-white text-sm prose prose-invert prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: viewingCategory.description }}
-                          />
-                        ) : (
-                          <p className="text-slate-500 text-sm italic">No description</p>
-                        )}
-                      </div>
+                     
                     </div>
                   </div>
 
@@ -1688,7 +1678,28 @@ useEffect(() => {
                       </div>
                     </div>
                   </div>
+                  
                 </div>
+                {/* FULL WIDTH DESCRIPTION */}
+<div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+
+  <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+    <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center text-xs">
+      📝
+    </span>
+    Description
+  </h3>
+
+  {viewingCategory.description ? (
+    <div
+      className="text-sm text-slate-200 leading-relaxed max-h-[300px] overflow-y-auto pr-2 custom-scrollbar"
+      dangerouslySetInnerHTML={{ __html: viewingCategory.description }}
+    />
+  ) : (
+    <p className="text-slate-500 text-sm italic">No description available</p>
+  )}
+
+</div>
                 {/* ================= FAQ ================= */}
 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
 

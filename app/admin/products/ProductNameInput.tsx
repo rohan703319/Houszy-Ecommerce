@@ -1,121 +1,95 @@
 'use client';
 
 import { productsService } from '@/lib/services';
-import { useState, useRef } from 'react';
-
+import { useState, useRef, useEffect } from 'react';
 
 interface Props {
   value: string;
   onChange: (value: string) => void;
-  productId?: string; // edit mode ke liye
+  onErrorChange?: (hasError: boolean) => void;
+  productId?: string;
 }
 
 export default function ProductNameInput({
   value,
   onChange,
+  onErrorChange,
   productId
 }: Props) {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+const requestIdRef = useRef(0);
+  useEffect(() => {
+    onErrorChange?.(!!error);
+  }, [error]);
 
-  // ✅ API CHECK
-  const checkName = async (name: string) => {
-    if (!name || name.length < 3) return;
+const checkName = async (name: string) => {
+  if (!name || name.length < 3) return;
 
-    try {
-      setChecking(true);
+  const currentRequestId = ++requestIdRef.current;
 
-      const res = await productsService.getAll({
-        searchTerm: name.trim()
-      });
+  try {
+    setChecking(true);
 
-      const items = res.data?.data?.items ?? [];
+    const res = await productsService.searchSummary({
+      name: name.trim(),
+    });
 
-      const exists = items.some((p: any) =>
-        p.name?.toLowerCase().trim() === name.toLowerCase().trim() &&
-        p.id !== productId
-      );
+    if (currentRequestId !== requestIdRef.current) return;
 
-      if (exists) {
-        setError('Product name already exists');
-      } else {
-        setError('');
-      }
+    const exists = res.data?.data?.nameFound ?? false;
 
-    } catch (err) {
-      console.warn('Name check failed:', err);
-    } finally {
+    setError(exists ? 'Product name already exists' : '');
+
+  } catch (err) {
+    console.warn(err);
+  } finally {
+    if (currentRequestId === requestIdRef.current) {
       setChecking(false);
     }
-  };
+  }
+};
 
-  // ✅ HANDLE CHANGE
   const handleChange = (val: string) => {
     onChange(val);
 
-    if (error) setError('');
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (val.length >= 3) {
       debounceRef.current = setTimeout(() => {
         checkName(val);
-      }, 300);
+      }, 300); // ⬅ faster response
+    } else {
+      setError('');
     }
   };
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-300 mb-2">
+      {/* 🔥 RED STAR FIX */}
+      <label className="block text-sm text-slate-300 mb-2">
         Product Name <span className="text-red-500">*</span>
       </label>
 
       <div className="relative">
         <input
-          ref={inputRef}
-          type="text"
           value={value}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder="Enter product name"
-          className={`w-full px-3 py-2.5 pr-10 bg-slate-800/50 border rounded-xl text-white transition-all ${
-            error
-              ? 'border-red-500 focus:ring-red-500'
-              : value && !checking && value.length >= 3
-              ? 'border-green-500 focus:ring-green-500'
-              : 'border-slate-700 focus:ring-violet-500'
+          className={`w-full px-3 py-2 pr-10 rounded-xl bg-slate-800 border text-white ${
+            error ? 'border-red-500' : 'border-slate-700'
           }`}
-          required
-          minLength={3}
-          maxLength={150}
         />
 
-        {/* RIGHT ICON */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm flex items-center gap-1">
+        {/* 🔥 LOADER / STATUS ICON */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm">
           {checking && (
             <span className="text-yellow-400 animate-pulse">...</span>
           )}
 
           {!checking && error && (
-            <span
-              className="text-red-500 cursor-pointer"
-              onClick={() => {
-                onChange('');
-                setError('');
-
-                if (debounceRef.current) {
-                  clearTimeout(debounceRef.current);
-                }
-
-                inputRef.current?.focus();
-              }}
-            >
-              ❌
-            </span>
+            <span className="text-red-500">❌</span>
           )}
 
           {!checking && !error && value.length >= 3 && (
@@ -125,14 +99,12 @@ export default function ProductNameInput({
       </div>
 
       {/* ERROR */}
-      {error && (
-        <p className="text-red-400 text-xs mt-1">{error}</p>
-      )}
+      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
 
       {/* SUCCESS */}
       {!error && value.length >= 3 && !checking && (
         <p className="text-green-400 text-xs mt-1">
-          Product name is available
+          Name is available
         </p>
       )}
     </div>

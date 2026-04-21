@@ -288,10 +288,18 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
           <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600/20 via-cyan-600/20 to-teal-600/20 border-b border-slate-700">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg">
-                <Eye className="w-5 h-5 text-white" />
+                {product.images && product.images.length > 0 ? (
+                  <img
+                    src={product.images[0].imageUrl}
+                    alt={product.name}
+                    className="w-8 h-8 object-cover rounded-md"
+                  />
+                ) : (
+                  <Package className="w-5 h-5 text-white" />
+                )}
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Product Details</h3>
+                <h3 className="text-lg font-bold text-white"> {product.name}</h3>
                 <p className="text-xs text-slate-300">Comprehensive product information</p>
               </div>
             </div>

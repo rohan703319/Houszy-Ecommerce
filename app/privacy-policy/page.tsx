@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         {/* INTRO */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
           <p className="text-sm black leading-relaxed mb-3">
-            Our website and marketing are owned and managed by Direct Care LTD registered in England and whose registered office address is at Unit 38A, Plume Street B6 7RT, Birmingham, United Kingdom. At Direct Care, we are committed to protecting and preserving the privacy of our valid customers visiting our website.
+            Our website and marketing are owned and managed by Direct Care LTD registered in England and whose registered office address is at<strong> Unit 38A, Plume Street B6 7RT, Birmingham, United Kingdom.</strong> At Direct Care, we are committed to protecting and preserving the privacy of our valid customers visiting our website.
           </p>
 
           <p className="text-sm black leading-relaxed mb-3">
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           </p>
 
           <p className="text-sm black leading-relaxed mb-3">
-            If you have any questions regarding this Policy and our privacy practices, call us at +441216616357/+441214616835.
+            If you have any questions regarding this Policy and our privacy practices, call us at <strong>+441216616357/+441214616835.</strong>
           </p>
 
           <p className="text-sm black leading-relaxed">
@@ -113,7 +113,7 @@ export default function PrivacyPage() {
           </h2>
 
           <p className="text-sm black leading-relaxed mb-3">
-            According to the General Data Protection Regulation rules, customers have the right to access their Personal Information from the service provider and request for it to be rectified, updated, or deleted. If you want to exercise these rights, feel free to call our customer service team at +441216616357/+441214616835.
+            According to the General Data Protection Regulation rules, customers have the right to access their Personal Information from the service provider and request for it to be rectified, updated, or deleted. If you want to exercise these rights, feel free to call our customer service team at <strong>+441216616357/+441214616835.</strong>
           </p>
 
           <p className="text-sm black leading-relaxed">
@@ -128,7 +128,7 @@ export default function PrivacyPage() {
           </h2>
 
           <p className="text-sm black leading-relaxed">
-            If you disagree with how we have handled your personal information and want to raise a complaint, email us at customersupport@direct-care.co.uk. In case our response does not satisfy you, or you believe that we are not handling your personal information following the law, you can complain at https://ico.org.uk/concerns/. Although incorrect or lacking information, Direct Care does not force anyone to provide their personal information, which may result in our inability to offer customers our products and services.
+            If you disagree with how we have handled your personal information and want to raise a complaint, email us at <strong>customersupport@direct-care.co.uk.</strong> In case our response does not satisfy you, or you believe that we are not handling your personal information following the law, you can complain at https://ico.org.uk/concerns/. Although incorrect or lacking information, Direct Care does not force anyone to provide their personal information, which may result in our inability to offer customers our products and services.
           </p>
         </div>
 

@@ -575,9 +575,13 @@ const orderVatAmount = useMemo(() => {
                   <p className="text-red-600 text-[10px] font-semibold mt-0.5">Out of Stock — remove this item</p>
                 )}
                 {item.type === "subscription" && (
-                  <p className="text-[10px] font-semibold text-indigo-600 mt-0.5">
-                    Subscription • Every {item.frequency ?? ""} {item.frequencyPeriod ?? ""} • {item.subscriptionTotalCycles ?? ""} Cycles
-                  </p>
+                  <p className="text-xs font-semibold text-indigo-600 mt-1">
+            Subscription • Every{" "}
+            {item.frequency && !isNaN(Number(item.frequency))
+              ? `${item.frequency} `
+              : ""}
+            {item.frequencyPeriod} • {item.subscriptionTotalCycles} cycles
+          </p>
                 )}
 
                 {/* Row 3: Qty controls + VAT + Loyalty */}

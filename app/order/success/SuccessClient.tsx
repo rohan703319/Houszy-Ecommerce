@@ -464,12 +464,12 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
                 </h2>
                 <div className="border rounded-lg p-4 space-y-2 bg-gray-50">
                   <div className="flex justify-between">
-                    <span>Subtotal</span>
+                    <span>Subtotal (Incl. VAT)</span>
                     <span>{formatCurrency(order.subtotalAmount)}</span>
                   </div>
                   {order.taxAmount > 0 && (
   <div className="flex justify-between text-sm text-gray-600">
-    <span>VAT (included)</span>
+    <span>VAT</span>
     <span>{formatCurrency(order.taxAmount)}</span>
   </div>
 )}

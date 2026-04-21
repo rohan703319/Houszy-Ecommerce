@@ -18,6 +18,7 @@ import { AssignProductPharmacyQuestionDto, pharmacyQuestionsService } from "@/li
 import ProductNameInput from "../ProductNameInput";
 import SKUInput from "../SKUInput";
 import { categoriesService } from "@/lib/services/categories";
+import UnsavedChangesModal from "../_components/UnsavedChangesModal";
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -41,6 +42,10 @@ const [showUnsavedModal, setShowUnsavedModal] = useState(false);
 const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 const [showPharmacyModal, setShowPharmacyModal] = useState(false);
 const [pharmacyQuestions, setPharmacyQuestions] = useState<AssignProductPharmacyQuestionDto[]>([]);
+
+const [nameError, setNameError] = useState(false);
+const [skuError, setSkuError] = useState(false);
+const [checkingSku, setCheckingSku] = useState(false);
 
 // ✅ LOADING & SUBMISSION STATES
 // ================================
@@ -80,15 +85,9 @@ const truncateHtmlByTextLength = (html: string, maxLength: number) => {
 
   return div.innerHTML;
 };
-if (hasVariantSkuErrors) {
-  toast.error("Please fix variant SKU errors before saving");
-  return;
-}
 
-if (hasCheckingVariantSku) {
-  toast.error("Please wait while we validate variant SKUs");
-  return;
-}
+
+
 
 // Add this to your component state
 const [availableProducts, setAvailableProducts] = useState<Array<{id: string, name: string, sku: string, price: string}>>([]);
@@ -243,6 +242,8 @@ const checkDraftRequirements = (): { isValid: boolean; missing: string[] } => {
 };
 
 
+
+
 /**
  * ✅ CHECK PUBLISH REQUIREMENTS (Complete)
  * All required fields for creating/publishing product
@@ -386,13 +387,13 @@ useEffect(() => {
         brandsResponse, 
         categoriesResponse, 
         vatRatesResponse,
-        allProductsResponse,
+        // allProductsResponse,
         simpleProductsResponse
       ] = await Promise.all([
         brandsService.getAll({ includeInactive: true }),
         categoriesService.getAll({ includeInactive: true, includeSubCategories: true }),
         vatratesService.getAll(),
-        productsService.getAll({ pageSize: 100 }),
+        // productsService.getAll({ pageSize: 100 }),
         productsService.getSimpleProducts()
       ]);
 
@@ -462,33 +463,33 @@ const vatRatesData = Array.isArray(vatRatesResponse?.data?.data)
       }
 
       // ==================== ALL PRODUCTS (FIXED) ====================
-      const allItems = extractProducts(allProductsResponse);
+      // const allItems = extractProducts(allProductsResponse);
       
-      if (allItems.length > 0) {
-        setAvailableProducts(allItems.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          price: typeof p.price === 'number' ? p.price.toFixed(2) : '0.00', // ✅ Fixed format
+      // if (allItems.length > 0) {
+      //   setAvailableProducts(allItems.map((p: any) => ({
+      //     id: p.id,
+      //     name: p.name,
+      //     sku: p.sku,
+      //     price: typeof p.price === 'number' ? p.price.toFixed(2) : '0.00', // ✅ Fixed format
           
-          // ✅ ADD THESE 3 LINES FOR FILTERING
-          brandId: p.brandId || p.brands?.[0]?.brandId || null,
-          brandName: p.brandName || p.brands?.[0]?.brandName || 'Unknown Brand',
-          categories: p.categories || []
-        })));
+      //     // ✅ ADD THESE 3 LINES FOR FILTERING
+      //     brandId: p.brandId || p.brands?.[0]?.brandId || null,
+      //     brandName: p.brandName || p.brands?.[0]?.brandName || 'Unknown Brand',
+      //     categories: p.categories || []
+      //   })));
         
-        console.log('✅ Available products:', allItems.length);
+      //   console.log('✅ Available products:', allItems.length);
         
-        // ✅ DEBUG: Log sample product
-        if (allItems.length > 0) {
-          console.log('📦 Sample Product:', {
-            name: allItems[0].name,
-            brandId: allItems[0].brandId || allItems[0].brands?.[0]?.brandId,
-            brandName: allItems[0].brandName || allItems[0].brands?.[0]?.brandName,
-            categories: allItems[0].categories?.length || 0
-          });
-        }
-      }
+      //   // ✅ DEBUG: Log sample product
+      //   if (allItems.length > 0) {
+      //     console.log('📦 Sample Product:', {
+      //       name: allItems[0].name,
+      //       brandId: allItems[0].brandId || allItems[0].brands?.[0]?.brandId,
+      //       brandName: allItems[0].brandName || allItems[0].brands?.[0]?.brandName,
+      //       categories: allItems[0].categories?.length || 0
+      //     });
+      //   }
+      // }
 
     } catch (error) {
       console.error('❌ Error fetching data:', error);
@@ -672,6 +673,35 @@ allowedQuantities: '',
   metaDescription: '',
   searchEngineFriendlyPageName: '',
 });
+
+// Helper function to get list of changed fields
+const getChangedFieldsList = useCallback(() => {
+  const changes: string[] = [];
+  if (!initialFormData) return changes;
+  
+  if (formData.name !== initialFormData.name) changes.push('Product Name');
+  if (formData.sku !== initialFormData.sku) changes.push('SKU');
+  if (formData.shortDescription !== initialFormData.shortDescription) changes.push('Short Description');
+  if (formData.fullDescription !== initialFormData.fullDescription) changes.push('Full Description');
+  if (formData.productType !== initialFormData.productType) changes.push('Product Type');
+  if (formData.price !== initialFormData.price) changes.push('Price');
+  if (formData.oldPrice !== initialFormData.oldPrice) changes.push('Old Price');
+  if (formData.cost !== initialFormData.cost) changes.push('Cost');
+  if (JSON.stringify(formData.categoryIds) !== JSON.stringify(initialFormData.categoryIds)) 
+    changes.push('Categories');
+  if (JSON.stringify(formData.brandIds) !== JSON.stringify(initialFormData.brandIds)) 
+    changes.push('Brands');
+  if (formData.stockQuantity !== initialFormData.stockQuantity) changes.push('Stock');
+  if (formData.manageInventory !== initialFormData.manageInventory) changes.push('Inventory Management');
+  if (formData.isShipEnabled !== initialFormData.isShipEnabled) changes.push('Shipping Enabled');
+  if (formData.weight !== initialFormData.weight) changes.push('Weight');
+  if (formData.metaTitle !== initialFormData.metaTitle) changes.push('Meta Title');
+  if (formData.metaDescription !== initialFormData.metaDescription) changes.push('Meta Description');
+  if (formData.showOnHomepage !== initialFormData.showOnHomepage) changes.push('Show on Homepage');
+  if (formData.adminComment !== initialFormData.adminComment) changes.push('Admin Comment');
+  
+  return changes;
+}, [formData, initialFormData]);
 // ✅ SEPARATE useEffect FOR DEFAULT VAT RATE
 useEffect(() => {
   // Only run when VAT rates are loaded AND no rate selected AND not exempt
@@ -912,18 +942,19 @@ const validateSkuFormat = (sku: string): { isValid: boolean; error: string } => 
 
 const getHomepageCount = async () => {
   try {
-    const res = await productsService.getAll({ pageSize: 100 });
-    const products = res.data?.data?.items || [];
-    const count = products.filter((p: any) => p.showOnHomepage).length;
+    const res = await productsService.searchSummary({
+      includeHomepageCount: true,
+    });
+
+    const count = res.data?.data?.homepageCount ?? 0;
+
     setHomepageCount(count);
-    console.log(`📊 Homepage products count: ${count}/${MAX_HOMEPAGE}`);
+
   } catch (e) {
-    console.error('❌ Error fetching homepage count:', e);
+    console.error("Homepage count error:", e);
     setHomepageCount(null);
   }
 };
-
-
 
 
 
@@ -958,24 +989,44 @@ const handleSubmit = async (
       percentage: 10,
     });
 
-      const res = await productsService.getAll({
-    searchTerm: formData.name
-  });
+if (nameError) {
+  toast.error('Product name already exists');
+  target.removeAttribute("data-submitting");
+  setIsSubmitting(false);
+  setSubmitProgress(null);
+  return;
+}
 
-  const items = res.data?.data?.items ?? [];
+if (hasCheckingVariantSku) {
+  toast.error("Please wait while we validate variant SKUs");
+   target.removeAttribute("data-submitting");
+  setIsSubmitting(false);
+  setSubmitProgress(null);
+  return;
+}
+if (skuError) {
+  toast.error('SKU already exists');
+  target.removeAttribute("data-submitting");
+  setIsSubmitting(false);
+  setSubmitProgress(null);
+  return;
+}
 
- const nameExists = items.some((p: any) =>
-  p.name?.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
-  (!isEditMode || p.id !== productId)
-);
+if (checkingSku) {
+  toast.warning('Checking SKU... please wait');
+  target.removeAttribute("data-submitting");
+  setIsSubmitting(false);
+  setSubmitProgress(null);
+  return;
+}
 
-  if (nameExists) {
-    toast.error('❌ Product name already exists. Please use a unique name.');
-    target.removeAttribute("data-submitting");
-    setIsSubmitting(false);
-    setSubmitProgress(null);
-    return;
-  }
+if (hasVariantSkuErrors) {
+  toast.error("Please fix variant SKU errors before saving");
+  target.removeAttribute("data-submitting");
+  setIsSubmitting(false);
+  setSubmitProgress(null);
+  return;
+}
     // ============================================================
     // SECTION 1: BASIC VALIDATION
     // ============================================================
@@ -1046,30 +1097,6 @@ setSubmitProgress({
   step: "Checking SKU availability...",
   percentage: 20,
 });
-
-try {
-  const res = await productsService.getAll({
-    searchTerm: formData.sku
-  });
-
-  const items = res.data?.data?.items ?? [];
-
-  const skuExists = items.some((p: any) =>
-   p.sku?.toUpperCase().trim() === formData.sku.toUpperCase().trim() &&
-    (!isEditMode || p.id !== productId) // edit safe
-  );
-
-  if (skuExists) {
-    toast.error("❌ SKU already exists. Please use a unique SKU.");
-    target.removeAttribute("data-submitting");
-    setIsSubmitting(false);
-    setSubmitProgress(null);
-    return;
-  }
-
-} catch (error) {
-  console.warn("⚠️ SKU check failed:", error);
-}
 
     // 1.5 PRICE VALIDATION
     if (formData.price && parseFloat(formData.price.toString()) < 0) {
@@ -3089,12 +3116,6 @@ useEffect(() => {
     </div>
   </div>
 )}
-
-
-
-
-
-
       {/* Main Content */}
       <div className="w-full">
          {missingFields.length > 0 && (
@@ -3188,6 +3209,7 @@ useEffect(() => {
 <ProductNameInput
   value={formData.name}
   onChange={(val) => setFormData({ ...formData, name: val })}
+  onErrorChange={setNameError}
 />
 
 <div className="space-y-4">
@@ -3208,7 +3230,6 @@ useEffect(() => {
     maxLength={350}
     required
     showCharCount={true}
-    showHelpText="Brief description visible in product listings (10-350 characters)"
   />
 
   {/* ================= FULL DESCRIPTION ================= */}
@@ -3236,11 +3257,13 @@ useEffect(() => {
  <div className="grid md:grid-cols-3 gap-4">
 {/* SKU FIELD */}
 <div>
-  <SKUInput
-    value={formData.sku}
-    onChange={(val) => setFormData({ ...formData, sku: val })}
-    isVariableProduct={formData.productType === 'variable'}
-  />
+<SKUInput
+  value={formData.sku}
+  onChange={(val) => setFormData({ ...formData, sku: val })}
+  onErrorChange={setSkuError}
+  onCheckingChange={setCheckingSku}
+  isVariableProduct={formData.productType === 'variable'}
+/>
   {formData.productType === 'variable' && !formData.sku && (
     <p className="mt-1 text-xs text-slate-500 italic">Leave blank to auto-generate from product name</p>
   )}
@@ -5917,304 +5940,22 @@ useEffect(() => {
   onSave={(selections) => setPharmacyQuestions(selections)}
 />
 
-{/* ============================================================ */}
-{showUnsavedModal && (
-  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
-    {/* Modal Container */}
-    <div className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl shadow-2xl max-w-2xl w-full animate-slideUp">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          {/* Warning Icon */}
-          <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-white">Unsaved Changes Detected</h3>
-            <p className="text-sm text-slate-400 mt-0.5">You have made changes that haven't been saved yet</p>
-          </div>
 
-          {/* Close Button */}
-          <button 
-            onClick={handleModalCancel}
-            className="text-slate-500 hover:text-white transition-colors p-1"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
 
-      {/* Body */}
-      <div className="px-6 py-5">
-        <p className="text-slate-300 text-sm mb-4">
-          Choose how you want to proceed with your changes:
-        </p>
-{/* Changed Fields Summary - COMPLETE VERSION */}
-{(() => {
-  const changes: string[] = [];
-  
-  if (initialFormData) {
-    // ========== BASIC INFO ==========
-    if (formData.name !== initialFormData.name) changes.push('Product Name');
-    if (formData.sku !== initialFormData.sku) changes.push('SKU');
-    if (formData.shortDescription !== initialFormData.shortDescription) changes.push('Short Description');
-    if (formData.fullDescription !== initialFormData.fullDescription) changes.push('Full Description');
-    if (formData.productType !== initialFormData.productType) changes.push('Product Type');
-    if (formData.gender !== initialFormData.gender) changes.push('Gender');
-    
-    // ========== PRICING ==========
-    if (formData.price !== initialFormData.price) changes.push('Price');
-    if (formData.oldPrice !== initialFormData.oldPrice) changes.push('Old Price');
-    if (formData.cost !== initialFormData.cost) changes.push('Cost');
-    
-    // ========== CATEGORIES & BRANDS ==========
-    if (JSON.stringify(formData.categoryIds) !== JSON.stringify(initialFormData.categoryIds)) 
-      changes.push('Categories');
-    if (JSON.stringify(formData.brandIds) !== JSON.stringify(initialFormData.brandIds)) 
-      changes.push('Brands');
-    
-    // ========== INVENTORY ==========
-    if (formData.stockQuantity !== initialFormData.stockQuantity) changes.push('Stock');
-    if (formData.manageInventory !== initialFormData.manageInventory) changes.push('Inventory Management');
-    if (formData.minStockQuantity !== initialFormData.minStockQuantity) changes.push('Min Stock');
-    if (formData.allowBackorder !== initialFormData.allowBackorder) changes.push('Backorder Settings');
-    if (formData.displayStockAvailability !== initialFormData.displayStockAvailability) 
-      changes.push('Stock Display');
-    
-    // ========== IMAGES & MEDIA ==========
-    if (formData.productImages.length !== initialFormData.productImages.length) 
-      changes.push('Product Images');
-    if (JSON.stringify(formData.videoUrls) !== JSON.stringify(initialFormData.videoUrls)) 
-      changes.push('Video URLs');
-    
-    // ========== SHIPPING ==========
-    if (formData.isShipEnabled !== initialFormData.isShipEnabled) changes.push('Shipping Enabled');
-    if (formData.weight !== initialFormData.weight) changes.push('Weight');
-    if (formData.length !== initialFormData.length) changes.push('Length');
-    if (formData.width !== initialFormData.width) changes.push('Width');
-    if (formData.height !== initialFormData.height) changes.push('Height');
-    if (formData.sameDayDeliveryEnabled !== initialFormData.sameDayDeliveryEnabled) 
-      changes.push('Same Day Delivery');
-    if (formData.nextDayDeliveryEnabled !== initialFormData.nextDayDeliveryEnabled) 
-      changes.push('Next Day Delivery');
-    
-    // ========== TAX (VAT) ==========
-    if (formData.vatExempt !== initialFormData.vatExempt) changes.push('VAT Exempt');
-    // if (formData.vatRateId !== initialFormData.vatRateId) changes.push('VAT Rate');
-    
-    // ========== ATTRIBUTES & VARIANTS ==========
-    if (JSON.stringify(productAttributes) !== JSON.stringify([])) 
-      changes.push('Product Attributes');
-    if (JSON.stringify(productVariants) !== JSON.stringify([])) 
-      changes.push('Product Variants');
-    
-    // ========== SUBSCRIPTION ==========
-    if (formData.isRecurring !== initialFormData.isRecurring) changes.push('Subscription');
-    if (formData.recurringCycleLength !== initialFormData.recurringCycleLength) 
-      changes.push('Subscription Cycle');
-    
-    // ========== GROUPED PRODUCTS ==========
-    if (formData.requireOtherProducts !== initialFormData.requireOtherProducts) 
-      changes.push('Grouped Product');
-    if (formData.requiredProductIds !== initialFormData.requiredProductIds) 
-      changes.push('Required Products');
-    if (formData.groupBundleDiscountType !== initialFormData.groupBundleDiscountType) 
-      changes.push('Bundle Discount');
-    
-    // ========== GIFT CARD ==========
-    if (formData.isGiftCard !== initialFormData.isGiftCard) changes.push('Gift Card');
-    
-    // ========== DOWNLOADABLE ==========
-    if (formData.isDownload !== initialFormData.isDownload) changes.push('Downloadable');
-    
-    // ========== RENTAL ==========
-    if (formData.isRental !== initialFormData.isRental) changes.push('Rental');
-    
-    // ========== PACK ==========
-    if (formData.isPack !== initialFormData.isPack) changes.push('Pack Product');
-    
-    // ========== SEO ==========
-    if (formData.metaTitle !== initialFormData.metaTitle) changes.push('Meta Title');
-    if (formData.metaDescription !== initialFormData.metaDescription) changes.push('Meta Description');
-    if (formData.metaKeywords !== initialFormData.metaKeywords) changes.push('Meta Keywords');
-    // if (formData.searchEngineFriendlyPageName !== initialFormData.searchEngineFriendlyPageName) 
-    //   changes.push('SEO Slug');
-    
-    // ========== DISPLAY ==========
-    if (formData.showOnHomepage !== initialFormData.showOnHomepage) changes.push('Show on Homepage');
-    if (formData.visibleIndividually !== initialFormData.visibleIndividually) changes.push('Visibility');
-    if (formData.displayOrder !== initialFormData.displayOrder) changes.push('Display Order');
-    
-    // ========== CART SETTINGS ==========
-    if (formData.orderMinimumQuantity !== initialFormData.orderMinimumQuantity) changes.push('Min Cart Qty');
-    if (formData.orderMaximumQuantity !== initialFormData.orderMaximumQuantity) changes.push('Max Cart Qty');
-    if (formData.disableBuyButton !== initialFormData.disableBuyButton) changes.push('Buy Button');
-    
-    // ========== MARK AS NEW ==========
-    if (formData.markAsNew !== initialFormData.markAsNew) changes.push('Mark as New');
-    if (formData.markAsNewStartDate !== initialFormData.markAsNewStartDate) 
-      changes.push('New Badge Start Date');
-    
-    // ========== RELATED PRODUCTS ==========
-    if (JSON.stringify(formData.relatedProducts) !== JSON.stringify(initialFormData.relatedProducts)) 
-      changes.push('Related Products');
-    if (JSON.stringify(formData.crossSellProducts) !== JSON.stringify(initialFormData.crossSellProducts)) 
-      changes.push('Cross-Sell Products');
-  }
-  
-  return changes.length > 0 ? (
-    <div className="mb-5 p-4 bg-slate-800/50 border border-slate-700 rounded-xl max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
-      <div className="flex items-start gap-2">
-        <Info className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="text-xs font-semibold text-cyan-400 mb-1.5">
-            Modified Fields ({changes.length})
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {changes.slice(0, 15).map((field, idx) => (
-              <span 
-                key={idx} 
-                className="px-2 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs rounded-md"
-              >
-                {field}
-              </span>
-            ))}
-            {changes.length > 15 && (
-              <span className="px-2 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs rounded-md font-semibold">
-                +{changes.length - 15} more
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  ) : null;
-})()}
-
-        {/* Missing Fields Warning */}
-        {missingFields.length > 0 && (
-          <div className="mb-5 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-            <div className="flex items-start gap-2">
-              <svg className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-orange-300">
-                  ⚠️ {missingFields.length} required field{missingFields.length !== 1 ? 's' : ''} missing for publishing
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons Grid - 2x2 Layout */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Save as Draft Button */}
-          <button
-            onClick={handleModalSaveDraft}
-            disabled={!checkDraftRequirements().isValid || isSubmitting}
-            className="group p-4 bg-slate-700 hover:bg-slate-600 border-2 border-transparent hover:border-slate-500 text-left rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-transparent"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-slate-600 group-hover:bg-slate-500 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
-                <Save className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-white text-sm mb-1">
-                  {isEditMode ? 'Update Draft' : 'Save as Draft'}
-                </h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Save progress and leave. You can publish later.
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Create/Update Product Button */}
-          <button
-            onClick={handleModalCreateProduct}
-            disabled={missingFields.length > 0 || isSubmitting}
-            className="group p-4 bg-gradient-to-br from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 border-2 border-transparent hover:border-violet-400 text-left rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-transparent shadow-lg"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-white/20 group-hover:bg-white/30 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-white text-sm mb-1">
-                  {isEditMode ? 'Update Product' : 'Create Product'}
-                </h4>
-                <p className="text-xs text-white/80 leading-relaxed">
-                  {missingFields.length > 0 
-                    ? `${missingFields.length} field${missingFields.length !== 1 ? 's' : ''} required`
-                    : 'Publish now and leave'
-                  }
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Discard Changes Button */}
-          <button
-            onClick={handleModalDiscard}
-            disabled={isSubmitting}
-            className="group p-4 bg-red-500/10 hover:bg-red-500/20 border-2 border-red-500/30 hover:border-red-500/50 text-left rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-red-500/20 group-hover:bg-red-500/30 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
-                <X className="w-5 h-5 text-red-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-red-400 text-sm mb-1">
-                  Discard Changes
-                </h4>
-                <p className="text-xs text-red-300/70 leading-relaxed">
-                  Leave without saving. All changes will be lost.
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Cancel - Stay on Page Button */}
-          <button
-            onClick={handleModalCancel}
-            disabled={isSubmitting}
-            className="group p-4 bg-slate-800/50 hover:bg-slate-700/50 border-2 border-slate-700 hover:border-slate-600 text-left rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-slate-700 group-hover:bg-slate-600 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
-                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-slate-300 text-sm mb-1">
-                  Stay on Page
-                </h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Continue editing. Don't leave yet.
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Footer Hint */}
-      <div className="px-6 py-3 bg-slate-800/30 rounded-b-2xl border-t border-slate-800">
-        <p className="text-xs text-slate-500 text-center">
-          💡 Tip: Press <kbd className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-400">Esc</kbd> to stay on page
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
+{/* UNSAVED CHANGES MODAL */}
+<UnsavedChangesModal
+  isOpen={showUnsavedModal}
+  missingFields={missingFields}
+  changedFieldsList={getChangedFieldsList()}
+  changedFieldsCount={getChangedFieldsList().length}
+  isSubmitting={isSubmitting}
+  onSaveDraft={handleModalSaveDraft}
+  onUpdate={handleModalCreateProduct}  // ✅ FIXED: Use create function
+  onDiscard={handleModalDiscard}
+  onCancel={handleModalCancel}
+  canSaveDraft={checkDraftRequirements().isValid}
+  canUpdate={missingFields.length === 0}
+/>
 
 
 

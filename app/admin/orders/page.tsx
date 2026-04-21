@@ -372,7 +372,17 @@ useEffect(() => {
     );
   };
 
+useEffect(() => {
+  const handleClickOutside = () => {
+    setActionMenuOrder(null);
+  };
 
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
 
 const handleBulkStatusUpdate = async (data: {
   newStatus: OrderStatus;
@@ -419,36 +429,47 @@ const handleBulkExport = () => {
     return;
   }
 
-  const data = ordersToExport.map((order) => {
-    const paymentMethodLabel = getPaymentMethodInfo(order.paymentMethod).label;
+ const data = ordersToExport.map((order) => ({
+  "Order Number": order.orderNumber,
+  "Order Date": formatDate(order.orderDate),
+  "Status": order.status,
 
-    const paymentStatusLabel = order.paymentStatus
-      ? getPaymentStatusInfo(order.paymentStatus as any).label
-      : order.payments && order.payments.length > 0
-      ? getPaymentStatusInfo(order.payments[0].status).label
-      : "N/A";
+  "Customer Name": order.customerName,
+  "Email": order.customerEmail,
+  "Phone": order.customerPhone,
+  "Guest Order": order.isGuestOrder ? "Yes" : "No",
 
-    return {
-      "Order Number": order.orderNumber,
-      "Customer Name": order.customerName,
-      Email: order.customerEmail,
-      Phone: order.customerPhone,
-      Items: order.orderItems.length,
-      Subtotal: order.subtotalAmount,
-      Tax: order.taxAmount,
-      Shipping: order.shippingAmount,
-      Discount: order.discountAmount,
-      "Total Amount": order.totalAmount,
-      Status: getOrderStatusInfo(order.status).label,
-      "Delivery Method":
-        order.deliveryMethod === "ClickAndCollect"
-          ? "Click & Collect"
-          : "Home Delivery",
-      "Payment Method": paymentMethodLabel,
-      "Payment Status": paymentStatusLabel,
-      "Order Date": formatDate(order.orderDate),
-    };
-  });
+  "Subtotal": order.subtotalAmount,
+  "Tax": order.taxAmount,
+  "Shipping": order.shippingAmount,
+  "Discount": order.discountAmount,
+  "Total Amount": order.totalAmount,
+  "Currency": order.currency,
+
+  "Delivery Method": order.deliveryMethod,
+  "Shipping Method": order.shippingMethodName,
+
+  "Payment Method": order.paymentMethod,
+  "Payment Status": order.paymentStatus,
+  "Transaction Id": order.payments?.[0]?.transactionId || "",
+  "Paid Amount": order.totalPaidAmount,
+
+  "Billing Address": `${order.billingAddress?.firstName} ${order.billingAddress?.lastName}, ${order.billingAddress?.addressLine1}, ${order.billingAddress?.city}`,
+
+  "Shipping Address": `${order.shippingAddress?.firstName} ${order.shippingAddress?.lastName}, ${order.shippingAddress?.addressLine1}, ${order.shippingAddress?.city}`,
+
+  "Products": order.orderItems
+    ?.map(
+      (item) =>
+        `${item.productName} | SKU: ${item.productSku} | Qty: ${item.quantity} | Price: ${item.unitPrice}`
+    )
+    .join("\n"),
+
+  "Tracking Numbers": order.shipments?.map((s) => s.trackingNumber).join(", "),
+  "Carriers": order.shipments?.map((s) => s.carrier).join(", "),
+
+  "Notes": order.notes || "",
+}));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
@@ -486,36 +507,61 @@ const handleExport = async (exportAll: boolean = false) => {
       return;
     }
 
-    const data = ordersToExport.map((order) => {
-      const paymentMethodLabel = getPaymentMethodInfo(order.paymentMethod).label;
+const data = ordersToExport.map((order) => ({
+  // 🔹 BASIC
+  "Order Number": order.orderNumber,
+  "Order Date": formatDate(order.orderDate),
+  "Status": order.status,
 
-      const paymentStatusLabel = order.paymentStatus
-        ? getPaymentStatusInfo(order.paymentStatus as any).label
-        : order.payments && order.payments.length > 0
-        ? getPaymentStatusInfo(order.payments[0].status).label
-        : "N/A";
+  // 🔹 CUSTOMER
+  "Customer Name": order.customerName,
+  "Email": order.customerEmail,
+  "Phone": order.customerPhone,
+  "Guest Order": order.isGuestOrder ? "Yes" : "No",
 
-      return {
-        "Order Number": order.orderNumber,
-        "Customer Name": order.customerName,
-        Email: order.customerEmail,
-        Phone: order.customerPhone,
-        Items: order.orderItems.length,
-        Subtotal: order.subtotalAmount,
-        Tax: order.taxAmount,
-        Shipping: order.shippingAmount,
-        Discount: order.discountAmount,
-        "Total Amount": order.totalAmount,
-        Status: getOrderStatusInfo(order.status).label,
-        "Delivery Method":
-          order.deliveryMethod === "ClickAndCollect"
-            ? "Click & Collect"
-            : "Home Delivery",
-        "Payment Method": paymentMethodLabel,
-        "Payment Status": paymentStatusLabel,
-        "Order Date": formatDate(order.orderDate),
-      };
-    });
+  // 🔹 AMOUNTS
+  "Subtotal": order.subtotalAmount,
+  "Tax": order.taxAmount,
+  "Shipping": order.shippingAmount,
+  "Discount": order.discountAmount,
+  "Total Amount": order.totalAmount,
+  "Currency": order.currency,
+
+  // 🔹 DELIVERY
+  "Delivery Method": order.deliveryMethod,
+  "Shipping Method": order.shippingMethodName,
+
+  // 🔹 PAYMENT (FULL)
+  "Payment Method": order.paymentMethod,
+  "Payment Status": order.paymentStatus,
+  "Transaction Id": order.payments?.[0]?.transactionId || "",
+  "Paid Amount": order.totalPaidAmount,
+
+  // 🔹 ADDRESS (FULL)
+  "Billing Address": `${order.billingAddress?.firstName} ${order.billingAddress?.lastName}, ${order.billingAddress?.addressLine1}, ${order.billingAddress?.city}, ${order.billingAddress?.state}, ${order.billingAddress?.country}, ${order.billingAddress?.postalCode}`,
+
+  "Shipping Address": `${order.shippingAddress?.firstName} ${order.shippingAddress?.lastName}, ${order.shippingAddress?.addressLine1}, ${order.shippingAddress?.city}, ${order.shippingAddress?.state}, ${order.shippingAddress?.country}, ${order.shippingAddress?.postalCode}`,
+
+  // 🔥 MOST IMPORTANT → ITEMS (FULL DETAILS)
+  "Products": order.orderItems
+    ?.map(
+      (item) =>
+        `${item.productName} | SKU: ${item.productSku} | Qty: ${item.quantity} | Price: ${item.unitPrice}`
+    )
+    .join("\n"),
+
+  // 🔹 SHIPMENTS
+  "Tracking Numbers": order.shipments
+    ?.map((s) => s.trackingNumber)
+    .join(", "),
+
+  "Carriers": order.shipments
+    ?.map((s) => s.carrier)
+    .join(", "),
+
+  // 🔹 EXTRA
+  "Notes": order.notes || "",
+}));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -722,7 +768,7 @@ const pendingCancellationRequestMap = useMemo(() => {
       closeCancellationDecision();
       const refreshedRequests = await orderCancellationRequestsService.getAll({
         page: 1,
-        pageSize: 20,
+        pageSize: 100,
       });
       setCancellationRequests(refreshedRequests?.data?.items || []);
       await fetchOrders();
@@ -1419,23 +1465,23 @@ title="Select all orders"
 />
 </th>
 
-<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs">
+<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[550px]">
 Order
 </th>
 
-<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs">
+<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[350px]">
 Customer
 </th>
 
-<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs">
+<th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[10px]">
 Amount
 </th>
 
-<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs">
+<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs w-[250px]">
 Status
 </th>
 
-<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs">
+<th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs w-[150px]">
 Payment
 </th>
 
@@ -1469,7 +1515,11 @@ const availableActions = getAvailableActions(order);
 return (
 <tr
 key={order.id}
-className="border-b border-slate-800 hover:bg-slate-800/40 transition-colors"
+ className={`border-b border-slate-800 transition-colors
+    ${selectedOrders.includes(order.id)
+      ? 'bg-violet-500/10 ring-1 ring-violet-500/30'
+      : 'hover:bg-slate-800/40'
+    }`}
 title={`Order ${order.orderNumber}`}
 >
 
@@ -1555,37 +1605,43 @@ title="Select order"
   </div>
 </td>
 {/* CUSTOMER */}
-<td className="py-3 px-3">
-<div className="flex items-center gap-2">
+<td className="p-2 align-top">
+  <div className="flex items-start gap-2">
 
-<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+    {/* AVATAR */}
+   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
 <User className="h-4 w-4 text-white" />
 </div>
 
-<div className="min-w-0">
+    {/* TEXT */}
+    <div className="min-w-0 flex-1">
 
-<p
-className="text-white text-xs font-medium truncate"
-title={order.customerName}
->
-{order.customerName}
-</p>
+      {/* NAME */}
+      <p
+        className="text-white text-xs font-medium truncate"
+        title={order.customerName}
+      >
+        {order.customerName}
+      </p>
 
-<p
-className="text-[11px] text-slate-500 truncate"
-title={order.customerEmail}
->
-{order.customerEmail}
-</p>
-<p
-className="text-[11px] text-slate-500 truncate"
-title={order.customerEmail}
->
-{order.shippingAddress.addressLine1}
-</p>
+      {/* EMAIL */}
+      <p
+        className="text-[11px] text-slate-400 truncate"
+        title={order.customerEmail}
+      >
+        {order.customerEmail}
+      </p>
 
-</div>
-</div>
+      {/* ADDRESS (FIXED) */}
+      <p
+        className="text-[11px] text-slate-500 line-clamp-2 break-words leading-tight"
+        title={order.shippingAddress?.addressLine1}
+      >
+        {order.shippingAddress?.addressLine1}
+      </p>
+
+    </div>
+  </div>
 </td>
 
 {/* AMOUNT */}
@@ -1675,68 +1731,9 @@ title="Manage order"
 <Edit className="h-4 w-4" />
 </button>
 
-{availableActions.length > 0 && (
-<button
-onClick={() =>
-setActionMenuOrder(
-actionMenuOrder === order.id ? null : order.id
-)
-}
-className="p-1.5 text-slate-400 hover:bg-slate-700/50 border border-slate-600 rounded-lg"
-title="Quick actions"
->
-<MoreVertical className="h-4 w-4" />
-</button>
-)}
 
 </div>
 
-{/* 🔥 DROPDOWN MENU */}
-{actionMenuOrder === order.id && (
-<div className="absolute right-3 top-10 w-44 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
-
-{availableActions.includes("update-status") && (
-<button
-onClick={() => openActionModal(order,"update-status")}
-className="w-full px-3 py-2 text-left text-xs text-white hover:bg-slate-700 flex items-center gap-2"
->
-<RefreshCw className="w-3.5 h-3.5 text-blue-400"/>
-Update Status
-</button>
-)}
-
-{availableActions.includes("create-shipment") && (
-<button
-onClick={() => openActionModal(order,"create-shipment")}
-className="w-full px-3 py-2 text-left text-xs text-white hover:bg-slate-700 flex items-center gap-2"
->
-<Truck className="w-3.5 h-3.5 text-purple-400"/>
-Create Shipment
-</button>
-)}
-
-{availableActions.includes("mark-delivered") && (
-<button
-onClick={() => openActionModal(order,"mark-delivered")}
-className="w-full px-3 py-2 text-left text-xs text-white hover:bg-slate-700 flex items-center gap-2"
->
-<CheckCircle className="w-3.5 h-3.5 text-green-400"/>
-Mark Delivered
-</button>
-)}
-
-{availableActions.includes("cancel-order") && (
-<button
-onClick={() => openActionModal(order,"cancel-order")}
-className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-slate-700 flex items-center gap-2"
->
-<PackageX className="w-3.5 h-3.5"/>
-Cancel Order
-</button>
-)}
-
-</div>
-)}
 
 </td>
 </tr>

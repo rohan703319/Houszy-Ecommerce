@@ -48,7 +48,19 @@ const faqs = [
 
 export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+const formatAnswer = (text: string) => {
+  // Phone numbers detect
+  const phoneRegex = /(\+?\d[\d\s\/\-]{7,})/g;
 
+  // Email detect
+  const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/g;
+
+  let formatted = text
+    .replace(phoneRegex, `<span class="font-semibold text-black">$1</span>`)
+    .replace(emailRegex, `<span class="font-semibold text-black">$1</span>`);
+
+  return formatted;
+};
   const toggle = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
   };
@@ -97,9 +109,10 @@ export default function FAQPage() {
   }`}
 >
   <div className="overflow-hidden">
-    <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-      {faq.answer}
-    </div>
+   <div
+  className="px-5 pb-4 text-sm text-gray-600 leading-relaxed whitespace-pre-line"
+  dangerouslySetInnerHTML={{ __html: formatAnswer(faq.answer) }}
+/>
   </div>
 </div>
 

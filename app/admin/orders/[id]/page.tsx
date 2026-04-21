@@ -560,7 +560,7 @@ const canUpdateStatus =
   actions.push({
     label: 'Resend Invoice',
     action: 'regenerate-invoice',
-    icon: <Receipt className="h-3.5 w-3.5" />,
+    icon: <Mail  className="h-3.5 w-3.5" />,
     color: 'bg-indigo-600 hover:bg-indigo-700',
     category: 'financial',
   });
@@ -1404,9 +1404,6 @@ const allActions = getAllAvailableActions(
         <Zap className="h-4 w-4 text-cyan-400" />
       </div>
       <h3 className="text-base font-bold text-white">Quick Actions</h3>
-      <span className="text-xs text-slate-500 ml-2">
-        {allActions.length > 0 && `(${allActions.length} actions available)`}
-      </span>
     </div>
 
     {/* Action Buttons */}

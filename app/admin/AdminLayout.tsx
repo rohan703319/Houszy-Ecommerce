@@ -105,7 +105,16 @@ const navigation: NavigationItem[] = [
     ],
   },
 
-    { name: 'Shipping', href: '/admin/shipping', icon: Truck },
+  // ✅ SHIPPING SECTION - Delivery Strip YAHAN ADD KARO
+  {
+    name: 'Shipping',
+    icon: Truck,
+    children: [
+      { name: 'Shipping Settings', href: '/admin/shipping', icon: Settings },
+      { name: 'Delivery Strips', href: '/admin/DeliveryStrip', icon: PackageOpen }, // ✅ ADDED
+      // { name: 'Shipping Zones', href: '/admin/shipping-zones', icon: MapPin }, // Optional future
+    ],
+  },
  
   {
     name: 'Finance',
