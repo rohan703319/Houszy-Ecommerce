@@ -1,3 +1,4 @@
+//app\products\[slug]\layout.tsx
 "use client";
 
 import { useEffect } from "react";

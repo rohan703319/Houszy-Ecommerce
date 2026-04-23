@@ -55,6 +55,7 @@ const [showConfirm, setShowConfirm] = useState(false);
     sku: item.sku,
     vatRate: item.vatRate ?? null,
     vatIncluded: item.vatRate != null,
+    
   });
 
   toast.success(`${item.name} added to cart`);
@@ -101,7 +102,7 @@ const [showConfirm, setShowConfirm] = useState(false);
             className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex flex-col"
           >
             {/* Image */}
-            <Link href={`/products/${item.slug}${item.variantId ? `?variant=${item.variantId}` : ''}`} className="block mb-2">
+           <Link href={`/products/${item.slug}`}>
               <div className="relative h-[130px] w-full rounded-lg overflow-hidden">
                 <Image
                   src={item.image}
@@ -114,7 +115,7 @@ const [showConfirm, setShowConfirm] = useState(false);
             </Link>
 
             {/* Name */}
-           <Link href={`/products/${item.slug}${item.variantId ? `?variant=${item.variantId}` : ''}`}>
+          <Link href={`/products/${item.slug}`}>
   <div className="mb-1">
     <p className="text-xs font-semibold text-gray-800 line-clamp-2 hover:text-[#445D41]">
       {item.variantId ? item.name.split(" - ")[0] : item.name}

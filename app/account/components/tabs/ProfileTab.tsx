@@ -143,7 +143,9 @@ if (Object.keys(newErrors).length) {
         payload.gender = form.gender;
 
     if (form.dateOfBirth !== profile?.dateOfBirth?.split("T")[0])
-        payload.dateOfBirth = form.dateOfBirth;
+      payload.dateOfBirth = form.dateOfBirth
+  ? new Date(form.dateOfBirth).toISOString()
+  : null;
 
       if (form.accountType !== profile.accountType)
         payload.accountType = form.accountType;
@@ -323,184 +325,205 @@ toast.success(data?.message || "Profile updated successfully");
       </div>
 
       {/* MODAL */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-          </DialogHeader>
+ <Dialog open={editOpen} onOpenChange={setEditOpen}>
+ <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl 
+[&>button]:text-white 
+[&>button]:text-2xl 
+[&>button]:right-4 
+[&>button]:top-3 
+[&>button]:bg-white/20 
+[&>button]:rounded-full 
+[&>button]:p-1.5">
 
-         <div className="space-y-2">
+    {/* HEADER */}
+    <DialogHeader className="bg-[#445D41] text-white px-5 py-3 space-y-0">
+      <DialogTitle className="text-lg font-semibold">
+        Edit Profile
+      </DialogTitle>
+      <p className="text-xs text-white/80">
+        Update your personal information
+      </p>
+    </DialogHeader>
 
-  {/* FIRST NAME */}
-  <div>
-    <label className="text-sm font-medium">First Name *</label>
-    <Input
-      value={form.firstName}
-     onChange={(e) => {
-  setForm({ ...form, firstName: e.target.value });
+    {/* BODY */}
+    <div className="px-5 pt-4 pb-5 text-sm space-y-4">
 
-  if (errors.firstName) {
-    setErrors((prev: any) => ({ ...prev, firstName: undefined }));
-  }
-}}
-    />
-  </div>
-{errors.firstName && (
-  <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>
-)}
-  {/* LAST NAME */}
-  <div>
-    <label className="text-sm font-medium">Last Name</label>
-    <Input
-      value={form.lastName}
-      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-    />
-  </div>
+      {/* NAME */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">First Name *</label>
+          <Input
+            className="h-10"
+            value={form.firstName}
+            onChange={(e) => {
+              setForm({ ...form, firstName: e.target.value });
+              if (errors.firstName) {
+                setErrors((prev: any) => ({ ...prev, firstName: undefined }));
+              }
+            }}
+          />
+          {errors.firstName && (
+            <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>
+          )}
+        </div>
 
-  {/* PHONE */}
- <div>
-  <label className="text-sm font-medium">Phone Number *</label>
- <div className="flex">
-  <span className="px-3 flex items-center bg-gray-100 border border-r-0 rounded-l-lg">
-    +44
-  </span>
-  <Input
-    value={form.phoneNumber}
-   onChange={(e) => {
-  const value = e.target.value.replace(/\D/g, "").slice(0, 10);
-
-  setForm({
-    ...form,
-    phoneNumber: value,
-  });
-
-  if (errors.phoneNumber) {
-    setErrors((prev: any) => ({ ...prev, phoneNumber: undefined }));
-  }
-}}
-    className="rounded-l-none"
-  />
-</div>
-</div>
-{errors.phoneNumber && (
-  <p className="text-xs text-red-500 mt-1">
-    {errors.phoneNumber}
-  </p>
-)}
-  {/* DOB */}
-  <div>
-    <label className="text-sm font-medium">Date of Birth</label>
-    <Input
-      type="date"
-      value={form.dateOfBirth}
-      onChange={(e) =>
-        setForm({ ...form, dateOfBirth: e.target.value })
-      }
-    />
-  </div>
-{errors.dateOfBirth && (
-  <p className="text-xs text-red-500 mt-1">
-    {errors.dateOfBirth}
-  </p>
-)}
-  {/* GENDER */}
-  <div>
-    <label className="text-sm font-medium">Gender</label>
-    <select
-      value={form.gender}
-      onChange={(e) => {
-  setForm({ ...form, gender: e.target.value });
-
-  if (errors.gender) {
-    setErrors((prev: any) => ({ ...prev, gender: undefined }));
-  }
-}}
-      className="w-full h-11 border px-3 rounded-lg"
-    >
-      <option value="">Select Gender</option>
-      <option value="Male">Male</option>
-      <option value="Female">Female</option>
-      <option value="Other">Other</option>
-    </select>
-  </div>
-
-  {/* ACCOUNT TYPE */}
-  <div>
-    <label className="text-sm font-medium">Account Type</label>
-    <select
-      value={form.accountType}
-      onChange={(e) => {
-  const value = e.target.value as any;
-
-  setForm({
-    ...form,
-    accountType: value,
-    ...(value === "Personal" && {
-      companyName: "",
-      companyNumber: "",
-    }),
-  });
-}}
-      className="w-full h-11 border px-3 rounded-lg"
-    >
-      <option value="Personal">Personal</option>
-      <option value="Business">Business</option>
-    </select>
-  </div>
-
-  {/* BUSINESS FIELDS */}
-  {form.accountType === "Business" && (
-    <>
-      <div>
-        <label className="text-sm font-medium">Company Name</label>
-        <Input
-          value={form.companyName}
-         onChange={(e) => {
-  setForm({ ...form, companyName: e.target.value });
-
-  if (errors.companyName) {
-    setErrors((prev: any) => ({ ...prev, companyName: undefined }));
-  }
-}}
-        />
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Last Name</label>
+          <Input
+            className="h-10"
+            value={form.lastName}
+            onChange={(e) =>
+              setForm({ ...form, lastName: e.target.value })
+            }
+          />
+        </div>
       </div>
-{errors.companyName && (
-  <p className="text-xs text-red-500 mt-1">{errors.companyName}</p>
-)}
-      <div>
-        <label className="text-sm font-medium">Company Number</label>
-        <Input
-          value={form.companyNumber}
-         onChange={(e) => {
-  setForm({ ...form, companyNumber: e.target.value });
 
-  if (errors.companyNumber) {
-    setErrors((prev: any) => ({ ...prev, companyNumber: undefined }));
-  }
-}}
-        />
+      {/* PHONE + DOB */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">
+            Phone Number *
+          </label>
+
+          <div className="flex">
+            <span className="px-2 flex items-center bg-gray-100 border border-r-0 rounded-l-lg text-xs">
+              +44
+            </span>
+            <Input
+              className="h-10 rounded-l-none"
+              value={form.phoneNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setForm({ ...form, phoneNumber: value });
+
+                if (errors.phoneNumber) {
+                  setErrors((prev: any) => ({
+                    ...prev,
+                    phoneNumber: undefined,
+                  }));
+                }
+              }}
+            />
+          </div>
+
+          {errors.phoneNumber && (
+            <p className="text-xs text-red-500 mt-1">
+              {errors.phoneNumber}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">
+            Date of Birth
+          </label>
+          <Input
+            type="date"
+            className="h-10"
+            value={form.dateOfBirth}
+            onChange={(e) =>
+              setForm({ ...form, dateOfBirth: e.target.value })
+            }
+          />
+          {errors.dateOfBirth && (
+            <p className="text-xs text-red-500 mt-1">
+              {errors.dateOfBirth}
+            </p>
+          )}
+        </div>
       </div>
-      {errors.companyNumber && (
-  <p className="text-xs text-red-500 mt-1">{errors.companyNumber}</p>
-)}
-    </>
-  )}
 
-  {/* SAVE BUTTON */}
-  <button
-  onClick={handleSave}
-  disabled={isSaving}
-  className={`w-full h-11 rounded-lg font-medium transition ${
-    isSaving
-      ? "bg-gray-400 cursor-not-allowed"
-      : "bg-[#445D41] text-white hover:opacity-90"
-  }`}
->
-  {isSaving ? "Updating..." : "Save Changes"}
-</button>
-</div>
-        </DialogContent>
-      </Dialog>
+      {/* GENDER + ACCOUNT TYPE */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Gender</label>
+          <select
+            value={form.gender}
+            onChange={(e) => {
+              setForm({ ...form, gender: e.target.value });
+            }}
+            className="w-full h-10 border rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+          >
+            <option value="">Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">
+            Account Type
+          </label>
+          <select
+            value={form.accountType}
+            onChange={(e) => {
+              const value = e.target.value as any;
+
+              setForm({
+                ...form,
+                accountType: value,
+                ...(value === "Personal" && {
+                  companyName: "",
+                  companyNumber: "",
+                }),
+              });
+            }}
+            className="w-full h-10 border rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+          >
+            <option value="Personal">Personal</option>
+            <option value="Business">Business</option>
+          </select>
+        </div>
+      </div>
+
+      {/* BUSINESS */}
+      {form.accountType === "Business" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">
+              Company Name
+            </label>
+            <Input
+              className="h-10"
+              value={form.companyName}
+              onChange={(e) => {
+                setForm({ ...form, companyName: e.target.value });
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">
+              Company Number
+            </label>
+            <Input
+              className="h-10"
+              value={form.companyNumber}
+              onChange={(e) => {
+                setForm({ ...form, companyNumber: e.target.value });
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* SAVE BUTTON */}
+      <button
+        onClick={handleSave}
+        disabled={isSaving}
+        className={`w-full h-10 rounded-lg font-semibold transition ${
+          isSaving
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-gray-900 text-white hover:bg-[#374a36]"
+        }`}
+      >
+        {isSaving ? "Updating..." : "Save Changes"}
+      </button>
+    </div>
+  </DialogContent>
+</Dialog>
 
     </div>
   );

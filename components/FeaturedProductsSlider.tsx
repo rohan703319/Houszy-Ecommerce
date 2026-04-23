@@ -447,23 +447,35 @@ const backorderState = getBackorderUIState({
     e.preventDefault();
     const wishlistId = defaultVariant?.id ?? product.id;
     const inWishlist = isInWishlist(wishlistId);
-    toggleWishlist({
-      id: wishlistId,
-      productId: product.id,
-      variantId: defaultVariant?.id,
-      variantName: defaultVariant?.name,
-      name: product.name,
-      slug: cardSlug,
-      price: finalPrice,
-      image: getProductDisplayImage(product, defaultVariant),
-      vatRate: vatRate ?? null,
-      vatExempt: product.vatExempt,
-      sku: defaultVariant?.sku ?? (product as any).sku,
-      stockQuantity:
-  defaultVariant?.stockQuantity ??
-  (product as any).stockQuantity ??
-  null,
-    });
+   toggleWishlist({
+  id: wishlistId,
+  productId: product.id,
+  variantId: defaultVariant?.id ?? null,
+
+  name: defaultVariant
+    ? `${product.name} (${[
+        defaultVariant.option1Value,
+        (defaultVariant as any)?.option2Value,
+        (defaultVariant as any)?.option3Value,
+      ]
+        .filter(Boolean)
+        .join(", ")})`
+    : product.name,
+
+  slug: cardSlug,
+  price: finalPrice,
+  image: getProductDisplayImage(product, defaultVariant),
+
+  vatRate: vatRate ?? null,
+  vatExempt: product.vatExempt,
+
+  sku: defaultVariant?.sku ?? (product as any).sku,
+
+  stockQuantity:
+    defaultVariant?.stockQuantity ??
+    (product as any).stockQuantity ??
+    null,
+});
   if (inWishlist) {
   toast.error("Product removed from wishlist");
 } else {

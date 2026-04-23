@@ -9,7 +9,12 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/toast/CustomToast";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 const CANCELLATION_REASONS = [
   "Ordered by mistake",
   "Found a better price elsewhere",
@@ -263,7 +268,7 @@ export default function OrderCard({
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
-
+const [showStoreModal, setShowStoreModal] = useState(false);
 
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
@@ -558,9 +563,23 @@ const refundedAmount =
   <Info
     label="Store"
     value={
-      <span className="text-[#445D41] font-semibold">
-        {order.collectionStoreName || "Selected Store"}
-      </span>
+    <div className="relative group inline-block">
+  <button
+    onClick={() => setShowStoreModal(true)}
+    className="flex items-center gap-1 text-[#445D41] font-semibold hover:underline"
+  >
+    {order.collectionStoreName || "Selected Store"}
+
+    <span className="text-xs text-gray-400 group-hover:text-[#445D41]">
+      ↗
+    </span>
+  </button>
+
+  {/* HOVER TOOLTIP */}
+  <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-[#445D41] text-white text-[11px] px-2 py-1 rounded whitespace-nowrap z-50 shadow-md">
+    Click to view full address
+  </div>
+</div>
     }
   />
 )}
@@ -816,68 +835,176 @@ order.status !== "CancellationRequested" && (
       )}
 
       {/* CANCEL MODAL */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-lg">
-            <h3 className="text-lg font-semibold mb-2">
-              Cancel Order #{order.orderNumber}
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Please select a reason for cancellation.
-            </p>
+   <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+ <DialogContent
+  className="max-w-md p-0 overflow-hidden border-none shadow-2xl 
+  [&>button]:text-white 
+  [&>button]:text-2xl 
+  [&>button]:right-4 
+  [&>button]:top-3 
+  [&>button]:bg-white/20 
+  [&>button]:rounded-full 
+  [&>button]:p-1.5 
+  [&>button]:focus:outline-none 
+  [&>button]:focus:ring-0 
+  [&>button]:focus-visible:ring-0"
+>
 
-            <div className="space-y-3">
-              {CANCELLATION_REASONS.map((reason) => (
-                <label key={reason} className="flex items-center gap-3 text-sm cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={selectedReason === reason}
-                    onChange={() => {
-                      setSelectedReason(reason);
-                      if (reason !== "Other") setCustomReason("");
-                    }}
-                  />
-                  {reason}
-                </label>
-              ))}
+    {/* 🔥 HEADER */}
+    <DialogHeader className="bg-[#445D41] text-white px-5 py-2 space-y-0">
+      <DialogTitle className="text-lg font-semibold">
+        Cancel Order
+      </DialogTitle>
+      <p className="text-xs text-white/80">
+        Order number #{order.orderNumber}
+      </p>
+    </DialogHeader>
 
-              {selectedReason === "Other" && (
-                <>
-                  <textarea
-                    value={customReason}
-                    onChange={(e) => setCustomReason(e.target.value)}
-                    placeholder={`Please specify your reason (min ${MIN_OTHER_REASON_LENGTH} characters)`}
-                    rows={3}
-                    className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
-                  />
-                  <p className="text-xs text-gray-500">
-                    {customReason.trim().length}/{MIN_OTHER_REASON_LENGTH} characters required
-                  </p>
-                </>
-              )}
-            </div>
+    {/* BODY */}
+   <div className="pt-2 pb-5 px-5 space-y-3 text-sm">
 
-            <div className="flex justify-end gap-3 mt-5">
-              <Button variant="outline" size="sm" onClick={() => setShowCancelModal(false)}>
-                Back
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={
-                  cancelLoading ||
-                  !selectedReason ||
-                  (selectedReason === "Other" &&
-                    customReason.trim().length < MIN_OTHER_REASON_LENGTH)
-                }
-                onClick={handleConfirmCancel}
-              >
-                {cancelLoading ? "Cancelling..." : "Confirm Cancel"}
-              </Button>
-            </div>
+      <p className="text-gray-600">
+        Please select a reason for cancellation.
+      </p>
+
+      <div className="space-y-2">
+        {CANCELLATION_REASONS.map((reason) => (
+          <label
+            key={reason}
+            className="flex items-center gap-3 text-sm cursor-pointer border rounded-lg px-3 py-2 hover:bg-gray-50"
+          >
+            <input
+              type="radio"
+              checked={selectedReason === reason}
+              onChange={() => {
+                setSelectedReason(reason);
+                if (reason !== "Other") setCustomReason("");
+              }}
+            />
+            {reason}
+          </label>
+        ))}
+      </div>
+
+      {selectedReason === "Other" && (
+        <>
+          <textarea
+            value={customReason}
+            onChange={(e) => setCustomReason(e.target.value)}
+            placeholder={`Please specify your reason (min ${MIN_OTHER_REASON_LENGTH} characters)`}
+            rows={3}
+            className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+          />
+          <p className="text-xs text-gray-500">
+            {customReason.trim().length}/{MIN_OTHER_REASON_LENGTH} characters required
+          </p>
+        </>
+      )}
+
+    </div>
+
+    {/* FOOTER */}
+    <div className="border-t px-5 py-3 flex justify-end gap-3">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowCancelModal(false)}
+      >
+        Back
+      </Button>
+
+      <Button
+        size="sm"
+        className="bg-red-600 hover:bg-red-700 text-white"
+        disabled={
+          cancelLoading ||
+          !selectedReason ||
+          (selectedReason === "Other" &&
+            customReason.trim().length < MIN_OTHER_REASON_LENGTH)
+        }
+        onClick={handleConfirmCancel}
+      >
+        {cancelLoading ? "Cancelling..." : "Confirm Cancel"}
+      </Button>
+    </div>
+
+  </DialogContent>
+</Dialog>
+<Dialog open={showStoreModal} onOpenChange={setShowStoreModal}>
+<DialogContent
+  onOpenAutoFocus={(e) => e.preventDefault()}
+  className="max-w-md p-0 overflow-hidden border-none shadow-2xl 
+  [&>button]:text-white 
+  [&>button]:text-2xl 
+  [&>button]:right-4 
+  [&>button]:top-3 
+  [&>button]:bg-white/20 
+  [&>button]:rounded-full 
+  [&>button]:p-1.5"
+>
+
+    {/* HEADER (with DialogTitle FIX) */}
+    <DialogHeader className="bg-[#445D41] text-white px-5 py-3 space-y-0">
+      <DialogTitle className="text-lg font-semibold">
+        Collection Store
+      </DialogTitle>
+      <p className="text-xs text-white/80">
+        Pickup location details
+      </p>
+    </DialogHeader>
+
+    {/* BODY */}
+   <div className="pt-1 pb-5 px-5 space-y-3 text-sm">
+
+      <div>
+        <p className="text-xs text-gray-500">Store</p>
+        <p className="font-semibold text-[#445D41]">
+          {order.collectionStoreName}
+        </p>
+      </div>
+
+      <div>
+        <p className="text-xs text-gray-500">Address</p>
+        <p className="text-gray-700 leading-relaxed">
+          {[
+            order.collectionStoreAddressLine1,
+            order.collectionStoreAddressLine2,
+            order.collectionStoreCity,
+            order.collectionStorePostalCode,
+            order.collectionStoreCountry,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+        </p>
+      </div>
+
+      {(order.collectionStorePhone || order.collectionStoreEmail) && (
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Contact</p>
+          <div className="space-y-1 text-gray-700">
+            {order.collectionStorePhone && (
+              <p>📞 {order.collectionStorePhone}</p>
+            )}
+            {order.collectionStoreEmail && (
+              <p className="break-all">✉️ {order.collectionStoreEmail}</p>
+            )}
           </div>
         </div>
       )}
+
+      {order.collectionStoreOpeningHours && (
+        <div>
+          <p className="text-xs text-gray-500">Opening Hours</p>
+          <p className="text-gray-700">
+            🕒 {order.collectionStoreOpeningHours}
+          </p>
+        </div>
+      )}
     </div>
+
+  </DialogContent>
+</Dialog>
+    </div>
+    
   );
 }

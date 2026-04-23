@@ -1,3 +1,4 @@
+//app\products\[slug]\loading.tsx
 export default function Loading() {
     
   return (

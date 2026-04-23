@@ -140,6 +140,17 @@ export default function CategoryClient({
 }: CategoryClientProps & { vatRates: any[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+useEffect(() => {
+  const params = new URLSearchParams(searchParams.toString());
+
+  const urlSortBy = params.get("sortBy") || initialSortBy;
+  const urlSortDirection =
+    (params.get("sortDirection") as "asc" | "desc") ||
+    initialSortDirection;
+
+  setSortBy(urlSortBy.toLowerCase());
+  setSortDirection(urlSortDirection);
+}, [searchParams.toString(), initialSortBy, initialSortDirection]);
   const routeParams = useParams();
   // ✅ Always use URL slug (not category.slug which may differ from URL)
   const urlSlug = (routeParams?.slug as string) ?? category?.slug ?? "";
@@ -558,15 +569,27 @@ useEffect(() => {
 const handleSortChange = useCallback((value: string) => {
   const [newSortBy, newDirection] = value.split("-");
 
-  setSortBy(newSortBy);
+  const finalDirection =
+    newSortBy === "rating" ? "desc" : (newDirection as "asc" | "desc");
 
-  // ✅ force desc for rating (top rated always highest first)
-  if (newSortBy === "rating") {
-    setSortDirection("desc");
-  } else {
-    setSortDirection(newDirection as "asc" | "desc");
+  setSortBy(newSortBy);
+  setSortDirection(finalDirection);
+
+  // ✅ DEFAULT CASE → REMOVE FROM URL
+  if (newSortBy === "name" && finalDirection === "asc") {
+    updateServerFilters({
+      sortBy: "",
+      sortDirection: "",
+    });
+    return;
   }
-}, []);
+
+  // ✅ NORMAL CASE
+  updateServerFilters({
+    sortBy: newSortBy,
+    sortDirection: finalDirection,
+  });
+}, [updateServerFilters]);
 const [showPharmaModal, setShowPharmaModal] = useState(false);
 const [pendingProduct, setPendingProduct] = useState<{
   product: any;
@@ -647,7 +670,7 @@ const handlePriceChange = useCallback((v: number[]) => {
   setDragRange(v as [number, number]); // immediate visual feedback
   if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
   priceDebounceRef.current = setTimeout(() => {
-    setDragRange(null); // clear drag override — URL will drive the slider now
+  // clear drag override — URL will drive the slider now
     updateServerFilters({ price: `${v[0]}-${v[1]}` });
   }, 600);
 }, [updateServerFilters]);
@@ -807,9 +830,9 @@ if (product.orderMinimumQuantity > 1) {
     onChange={(e) => handleSortChange(e.target.value)}
     className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
   >
-    <option value={`${initialSortBy}-${initialSortDirection}`}>
-    Default Sorting
-  </option>
+   <option value="name-asc">
+  Default Sorting
+</option>
     <option value="price-asc">Sort by price: Low-High</option>
     <option value="price-desc">Sort by price: High-Low</option>
     <option value="rating-desc">Sort by: Popularity⭐</option>
@@ -839,9 +862,9 @@ if (product.orderMinimumQuantity > 1) {
             onChange={(e) => handleSortChange(e.target.value)}
             className="px-2 md:px-4 py-2 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
           >
-       <option value={`${initialSortBy}-${initialSortDirection}`}>
-    Default Sorting
-  </option>
+  <option value="name-asc">
+  Default Sorting
+</option>
             <option value="price-asc">Price: Low-High</option>
             <option value="price-desc">Price: High-Low</option>
             <option value="rating-desc">Sort by: Popularity⭐</option>
@@ -1217,7 +1240,7 @@ if (product.orderMinimumQuantity > 1) {
         </h2>
 
         <div
-          className=" text-gray-700 text-sm md:text-base leading-snug [&_ul]:pl-5 [&_ul]:mt-1 [&_ul]:space-y-1 [&_li]:m-0 " dangerouslySetInnerHTML={{ __html: category.description }} />
+          className=" text-gray-600 text-sm leading-snug [&_ul]:pl-5 [&_ul]:mt-1 [&_ul]:space-y-1 [&_li]:m-0 " dangerouslySetInnerHTML={{ __html: category.description }} />
       </div>
     )}
 

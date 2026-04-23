@@ -1593,21 +1593,37 @@ const handleRemoveCoupon = () => {
   onClick={() => {
     if (product.disableWishlistButton) return;
     const wishlistId = selectedVariant ? selectedVariant.id : product.id;
-    toggleWishlist({
-      id: wishlistId,
-      productId: product.id,
-      variantId: selectedVariant?.id,
-      variantName: selectedVariant?.name,
-      name: selectedVariant ? `${product.name} - ${selectedVariant.name}` : product.name,
-      slug: product.slug,
-      price: finalPrice,
-      image: activeMainImage,
-      vatRate: vatRate ?? null,
-      vatExempt: product.vatExempt,
-      sku: selectedVariant?.sku ?? product.sku,
-      stockQuantity:
-    selectedVariant?.stockQuantity ?? product.stockQuantity,
-    });
+   
+toggleWishlist({
+  id: wishlistId,
+  productId: product.id,
+  variantId: selectedVariant?.id ,
+
+  // ✅ EXACT SAME AS CART
+  name: selectedVariant
+    ? `${product.name} (${[
+        selectedVariant.option1Value,
+        selectedVariant.option2Value,
+        selectedVariant.option3Value,
+      ]
+        .filter(Boolean)
+        .join(", ")})`
+    : product.name,
+
+  slug: selectedVariant?.slug ?? product.slug, // 🔥 IMPORTANT
+  price: finalPrice,
+  image: activeMainImage,
+
+  vatRate: vatRate ?? null,
+  vatExempt: product.vatExempt,
+
+  sku: selectedVariant?.sku ?? product.sku,
+
+  stockQuantity:
+    selectedVariant?.stockQuantity ??
+    product.stockQuantity ??
+    null,
+});
     toast.success(isInWishlist(wishlistId) ? "Removed from wishlist" : "Added to wishlist!");
   }}
   className={`absolute top-3 right-3 z-20

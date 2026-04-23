@@ -135,7 +135,7 @@ const filteredCount = filteredCategories.length;
               </div>
 
               {/* Name */}
-              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-green-600 transition">
+              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#445D41] transition">
                 {category.name}
               </h3>
 

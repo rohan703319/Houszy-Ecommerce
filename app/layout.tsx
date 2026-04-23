@@ -6,7 +6,7 @@ import ConditionalLayout from "./ConditionalLayout";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
-
+import StripeCleanup from "@/components/StripeCleanup";
 
 
 export const metadata: Metadata = {
@@ -80,6 +80,7 @@ try {
           <AuthProvider>
             <CartProvider>
               <WishlistProvider>
+                 <StripeCleanup />
              <ConditionalLayout 
   categories={categories} 
   deliveryStrip={deliveryStrip}

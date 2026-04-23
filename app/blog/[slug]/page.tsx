@@ -1,3 +1,4 @@
+//app\blog\[slug]\page.tsx
 export const revalidate = 300;
 
 import React from "react";

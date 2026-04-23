@@ -128,7 +128,7 @@ const filteredCount = filteredBrands.length;
                 />
               </div>
 
-              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-blue-600 transition">
+              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#445D41] transition">
                 {brand.name}
               </h3>
             </Link>

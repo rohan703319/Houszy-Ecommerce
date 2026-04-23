@@ -162,6 +162,7 @@ const isValidPassword = (password: string) =>
   };
 const handleForgotPassword = async (e: React.FormEvent) => {
   e.preventDefault();
+
   setForgotError("");
   setForgotSuccessMessage("");
 
@@ -183,30 +184,27 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
     const data = await forgotPassword(forgotEmail.trim());
 
-    // ✅ Backend ka actual message show karo
-    setForgotSuccessMessage(
-      data?.message ||
-        "If an account with that email exists, a password reset link has been sent."
-    );
+    const message = data?.message || "Something went wrong";
 
-    // Modal auto close after 2 seconds
-    setTimeout(() => {
-      setForgotOpen(false);
-      setForgotEmail("");
+    // 🔥 ONLY CHANGE: detect "not registered"
+    if (message.toLowerCase().includes("not registered")) {
+      setForgotError(message); // 🔴 red
       setForgotSuccessMessage("");
-    }, 2000);
+    } else {
+      setForgotSuccessMessage(message); // 🟢 normal
+      setForgotError("");
+    }
 
   } catch (error: any) {
-    // 🔐 Security: still show generic success
-    setForgotSuccessMessage(
-      "If an account with that email exists, a password reset link has been sent."
-    );
+    const msg = error?.message || "Something went wrong";
 
-    setTimeout(() => {
-      setForgotOpen(false);
-      setForgotEmail("");
-      setForgotSuccessMessage("");
-    }, 4000);
+    if (msg.toLowerCase().includes("not registered")) {
+      setForgotError(msg); // 🔴 red
+    } else {
+      setForgotError(msg);
+    }
+
+    setForgotSuccessMessage("");
   } finally {
     setForgotLoading(false);
   }
@@ -430,6 +428,8 @@ const activeTab = tabParam === "register" ? "register" : "login";
       setForgotOpen(true);
       setForgotSubmitted(false);
       setForgotEmail(loginEmail); // auto-fill if typed
+       setForgotError("");
+  setForgotSuccessMessage("");
     }}
     className="text-sm text-[#445D41] hover:underline"
   >
@@ -711,10 +711,18 @@ onChange={(e) => {
       <DialogTitle>Reset your password</DialogTitle>
     </DialogHeader>
 
- {forgotSuccessMessage ? (
-  <p className="text-sm text-green-600">
-    {forgotSuccessMessage}
-  </p>
+{forgotError ? (
+  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+    <p className="text-sm font-medium text-red-700">
+      {forgotError}
+    </p>
+  </div>
+) : forgotSuccessMessage ? (
+  <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+    <p className="text-sm font-medium text-green-700">
+      {forgotSuccessMessage}
+    </p>
+  </div>
 ) : (
 
       <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -725,6 +733,8 @@ onChange={(e) => {
             value={forgotEmail}
             onChange={(e) => {
               setForgotEmail(e.target.value);
+               setForgotError("");
+  setForgotSuccessMessage("");
               if (forgotError) setForgotError("");
             }}
             className="h-11"

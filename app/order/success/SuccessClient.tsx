@@ -261,9 +261,51 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
       <MapPin className="w-5 h-5 mt-1 text-gray-500" />
       <div className="text-sm">
         <p className="font-semibold  text-lg mb-1">Store Location</p>
-       <p className="font-medium">
+    <p className="font-medium">
   {order.collectionStoreName || "Selected Store"}
 </p>
+
+{(order.collectionStoreAddressLine1 || order.collectionStoreAddressLine2) && (
+  <p className="text-gray-600 mt-1">
+    {[order.collectionStoreAddressLine1, order.collectionStoreAddressLine2]
+      .filter(Boolean)
+      .join(", ")}
+  </p>
+)}
+
+{(order.collectionStoreCity ||
+  order.collectionStorePostalCode ||
+  order.collectionStoreCountry) && (
+  <p className="text-gray-600">
+    {[
+      order.collectionStoreCity,
+      order.collectionStorePostalCode,
+      order.collectionStoreCountry,
+    ]
+      .filter(Boolean)
+      .join(", ")}
+  </p>
+)}
+
+{/* CONTACT */}
+{order.collectionStorePhone && (
+  <p className="mt-1 text-gray-700 text-sm">
+    📞 {order.collectionStorePhone}
+  </p>
+)}
+
+{order.collectionStoreEmail && (
+  <p className="text-gray-700 text-sm break-all">
+    ✉️ {order.collectionStoreEmail}
+  </p>
+)}
+
+{/* HOURS */}
+{order.collectionStoreOpeningHours && (
+  <p className="text-xs text-gray-500 mt-1">
+    🕒 {order.collectionStoreOpeningHours}
+  </p>
+)}
       </div>
     </div>
 
