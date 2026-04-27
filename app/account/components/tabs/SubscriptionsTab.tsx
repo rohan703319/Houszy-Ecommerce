@@ -224,7 +224,6 @@ Object.entries(editData).forEach(([key, value]) => {
             Subscription products allow you to receive items automatically on a
             schedule you choose.
           </p>
-
           {/* <Button disabled className="bg-[#445D41]">
             Browse Subscription Products
           </Button> */}
@@ -237,7 +236,7 @@ Object.entries(editData).forEach(([key, value]) => {
   className="border rounded-xl p-3 sm:p-4 shadow-sm bg-white flex gap-3 sm:gap-4 w-full min-w-0"
 >
 <div className="flex flex-col items-center flex-shrink-0">
-<Link href={`/products/${item.productSlug}`}>
+<Link href={`/product/${item.productSlug}`}>
   <img
     src={
       item.productImageUrl?.startsWith("http")
@@ -279,7 +278,7 @@ Object.entries(editData).forEach(([key, value]) => {
 </div>
   {/* DETAILS */}
   <div className="flex-1 min-w-0">
- <Link href={`/products/${item.productSlug}`}>
+ <Link href={`/product/${item.productSlug}`}>
   <p className="font-semibold text-sm sm:text-base leading-snug line-clamp-2 break-words hover:text-green-700 cursor-pointer transition">
     {item.productName}
   </p>

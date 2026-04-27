@@ -449,8 +449,8 @@ useEffect(() => {
     {!searchLoading &&
       results.map((item) => (
         <Link
-          key={item.id}
-         href={`/products/${item.slug}`}
+        key={item.sku}
+         href={`/product/${item.slug}`}
           onClick={() => {
             setShowSearchDropdown(false);
             setSearchValue("");
@@ -744,8 +744,8 @@ useEffect(() => {
                 )}
                 {!searchLoading && results.map((item) => (
                   <Link
-                    key={item.id}
-                    href={`/products/${item.slug}`}
+                   key={item.sku}
+                    href={`/product/${item.slug}`}
                     onClick={() => { setShowSearchDropdown(false); setSearchValue(""); setMobileSearchOpen(false); }}
                     className="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 hover:bg-gray-50"
                   >

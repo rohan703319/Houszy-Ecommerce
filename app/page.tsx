@@ -12,9 +12,11 @@ import CategorySlider from "@/components/CategorySlider";
 import NewsletterWrapper from "@/components/NewsletterWrapper";
 import CategoryOffersSlider from "@/components/CategoryOffersSlider";
 import { getActiveBanners } from "@/lib/bannerUtils";
+import Script from "next/script";
 import { ShoppingCart, Star, TrendingUp, Zap, Gift, Shield, } from "lucide-react";
 import WhyChooseUs from "@/components/WhyChooseUs";
 import type { Metadata } from "next";
+
 export const dynamic = "force-dynamic";
 
 // ✅ Static feature section
@@ -239,8 +241,10 @@ const homeProducts = [...products].sort(
     {/* 🔥 Newsletter Popup (client side) */}
     <NewsletterWrapper />
   {/* Organization Schema (already hai) */}
-<script
+<Script
+  id="org-schema"
   type="application/ld+json"
+  strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: JSON.stringify({
       "@context": "https://schema.org",
@@ -256,9 +260,10 @@ const homeProducts = [...products].sort(
   }}
 />
 
-{/* ✅ NEW ADD — WebSite Schema */}
-<script
+<Script
+  id="website-schema"
   type="application/ld+json"
+  strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: JSON.stringify({
       "@context": "https://schema.org",

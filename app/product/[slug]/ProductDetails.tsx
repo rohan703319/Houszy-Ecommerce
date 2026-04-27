@@ -1623,6 +1623,11 @@ toggleWishlist({
     selectedVariant?.stockQuantity ??
     product.stockQuantity ??
     null,
+    productData: JSON.parse(JSON.stringify(product)),
+
+  // 🔥 OPTIONAL BUT IMPORTANT
+  orderMaximumQuantity: product.orderMaximumQuantity ?? null,
+  orderMinimumQuantity: product.orderMinimumQuantity ?? null,
 });
     toast.success(isInWishlist(wishlistId) ? "Removed from wishlist" : "Added to wishlist!");
   }}
@@ -2572,7 +2577,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 )}
               {/* Short description */}
 {product.shortDescription && (
-  <div className="mb-1 mt-1 p-2 bg-white rounded-lg">
+  <div className="mb-1 mt-2 p-1 bg-white rounded-lg">
     <div
       className=" prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-6 prose-li:my-1 prose-h3:mt-0 prose-h3:mb-2 " dangerouslySetInnerHTML={{ __html: product.shortDescription }} />
   </div>

@@ -173,12 +173,12 @@ const percentageDiscounts = validDiscounts
 
                     {/* CONTENT */}
                     <div className="px-1 md:px-4 pt-2 pb-3 flex flex-col items-center text-center">
-                     <h3 className="text-xs md:text-sm font-bold text-[#445D41] leading-tight line-clamp-2">
+                     <h3 className="text-xs md:text-sm font-bold text-[#445D41] leading-tight line-clamp-1">
   {cat.name}
 </h3>
 
 {adminComment && (
-  <p className="text-[13px] md:text-lg font-semibold text-black line-clamp-2 mb-2">
+  <p className="text-xs md:text-sm font-semibold text-black line-clamp-2 mb-2">
     {adminComment}
   </p>
 )}

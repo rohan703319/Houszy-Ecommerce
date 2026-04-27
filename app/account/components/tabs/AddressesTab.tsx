@@ -481,7 +481,9 @@ setAddresses((prev) => {
             <p className="text-sm text-gray-600">
               {addr.country}
             </p>
-
+<p className="text-sm text-gray-600">
+  📞 {addr.phoneNumber}
+</p>
             <div className="flex gap-4 pt-2 text-xs">
               <button
                 onClick={() => {
@@ -593,10 +595,10 @@ setAddresses((prev) => {
                       : ""
                   }
                 >
-                  <label className="block mb-1 font-medium capitalize">
-                    {field}
-                    {isRequired && " *"}
-                  </label>
+                 <label className="block mb-1 font-medium capitalize">
+  {field === "state" ? "County (optional)" : field}
+  {isRequired && " *"}
+</label>
                {field === "phoneNumber" ? (
   <div className="col-span-2">
     <div className="flex">

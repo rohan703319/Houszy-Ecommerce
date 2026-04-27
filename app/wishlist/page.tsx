@@ -14,7 +14,7 @@ export default function WishlistPage() {
   const { addToCart, cart } = useCart();
   const toast = useToast();
 const [showConfirm, setShowConfirm] = useState(false);
- const handleAddToCart = (item: WishlistItem) => {
+const handleAddToCart = (item: WishlistItem) => {
   const existingCartQty = cart
     .filter(
       (c) =>
@@ -25,37 +25,62 @@ const [showConfirm, setShowConfirm] = useState(false);
 
   const stock = item.stockQuantity ?? 0;
 
+  const productData = (item as any).productData;
+
+  const maxQty =
+    productData?.orderMaximumQuantity ?? Infinity;
+
+  const minQty =
+    productData?.orderMinimumQuantity ?? 1;
+
+  const finalQty = minQty;
+
   // ❌ OUT OF STOCK
   if (stock === 0) {
     toast.error("Out of stock");
     return;
   }
 
-  // ❌ STOCK LIMIT
-  if (existingCartQty + 1 > stock) {
+  // ❌ MAX ORDER CHECK
+  if (existingCartQty + finalQty > maxQty) {
+    toast.error(`Maximum order quantity is ${maxQty}`);
+    return;
+  }
+
+  // ❌ STOCK CHECK
+  if (existingCartQty + finalQty > stock) {
     toast.error(`Only ${stock - existingCartQty} left in stock`);
     return;
   }
 
-  // ✅ ADD
+  // ✅ ADD TO CART (FULL DATA)
   addToCart({
     id: item.variantId
-      ? `${item.productId}_${item.variantId}`
-      : `wishlist:${item.productId}`,
+      ? `${item.variantId}-one`
+      : item.productId,
+
+    type: "one-time",
+
     productId: item.productId,
     variantId: item.variantId ?? null,
+
     name: item.name,
     price: item.price,
     finalPrice: item.price,
     priceBeforeDiscount: item.price,
     discountAmount: 0,
-    quantity: 1,
+
+    quantity: finalQty,
+
     image: item.image,
     slug: item.slug,
     sku: item.sku,
+
     vatRate: item.vatRate ?? null,
     vatIncluded: item.vatRate != null,
-    
+
+    // 🔥🔥🔥 MOST IMPORTANT
+    productData: productData,
   });
 
   toast.success(`${item.name} added to cart`);
@@ -102,7 +127,7 @@ const [showConfirm, setShowConfirm] = useState(false);
             className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex flex-col"
           >
             {/* Image */}
-           <Link href={`/products/${item.slug}`}>
+           <Link href={`/product/${item.slug}`}>
               <div className="relative h-[130px] w-full rounded-lg overflow-hidden">
                 <Image
                   src={item.image}
@@ -115,7 +140,7 @@ const [showConfirm, setShowConfirm] = useState(false);
             </Link>
 
             {/* Name */}
-          <Link href={`/products/${item.slug}`}>
+          <Link href={`/product/${item.slug}`}>
   <div className="mb-1">
     <p className="text-xs font-semibold text-gray-800 line-clamp-2 hover:text-[#445D41]">
       {item.variantId ? item.name.split(" - ")[0] : item.name}

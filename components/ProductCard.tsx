@@ -235,7 +235,7 @@ if (product.orderMinimumQuantity > 1) {
   return (
     <div className="group border border-gray-200 rounded-lg hover:shadow-xl transition-all bg-white">
       {/* IMAGE */}
-      <Link href={`/products/${cardSlug}`}>
+      <Link href={`/product/${cardSlug}`}>
         <div className="relative h-44 md:h-56 bg-white rounded-t-lg overflow-hidden">
           <Image
             src={mainImage}
@@ -326,6 +326,11 @@ toggleWishlist({
     defaultVariant?.stockQuantity ??
     product.stockQuantity ??
     null,
+    productData: JSON.parse(JSON.stringify(product)),
+
+  // 🔥 OPTIONAL BUT IMPORTANT
+  orderMaximumQuantity: product.orderMaximumQuantity ?? null,
+  orderMinimumQuantity: product.orderMinimumQuantity ?? null,
 });
 
     if (inWishlist) {
@@ -356,7 +361,7 @@ toggleWishlist({
       {/* CONTENT */}
       <div className="p-2 md:p-4">
         {/* TITLE */}
-        <Link href={`/products/${cardSlug}`}>
+        <Link href={`/product/${cardSlug}`}>
           <h3 className="font-semibold text-xs md:text-sm mb-1 line-clamp-2 hover:text-[#445D41] transition min-h-[32px] md:min-h-[40px]">
             {defaultVariant
               ? `${product.name} (${[

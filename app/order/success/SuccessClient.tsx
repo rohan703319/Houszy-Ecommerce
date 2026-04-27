@@ -518,12 +518,12 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
 
                  {order.deliveryMethod === "ClickAndCollect" ? (
   <div className="flex justify-between">
-    <span>Click & Collect Fee</span>
+    <span>Click & Collect</span>
     <span>{formatCurrency(order.clickAndCollectFee)}</span>
   </div>
 ) : (
   <div className="flex justify-between">
-    <span>Shipping</span>
+    <span>{order.shippingMethodName}</span>
     <span>{formatCurrency(order.shippingAmount)}</span>
   </div>
 )}

@@ -532,7 +532,7 @@ const orderVatAmount = useMemo(() => {
 
               {/* Image + delete */}
               <div className="relative w-[72px] h-[72px] md:w-24 md:h-24 flex-shrink-0">
-                <Link href={`/products/${item.slug}`}>
+                <Link href={`/product/${item.slug}`}>
                   <img
                     src={item.image}
                     alt="no image"
@@ -553,7 +553,7 @@ const orderVatAmount = useMemo(() => {
 
                 {/* Row 1: Name + Price */}
                 <div className="flex items-start justify-between gap-1">
-                  <Link href={`/products/${item.slug}`} className="flex-1 min-w-0">
+                  <Link href={`/product/${item.slug}`} className="flex-1 min-w-0">
                     <h2 className="font-semibold text-xs md:text-sm text-gray-900 leading-tight line-clamp-2">
                       {item.name}
                     </h2>
@@ -724,7 +724,7 @@ const orderVatAmount = useMemo(() => {
       >
         <div className="flex items-center gap-3">
           <Link
-  href={`/products/${gp.slug}`}
+  href={`/product/${gp.slug}`}
   className="flex items-center gap-3 group"
 >
           <img
@@ -734,7 +734,7 @@ const orderVatAmount = useMemo(() => {
           />
 </Link>
           <div>
-            <Link href={`/products/${gp.slug}`}>
+            <Link href={`/product/${gp.slug}`}>
            <p className="text-sm font-semibold text-gray-800 
               line-clamp-2 max-w-[220px]">
   {gp.name}

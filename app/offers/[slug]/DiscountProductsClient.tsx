@@ -8,15 +8,17 @@ import { Star, SlidersHorizontal, X, Loader2, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
 import { getDiscountedPrice } from "@/app/lib/discountHelpers";
-
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 interface Props {
   discountId: string;
   initialItems: any[];
   initialHasMore: boolean;
   pageSize: number;
+  discountName: string;
 }
 
-export default function DiscountProductsClient({ discountId, initialItems, initialHasMore, pageSize }: Props) {
+export default function DiscountProductsClient({ discountId, initialItems, initialHasMore, pageSize, discountName, }: Props) {
   const vatRates = useVatRates();
   const [products, setProducts] = useState<any[]>(initialItems);
   const [page, setPage] = useState(1);
@@ -278,16 +280,42 @@ const handleSortChange = (value: string) => {
   return (
     <>
       {/* Sort/filter bar */}
-      <div className="hidden md:flex items-center justify-between gap-4 mb-4">
-        <p className="text-sm text-gray-500">{flattenedProducts.length} products</p>
-        <select value={sortBy === "default" ? "default" : `${sortBy}-${sortDirection}`} onChange={e => handleSortChange(e.target.value)}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]">
-         <option value="default">Default Sorting</option>
-<option value="price-asc">Price: Low-High</option>
-<option value="price-desc">Price: High-Low</option>
-<option value="rating-desc">Sort by: Popularity⭐</option>
-        </select>
-      </div>
+  <div className="hidden md:flex items-center justify-between mb-3">
+
+  {/* LEFT: Breadcrumb */}
+  <nav className="flex items-center gap-1.5 text-xs text-gray-500 flex-wrap">
+
+  <Link href="/" className="hover:text-[#445D41] transition-colors">
+    Home
+  </Link>
+
+  <ChevronRight className="h-3.5 w-3.5" />
+
+  <Link href="/offers" className="hover:text-[#445D41] transition-colors">
+    Offers
+  </Link>
+
+  <ChevronRight className="h-3.5 w-3.5" />
+
+  <span className="font-semibold text-gray-800 truncate max-w-[200px]">
+    {discountName}
+  </span>
+
+</nav>
+
+  {/* RIGHT: Sorting */}
+  <select
+    value={sortBy === "default" ? "default" : `${sortBy}-${sortDirection}`}
+    onChange={(e) => handleSortChange(e.target.value)}
+    className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+  >
+    <option value="default">Default Sorting</option>
+    <option value="price-asc">Price: Low-High</option>
+    <option value="price-desc">Price: High-Low</option>
+    <option value="rating-desc">Sort by: Popularity⭐</option>
+  </select>
+
+</div>
 
       <div className="flex items-center justify-between gap-2 mb-3 lg:hidden">
         <button onClick={() => setShowFilters(true)}

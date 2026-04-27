@@ -284,7 +284,7 @@ const handleAddToCart = () => {
           </span>
         )}
 
-        <Link href={`/products/${product.slug}`}>
+        <Link href={`/product/${product.slug}`}>
          <Image
   src={getCrossSellProductImage(product, defaultVariant)}
   alt={product.name}
@@ -297,7 +297,7 @@ const handleAddToCart = () => {
 
       {/* NAME */}
                     <div className="min-h-[38px] max-h-[38px] mb-0.5">
-                    <Link href={`/products/${product.slug}`} className="block">
+                    <Link href={`/product/${product.slug}`} className="block">
                       <h3 className="font-semibold text-xs md:text-sm text-gray-800 line-clamp-2">
   {defaultVariant
     ? `${product.name} (${[

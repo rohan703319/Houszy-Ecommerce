@@ -269,7 +269,7 @@ export default function OrderCard({
   const [customReason, setCustomReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
 const [showStoreModal, setShowStoreModal] = useState(false);
-
+const [showPriceModal, setShowPriceModal] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   const [showPayModal, setShowPayModal] = useState(false);
@@ -471,8 +471,8 @@ const refundedAmount =
       {/* HEADER */}
       <div className="flex flex-wrap justify-between gap-2">
         <div>
-          <p className="font-semibold">Order Id: #{order.orderNumber}</p>
-          <p className="text-sm text-gray-500">
+          <p className="font-semibold">Order Number: #{order.orderNumber}</p>
+          <p className="text-xs text-gray-500">
             Ordered on: {new Date(order.orderDate).toLocaleDateString()}
           </p>
         </div>
@@ -503,7 +503,7 @@ const refundedAmount =
         {order.items?.map((item: any) => (
           <Link
             key={item.id}
-            href={`/products/${item.productSlug}`}
+            href={`/product/${item.productSlug}`}
             className="flex items-center gap-4 border rounded-lg p-3 hover:bg-gray-50 transition"
           >
             <div className="w-16 h-16 flex-shrink-0 border rounded-md overflow-hidden bg-white">
@@ -563,9 +563,9 @@ const refundedAmount =
   <Info
     label="Store"
     value={
-    <div className="relative group inline-block">
   <button
     onClick={() => setShowStoreModal(true)}
+    title="View store address"
     className="flex items-center gap-1 text-[#445D41] font-semibold hover:underline"
   >
     {order.collectionStoreName || "Selected Store"}
@@ -575,11 +575,7 @@ const refundedAmount =
     </span>
   </button>
 
-  {/* HOVER TOOLTIP */}
-  <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-[#445D41] text-white text-[11px] px-2 py-1 rounded whitespace-nowrap z-50 shadow-md">
-    Click to view full address
-  </div>
-</div>
+ 
     }
   />
 )}
@@ -604,9 +600,17 @@ const refundedAmount =
           </>
         )}
 
-        <Info
+       <Info
   label="Total amount paid"
-  value={`£${order.totalPaidAmount?.toFixed(2) ?? "0.00"}`}
+  value={
+  <button
+  onClick={() => setShowPriceModal(true)}
+  title="View price breakdown"
+  className="text-[#445D41] font-semibold hover:underline"
+>
+  £{order.totalPaidAmount?.toFixed(2) ?? "0.00"}
+</button>
+  }
 />
  <Info
   label="Payment Status"
@@ -1002,6 +1006,62 @@ order.status !== "CancellationRequested" && (
       )}
     </div>
 
+  </DialogContent>
+</Dialog>
+<Dialog open={showPriceModal} onOpenChange={setShowPriceModal}>
+ <DialogContent
+  onOpenAutoFocus={(e) => e.preventDefault()}
+  className="max-w-md p-0 overflow-hidden border-none shadow-2xl 
+  [&>button]:text-white 
+  [&>button]:text-2xl 
+  [&>button]:right-4 
+  [&>button]:top-3 
+  [&>button]:bg-white/20 
+  [&>button]:rounded-full 
+  [&>button]:p-1.5"
+>
+
+    {/* HEADER (with DialogTitle FIX) */}
+    <DialogHeader className="bg-[#445D41] text-white px-5 py-3 space-y-0">
+      <DialogTitle className="text-lg font-semibold">
+        Price Breakdown
+      </DialogTitle>
+      <p className="text-xs text-white/80">
+        Order #{order.orderNumber}
+      </p>
+    </DialogHeader>
+
+    {/* BODY */}
+   <div className="pt-1 pb-5 px-5 space-y-3 text-sm">
+
+      <div className="flex justify-between">
+        <span className="text-gray-600">Subtotal (Incl. vat)</span>
+        <span>£{order.subtotalAmount?.toFixed(2) ?? "0.00"}</span>
+      </div>
+
+      <div className="flex justify-between">
+        <span className="text-gray-600">VAT</span>
+        <span>£{order.taxAmount?.toFixed(2) ?? "0.00"}</span>
+      </div>
+
+      <div className="flex justify-between">
+        <span className="text-gray-600">Shipping</span>
+        <span>£{order.shippingAmount?.toFixed(2) ?? "0.00"}</span>
+      </div>
+
+      {order.discountAmount > 0 && (
+        <div className="flex justify-between text-green-600">
+          <span>Discount</span>
+          <span>-£{order.discountAmount.toFixed(2)}</span>
+        </div>
+      )}
+
+      <div className="border-t pt-3 flex justify-between font-semibold text-base">
+        <span>Total amount paid:</span>
+        <span> £{order.totalPaidAmount?.toFixed(2) ?? "0.00"}</span>
+      </div>
+
+    </div>
   </DialogContent>
 </Dialog>
     </div>

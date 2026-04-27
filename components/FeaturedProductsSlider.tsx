@@ -372,7 +372,7 @@ const backorderState = getBackorderUIState({
 
 
                 {/* Product Image */}
-                <Link href={`/products/${cardSlug}`}>
+                <Link href={`/product/${cardSlug}`}>
                   
                   {/* UNISEX Badge */}
                 <GenderBadge gender={product.gender} />
@@ -475,6 +475,12 @@ const backorderState = getBackorderUIState({
     defaultVariant?.stockQuantity ??
     (product as any).stockQuantity ??
     null,
+     // 🔥🔥🔥 MAIN FIX
+  productData: JSON.parse(JSON.stringify(product)),
+
+  // 🔥 optional but useful
+  orderMaximumQuantity: (product as any).orderMaximumQuantity ?? null,
+  orderMinimumQuantity: (product as any).orderMinimumQuantity ?? null,
 });
   if (inWishlist) {
   toast.error("Product removed from wishlist");
@@ -504,7 +510,7 @@ const backorderState = getBackorderUIState({
 
                   {/* FIXED TITLE HEIGHT */}
                  <div className="min-h-[42px] max-h-[42px] sm:min-h-[38px] sm:max-h-[38px] mb-0.5">
-                    <Link href={`/products/${cardSlug}`} className="block">
+                    <Link href={`/product/${cardSlug}`} className="block">
                      <h3
   className="
     font-semibold text-xs md:text-sm text-gray-800 line-clamp-2

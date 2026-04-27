@@ -1,3 +1,4 @@
+//wishlist context
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
@@ -15,6 +16,9 @@ export interface WishlistItem {
   sku?: string;
   // 🔥 ADD THIS
   stockQuantity?: number;
+  productData?: any;
+orderMaximumQuantity?: number | null;
+orderMinimumQuantity?: number | null;
 }
 
 interface WishlistContextType {
