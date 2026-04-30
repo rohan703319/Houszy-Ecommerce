@@ -22,6 +22,7 @@ import {
   Factory,
   BriefcaseBusiness,
   IdCard,
+  AwardIcon,
 } from "lucide-react";
 
 import {
@@ -277,7 +278,7 @@ toast.success(data?.message || "Profile updated successfully");
 />
 
 <Stat
-  icon={<Gift />}
+  icon={<AwardIcon />}
   label="Loyalty Points"
   value={`${user.loyaltyPoints?.currentBalance ?? 0} pts`}
   onClick={() => handleRedirect("loyalty")}

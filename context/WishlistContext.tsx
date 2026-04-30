@@ -10,6 +10,11 @@ export interface WishlistItem {
   name: string;
   slug: string;
   price: number;
+  priceBeforeDiscount?: number;
+  finalPrice?: number;
+  discountAmount?: number;
+  appliedDiscountId?: string | null;
+  couponCode?: string | null;
   image: string;
   vatRate?: number | null;
   vatExempt?: boolean;

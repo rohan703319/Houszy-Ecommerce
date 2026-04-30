@@ -19,7 +19,7 @@ export default function AccountClient() {
   const fromCheckout = searchParams.get("from") === "checkout";
   const fromBuyNow = searchParams.get("from") === "buy-now";
   const { cart } = useCart();
- const { login, register, isAuthenticated, user } = useAuth();
+const { login, register, isAuthenticated, user, isReady } = useAuth();
 
 
   const [showPassword, setShowPassword] = useState(false);
@@ -282,12 +282,17 @@ await register(payload);
       setLoading(false);
     }
   };
-// 🔐 If user is logged in, show dashboard instead of login
+
+const tabParam = searchParams.get("tab");
+const activeTab = tabParam === "register" ? "register" : "login";
+const [tab, setTab] = useState(activeTab);
+if (!isReady) {
+  return null;
+}
+
 if (isAuthenticated && user) {
   return <AccountDashboard />;
 }
-const tabParam = searchParams.get("tab");
-const activeTab = tabParam === "register" ? "register" : "login";
 
   return (
   <div className="min-h-screen relative overflow-hidden bg-gray-50 py-8 px-4">
@@ -372,7 +377,7 @@ const activeTab = tabParam === "register" ? "register" : "login";
     !showGuestOption && "max-w-md mx-auto"
   )}
 >
-        <Tabs defaultValue={activeTab}>
+     <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="grid grid-cols-2 border-b mb-4">
               <TabsTrigger value="login" className="py-2 text-sm">Login</TabsTrigger>
               <TabsTrigger value="register" className="py-2 text-sm">Register</TabsTrigger>

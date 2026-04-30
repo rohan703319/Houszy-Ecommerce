@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import ProductCard from "@/components/ProductCard";
 import { useVatRates } from "@/app/hooks/useVatRates";
 import PremiumPriceSlider from "@/components/filters/PremiumPriceSlider";
@@ -26,9 +26,17 @@ export default function BrandsClient({
 
   const [products, setProducts] = useState<any[]>(initialItems);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(page < totalPages);
-  const [loading, setLoading] = useState(false);
-
+  const [hasMore, setHasMore] = useState(totalPages > 1);
+  
+const [isLoadingMore, setIsLoadingMore] = useState(false);
+const isFetchingRef = useRef(false);
+const fetchCbRef = useRef<() => void>(() => {});
+const loadMoreRef = useRef<HTMLDivElement | null>(null);
+useEffect(() => {
+  setProducts(initialItems ?? []);
+  setPage(1);
+  setHasMore(totalPages > 1);
+}, [initialItems, totalPages]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
   const [minPrice, setMinPrice] = useState(0);
@@ -222,10 +230,13 @@ if (sortBy === "rating") {
 
 }, [filteredProducts, sortBy, sortDirection]);
 
-  const loadMore = async () => {
-    if (loading || !hasMore) return;
+const fetchMoreProducts = useCallback(async () => {
+  if (isFetchingRef.current || !hasMore) return;
 
-    setLoading(true);
+  isFetchingRef.current = true;
+  setIsLoadingMore(true);
+
+  try {
     const nextPage = page + 1;
 
     const res = await fetch(
@@ -237,9 +248,34 @@ if (sortBy === "rating") {
     setProducts((prev) => [...prev, ...(data.data.items ?? [])]);
     setPage(nextPage);
     setHasMore(nextPage < data.data.totalPages);
-    setLoading(false);
-  };
+  } catch (err) {
+    console.error(err);
+  } finally {
+    isFetchingRef.current = false;
+    setIsLoadingMore(false);
+  }
+}, [page, hasMore, brandSlug, sortDirection]);
 
+useEffect(() => {
+  fetchCbRef.current = fetchMoreProducts;
+}, [fetchMoreProducts]);
+
+useEffect(() => {
+  if (!loadMoreRef.current || !hasMore || isFetchingRef.current) return;
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      if (entry.isIntersecting) {
+        fetchCbRef.current();
+      }
+    },
+    { rootMargin: "200px" }
+  );
+
+  observer.observe(loadMoreRef.current);
+
+  return () => observer.disconnect();
+}, [hasMore]);
   const resetFilters = () => {
     setSelectedCategories([]);
     setMinRating(0);
@@ -497,17 +533,22 @@ if (sortBy === "rating") {
               </div>
             )}
 
-            {hasMore && (
-              <div className="flex justify-center mt-8">
-                <Button
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="bg-[#445D41]"
-                >
-                  {loading ? "Loading..." : "Load More"}
-                </Button>
-              </div>
-            )}
+          {hasMore && <div ref={loadMoreRef} />}
+          {isLoadingMore && (
+  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-6 mb-8">
+    {Array.from({ length: 3 }).map((_, i) => (
+      <div key={i} className="rounded-xl border bg-white animate-pulse">
+        <div className="h-44 bg-gray-200" />
+        <div className="p-3 space-y-2">
+          <div className="h-3 bg-gray-200 rounded w-4/5" />
+          <div className="h-3 bg-gray-200 rounded w-3/5" />
+          <div className="h-3 bg-gray-200 rounded w-1/3" />
+          <div className="h-4 bg-gray-200 rounded w-2/5" />
+        </div>
+      </div>
+    ))}
+  </div>
+)}
           </div>
           
         </div>

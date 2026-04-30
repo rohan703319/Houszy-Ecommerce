@@ -415,7 +415,7 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
                     key={item.id}
                     className="flex gap-4 p-4 items-start"
                   >
-                    <Link href={`/products/${item.productSlug}`}>
+                    <Link href={`/product/${item.productSlug}`}>
                     <img
   src={resolveImageUrl(item.productImageUrl)}
   alt={item.productName}
@@ -426,7 +426,7 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
 
                     <div className="flex-1 min-w-0">
                       <Link
-                        href={`/products/${item.productSlug}`}
+                        href={`/product/${item.productSlug}`}
                         className="font-medium hover:text-[#445D41] line-clamp-2"
                       >
                         {item.productName}

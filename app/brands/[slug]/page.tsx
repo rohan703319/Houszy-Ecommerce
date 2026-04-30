@@ -3,6 +3,14 @@ export const dynamic = "force-dynamic";
 
 import BrandsClient from "./BrandsClient";
 
+interface SearchParams {
+  page?: string;
+  pageSize?: string;
+  sortBy?: string;
+  sortDirection?: string;
+  price?: string;
+  minRating?: string;
+}
 interface BrandPageProps {
   params: Promise<{
     slug: string;
@@ -69,15 +77,61 @@ export async function generateMetadata({ params }: BrandPageProps) {
     },
   };
 }
-async function getBrandProductsBySlug(slug: string) {
+async function getProductsByBrand(
+  slug: string,
+  searchParams: SearchParams
+) {
+  // 🔥 fetch all brands to get ID
+  const brandsRes = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/Brands?includeUnpublished=false`
+  ).then((r) => r.json());
+
+  const dataArray = Array.isArray(brandsRes.data)
+    ? brandsRes.data
+    : brandsRes.data?.items || [];
+
+  const brand = dataArray.find((b: any) => b.slug === slug);
+
+  if (!brand?.id) return { data: { items: [], totalPages: 1 } };
+
+  const {
+    page = "1",
+    pageSize = "20",
+    sortBy = "name",
+    sortDirection = "asc",
+    price,
+    minRating,
+  } = searchParams;
+
+  const query = new URLSearchParams({
+    page,
+    pageSize,
+    sortBy,
+    sortDirection,
+    isPublished: "true",
+    isActive: "true",
+    isDeleted: "false",
+  });
+
+  // ✅ BRAND FILTER (IMPORTANT)
+  query.set("brandId", brand.id);
+
+  // ✅ PRICE FILTER
+  if (price) {
+    const [min, max] = price.split("-");
+    if (min) query.set("minPrice", min);
+    if (max) query.set("maxPrice", max);
+  }
+
+  // ✅ RATING FILTER
+  if (minRating) {
+    query.set("minRating", minRating);
+  }
+
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/Products/by-brand/${slug}?page=1&pageSize=50&sortDirection=asc&isPublished=true`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`,
     { cache: "no-store" }
   );
-
-  if (!res.ok) {
-    throw new Error("Brand products fetch failed");
-  }
 
   return res.json();
 }
@@ -86,7 +140,12 @@ export default async function BrandPage({ params }: BrandPageProps) {
   // ✅ NEXT 15 FIX
   const { slug } = await params;
 
-  const productsRes = await getBrandProductsBySlug(slug);
+ const searchParamsResolved = {} as SearchParams;
+
+const productsRes = await getProductsByBrand(
+  slug,
+  searchParamsResolved
+);
 // ✅ FETCH ALL BRANDS (for SEO)
 const brandsRes = await fetch(
   `${process.env.NEXT_PUBLIC_API_URL}/api/Brands?includeUnpublished=false`,

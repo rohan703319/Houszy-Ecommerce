@@ -51,6 +51,20 @@ export interface LoyaltyPoints {
 
   lastEarnedAt?: string;
   lastRedeemedAt?: string;
+    redemptionRate: number;
+  redemptionRateText: string;
+  minimumRedemptionPoints: number;
+  maxPointsPerRedemption: number;
+  maxRedemptionPercentOfOrder: number;
+
+  pointsExpiryEnabled: boolean;
+  pointsExpiryMonths: number;
+
+  expiringPoints: {
+    points: number;
+    expiresAt: string;
+    description?: string;
+  }[];
 }
 
 
@@ -87,6 +101,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   profileLoading: boolean;
+  isReady: boolean;
   refreshProfile: () => Promise<void>; // ✅ ADD THIS
 }
 
@@ -99,35 +114,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
 const [profileLoading, setProfileLoading] = useState(false);
-
+const [isReady, setIsReady] = useState(false);
   // 🔁 Restore session
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedAccess = localStorage.getItem("accessToken");
-    const storedRefresh = localStorage.getItem("refreshToken");
+useEffect(() => {
+  const storedUser = localStorage.getItem("user");
+  const storedAccess = localStorage.getItem("accessToken");
+  const storedRefresh = localStorage.getItem("refreshToken");
 
-    if (storedUser && storedAccess) {
-      // If stored token belongs to an Admin, don't load it into the customer context.
-      // Admin and customer share the same localStorage key — this prevents admin
-      // sessions from leaking into the storefront.
-      try {
-        const payload = JSON.parse(atob(storedAccess.split(".")[1]));
-        const roleKey =
-          "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
-        const role: string | string[] = payload[roleKey] ?? "";
-        const isAdmin = Array.isArray(role)
-          ? role.includes("Admin")
-          : role === "Admin";
-        if (isAdmin) return; // skip — admin session, not a customer session
-      } catch {
-        return; // malformed token — skip
+  if (storedUser && storedAccess) {
+    try {
+      const payload = JSON.parse(atob(storedAccess.split(".")[1]));
+      const roleKey =
+        "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+      const role: string | string[] = payload[roleKey] ?? "";
+      const isAdmin = Array.isArray(role)
+        ? role.includes("Admin")
+        : role === "Admin";
+
+      if (!isAdmin) {
+        setUser(JSON.parse(storedUser));
+        setAccessToken(storedAccess);
+        setRefreshToken(storedRefresh);
       }
+    } catch {}
+  }
 
-      setUser(JSON.parse(storedUser));
-      setAccessToken(storedAccess);
-      setRefreshToken(storedRefresh);
-    }
-  }, []);
+  // ✅ ALWAYS RUN
+  setIsReady(true);
+
+}, []);
 const fetchProfile = async () => {
   if (!accessToken || !user?.email) return;
 
@@ -220,7 +235,7 @@ useEffect(() => {
       const draft = JSON.parse(rawDraft);
 
       if (draft?.productSlug) {
-  window.location.href = `/products/${draft.productSlug}#reviews-section`;
+  window.location.href = `/product/${draft.productSlug}#reviews-section`;
   return;
 }
 
@@ -307,6 +322,7 @@ useEffect(() => {
     logout,
     isAuthenticated: !!accessToken,
     profileLoading,
+    isReady,
      refreshProfile: fetchProfile, // ✅ ADD THIS
   }}
 >

@@ -291,6 +291,8 @@ useEffect(() => {
 const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
 const [crossSellProducts, setCrossSellProducts] = useState<CrossSellProduct[]>([]);
+const shouldShowRelatedNav = relatedProducts.length > 4;
+const shouldShowCrossNav = crossSellProducts.length > 4;
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "delivery">("description");
 const [purchaseType, setPurchaseType] = useState<"one" | "subscription">("one");
 const vatRates = useVatRates();
@@ -649,7 +651,7 @@ useEffect(() => {
   if (!selectedVariant) return;
   // push slug to URL (first load only)
   if (selectedVariant.slug) {
-    window.history.replaceState(null, '', `/products/${selectedVariant.slug}`);
+    window.history.replaceState(null, '', `/product/${selectedVariant.slug}`);
   }
 }, [selectedVariant, initialVariantId]);
 // ---- UNIVERSAL HANDLER ----
@@ -1612,6 +1614,12 @@ toggleWishlist({
 
   slug: selectedVariant?.slug ?? product.slug, // 🔥 IMPORTANT
   price: finalPrice,
+  priceBeforeDiscount: basePrice,
+  finalPrice: finalPrice,
+  discountAmount: discountAmount ?? 0,
+  appliedDiscountId: appliedCoupon?.id ?? null,
+  couponCode: appliedCoupon?.couponCode ?? null,
+  
   image: activeMainImage,
 
   vatRate: vatRate ?? null,
@@ -2278,7 +2286,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
     return;
   }
   if (num > limit) {
-    toast.error(`Maximum order quantity is ${limit}`);
+    toast.error(`only ${limit} quantity left in stock `);
     setNormalQty(limit);
     return;
   }
@@ -2509,7 +2517,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               {/* PRODUCT INFO */}
               {/* PRODUCT IMAGE */}
 <div className="w-14 h-16 flex-shrink-0 rounded-lg border bg-white overflow-hidden">
-  <Link href={`/products/${gp.slug}`}>
+  <Link href={`/product/${gp.slug}`}>
   <img
     src={
       gp.mainImageUrl
@@ -2525,7 +2533,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
   </Link>
 </div>
               <div>
-               <Link href={`/products/${gp.slug}`}>
+               <Link href={`/product/${gp.slug}`}>
                 <p className="text-sm font-semibold">{gp.name}</p>
                 </Link>
                 <p className="text-sm font-semibold text-gray-900">
@@ -2597,18 +2605,23 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
   </div>
   <div className="relative">
     {/* Desktop-only prev/next chevrons */}
+   {shouldShowRelatedNav && (
+  <>
     <button
-      onClick={() => relatedSwiperRef.current?.slidePrev()}
-      className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-0 m-0"
+      id="related-prev"
+      className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20"
     >
-      <ChevronLeft className="w-8 h-8 text-gray-700" />
+      <ChevronLeft className="w-7 h-7 text-gray-700" />
     </button>
+
     <button
-      onClick={() => relatedSwiperRef.current?.slideNext()}
-      className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-0 m-0"
+      id="related-next"
+      className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20"
     >
-      <ChevronRight className="w-8 h-8 text-gray-700" />
+      <ChevronRight className="w-7 h-7 text-gray-700" />
     </button>
+  </>
+)}
     <Swiper
       modules={[Autoplay, Pagination]}
       onSwiper={(swiper) => { relatedSwiperRef.current = swiper; }}
@@ -2644,18 +2657,23 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
   </div>
   <div className="relative">
     {/* Desktop-only prev/next chevrons */}
+   {shouldShowCrossNav && (
+  <>
     <button
-      onClick={() => crossSwiperRef.current?.slidePrev()}
-      className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-0 m-0"
+      id="cross-prev"
+      className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20"
     >
-      <ChevronLeft className="w-8 h-8 text-gray-700" />
+      <ChevronLeft className="w-7 h-7 text-gray-700" />
     </button>
+
     <button
-      onClick={() => crossSwiperRef.current?.slideNext()}
-      className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-0 m-0"
+      id="cross-next"
+      className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20"
     >
-      <ChevronRight className="w-8 h-8 text-gray-700" />
+      <ChevronRight className="w-7 h-7 text-gray-700" />
     </button>
+  </>
+)}
     <Swiper
       modules={[Autoplay, Pagination]}
       onSwiper={(swiper) => { crossSwiperRef.current = swiper; }}

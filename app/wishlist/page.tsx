@@ -65,10 +65,13 @@ const handleAddToCart = (item: WishlistItem) => {
     variantId: item.variantId ?? null,
 
     name: item.name,
-    price: item.price,
-    finalPrice: item.price,
-    priceBeforeDiscount: item.price,
-    discountAmount: 0,
+   price: item.finalPrice ?? item.price,
+finalPrice: item.finalPrice ?? item.price,
+priceBeforeDiscount:
+  item.priceBeforeDiscount ?? item.price,
+discountAmount: item.discountAmount ?? 0,
+appliedDiscountId: item.appliedDiscountId ?? null,
+couponCode: item.couponCode ?? null,
 
     quantity: finalQty,
 

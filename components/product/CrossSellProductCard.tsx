@@ -6,13 +6,13 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import QuantitySelector from "@/components/shared/QuantitySelector";
-import { Star, BadgePercent, AwardIcon } from "lucide-react";
+import { Star, BadgePercent, AwardIcon, Heart } from "lucide-react";
 import { useVatRates } from "@/app/hooks/useVatRates";
 import { getVatRate } from "@/app/lib/vatHelpers";
 import { useToast } from "@/components/toast/CustomToast";
 import { useRef } from "react";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
-
+import { useWishlist } from "@/context/WishlistContext";
 import {
   getDiscountBadge,
   getDiscountedPrice,
@@ -67,6 +67,7 @@ const [qty, setQty] = useState(minQty);
   const [stockError, setStockError] = useState<string | null>(null);
 const toast = useToast();
  const router = useRouter();
+  const { toggleWishlist, isInWishlist } = useWishlist();
   const defaultVariant =
     product.variants?.find((v: any) => v.isDefault) ??
     product.variants?.[0] ??
@@ -230,6 +231,53 @@ const handleAddToCart = () => {
 );
 };
 
+const wishlistId = defaultVariant?.id ?? product.id;
+const inWishlist = isInWishlist(wishlistId);
+const handleToggleWishlist = () => {
+  toggleWishlist({
+    id: wishlistId,
+    productId: product.id,
+    variantId: defaultVariant?.id ?? null,
+
+    name: defaultVariant
+      ? `${product.name} (${[
+          defaultVariant.option1Value,
+          (defaultVariant as any)?.option2Value,
+          (defaultVariant as any)?.option3Value,
+        ].filter(Boolean).join(", ")})`
+      : product.name,
+
+    slug: product.slug,
+
+    // ✅ PRICING (CRITICAL)
+    price: finalPrice,
+    priceBeforeDiscount: basePrice,
+    finalPrice: finalPrice,
+    discountAmount: discountBadge
+      ? discountBadge.type === "percent"
+        ? +(basePrice * discountBadge.value / 100).toFixed(2)
+        : discountBadge.value
+      : 0,
+    appliedDiscountId: null,
+    couponCode: null,
+
+   image: getCrossSellProductImage(product, defaultVariant),
+    vatRate: vatRate ?? null,
+    vatExempt: product.vatExempt,
+
+    sku: defaultVariant?.sku ?? product.sku,
+
+    stockQuantity:
+      defaultVariant?.stockQuantity ??
+      product.stockQuantity ??
+      null,
+
+    productData: JSON.parse(JSON.stringify(product)),
+
+    orderMaximumQuantity: product.orderMaximumQuantity ?? null,
+    orderMinimumQuantity: product.orderMinimumQuantity ?? null,
+  });
+};
   return (
      <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 rounded-xl 
                              h-[330px] md:h-[355px] flex flex-col justify-between">
@@ -241,7 +289,7 @@ const handleAddToCart = () => {
        <div className="h-[176px] sm:h-[200px] md:h-[224px] flex items-center justify-center overflow-hidden bg-white rounded-t-xl pt-2 relative">
         {/* Offer badge — smaller */}
         {discountBadge && (
-          <div className="absolute top-2 right-2 z-20">
+          <div className="absolute top-1 right-2 z-20">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
               <div className="flex flex-col items-center leading-none">
                 {discountBadge.type === "percent" ? (
@@ -255,7 +303,7 @@ const handleAddToCart = () => {
         )}
         {/* Coupon badge — smaller */}
     {!discountBadge && hasActiveCoupon && (
-  <div className="absolute top-1 right-1 z-20">
+   <div className="absolute top-1 md:top-2 right-1 md:right-2 z-20">
     <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
       <div className="flex flex-col items-center text-center">
@@ -283,7 +331,35 @@ const handleAddToCart = () => {
             VAT Relief
           </span>
         )}
+<button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleToggleWishlist();
 
+      if (inWishlist) {
+        toast.error("Product removed from wishlist");
+      } else {
+        toast.success("Product added to wishlist!");
+      }
+    }}
+    className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all
+      ${(discountBadge || hasActiveCoupon) ? "top-12" : "top-2"}
+      ${
+        inWishlist
+          ? "bg-green-50 border-green-200"
+          : "bg-white border-gray-200 hover:bg-green-50 hover:border-green-200"
+      }
+    `}
+  >
+    <Heart
+      className={`h-4 w-4 ${
+        inWishlist
+          ? "fill-green-500 text-green-500"
+          : "text-gray-400 hover:text-green-400"
+      }`}
+    />
+  </button>
         <Link href={`/product/${product.slug}`}>
          <Image
   src={getCrossSellProductImage(product, defaultVariant)}

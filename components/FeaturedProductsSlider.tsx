@@ -301,7 +301,7 @@ const shouldShowMinWarning = (product: any) => {
   simulateTouch={true}
  
 >
-        {flattenedProducts.map((item) =>  {
+        {flattenedProducts.slice(0, 50).map((item) =>  {
 
   const product = item.productData;
   const variantForCard = item.variantForCard;
@@ -463,7 +463,12 @@ const backorderState = getBackorderUIState({
     : product.name,
 
   slug: cardSlug,
-  price: finalPrice,
+ price: finalPrice,
+priceBeforeDiscount: basePrice,
+finalPrice: finalPrice,
+discountAmount: discountAmount ?? 0,
+appliedDiscountId: null, // slider me coupon nahi hai
+couponCode: null,
   image: getProductDisplayImage(product, defaultVariant),
 
   vatRate: vatRate ?? null,

@@ -468,7 +468,6 @@ useEffect(() => {
   className="w-10 h-10 object-contain"
 />
 
-{/* NAME + CATEGORY */}
 {/* NAME, CATEGORY, PRICE + DISCOUNT */}
 <div className="flex flex-col">
   <div className="flex items-center gap-2 flex-wrap">
@@ -512,7 +511,7 @@ useEffect(() => {
     <>
       {/* Discounted Price */}
       <span className="text-sm font-semibold text-[#445D41]">
-        £{getDiscountedPrice(item.price, item.discountPercentage)}
+      £{getDiscountedPrice(item.price, item.discountPercentage).toFixed(2)}
       </span>
 
       {/* Original Price */}

@@ -270,7 +270,7 @@ const handleSubmitReview = async () => {
     "pendingReviewDraft",
     JSON.stringify({
       productId,
-      productSlug: window.location.pathname.split("/products/")[1],
+      productSlug: window.location.pathname.split("/product/")[1],
       rating,
       title,
       comment,

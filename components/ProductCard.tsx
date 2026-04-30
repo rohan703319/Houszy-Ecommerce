@@ -314,7 +314,13 @@ toggleWishlist({
     : product.name,
 
   slug: cardSlug,
+  
   price: finalPrice,
+priceBeforeDiscount: basePrice,
+finalPrice: finalPrice,
+discountAmount: basePrice > finalPrice ? +(basePrice - finalPrice).toFixed(2) : 0,
+appliedDiscountId: null,
+couponCode: null,
   image: mainImage,
 
   vatRate: vatRate ?? null,

@@ -798,7 +798,7 @@ const orderVatAmount = useMemo(() => {
           <div className="bg-white border border-gray-200 rounded-xl shadow-md p-2 sticky top-24">
             {/* Inline coupon input */}
             <div className="border border-gray-300 rounded-lg p-2 mb-2">
-              <h3 className="text-xs font-semibold mb-1.5">Apply Coupon</h3>
+              <h3 className="text-sm font-semibold mb-1.5">Apply Coupon</h3>
               <div className="flex gap-1">
                 <input
                   type="text"
@@ -826,12 +826,12 @@ const orderVatAmount = useMemo(() => {
                 <span>Subtotal (Incl. VAT)</span>
                 <span>£{subtotalBeforeDiscount.toFixed(2)}</span>
               </div>
-              {orderVatAmount > 0 && (
+             
                 <div className="flex justify-between">
                   <span>VAT</span>
                   <span>£{orderVatAmount.toFixed(2)}</span>
                 </div>
-              )}
+             
               {bundleSavings > 0 && (
                 <div className="flex justify-between text-green-700">
                   <span>Bundle Savings</span>

@@ -72,9 +72,9 @@ const [showLogoutModal, setShowLogoutModal] = useState(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] py-1">
+    <div className="min-h-screen bg-[#f7f8fa] py-2">
       <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-xl font-semibold mb-1">My Account</h1>
+        <h1 className="text-xl font-semibold mb-2">My Account</h1>
 
         <div className="grid grid-cols-12 gap-4 md:gap-6">
           {/* LEFT SIDEBAR — vertical on desktop, horizontal scroll on mobile */}

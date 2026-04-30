@@ -697,112 +697,127 @@ const refundedAmount =
           {historyLoading && <span className="ml-1 text-gray-400">Loading…</span>}
         </button>
 
-        {showHistory && (
-          <div className="mt-3 space-y-3">
-            {history.length === 0 ? (
-              <p className="text-xs text-gray-400">No changes recorded for this order.</p>
+      {showHistory && (
+  <div className="mt-3 space-y-3">
+
+    {(() => {
+      const filteredHistory = history.filter(
+        (h: any) => h.changeType === "OrderEdited"
+      );
+
+      if (filteredHistory.length === 0) {
+        return (
+          <p className="text-xs text-gray-400">
+            No changes recorded for this order.
+          </p>
+        );
+      }
+
+      return filteredHistory.map((h: any) => {
+        const ops: any[] = h.changeDetails?.Operations ?? [];
+        const priceDiff =
+          h.newTotalAmount != null && h.oldTotalAmount != null
+            ? h.newTotalAmount - h.oldTotalAmount
+            : null;
+
+        return (
+          <div key={h.id} className="bg-gray-50 border rounded-lg p-3 text-xs">
+            
+            {/* Header */}
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <span className="font-semibold text-gray-700">
+                  Order Updated
+                </span>
+                <span className="text-gray-400 ml-2">
+                  {new Date(h.changeDate).toLocaleString()}
+                </span>
+              </div>
+
+              {priceDiff != null && (
+                <span
+                  className={`font-semibold ${
+                    priceDiff > 0 ? "text-orange-600" : "text-green-600"
+                  }`}
+                >
+                  {priceDiff > 0 ? "+" : ""}£{priceDiff.toFixed(2)}
+                </span>
+              )}
+            </div>
+
+            {/* Item changes table */}
+            {ops.length > 0 ? (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-gray-400 border-b">
+                    <th className="pb-1 font-medium">Product</th>
+                    <th className="pb-1 font-medium text-center">Change</th>
+                    <th className="pb-1 font-medium text-right">Old</th>
+                    <th className="pb-1 font-medium text-right">New</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {ops.map((op: any, i: number) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-1 text-gray-700 pr-2">
+                        {op.ProductName}
+                      </td>
+
+                      <td className="py-1 text-center">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            op.ChangeType === "Added"
+                              ? "bg-green-100 text-green-700"
+                              : op.ChangeType === "Removed"
+                              ? "bg-red-100 text-red-700"
+                              : op.ChangeType === "PriceAdjusted"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {op.ChangeType}
+                        </span>
+                      </td>
+
+                      <td className="py-1 text-right text-gray-400">
+                        Qty: {op.OldQuantity ?? 0} <br />
+                        £{(op.OldTotalPrice ?? 0).toFixed(2)}
+                      </td>
+
+                      <td className="py-1 text-right text-gray-700 font-medium">
+                        Qty: {op.NewQuantity ?? 0} <br />
+                        £{(op.NewTotalPrice ?? 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
-             history
-  .filter((h: any) => h.changeType === "OrderEdited")
-  .map((h: any) => {
-                const ops: any[] = h.changeDetails?.Operations ?? [];
-                const priceDiff = h.newTotalAmount != null && h.oldTotalAmount != null
-                  ? h.newTotalAmount - h.oldTotalAmount
-                  : null;
+              <p className="text-xs text-gray-400">
+                No item-level changes available.
+              </p>
+            )}
 
-                return (
-                  <div key={h.id} className="bg-gray-50 border rounded-lg p-3 text-xs">
-                    {/* Header */}
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <span className="font-semibold text-gray-700">Order Updated</span>
-                        <span className="text-gray-400 ml-2">
-                          {new Date(h.changeDate).toLocaleString()}
-                        </span>
-                      </div>
-                      {priceDiff != null && (
-                        <span className={`font-semibold ${priceDiff > 0 ? "text-orange-600" : "text-green-600"}`}>
-                          {priceDiff > 0 ? "+" : ""}£{priceDiff.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Item changes table */}
-    {ops.length > 0 ? (
-  <table className="w-full text-left">
-    <thead>
-      <tr className="text-gray-400 border-b">
-        <th className="pb-1 font-medium">Product</th>
-        <th className="pb-1 font-medium text-center">Change</th>
-        <th className="pb-1 font-medium text-right">Old</th>
-        <th className="pb-1 font-medium text-right">New</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {ops.map((op: any, i: number) => (
-        <tr key={i} className="border-b last:border-0">
-          
-          {/* ✅ Product Name FIX */}
-          <td className="py-1 text-gray-700 pr-2">
-            {op.ProductName}
-          </td>
-
-          {/* ✅ ChangeType FIX */}
-          <td className="py-1 text-center">
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                op.ChangeType === "Added"
-                  ? "bg-green-100 text-green-700"
-                  : op.ChangeType === "Removed"
-                  ? "bg-red-100 text-red-700"
-                  : op.ChangeType === "PriceAdjusted"
-                  ? "bg-purple-100 text-purple-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
-              {op.ChangeType}
-            </span>
-          </td>
-
-          {/* ✅ OLD DATA */}
-          <td className="py-1 text-right text-gray-400">
-            Qty: {op.OldQuantity ?? 0} <br />
-            £{(op.OldTotalPrice ?? 0).toFixed(2)}
-          </td>
-
-          {/* ✅ NEW DATA */}
-          <td className="py-1 text-right text-gray-700 font-medium">
-            Qty: {op.NewQuantity ?? 0} <br />
-            £{(op.NewTotalPrice ?? 0).toFixed(2)}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-) : (
-  <p className="text-xs text-gray-400">
-    No item-level changes available.
-  </p>
-)}
-
-                    {/* Total summary */}
-               {h.oldTotalAmount != null && h.newTotalAmount != null && (
-  <div className="mt-2 flex justify-between text-xs">
-    <span className="text-gray-500">
-      Old total: <strong>£{h.oldTotalAmount.toFixed(2)}</strong>
-    </span>
-    <span className="text-gray-800 font-semibold">
-      New total: £{h.newTotalAmount.toFixed(2)}
-    </span>
-  </div>
-)}
-                  </div>
-                );
-              })
+            {/* Total summary */}
+            {h.oldTotalAmount != null && h.newTotalAmount != null && (
+              <div className="mt-2 flex justify-between text-xs">
+                <span className="text-gray-500">
+                  Old total:{" "}
+                  <strong>£{h.oldTotalAmount.toFixed(2)}</strong>
+                </span>
+                <span className="text-gray-800 font-semibold">
+                  New total: £{h.newTotalAmount.toFixed(2)}
+                </span>
+              </div>
             )}
           </div>
-        )}
+        );
+      });
+    })()}
+
+  </div>
+)}
       </div>
 
       {/* ACTIONS */}

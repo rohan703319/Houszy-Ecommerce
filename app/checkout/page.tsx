@@ -1542,10 +1542,10 @@ setShippingAddressQuery("");
   </div>
 )}
               {/* ===== PRICE SUMMARY ===== */}
-<div className="mt-2 rounded-lg border bg-gray-50 p-2 space-y-1.5 text-xs">
+<div className="mt-2 rounded-lg border bg-gray-50 p-2 space-y-1.5 text-sm">
   {/* Subtotal */}
   <div className="flex items-center justify-between">
-    <span className="text-gray-600">Subtotal (Incl. VAT)</span>
+    <span className="text-gray-700">Subtotal (Incl. VAT)</span>
     <span className="font-medium">{formatCurrency(cartSubtotal)}</span>
   </div>
   <div className="flex items-center justify-between border-t pt-2 mt-2 text-sm text-gray-700">
@@ -1602,7 +1602,7 @@ setShippingAddressQuery("");
 )}
 {pointsDiscount > 0 && (
   <div className="flex items-center justify-between text-green-700 text-xs">
-    <span>Points Discount ({pointsToRedeem} pts)</span>
+    <span>Loyalty Points Discount ({pointsToRedeem} pts)</span>
     <span>- {formatCurrency(pointsDiscount)}</span>
   </div>
 )}

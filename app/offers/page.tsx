@@ -1,5 +1,5 @@
 // app/offers/page.tsx
-export const revalidate = 300;
+export const revalidate = 60;
 
 import Link from "next/link";
 import { Tag, Clock, Gift, ChevronRight, ShoppingBag, Percent, BadgePercent } from "lucide-react";

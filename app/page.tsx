@@ -282,13 +282,12 @@ const homeProducts = [...products].sort(
 <h1 className="sr-only">
   Buy Medicines & Healthcare Products Online in the UK - Direct Care
 </h1>
+
     {/* ===== HERO SLIDER ===== */}
     <section className="w-full">
       <HomeBannerSlider banners={homeBanners} baseUrl={baseUrl} />
-
     </section>
-
-  
+    
 {/* ===== CATEGORY OFFERS (NEW) ===== */}
 <CategoryOffersSlider categories={categories} baseUrl={baseUrl} />
     {/* ===== PROMO BANNER ===== */}

@@ -1,16 +1,7 @@
 "use client";
 
 import { LoyaltyPoints } from "@/context/AuthContext";
-import {
-  Gift,
-  Trophy,
-  TrendingUp,
-  ArrowUpRight,
-  Crown,
-  Medal,
-  ShieldCheck,
-  Wallet,
-} from "lucide-react";
+import { Gift, Trophy, TrendingUp, ArrowUpRight, Crown, Medal, ShieldCheck, Wallet, Info, AwardIcon, } from "lucide-react";
 
 interface Props {
   loyalty?: LoyaltyPoints;
@@ -36,12 +27,12 @@ const StatCard = ({
   icon?: React.ReactNode;
   className?: string;
 }) => (
-  <div className={`border rounded-xl p-5 shadow-sm ${className}`}>
-    <div className="flex items-center gap-2 text-sm text-gray-500">
+  <div className={`border rounded-xl p-2 md:p-4 shadow-sm ${className}`}>
+    <div className="flex items-center gap-2 text-xs text-gray-500">
       {icon}
       {label}
     </div>
-    <div className="text-xl font-semibold text-gray-900 mt-2">
+    <div className="text-sm font-semibold text-gray-900 mt-2">
       {value}
     </div>
   </div>
@@ -94,10 +85,10 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
   return (
     <div className="space-y-2">
       {/* HEADER */}
-     <div className="bg-[#445D41] border rounded-xl p-6 shadow-sm flex items-center justify-between">
+     <div className="bg-[#445D41] border rounded-xl p-4 shadow-sm flex items-center justify-between">
   <div>
     <div className="flex items-center gap-2">
-      <Trophy className="text-white" size={25} />
+      <AwardIcon className="text-white" size={25} />
       <h2 className="text-lg font-semibold text-white">
         Loyalty Points
       </h2>
@@ -121,7 +112,7 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
         {/* membership */}
      
   <div
-          className={`rounded-xl p-6 shadow-sm flex flex-col justify-between ${tierConfig.bg}`}
+          className={`rounded-xl p-4 shadow-sm flex flex-col justify-between ${tierConfig.bg}`}
         >
           <div className="flex items-center gap-2 opacity-90">
             {tierConfig.icon}
@@ -130,7 +121,7 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
             </span>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-1">
             <div className="text-xl font-semibold">
               {tierConfig.label}
             </div>
@@ -139,32 +130,39 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
             </div>
           </div>
         </div>
-       <div className="bg-white text-[#445D41] rounded-xl p-6 shadow-sm">
+       <div className="bg-white text-[#445D41] rounded-xl p-4 shadow-sm">
   <div className="flex items-center gap-2 text-[#445D41]">
     <ArrowUpRight size={18} />
     Redemption Value
   </div>
   <div className="text-3xl font-bold mt-3">
-    £{redemptionValue.toFixed(2)}
+   £{redemptionValue.toFixed(2)}
+<p className="text-xs text-gray-500 mt-3">
+  Available to redeem
+</p>
   </div>
 </div>
 
        
 
         {/* 🟡 current points */}
-         <div className="bg-white text-[#445D41] rounded-xl p-6 shadow-sm">
+         <div className="bg-white text-[#445D41] rounded-xl p-4 shadow-sm">
           <div className="flex items-center gap-2 text-[#445D41]">
             <Wallet size={18} />
             Current Balance
+
           </div>
           <div className="text-3xl font-bold mt-3">
             {currentBalance.toLocaleString()} pts
+            <p className="text-xs text-gray-500 mt-3">
+  Worth £{(currentBalance / loyalty.redemptionRate).toFixed(2)}
+</p>
           </div>
         </div>
       </div>
 
       {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Total Points Earned"
           value={totalPointsEarned.toLocaleString()}
@@ -182,6 +180,7 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
         />
        
       </div>
+  
       {(loyalty.totalReviewBonusEarned || loyalty.totalReferralBonusEarned) && (
   <div className="bg-white border rounded-xl p-5 shadow-sm text-sm text-gray-600">
     {(loyalty.totalReviewBonusEarned ?? 0) > 0 && (
@@ -192,45 +191,115 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
     )}
   </div>
 )}
-{pointsToNextTier > 0 && nextTierName && (
-  <div className="bg-white border rounded-xl p-5 shadow-sm">
-    <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-      <TrendingUp size={16} />
-      Progress to {nextTierName}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+  {/* PROGRESS */}
+  {pointsToNextTier > 0 && nextTierName && (
+    <div className="bg-white border rounded-xl p-3 shadow-sm">
+      <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+        <TrendingUp size={14} />
+        Progress to {nextTierName}
+      </div>
+
+      <p className="text-sm text-gray-600 leading-tight">
+        Earn{" "}
+        <strong>{pointsToNextTier.toLocaleString()} more points</strong>{" "}
+        to reach <strong>{nextTierName} tier</strong>
+      </p>
     </div>
+  )}
 
-    <p className="text-sm text-gray-600">
-      Earn{" "}
-      <strong>{pointsToNextTier.toLocaleString()} more points</strong>{" "}
-      to reach <strong>{nextTierName}</strong> tier 🚀
+  {/* ACTIVITY */}
+  <div className="bg-white border rounded-xl p-4 shadow-sm">
+    <p className="text-xs font-medium text-gray-500 mb-1">
+      Activity Timeline
     </p>
-  </div>
-)}
-    <div className="bg-white border rounded-xl p-6 shadow-sm">
-  <h3 className="text-sm font-medium text-gray-700 mb-4">
-    Activity Timeline
-  </h3>
 
-  <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-    {/* 🔹 Vertical divider */}
-    <div className="hidden md:block absolute left-1/2 top-0 h-full w-px bg-gray-200" />
-
-    <div className="flex justify-between pr-6">
-      <span className="text-[#445D41]">Last Earned</span>
+    <div className="flex justify-between text-xs">
+      <span className="text-gray-900"> Last Earned</span>
       <span className="font-medium">
         {formatDate(lastEarnedAt)}
       </span>
     </div>
 
-    <div className="flex justify-between pl-6">
-      <span className="text-[#445D41]">Last Redeemed</span>
+    <div className="flex justify-between text-xs mt-1">
+      <span className="text-gray-900"> Last Redeemed</span>
       <span className="font-medium">
         {formatDate(lastRedeemedAt)}
       </span>
     </div>
   </div>
-</div>
 
+</div>
+{loyalty.pointsExpiryEnabled &&
+  loyalty.expiringPoints?.some((p) => p.points > 0) && (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+      <strong>Points expiring soon:</strong>
+
+      <div className="mt-2 space-y-1">
+        {loyalty.expiringPoints
+          .filter((p) => p.points > 0)
+          .map((p, i) => (
+            <div key={i}>
+              {p.points} pts expiring on{" "}
+              {new Date(p.expiresAt).toLocaleDateString("en-GB")}
+            </div>
+          ))}
+      </div>
+    </div>
+)}
+
+
+
+<div className="bg-green-50 border rounded-xl p-4 text-xs text-gray-700">
+
+  {/* TITLE */}
+  <p className="text-sm font-semibold text-[#445D41] mb-2">
+   How redemption works:
+  </p>
+
+  {/* RULES GRID */}
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+
+    <div className="bg-white border rounded-md px-2 py-1">
+      <span className="block text-gray-500">Points value</span>
+      <span className="font-medium">{loyalty.redemptionRateText}</span>
+    </div>
+
+    <div className="bg-white border rounded-md px-2 py-1">
+      <span className="block text-gray-500">Minimum redeem:</span>
+      <span className="font-medium">
+        {loyalty.minimumRedemptionPoints} pts
+      </span>
+    </div>
+
+    <div className="bg-white border rounded-md px-2 py-1">
+      <span className="block text-gray-500">Max per order:</span>
+      <span className="font-medium">
+        {loyalty.maxPointsPerRedemption} pts
+      </span>
+    </div>
+
+    <div className="bg-white border rounded-md px-2 py-1">
+      <span className="block text-gray-500">Max usage:</span>
+      <span className="font-medium">
+        {loyalty.maxRedemptionPercentOfOrder}% of order value
+      </span>
+    </div>
+
+  </div>
+
+  {/* EXPIRY */}
+  {loyalty.pointsExpiryEnabled && (
+    <p className="mt-2 text-[11px] text-gray-500">
+      Points expire after{" "}
+      <span className="font-medium">
+        {loyalty.pointsExpiryMonths} months
+      </span>{" "}
+      if unused.
+    </p>
+  )}
+</div>
     </div>
   );
 }

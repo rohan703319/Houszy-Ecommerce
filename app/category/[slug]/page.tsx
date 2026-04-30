@@ -63,7 +63,7 @@ function findCategoryPath(
   return null;
 }
 
-/* =====================
+/* ==================
    Products Fetch
 ===================== */
 
