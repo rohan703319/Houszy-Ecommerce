@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { MapPin, Package, PackageCheck, Store } from "lucide-react";
+import { ArrowRight, MapPin, Package, PackageCheck, PackageIcon, ShoppingBag, Store } from "lucide-react";
 
 function formatCurrency(n = 0) {
   return `£${n.toFixed(2)}`;
@@ -544,14 +544,30 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
                 </div>
               </section>
 
-             {isAuthenticated && (
+
+<div className="space-y-3">
+  {/* Go to Orders (only if logged in) */}
+  {isAuthenticated && (
+    <Link
+      href="/account?tab=orders"
+      className="flex items-center justify-center gap-2 bg-[#445D41] text-white py-3 rounded-lg font-semibold hover:opacity-90 transition"
+    >
+      <PackageIcon className="w-5 h-5" />
+      Go to My Orders
+      <ArrowRight className="w-4 h-4" />
+    </Link>
+  )}
+
+  {/* Continue Shopping (always show) */}
   <Link
-    href="/account?tab=orders"
-    className="block text-center bg-[#445D41] text-white py-3 rounded-lg font-semibold hover:opacity-90 transition"
+    href="/"
+    className="flex items-center justify-center gap-2 border border-[#445D41] text-[#445D41] py-3 rounded-lg font-semibold hover:bg-gray-900 hover:text-white transition"
   >
-    Go to My Orders
+    <ShoppingBag className="w-5 h-5" />
+    Continue Shopping
+    <ArrowRight className="w-4 h-4" />
   </Link>
-)}
+</div>
 
             </div>
           </div>

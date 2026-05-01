@@ -7,11 +7,15 @@ export function getOrderStatusBadge(status: string) {
     case "completed":
     case "delivered":
       return "bg-green-100 text-green-700";
+    case "collected":
+      return "bg-green-100 text-green-700";  
     case "cancelled":
     case "failed":
       return "bg-red-100 text-red-700";
     case "refunded":
       return "bg-purple-100 text-purple-700";
+      case "shipped":
+      return "bg-blue-100 text-blue-700";
      case "cancellationrequested":
       return "bg-orange-100 text-orange-700 border border-orange-200";  
     default:

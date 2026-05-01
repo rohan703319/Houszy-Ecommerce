@@ -619,7 +619,8 @@ const refundedAmount =
       className={`font-medium ${
         order.paymentStatus?.toLowerCase() === "successful"
           ? "text-green-600"
-          : order.paymentStatus?.toLowerCase() === "pending"
+          : order.paymentStatus?.toLowerCase() === "pending" ||
+            order.paymentStatus?.toLowerCase() === "partiallypaid"
           ? "text-orange-500"
           : order.paymentStatus?.toLowerCase() === "failed"
           ? "text-red-600"
@@ -976,7 +977,7 @@ order.status !== "CancellationRequested" && (
    <div className="pt-1 pb-5 px-5 space-y-3 text-sm">
 
       <div>
-        <p className="text-xs text-gray-500">Store</p>
+        <p className="text-xs text-gray-500">Store Name</p>
         <p className="font-semibold text-[#445D41]">
           {order.collectionStoreName}
         </p>

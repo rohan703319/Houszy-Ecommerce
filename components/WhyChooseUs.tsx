@@ -22,7 +22,7 @@ const reasons = [
   {
     icon: "/icons/24-7-Customer-Support.webp",
     title: "Dedicated Customer Support",
-    description: "Our team is available to assist you [Mon-Sat, 8 AM - 8 PM].",
+    description: "Our team is available to assist you [Mon-Sat, 9 AM - 6 PM].",
   },
 ];
 
