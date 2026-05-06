@@ -157,7 +157,7 @@ const percentageDiscounts = validDiscounts
                 <Link href={`/category/${cat.slug}?offer=true`}>
                   <div className="relative bg-white rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col">
                     {/* OFFER BADGE */}
-                    <div className="absolute top-2 left-2 z-10 flex items-center justify-center text-center w-[52px] h-[52px] md:w-[70px] md:h-[70px] bg-gradient-to-br from-red-500 to-red-700 text-white text-[9px] md:text-[11px] font-extrabold leading-tight rounded-full shadow-lg ring-2 ring-white/70">
+                    <div className="absolute top-2 left-2 z-10 flex items-center justify-center text-center w-[52px] h-[52px] md:w-[70px] md:h-[70px] bg-gradient-to-br from-red-500 to-red-700 text-white text-[9px] md:text-[10px] font-extrabold leading-tight rounded-full shadow-lg ring-2 ring-white/70">
                       <span className="px-1">{offerText}</span>
                     </div>
 

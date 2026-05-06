@@ -4,7 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast/CustomToast";
 import { useMemo } from "react";
-
+import { useState } from "react";
 interface Props {
   quantity: number;
   setQuantity: (value: number) => void;
@@ -26,7 +26,7 @@ export default function QuantitySelector({
   maxQty,
 }: Props) {
   const toast = useToast();
-
+const [hasShownMaxToast, setHasShownMaxToast] = useState(false);
 
 
   /* =============================
@@ -62,28 +62,24 @@ export default function QuantitySelector({
             type="number"
             className="w-8 text-center font-semibold outline-none border-l border-r border-gray-300 text-sm"
             value={quantity === 0 ? "" : quantity}
-            onChange={(e) => {
-              let val = e.target.value;
-              if (!/^\d*$/.test(val)) return;
+   onChange={(e) => {
+  let val = e.target.value;
+  if (!/^\d*$/.test(val)) return;
 
-              if (val === "") {
-                setQuantity(0);
-                return;
-              }
+  if (val === "") {
+    setQuantity(0);
+    return;
+  }
 
-              let num = parseInt(val, 10);
+  let num = parseInt(val, 10);
 
-              if (num > maxStock) {
-                num = maxStock;
-                setStockError(
-                  `Only ${maxStock} items available`
-                );
-              } else {
-                setStockError(null);
-              }
+  if (num > maxStock) {
+    num = maxStock;
+  }
 
-              setQuantity(num);
-            }}
+  setHasShownMaxToast(false);
+  setQuantity(num);
+}}
             onBlur={() => {
               if (!quantity || quantity < 1) setQuantity(1);
               if (quantity > maxStock) setQuantity(maxStock);
@@ -93,33 +89,39 @@ export default function QuantitySelector({
           />
 
           {/* PLUS */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-1.5 h-full"
-            onClick={() => {
-              const limit = maxQty ?? maxStock;
+         <Button
+  variant="ghost"
+  size="sm"
+  className={`px-1.5 h-full ${
+    quantity >= maxStock ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+ onClick={() => {
+  const limit = maxQty ?? maxStock;
 
-              if (quantity >= limit) {
-                toast.error(
-                  `Maximum order quantity is ${limit}`
-                );
-                return;
-              }
+  // 🔥 STOCK LIMIT
+  if (quantity >= maxStock) {
+    if (!hasShownMaxToast) {
+      toast.error(`Only ${maxStock} items available in stock`);
+      setHasShownMaxToast(true);
+    }
+    return;
+  }
 
-              setQuantity(Math.min(quantity + 1, maxStock));
-            }}
-            disabled={quantity >= maxStock}
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
+  // 🔥 ORDER LIMIT
+  if (quantity >= limit) {
+    toast.error(`Maximum order quantity is ${limit}`);
+    return;
+  }
+
+  setHasShownMaxToast(false);
+  setQuantity(Math.min(quantity + 1, maxStock));
+}}
+>
+  <Plus className="h-3 w-3" />
+</Button>
         </div>
 
-        {stockError && (
-          <p className="text-red-600 text-xs mt-1">
-            {stockError}
-          </p>
-        )}
+       
       </div>
     </div>
   );

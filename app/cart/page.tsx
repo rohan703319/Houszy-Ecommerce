@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import ProductOffersModal from "@/components/cart/ProductOffersModal";
 import ConfirmRemoveModal from "@/components/ui/ConfirmRemoveModal";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
+import { getOrderSummaryPricing } from "@/utils/pricing";
+
 export default function CartPage() {
   const toast = useToast();
   const { cart, updateQuantity, removeFromCart, updateCart, cartTotal } = useCart();
@@ -23,7 +25,7 @@ useEffect(() => {
   })));
 }, [cart]);
 // ================= PHARMA SYNC =================
-
+const [maxToastMap, setMaxToastMap] = useState<{ [key: string]: boolean }>({});
 
  const handleCheckout = async () => {
 
@@ -120,6 +122,32 @@ const getItemLoyaltyPoints = (item: any) => {
     return sum + base * (item.quantity ?? 1);
   }, 0);
 }, [cart]);
+
+const oldPriceSummary = useMemo(() => {
+  return cart.reduce(
+    (acc, item) => {
+      const price = item.price;
+      const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+      const qty = item.quantity ?? 1;
+
+      const hasDiscount = (item.discountAmount ?? 0) > 0;
+
+      const pricing = getOrderSummaryPricing({
+        price,
+        oldPrice,
+        quantity: qty,
+        hasDiscount,
+      });
+
+      acc.subtotal += pricing.subtotal;
+      acc.discount += pricing.discount;
+
+      return acc;
+    },
+    { subtotal: 0, discount: 0 }
+  );
+}, [cart]);
+
 const totalDiscount = useMemo(() => {
   return cart.reduce(
     (sum, item) =>
@@ -135,8 +163,35 @@ const bundleSavings = useMemo(() => {
       0
     );
 }, [cart]);
-const totalCombinedDiscount = bundleSavings + totalDiscount;
 
+const finalDiscount = useMemo(() => {
+  return totalDiscount + oldPriceSummary.discount;
+}, [totalDiscount, oldPriceSummary.discount]);
+const totalCombinedDiscount = bundleSavings + finalDiscount;
+const correctSubtotal = useMemo(() => {
+  return cart.reduce((sum, item) => {
+    const qty = item.quantity ?? 1;
+
+    // 🔴 CASE 1: REAL DISCOUNT
+    if ((item.discountAmount ?? 0) > 0) {
+      const base =
+        item.priceBeforeDiscount ??
+        item.price + (item.discountAmount ?? 0);
+
+      return sum + base * qty;
+    }
+
+    // 🟠 CASE 2: OLD PRICE
+    const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+
+    if (oldPrice && oldPrice > item.price) {
+      return sum + oldPrice * qty;
+    }
+
+    // ⚪ CASE 3: NORMAL
+    return sum + item.price * qty;
+  }, 0);
+}, [cart]);
 const applyCouponFromBackend = (item: any, couponData: any) => {
 
   const assigns = item.productData?.assignedDiscounts ?? [];
@@ -514,6 +569,15 @@ const orderVatAmount = useMemo(() => {
         {/* LEFT: items */}
         <div className="lg:col-span-2 space-y-2">
         {cart.map((item) => {
+          const basePrice = item.priceBeforeDiscount ?? item.price;
+const finalPrice = item.finalPrice ?? item.price;
+const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+
+// 🟠 OLD PRICE % CALC
+const oldPricePercent =
+  oldPrice && oldPrice > finalPrice
+    ? Math.round(((oldPrice - finalPrice) / oldPrice) * 100)
+    : null;
   // ❌ bundle child direct render nahi hoga
   if (isBundleChild(item)) return null;
 
@@ -558,16 +622,30 @@ const orderVatAmount = useMemo(() => {
                       {item.name}
                     </h2>
                   </Link>
-                  <div className="flex flex-col items-end flex-shrink-0 ml-1">
-                    <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
-                      £{((item.finalPrice ?? item.price) * (item.quantity ?? 1)).toFixed(2)}
-                    </p>
-                    {(item.discountAmount ?? 0) > 0 && (
-                      <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
-                        {Math.round(((item.discountAmount ?? 0) / (item.priceBeforeDiscount ?? item.price)) * 100)}% OFF
-                      </span>
-                    )}
-                  </div>
+                 <div className="flex flex-col items-end flex-shrink-0 ml-1">
+  <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
+    £{((item.finalPrice ?? item.price) * (item.quantity ?? 1)).toFixed(2)}
+  </p>
+
+  {/* 🔴 CASE 1: REAL DISCOUNT */}
+  {(item.discountAmount ?? 0) > 0 && (
+    <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
+      {Math.round(
+        ((item.discountAmount ?? 0) /
+          (item.priceBeforeDiscount ?? item.price)) *
+          100
+      )}
+      % OFF
+    </span>
+  )}
+
+  {/* 🟠 CASE 2: OLD PRICE */}
+  {!(item.discountAmount ?? 0 > 0) && oldPricePercent && (
+    <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
+      {oldPricePercent}% OFF
+    </span>
+  )}
+</div>
                 </div>
 
                 {/* Row 2: meta (stock / subscription) */}
@@ -611,11 +689,13 @@ const orderVatAmount = useMemo(() => {
                       type="number"
                       className="w-8 text-center outline-none font-medium text-sm border-l border-r border-gray-200 h-full"
                       value={item.quantity}
-                     onChange={(e) => {
+ onChange={(e) => {
   let val = parseInt(e.target.value || "1", 10);
   if (val < 1) return;
 
-  // 🔥 BUNDLE MAX CHECK
+  setMaxToastMap((prev) => ({ ...prev, [item.id]: false }));
+
+  // bundle check...
   if (item.isBundleParent && item.bundleId) {
     const maxQty = getBundleMaxQty(item, bundleChildren);
 
@@ -631,11 +711,23 @@ const orderVatAmount = useMemo(() => {
     bundleChildren.forEach((c) => updateQuantity(c.id, val));
 }}
                     />
-                   <button
+                 <button
   onClick={() => {
+    const itemId = item.id;
     let newQty = (item.quantity ?? 1) + 1;
 
-    // 🔥 BUNDLE MAX CHECK
+    // 🔥 STOCK CHECK (ADD THIS)
+    const stock = getItemStock(item);
+
+    if (newQty > stock) {
+      if (!maxToastMap[itemId]) {
+        toast.error(`Only ${stock} items available in stock`);
+        setMaxToastMap((prev) => ({ ...prev, [itemId]: true }));
+      }
+      return;
+    }
+
+    // 🔥 BUNDLE CHECK (existing)
     if (item.isBundleParent && item.bundleId) {
       const maxQty = getBundleMaxQty(item, bundleChildren);
 
@@ -645,13 +737,18 @@ const orderVatAmount = useMemo(() => {
       }
     }
 
+    // ✅ RESET TOAST FLAG
+    setMaxToastMap((prev) => ({ ...prev, [itemId]: false }));
+
     updateQuantity(item.id, newQty);
 
     if (item.isBundleParent && item.bundleId)
       bundleChildren.forEach((c) => updateQuantity(c.id, newQty));
   }}
-                      className="px-1.5 h-full text-gray-700 font-bold text-sm flex items-center"
-                    >+</button>
+  className="px-1.5 h-full text-gray-700 font-bold text-sm flex items-center"
+>
+  +
+</button>
                   </div>
 
                   {/* VAT + Loyalty badges */}
@@ -824,7 +921,7 @@ const orderVatAmount = useMemo(() => {
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span>Subtotal (Incl. VAT)</span>
-                <span>£{subtotalBeforeDiscount.toFixed(2)}</span>
+<span>£{correctSubtotal.toFixed(2)}</span>
               </div>
              
                 <div className="flex justify-between">
@@ -838,12 +935,13 @@ const orderVatAmount = useMemo(() => {
                   <span>- £{bundleSavings.toFixed(2)}</span>
                 </div>
               )}
-              {totalDiscount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Discount</span>
-                  <span>- £{totalDiscount.toFixed(2)}</span>
-                </div>
-              )}
+             {finalDiscount > 0 && (
+  <div className="flex justify-between text-green-600">
+    <span>Discount</span>
+    <span>- £{finalDiscount.toFixed(2)}</span>
+  </div>
+)}
+
               {totalCombinedDiscount > 0 && (
                 <div className="flex justify-between text-green-800 font-semibold border-t pt-1.5 mt-1">
                   <span>Total Discount</span>
@@ -852,7 +950,9 @@ const orderVatAmount = useMemo(() => {
               )}
               <div className="flex justify-between font-semibold text-gray-900 border-t pt-1.5 text-sm">
                 <span>Total Amount</span>
-                <span>£{cartTotal.toFixed(2)}</span>
+               <span>
+  £{(correctSubtotal - totalCombinedDiscount).toFixed(2)}
+</span>
               </div>
             </div>
 

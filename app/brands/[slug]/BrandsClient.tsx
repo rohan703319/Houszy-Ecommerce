@@ -371,7 +371,7 @@ useEffect(() => {
   </div>
 )}
         {/* TOP BAR – Breadcrumb + Sort (Offers page style) */}
-<div className="flex items-center justify-between gap-2 mb-3 lg:mb-4">
+<div className="flex items-center justify-between gap-2 mb-2 lg:mb-3">
 
   {/* Mobile Filter Button */}
 <button

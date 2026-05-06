@@ -17,7 +17,7 @@ import {
   getDiscountedPrice,
 } from "@/app/lib/discountHelpers";
 import GenderBadge from "@/components/shared/GenderBadge";
-
+import { getOldPriceDiscount } from "@/utils/pricing";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getBackorderUIState } from "@/app/lib/backorderHelpers";
@@ -90,7 +90,7 @@ const { isAuthenticated } = useAuth();
 const flattenedProducts = useMemo(() => {
   return flattenProductsForListing(products);
 }, [products]);
-
+const shouldShowNav = flattenedProducts.length > 4;
 const [vatRates, setVatRates] = useState<any[]>([]);
 const [notifyProduct, setNotifyProduct] = useState<{
   productId: string;
@@ -262,14 +262,23 @@ const shouldShowMinWarning = (product: any) => {
       <h2 className="text-xl md:text-3xl font-bold mb-4 md:mb-8 text-gray-900 text-center">
         {title}
       </h2>
+{shouldShowNav && (
+  <button
+    id="prevBtn"
+    className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20"
+  >
+    <ChevronLeft className="w-8 h-8 text-gray-700" />
+  </button>
+)}
 
-      <button id="prevBtn" className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-0 m-0">
-        <ChevronLeft className="w-8 h-8 text-gray-700" />
-      </button>
-
-      <button id="nextBtn" className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-0 m-0">
-        <ChevronRight className="w-8 h-8 text-gray-700" />
-      </button>
+{shouldShowNav && (
+  <button
+    id="nextBtn"
+    className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20"
+  >
+    <ChevronRight className="w-8 h-8 text-gray-700" />
+  </button>
+)}
 
       <Swiper
   modules={[Autoplay, Navigation, Pagination]}
@@ -289,7 +298,11 @@ const shouldShowMinWarning = (product: any) => {
     pauseOnMouseEnter: true,
   }}
 
-  navigation={{ prevEl: "#prevBtn", nextEl: "#nextBtn" }}
+  navigation={
+  shouldShowNav
+    ? { prevEl: "#prevBtn", nextEl: "#nextBtn" }
+    : false
+}
 
   pagination={{ clickable: true, dynamicBullets: true }}
 
@@ -333,6 +346,15 @@ const basePrice =
 
 const discountBadge = getDiscountBadge(product);
 const finalPrice = getDiscountedPrice(product, basePrice);
+// 🔥 NEW: oldPrice fallback logic
+const oldPriceValue =
+  (defaultVariant as any)?.oldPrice ?? product.oldPrice;
+
+const oldPriceData = getOldPriceDiscount(
+  finalPrice,
+  oldPriceValue,
+  !!discountBadge // agar already discount hai to skip
+);
 // ---------- Active Coupon (indicator only) ----------
 const hasActiveCoupon = (product as any).assignedDiscounts?.some((d: any) => {
   if (!d.isActive) return false;
@@ -418,6 +440,21 @@ const backorderState = getBackorderUIState({
     </div>
   </div>
 )}
+
+{!discountBadge && !hasActiveCoupon && oldPriceData && (
+  <div className="absolute top-1 right-2 z-20">
+    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
+      <div className="flex flex-col items-center leading-none">
+        <span className="text-[10px] sm:text-xs font-extrabold">
+          {oldPriceData.discount}%
+        </span>
+        <span className="text-[7px] sm:text-[8px] font-semibold">
+          OFF
+        </span>
+      </div>
+    </div>
+  </div>
+)}
 {/* Coupon badge — top right, smaller */}
 {!discountBadge && hasActiveCoupon && (
   <div className="absolute top-1 md:top-2 right-1 md:right-2 z-20">
@@ -464,6 +501,7 @@ const backorderState = getBackorderUIState({
 
   slug: cardSlug,
  price: finalPrice,
+ 
 priceBeforeDiscount: basePrice,
 finalPrice: finalPrice,
 discountAmount: discountAmount ?? 0,
@@ -494,16 +532,16 @@ couponCode: null,
 }
   }}
   className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all ${
-    (discountBadge || hasActiveCoupon) ? "top-12" : "top-2"
+    (discountBadge || oldPriceData || hasActiveCoupon) ? "top-12" : "top-2"
   } ${
     isInWishlist(defaultVariant?.id ?? product.id)
-      ? "bg-green-50 border-green-200"
-      : "bg-white border-gray-200 hover:bg-green-50 hover:border-green-200"
+      ? "bg-red-50 border-red-200"
+      : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
   }`}
 >
   <Heart
     className={`h-4 w-4 transition-colors ${
-      isInWishlist(defaultVariant?.id ?? product.id) ? "fill-green-500 text-green-500" : "text-gray-400 hover:text-green-400"
+      isInWishlist(defaultVariant?.id ?? product.id) ? "fill-red-500 text-red-500" : "text-gray-400 hover:text-red-400"
     }`}
   />
 </button>
@@ -567,14 +605,23 @@ couponCode: null,
 
   {/* PRICE ROW */}
   <div className="flex items-center gap-1 sm:gap-2">
-    <span className="text-lg font-bold text-[#445D41] leading-none">
-      £{finalPrice.toFixed(2)}
-    </span>
-    {discountBadge && (
-      <span className="text-xs text-gray-400 line-through leading-none">
-        £{basePrice.toFixed(2)}
-      </span>
-    )}
+   <span className="text-lg font-bold text-[#445D41] leading-none">
+  £{finalPrice.toFixed(2)}
+</span>
+
+{/* 🔥 CASE 1: REAL DISCOUNT */}
+{discountBadge && (
+  <span className="text-xs text-gray-400 line-through leading-none">
+    £{basePrice.toFixed(2)}
+  </span>
+)}
+
+{/* 🔥 CASE 2: OLD PRICE (NO DISCOUNT) */}
+{!discountBadge && !hasActiveCoupon && oldPriceData && (
+  <span className="text-xs text-gray-400 line-through leading-none">
+    £{oldPriceData.oldPrice.toFixed(2)}
+  </span>
+)}
     {!product.vatExempt && vatRate !== null && (
       <span className="text-[8px] sm:text-[10px] font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded whitespace-nowrap leading-none">
         {vatRate}% VAT
@@ -661,6 +708,7 @@ if (existingCartQty + finalQty > maxQty) {
     price: finalPrice,
     priceBeforeDiscount: basePrice,
     finalPrice: finalPrice,
+     oldPrice: oldPriceValue ?? null,
     discountAmount: discountAmount,
     quantity: finalQty,
       // ✅ ADD THESE 👇

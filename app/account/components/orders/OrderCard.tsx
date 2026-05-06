@@ -6,6 +6,7 @@ import Info from "../ui/Info";
 import { getOrderStatusBadge, getCollectionStatusTextColor } from "./orderUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast/CustomToast";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -41,6 +42,7 @@ function StripePaymentForm({
   accessToken: string | null;
   onSuccess: () => void;
 }) {
+
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
@@ -262,6 +264,7 @@ export default function OrderCard({
   targetOrderId?: string | null; 
 }) {
   const { accessToken, user } = useAuth();
+    const router = useRouter();
   const toast = useToast();
 
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -458,6 +461,83 @@ const refundedAmount =
   order.payments?.[0]?.refundAmount ??
   order.payment?.refundAmount ??
   0;
+const handleReorder = async () => {
+  try {
+    toast.info("Preparing reorder...");
+
+    const results = await Promise.all(
+      order.items.map(async (item: any) => {
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/Products/${item.productId}`
+          );
+
+          const json = await res.json();
+
+          if (!json?.success || !json?.data) return null;
+
+          const p = json.data;
+
+          // ❌ inactive
+          if (!p.isActive) return null;
+
+          let stock = p.stockQuantity;
+
+          // 🔥 VARIANT STOCK
+          if (p.selectedVariantId && p.variants?.length) {
+            const variant = p.variants.find(
+              (v: any) => v.id === p.selectedVariantId
+            );
+
+            if (variant) {
+              stock = variant.stockQuantity;
+            }
+          }
+
+          // ❌ OUT OF STOCK
+          if (!stock || stock <= 0) {
+            return { skipped: true };
+          }
+
+          // ✅ ADJUST QTY
+          const qty = Math.min(item.quantity, stock);
+
+          return {
+            id: p.id,
+            productId: p.id,
+            variantId: p.selectedVariantId || null,
+            name: p.name,
+            image:
+              p.images?.find((img: any) => img.isMain)?.imageUrl ||
+              p.images?.[0]?.imageUrl ||
+              "",
+            price: p.price,
+            finalPrice: p.price,
+            quantity: qty,
+            productData: p,
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const valid = results.filter((x: any) => x && !x.skipped);
+
+    if (valid.length === 0) {
+      toast.error("All items are out of stock");
+      return;
+    }
+
+    sessionStorage.setItem("reorderItems", JSON.stringify(valid));
+
+    toast.success("Redirecting to checkout...");
+
+    router.push("/checkout?reorder=true");
+  } catch {
+    toast.error("Reorder failed");
+  }
+};
 
   return (
    <div
@@ -823,14 +903,14 @@ const refundedAmount =
 
       {/* ACTIONS */}
       <div className="flex flex-wrap justify-end items-center gap-2 pt-3 border-t">
-       
+      
 
         <Button
           onClick={handleDownloadInvoice}
           size="sm"
           variant="outline"
           disabled={invoiceLoading}
-          className="text-white bg-[#445D41] hover:bg-green-700"
+          className="text-white bg-[#445D41] hover:bg-black hover:text-white"
         >
           {invoiceLoading ? "Generating Invoice..." : "Download Invoice"}
         </Button>
@@ -841,6 +921,17 @@ order.status !== "CancellationRequested" && (
             Cancel Order
           </Button>
         )}
+
+         {order.status?.toLowerCase() !== "processing" && (
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={handleReorder}
+    className="text-white bg-black hover:bg-[#445D41] hover:text-white"
+  >
+    Reorder
+  </Button>
+)}
       </div>
 
       {/* PAY NOW MODAL */}

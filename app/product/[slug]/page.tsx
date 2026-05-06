@@ -122,7 +122,7 @@ return {
   openGraph: {
     title: product.name,
     description: description || product.name,
-    url: `https://www.direct-care.co.uk/products/${product.slug}`,
+    url: `https://www.direct-care.co.uk/product/${product.slug}`,
     siteName: "Direct Care",
     images: imageUrl
       ? [
@@ -144,7 +144,7 @@ height: 630,
   },
 
   alternates: {
-    canonical: `https://www.direct-care.co.uk/products/${product.slug}`,
+    canonical: `https://www.direct-care.co.uk/product/${product.slug}`,
   },
 };
 }
@@ -189,7 +189,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
       offers: {
         "@type": "Offer",
-      url: `https://www.direct-care.co.uk/products/${data.product.slug}`,
+      url: `https://www.direct-care.co.uk/product/${data.product.slug}`,
         priceCurrency: "GBP",
         price: data.product.price,
         availability:

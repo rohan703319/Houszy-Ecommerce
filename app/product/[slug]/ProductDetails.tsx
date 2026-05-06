@@ -35,6 +35,7 @@ import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers
 import { usePathname } from "next/navigation";
 import { detectUKRegion } from "@/app/lib/region";
 import GenderBadge from "@/components/shared/GenderBadge";
+import { getOldPriceDiscount } from "@/utils/pricing";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { useVatRates } from "@/app/hooks/useVatRates";
 import { useCartActivity } from "@/context/CartContext";
@@ -65,6 +66,7 @@ interface Variant {
     slug: string;
     loyaltyPointsEarnable?: number;
   loyaltyPointsMessage?: string;
+  oldPrice?: number;
 }
 interface AssignedDiscount {
   id: string;
@@ -784,6 +786,16 @@ const isStackedDiscount = useMemo(() => {
 const autoDiscountedPrice = useMemo(() => {
   return getDiscountedPrice(product, basePrice);
 }, [product, basePrice]);
+
+// 🔥 OLD PRICE FALLBACK (PDP SAFE)
+const oldPriceValue =
+  selectedVariant?.oldPrice ?? product.oldPrice;
+
+const oldPriceData = getOldPriceDiscount(
+  finalPrice,
+  oldPriceValue,
+  !!appliedCoupon || !!activeAutoDiscount
+);
 // ✅ STOCK (variant aware)
 const stock = useMemo(() => {
   return selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
@@ -1751,6 +1763,23 @@ if (hasCouponAvailable) {
     </div>
   );
 }
+// 🟠 PRIORITY 4: OLD PRICE (NO DISCOUNT, NO COUPON)
+if (!appliedCoupon && !activeAutoDiscount && !hasCouponAvailable && oldPriceData) {
+  return (
+    <div className="absolute top-3 left-4 z-20">
+      <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-lg ring-2 ring-white">
+        <div className="flex flex-col items-center leading-none">
+          <span className="text-lg md:text-xl font-extrabold">
+            {oldPriceData.discount}%
+          </span>
+          <span className="text-[10px] md:text-sm font-semibold">
+            OFF
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
   return null;
 })()}
                     {product.images.length > 1 && (
@@ -2100,11 +2129,19 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
   <span className="text-lg font-bold text-[#445D41]">
     £{(finalPrice * normalQty).toFixed(2)}
   </span>
-  {discountAmount > 0 && (
-    <span className="text-xs text-gray-400 line-through">
-      £{(basePrice * normalQty).toFixed(2)}
-    </span>
-  )}
+ {/* 🔥 CASE 1: DISCOUNT */}
+{(appliedCoupon || activeAutoDiscount) && (
+  <span className="text-xs text-gray-400 line-through">
+    £{(basePrice * normalQty).toFixed(2)}
+  </span>
+)}
+
+{/* 🔥 CASE 2: OLD PRICE */}
+{!appliedCoupon && !activeAutoDiscount && oldPriceData && (
+  <span className="text-xs text-gray-400 line-through">
+    £{(oldPriceData.oldPrice * normalQty).toFixed(2)}
+  </span>
+)}
   {vatRate !== null && (
     <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-md font-semibold">
       {vatRate}% VAT
@@ -2225,11 +2262,19 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
       <span className="text-lg md:text-2xl font-bold text-[#445D41]">
         £{(finalPrice * normalQty).toFixed(2)}
       </span>
-      {discountAmount > 0 && (
-        <span className="text-xs text-gray-400 line-through">
-        £{(basePrice * normalQty).toFixed(2)}
-        </span>
-      )}
+    {/* 🔥 CASE 1: DISCOUNT */}
+{(appliedCoupon || activeAutoDiscount) && (
+  <span className="text-xs text-gray-400 line-through">
+    £{(basePrice * normalQty).toFixed(2)}
+  </span>
+)}
+
+{/* 🔥 CASE 2: OLD PRICE */}
+{!appliedCoupon && !activeAutoDiscount && oldPriceData && (
+  <span className="text-xs text-gray-400 line-through">
+    £{(oldPriceData.oldPrice * normalQty).toFixed(2)}
+  </span>
+)}
       {vatRate !== null && (
         <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded font-semibold">
           {vatRate}% VAT
@@ -2320,7 +2365,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
       product.orderMaximumQuantity ?? maxStock;
     const limit = Math.min(maxQty, maxStock);
     if (normalQty >= limit) {
-      toast.error(`Maximum order quantity is ${limit}`);
+      toast.error(`only ${limit} quantity left in stock`);
       return;
     }
     setNormalQty(normalQty + 1);

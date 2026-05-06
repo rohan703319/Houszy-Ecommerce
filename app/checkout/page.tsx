@@ -222,6 +222,7 @@ const [storeLoading, setStoreLoading] = useState(false);
 const [shippingOptions, setShippingOptions] = useState<any[]>([]);
 const [selectedShippingOption, setSelectedShippingOption] = useState<any | null>(null);
 const [shippingQuoteLoading, setShippingQuoteLoading] = useState(false);
+const [shippingError, setShippingError] = useState<string | null>(null);
   // Shipping fields
   const [shippingSameAsBilling, setShippingSameAsBilling] = useState(true);
   const [shippingFirstName, setShippingFirstName] = useState("");
@@ -341,7 +342,7 @@ const [pointsToRedeem, setPointsToRedeem] = useState(0);
   // 🔹 BUY NOW ITEM (frontend-only)
 // ✅ BUY NOW SAFE STATE
 const [buyNowItem, setBuyNowItem] = useState<any>(null);
-
+const [reorderItems, setReorderItems] = useState<any[]>([]);
 useEffect(() => {
   const stored = sessionStorage.getItem("buyNowItem");
 
@@ -353,15 +354,34 @@ useEffect(() => {
     }
   }
 }, []);
+
+useEffect(() => {
+  const reorder = sessionStorage.getItem("reorderItems");
+
+  if (reorder) {
+    try {
+      setReorderItems(JSON.parse(reorder));
+    } catch {
+      setReorderItems([]);
+    }
+  }
+}, []);
+
+const isReorderFlow = reorderItems.length > 0;
 const isBuyNowFlow = !!buyNowItem;
 
-const checkoutItems = isBuyNowFlow
+const checkoutItems = isReorderFlow
+  ? reorderItems
+  : isBuyNowFlow
   ? [buyNowItem]
   : cart;
 useEffect(() => {
   return () => {
     sessionStorage.removeItem("buyNowItem");
-    setBuyNowItem(null); // 🔥 ADD THIS
+    sessionStorage.removeItem("reorderItems"); // 🔥 ADD THIS
+
+    setBuyNowItem(null);
+    setReorderItems([]); // 🔥 ADD THIS
   };
 }, []);
 useEffect(() => {
@@ -437,6 +457,48 @@ const cartDiscount = useMemo(() => {
     return sum + (item.discountAmount ?? 0) * item.quantity;
   }, 0);
 }, [checkoutItems]);
+// ✅ CORRECT SUBTOTAL (same as cart)
+const correctSubtotal = useMemo(() => {
+  return checkoutItems.reduce((sum, item) => {
+    const qty = item.quantity ?? 1;
+
+    if ((item.discountAmount ?? 0) > 0) {
+      const base =
+        item.priceBeforeDiscount ??
+        item.price + (item.discountAmount ?? 0);
+
+      return sum + base * qty;
+    }
+
+    const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+
+    if (oldPrice && oldPrice > item.price) {
+      return sum + oldPrice * qty;
+    }
+
+    return sum + item.price * qty;
+  }, 0);
+}, [checkoutItems]);
+
+// ✅ OLD PRICE DISCOUNT
+const oldPriceDiscount = useMemo(() => {
+  return checkoutItems.reduce((sum, item) => {
+    const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+    const qty = item.quantity ?? 1;
+
+    if (oldPrice && oldPrice > item.price) {
+      return sum + (oldPrice - item.price) * qty;
+    }
+
+    return sum;
+  }, 0);
+}, [checkoutItems]);
+
+// ✅ FINAL DISCOUNT
+const finalDiscount = cartDiscount + oldPriceDiscount;
+
+// ✅ TOTAL DISCOUNT (bundle + all)
+const totalCombinedDiscount = cartBundleDiscount + finalDiscount;
 // Delivery type availability — ALL cart items must support the type
 const allSupportNextDay = useMemo(() =>
   checkoutItems.length > 0 && checkoutItems.every(i => i.nextDayDeliveryEnabled === true),
@@ -465,18 +527,14 @@ const shippingCost = useMemo(() => {
 
 const cartTotalAmount = useMemo(() => {
   return (
-    cartSubtotal -
-    cartBundleDiscount -
-    cartDiscount +
-    shippingCost 
-   
+    correctSubtotal -
+    totalCombinedDiscount +
+    shippingCost
   );
 }, [
-  cartSubtotal,
-  cartBundleDiscount,
-  cartDiscount,
+  correctSubtotal,
+  totalCombinedDiscount,
   shippingCost,
-  
 ]);
 const finalPayableAmount = cartTotalAmount - pointsDiscount;
 const checkoutVatAmount = useMemo(() => {
@@ -499,6 +557,7 @@ useEffect(() => {
   if (!postcode) {
   setShippingOptions([]);
   setSelectedShippingOption(null);
+  setShippingError(null);
   return;
 }
   const cartValue = checkoutItems.reduce((s, i) => s + (i.finalPrice ?? i.price) * i.quantity, 0);
@@ -511,7 +570,16 @@ const res = await fetch(
   `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=${encodeURIComponent(postcode)}&orderTotal=${cartValue}`
 );
       const json = await res.json();
+
+      if (!res.ok) {
+        setShippingError(json?.message || "We do not currently deliver to this region.");
+        setShippingOptions([]);
+        setSelectedShippingOption(null);
+        return;
+      }
+
  if (json?.success && Array.isArray(json.data)) {
+  setShippingError(null);
   let options = json.data;
 
   // 🔥 MAIN FILTER (IMPORTANT)
@@ -989,12 +1057,14 @@ const onPaymentSuccess = (createdOrder: any) => {
     });
   }
   
-  if (isBuyNowFlow) {
-    sessionStorage.removeItem("buyNowItem");
-    sessionStorage.setItem("preserveCart", "1");
-  } else {
-    clearCart();
-  }
+ if (isReorderFlow) {
+  sessionStorage.removeItem("reorderItems");
+} else if (isBuyNowFlow) {
+  sessionStorage.removeItem("buyNowItem");
+  sessionStorage.setItem("preserveCart", "1");
+} else {
+  clearCart();
+}
  if (subscribeNewsletter && billingEmail) {
     subscribeNewsletterAfterOrder(billingEmail);
   }
@@ -1466,6 +1536,15 @@ setShippingAddressQuery("");
 </fieldset>
 )}
 
+          {/* Shipping Delivery Error Banner */}
+{deliveryMethod === "HomeDelivery" && shippingError && (
+  <div className="bg-red-50 border border-red-300 rounded-lg p-3 flex items-start gap-2">
+    <svg className="h-4 w-4 text-red-500 mt-0.5 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
+    </svg>
+    <p className="text-xs text-red-700 font-medium">{shippingError}</p>
+  </div>
+)}
           {/* Order notes */}
           <div className="bg-white p-3 rounded shadow">
             <label className="block text-xs font-medium mb-1">Order notes (optional)</label>
@@ -1546,7 +1625,9 @@ setShippingAddressQuery("");
   {/* Subtotal */}
   <div className="flex items-center justify-between">
     <span className="text-gray-700">Subtotal (Incl. VAT)</span>
-    <span className="font-medium">{formatCurrency(cartSubtotal)}</span>
+  <span className="font-medium">
+  {formatCurrency(correctSubtotal)}
+</span>
   </div>
   <div className="flex items-center justify-between border-t pt-2 mt-2 text-sm text-gray-700">
   <span>VAT</span>
@@ -1568,19 +1649,19 @@ setShippingAddressQuery("");
     <div className="flex items-center justify-between text-green-700">
       <span>Bundle discount</span>
       <span className="font-medium">
-        − {formatCurrency(cartBundleDiscount)}
+        - {formatCurrency(cartBundleDiscount)}
       </span>
     </div>
   )}
   {/* Coupon / Normal Discount */}
-  {cartDiscount > 0 && (
-    <div className="flex items-center justify-between text-green-700">
-      <span>Discount</span>
-      <span className="font-medium">
-        − {formatCurrency(cartDiscount)}
-      </span>
-    </div>
-  )}
+{finalDiscount > 0 && (
+  <div className="flex items-center justify-between text-green-700">
+    <span>Discount</span>
+    <span className="font-medium">
+      - {formatCurrency(finalDiscount)}
+    </span>
+  </div>
+)}
 
 {/* Shipping */}
 {deliveryMethod === "HomeDelivery" && selectedShippingOption && (
@@ -1604,6 +1685,12 @@ setShippingAddressQuery("");
   <div className="flex items-center justify-between text-green-700 text-xs">
     <span>Loyalty Points Discount ({pointsToRedeem} pts)</span>
     <span>- {formatCurrency(pointsDiscount)}</span>
+  </div>
+)}
+{totalCombinedDiscount > 0 && (
+  <div className="flex items-center justify-between text-green-800 font-semibold border-t pt-2">
+    <span>Total Discount</span>
+    <span>− {formatCurrency(totalCombinedDiscount)}</span>
   </div>
 )}
   {/* Divider + Total */}
@@ -1642,7 +1729,7 @@ setShippingAddressQuery("");
 {/* STEP 1 */}
 {!stripeClientSecret && (
   <button
-disabled={isPlacing}
+disabled={isPlacing || (deliveryMethod === "HomeDelivery" && !!shippingError)}
     onClick={async () => {
         if (!acceptTerms) {
     setError("Please accept Terms & Conditions");
@@ -1702,8 +1789,8 @@ if (!intentJson?.data?.clientSecret) {
       setIsPlacing(false);
     }}
    className={`w-full py-2 text-sm rounded transition flex items-center justify-center gap-2 ${
-  isPlacing
-    ? "bg-gray-400 cursor-not-allowed"
+  isPlacing || (deliveryMethod === "HomeDelivery" && !!shippingError)
+    ? "bg-gray-400 cursor-not-allowed text-white"
     : "bg-[#445D41] hover:bg-[#3a5037] text-white"
 }`}
   >

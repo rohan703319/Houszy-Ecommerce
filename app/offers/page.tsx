@@ -72,8 +72,8 @@ export default async function OffersPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Gift className="h-5 w-5 text-yellow-300" />
-                <span className="text-yellow-300 font-semibold text-sm uppercase tracking-wider">Exclusive Deals</span>
+                <Gift className="h-5 w-5 text-white" />
+                <span className="text-white font-semibold text-sm uppercase tracking-wider">Exclusive Deals</span>
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold leading-tight">
                 Today's Offers &amp; Deals
@@ -84,11 +84,11 @@ export default async function OffersPage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="text-center px-3 py-2 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20">
-                <div className="text-3xl font-black text-yellow-300">{discounts.length}</div>
+                <div className="text-3xl font-black text-white">{discounts.length}</div>
                 <div className="text-sm text-white/80">Active Deals</div>
               </div>
               <div className="text-center px-6 py-2 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20">
-                <div className="text-3xl font-black text-yellow-300">
+                <div className="text-3xl font-black text-white">
                   {discounts.reduce((acc, d) => acc + (d.productCount ?? 0), 0)}+
                 </div>
                 <div className="text-sm text-white/80">Products</div>

@@ -568,11 +568,11 @@ useEffect(() => {
     <Heart
       size={24}
       className={`block ${
-        wishlistCount > 0 ? "fill-[#445D41] text-black" : ""
+        wishlistCount > 0 ? "fill-red-500 text-red-500" : ""
       }`}
     />
     {wishlistCount > 0 && (
-      <span className="absolute -top-0.5 -right-1 bg-[#445D41] text-white text-[9px] rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+      <span className="absolute -top-0.5 -right-1 bg-red-400 text-white text-[9px] rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
         {wishlistCount}
       </span>
     )}

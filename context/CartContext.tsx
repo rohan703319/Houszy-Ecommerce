@@ -35,6 +35,7 @@ export interface CartItem {
   price: number;
   priceBeforeDiscount?: number;
   finalPrice?: number;
+  oldPrice?: number;
   discountAmount?: number;
   appliedDiscountId?: string | null;
   couponCode?: string | null;
@@ -91,12 +92,19 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 // ─── Helper: map backend DTO → frontend CartItem ──────────────────────────────
 function backendToFrontend(dto: any): CartItem {
+
   return {
     id: dto.variantId ?? dto.productId,
     backendId: dto.id,
     productId: dto.productId,
     name: dto.productName,
     price: dto.price,
+  oldPrice:
+  dto.oldPrice ??
+  dto.product?.oldPrice ??
+  dto.productData?.oldPrice ??
+  dto.variant?.oldPrice ??
+  null,
     priceBeforeDiscount: dto.price,
     finalPrice: dto.finalPrice,
     discountAmount: dto.discountAmount,
@@ -148,6 +156,7 @@ function frontendToBackend(item: CartItem, sessionId: string) {
     productImageUrl: item.image ?? null,
     quantity: item.quantity,
     price: item.price,
+    
     finalPrice: item.finalPrice ?? item.price,
     discountAmount: item.discountAmount ?? 0,
     appliedDiscountId: item.appliedDiscountId ?? null,
