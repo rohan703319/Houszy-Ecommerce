@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import Link from "next/link";
-import { Trash2, GiftIcon, AwardIcon } from "lucide-react";
+import { Trash2, GiftIcon, AwardIcon, Truck } from "lucide-react";
 import { useToast } from "@/components/toast/CustomToast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -130,7 +130,8 @@ const oldPriceSummary = useMemo(() => {
       const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
       const qty = item.quantity ?? 1;
 
-      const hasDiscount = (item.discountAmount ?? 0) > 0;
+     const hasDiscount =
+  item.displayDiscountType === "System";
 
       const pricing = getOrderSummaryPricing({
         price,
@@ -173,9 +174,9 @@ const correctSubtotal = useMemo(() => {
     const qty = item.quantity ?? 1;
 
     // 🔴 CASE 1: REAL DISCOUNT
-    if ((item.discountAmount ?? 0) > 0) {
+   // 🔴 CASE 1: SYSTEM DISCOUNT
+if (item.displayDiscountType === "System") {
       const base =
-        item.priceBeforeDiscount ??
         item.price + (item.discountAmount ?? 0);
 
       return sum + base * qty;
@@ -184,7 +185,11 @@ const correctSubtotal = useMemo(() => {
     // 🟠 CASE 2: OLD PRICE
     const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
 
-    if (oldPrice && oldPrice > item.price) {
+    if (
+  item.displayDiscountType === "OldPrice" &&
+  oldPrice &&
+  oldPrice > item.price
+) {
       return sum + oldPrice * qty;
     }
 
@@ -523,6 +528,24 @@ const orderVatAmount = useMemo(() => {
 
 
 
+  const freeShippingThreshold = useMemo(() => {
+    let threshold = 0;
+    for (const item of cart) {
+      if (item.productData) {
+        if (item.variantId && item.productData.variants?.length) {
+          const v = item.productData.variants.find((x: any) => x.id === item.variantId);
+          if (v && v.freeShippingThreshold && v.freeShippingThreshold > 0) {
+            threshold = Math.max(threshold, v.freeShippingThreshold);
+          }
+        }
+        if (item.productData.freeShippingThreshold && item.productData.freeShippingThreshold > 0) {
+          threshold = Math.max(threshold, item.productData.freeShippingThreshold);
+        }
+      }
+    }
+    return threshold;
+  }, [cart]);
+
   // UI render
   // -------------------------
   if (!cart || cart.length === 0) {
@@ -575,8 +598,10 @@ const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
 
 // 🟠 OLD PRICE % CALC
 const oldPricePercent =
-  oldPrice && oldPrice > finalPrice
-    ? Math.round(((oldPrice - finalPrice) / oldPrice) * 100)
+  item.displayDiscountType === "OldPrice" &&
+  oldPrice &&
+  oldPrice > basePrice
+    ? Math.round(((oldPrice - basePrice) / oldPrice) * 100)
     : null;
   // ❌ bundle child direct render nahi hoga
   if (isBundleChild(item)) return null;
@@ -617,34 +642,90 @@ const oldPricePercent =
 
                 {/* Row 1: Name + Price */}
                 <div className="flex items-start justify-between gap-1">
-                  <Link href={`/product/${item.slug}`} className="flex-1 min-w-0">
-                    <h2 className="font-semibold text-xs md:text-sm text-gray-900 leading-tight line-clamp-2">
+                  <Link href={`/product/${item.slug}`} className="flex-1 min-w-0 pr-2 md:pr-4">
+                    <h2 className="font-medium text-xs md:text-sm text-gray-900 hover:text-[#445D41] leading-tight line-clamp-2">
                       {item.name}
                     </h2>
                   </Link>
-                 <div className="flex flex-col items-end flex-shrink-0 ml-1">
-  <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
-    £{((item.finalPrice ?? item.price) * (item.quantity ?? 1)).toFixed(2)}
-  </p>
+   <div className="flex flex-col items-end flex-shrink-0 ml-1">
 
-  {/* 🔴 CASE 1: REAL DISCOUNT */}
-  {(item.discountAmount ?? 0) > 0 && (
-    <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
-      {Math.round(
-        ((item.discountAmount ?? 0) /
-          (item.priceBeforeDiscount ?? item.price)) *
-          100
-      )}
-      % OFF
-    </span>
+  {/* PRICE ROW */}
+  <div className="flex items-center gap-1 flex-wrap justify-end">
+
+    {/* FINAL PRICE */}
+    <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
+      £{
+        (
+          (
+            item.displayDiscountType === "System" ||
+            item.couponCode
+              ? (item.finalPrice ?? item.price)
+              : item.price
+          ) * (item.quantity ?? 1)
+        ).toFixed(2)
+      }
+    </p>
+
+    {/* CUT PRICE */}
+    {(() => {
+
+      let comparePrice: number | null = null;
+
+      // SYSTEM DISCOUNT
+      if (
+        item.displayDiscountType === "System" &&
+        (item.systemDiscountAmount ?? 0) > 0
+      ) {
+        comparePrice =
+          item.price + (item.discountAmount ?? 0);
+      }
+
+      // OLD PRICE
+      else if (
+        item.displayDiscountType === "OldPrice"
+      ) {
+        const oldPrice =
+          item.oldPrice ??
+          item.productData?.oldPrice;
+
+        if (oldPrice && oldPrice > item.price) {
+          comparePrice = oldPrice;
+        }
+      }
+
+      if (!comparePrice) return null;
+
+      return (
+        <span className="text-[11px] text-gray-400 line-through whitespace-nowrap">
+          £{(comparePrice * (item.quantity ?? 1)).toFixed(2)}
+        </span>
+      );
+
+    })()}
+
+  </div>
+
+  {/* SYSTEM DISCOUNT */}
+  {item.displayDiscountType === "System" &&
+    (item.systemDiscountAmount ?? 0) > 0 && (
+      <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
+        {Math.round(
+          ((item.systemDiscountAmount ?? 0) /
+            ((item.price + (item.discountAmount ?? 0)) || 1)) *
+            100
+        )}
+        % OFF
+      </span>
   )}
 
-  {/* 🟠 CASE 2: OLD PRICE */}
-  {!(item.discountAmount ?? 0 > 0) && oldPricePercent && (
-    <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
-      {oldPricePercent}% OFF
-    </span>
+  {/* OLD PRICE DISCOUNT */}
+  {item.displayDiscountType === "OldPrice" &&
+    oldPricePercent && (
+      <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
+        {oldPricePercent}% OFF
+      </span>
   )}
+
 </div>
                 </div>
 
@@ -758,11 +839,15 @@ const oldPricePercent =
                         {item.vatRate}% VAT
                       </span>
                     )}
-                    {(item.vatRate === 0 || item.vatRate === null) && (
-                      <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
-                        VAT Exempt
-                      </span>
-                    )}
+                   {(
+  item.vatIncluded === false ||
+  item.vatRate === 0 ||
+  item.vatRate === null
+) && (
+  <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+    VAT Exempt
+  </span>
+)}
                     {getItemLoyaltyPoints(item) > 0 && (
                       <div className="inline-flex items-center gap-0.5 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
                         <AwardIcon className="h-3 w-3 text-green-600" />
@@ -893,6 +978,33 @@ const oldPricePercent =
         {/* RIGHT: order summary + coupon input */}
         <div className="lg:col-span-1">
           <div className="bg-white border border-gray-200 rounded-xl shadow-md p-2 sticky top-24">
+            {/* Free Shipping Progress */}
+            {freeShippingThreshold > 0 && (
+              <div className="mb-2 bg-[#f8fafc] border border-gray-200 rounded-lg p-2.5">
+                {cartTotal >= freeShippingThreshold ? (
+                  <div className="flex items-center gap-2 text-[#445D41] text-xs font-semibold">
+                    <Truck size={14} className="flex-shrink-0" />
+                    <span>Yay! You get FREE Delivery!</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-2 text-gray-700 text-xs mb-1.5 leading-tight">
+                      <Truck size={14} className="text-[#445D41] mt-0.5 flex-shrink-0" />
+                      <span>
+                        Add <strong className="text-[#445D41]">£{(freeShippingThreshold - cartTotal).toFixed(2)}</strong> more for <strong>FREE Delivery!</strong>
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className="bg-[#445D41] h-full rounded-full transition-all duration-500 ease-out" 
+                        style={{ width: `${Math.min((cartTotal / freeShippingThreshold) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Inline coupon input */}
             <div className="border border-gray-300 rounded-lg p-2 mb-2">
               <h3 className="text-sm font-semibold mb-1.5">Apply Coupon</h3>

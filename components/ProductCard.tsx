@@ -193,7 +193,32 @@ const finalQty = getInitialQty(product);
     price: finalPrice,
     priceBeforeDiscount: basePrice,
     finalPrice,
-    discountAmount: basePrice - finalPrice,
+   discountAmount:
+  (
+    defaultVariant?.displayDiscountType ??
+    product.displayDiscountType
+  ) === "System"
+    ? +(basePrice - finalPrice).toFixed(2)
+    : 0,
+   oldPrice:
+  defaultVariant?.oldPrice ??
+  product.oldPrice ??
+  undefined,
+
+displayDiscountType:
+  defaultVariant?.displayDiscountType ??
+  product.displayDiscountType ??
+  "None",
+
+hasSystemDiscount:
+  defaultVariant?.hasSystemDiscount ??
+  product.hasSystemDiscount ??
+  false,
+
+systemDiscountAmount:
+  defaultVariant?.systemDiscountAmount ??
+  product.systemDiscountAmount ??
+  0,
     quantity: finalQty,
     image: mainImage,
     sku: defaultVariant?.sku ?? product.sku,
@@ -257,7 +282,7 @@ if (product.orderMinimumQuantity > 1) {
           />
 <GenderBadge gender={product.gender} />
           {/* DISCOUNT BADGE — smaller */}
-          {discountBadge && (
+         {product.displayDiscountType === "System" && discountBadge && (
             <div className="absolute top-1 right-2 z-20">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
                 <div className="flex flex-col items-center leading-none">
@@ -293,7 +318,9 @@ if (product.orderMinimumQuantity > 1) {
   </div>
 )}
 {/* 🔥 OLD PRICE BADGE */}
-{!discountBadge && !hasActiveCoupon && oldPriceData && (
+{product.displayDiscountType === "OldPrice" &&
+ !hasActiveCoupon &&
+ oldPriceData && (
   <div className="absolute top-1 right-2 z-20">
     <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
       <div className="flex flex-col items-center leading-none">
@@ -343,9 +370,25 @@ toggleWishlist({
   price: finalPrice,
 priceBeforeDiscount: basePrice,
 finalPrice: finalPrice,
-discountAmount: basePrice > finalPrice ? +(basePrice - finalPrice).toFixed(2) : 0,
+discountAmount:
+  product.displayDiscountType === "System"
+    ? +(basePrice - finalPrice).toFixed(2)
+    : 0,
 appliedDiscountId: null,
 couponCode: null,
+oldPrice:
+  defaultVariant?.oldPrice ??
+  product.oldPrice ??
+  null,
+
+displayDiscountType:
+  product.displayDiscountType ?? "None",
+
+hasSystemDiscount:
+  product.hasSystemDiscount ?? false,
+
+systemDiscountAmount:
+  product.systemDiscountAmount ?? 0,
   image: mainImage,
 
   vatRate: vatRate ?? null,
@@ -371,7 +414,11 @@ couponCode: null,
     }
   }}
   className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all
-    ${discountBadge || oldPriceData || hasActiveCoupon ? "top-12" : "top-2"}
+    ${
+  product.displayDiscountType !== "None" || hasActiveCoupon
+    ? "top-12"
+    : "top-2"
+}
     ${
       isInWishlist(defaultVariant?.id ?? product.id)
         ? "bg-red-50 border-red-200"
@@ -428,17 +475,25 @@ couponCode: null,
         {/* PRICE */}
         <div className="flex items-center gap-1 md:gap-2 mb-1">
           <span className="text-sm md:text-xl font-bold text-[#445D41]">
-            £{finalPrice.toFixed(2)}
+         £{
+  (
+    product.displayDiscountType === "System"
+      ? finalPrice
+      : basePrice
+  ).toFixed(2)
+}
           </span>
          {/* 🔥 CASE 1: REAL DISCOUNT */}
-{discountBadge && (
+{product.displayDiscountType === "System" && discountBadge && (
   <span className="text-xs md:text-sm text-gray-400 line-through">
     £{basePrice.toFixed(2)}
   </span>
 )}
 
 {/* 🔥 CASE 2: OLD PRICE */}
-{!discountBadge && !hasActiveCoupon && oldPriceData && (
+{product.displayDiscountType === "OldPrice" &&
+ !hasActiveCoupon &&
+ oldPriceData && (
   <span className="text-xs md:text-sm text-gray-400 line-through">
     £{oldPriceData.oldPrice.toFixed(2)}
   </span>

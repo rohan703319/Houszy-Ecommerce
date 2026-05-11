@@ -96,11 +96,14 @@ const finalPrice = getDiscountedPrice(product, basePrice);
 const oldPriceValue =
   defaultVariant?.oldPrice ?? product.oldPrice;
 
-const oldPriceData = getOldPriceDiscount(
-  finalPrice,
-  oldPriceValue,
-  !!discountBadge
-);
+const oldPriceData =
+  product.displayDiscountType === "OldPrice"
+    ? getOldPriceDiscount(
+        basePrice,
+        oldPriceValue,
+        false
+      )
+    : null;
 // ---------- Active Coupon Indicator ----------
 const hasActiveCoupon = (product as any).assignedDiscounts?.some((d: any) => {
   if (!d.isActive) return false;
@@ -198,13 +201,23 @@ if (product.disableBuyButton) return;
       : product.name,
 
     price: finalPrice,
+
     priceBeforeDiscount: basePrice,
     finalPrice,
-    discountAmount: discountBadge
-      ? discountBadge.type === "percent"
-        ? +(basePrice * discountBadge.value / 100).toFixed(2)
-        : discountBadge.value
-      : 0,
+    oldPrice: oldPriceValue ?? null,
+
+displayDiscountType:
+  product.displayDiscountType ?? "None",
+
+hasSystemDiscount:
+  product.hasSystemDiscount ?? false,
+
+systemDiscountAmount:
+  product.systemDiscountAmount ?? 0,
+   discountAmount:
+  product.displayDiscountType === "System"
+    ? +(basePrice - finalPrice).toFixed(2)
+    : 0,
 
     quantity: qty,
   vatRate: vatRate,
@@ -268,14 +281,22 @@ const handleToggleWishlist = () => {
     price: finalPrice,
     priceBeforeDiscount: basePrice,
     finalPrice: finalPrice,
-    discountAmount: discountBadge
-      ? discountBadge.type === "percent"
-        ? +(basePrice * discountBadge.value / 100).toFixed(2)
-        : discountBadge.value
-      : 0,
+   discountAmount:
+  product.displayDiscountType === "System"
+    ? +(basePrice - finalPrice).toFixed(2)
+    : 0,
     appliedDiscountId: null,
     couponCode: null,
+oldPrice: oldPriceValue ?? null,
 
+displayDiscountType:
+  product.displayDiscountType ?? "None",
+
+hasSystemDiscount:
+  product.hasSystemDiscount ?? false,
+
+systemDiscountAmount:
+  product.systemDiscountAmount ?? 0,
     image: getRelatedProductImage(product, defaultVariant),
 
     vatRate: vatRate ?? null,
@@ -304,7 +325,8 @@ const handleToggleWishlist = () => {
       {/* IMAGE */}
     <div className="h-[176px] sm:h-[200px] md:h-[224px] flex items-center justify-center overflow-hidden bg-white rounded-t-xl pt-2 relative">
       {/* Offer badge — smaller */}
-      {discountBadge && (
+      {product.displayDiscountType === "System" &&
+ discountBadge && (
         <div className="absolute top-1 right-2 z-20">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
             <div className="flex flex-col items-center leading-none">
@@ -376,7 +398,10 @@ const handleToggleWishlist = () => {
       }
     }}
     className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all
-      ${(discountBadge || oldPriceData || hasActiveCoupon) ? "top-12" : "top-2"}
+      ${(
+  product.displayDiscountType !== "None" ||
+  hasActiveCoupon
+) ? "top-12" : "top-2"}
       ${
         inWishlist
           ? "bg-red-50 border-red-200"
@@ -447,9 +472,16 @@ const handleToggleWishlist = () => {
 
       {/* PRICE & VAT */}
       <div className="flex items-center gap-1 mb-0">
-        <span className="text-base font-bold text-[#445D41]">£{finalPrice.toFixed(2)}</span>
+        <span className="text-base font-bold text-[#445D41]">£{
+  (
+    product.displayDiscountType === "System"
+      ? finalPrice
+      : basePrice
+  ).toFixed(2)
+}</span>
         {/* 🔥 CASE 1: REAL DISCOUNT */}
-{discountBadge && (
+{product.displayDiscountType === "System" &&
+ discountBadge && (
   <span className="line-through text-xs text-gray-400">
     £{basePrice.toFixed(2)}
   </span>

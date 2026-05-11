@@ -1,6 +1,4 @@
 // app/offers/page.tsx
-export const revalidate = 60;
-
 import Link from "next/link";
 import { Tag, Clock, Gift, ChevronRight, ShoppingBag, Percent, BadgePercent } from "lucide-react";
 
@@ -56,7 +54,12 @@ export default async function OffersPage() {
 
   let discounts: Discount[] = [];
   try {
-    const res = await fetch(`${baseUrl}/api/Discounts/public`, { next: { revalidate: 300 } });
+   const res = await fetch(
+  `${baseUrl}/api/Discounts/public`,
+  {
+    cache: "no-store",
+  }
+);
     if (res.ok) {
       const json = await res.json();
       discounts = json?.data ?? [];
@@ -156,32 +159,32 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
       className={`group block rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 bg-white ${isProductLevel ? "cursor-pointer" : "cursor-default"}`}
     >
       {/* Banner Image */}
-      {bannerUrl ? (
-       <div className="relative w-full bg-white flex items-center justify-center">
-         <img
-  src={`${apiBase}${bannerUrl}`}
-  alt={d.name}
-  className="w-full h-full object-contain bg-white md:group-hover:scale-105 transition-transform duration-300"
-/>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <div className="absolute top-3 right-3 bg-red-600 text-white text-sm font-bold px-3 py-1.5 rounded-xl shadow-lg">
-            {formatDiscount(d)}
-          </div>
-        </div>
-      ) : (
-        <div className={`h-28 bg-gradient-to-br ${colors.bg} flex items-center justify-center relative`}>
-          <Percent className={`h-12 w-12 ${colors.accent} opacity-20`} />
-          <div className="absolute top-3 right-3 bg-red-600 text-white text-sm font-bold px-3 py-1.5 rounded-xl shadow">
-            {formatDiscount(d)}
-          </div>
-        </div>
-      )}
+{bannerUrl ? (
+  <div className="relative w-full bg-white flex items-center justify-center">
+    <img
+      src={`${apiBase}${bannerUrl}`}
+      alt={d.name}
+      className="w-full h-full object-contain bg-white md:group-hover:scale-105 transition-transform duration-300"
+    />
+    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+  </div>
+) : (
+  <div className={`h-28 bg-gradient-to-br ${colors.bg} flex items-center justify-center relative`}>
+    <Percent className={`h-12 w-12 ${colors.accent} opacity-20`} />
+  </div>
+)}
 
       {/* Card Body */}
       <div className="p-4">
-        <h3 className="font-bold text-gray-900 text-base leading-tight mb-1 group-hover:text-[#445D41] transition-colors line-clamp-2">
-          {d.name}
-        </h3>
+       <div className="flex items-start justify-between gap-3 mb-1">
+  <h3 className="font-bold text-gray-900 text-base leading-tight group-hover:text-[#445D41] transition-colors line-clamp-2">
+    {d.name}
+  </h3>
+
+  <span className="flex-shrink-0 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+    {formatDiscount(d)}
+  </span>
+</div>
 
         {/* Meta row */}
         <div className="flex flex-wrap items-center gap-2 mt-2">

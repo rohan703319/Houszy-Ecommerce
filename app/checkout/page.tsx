@@ -470,11 +470,16 @@ const correctSubtotal = useMemo(() => {
       return sum + base * qty;
     }
 
-    const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+  if (item.displayDiscountType === "OldPrice") {
 
-    if (oldPrice && oldPrice > item.price) {
-      return sum + oldPrice * qty;
-    }
+  const oldPrice =
+    item.oldPrice ??
+    item.productData?.oldPrice;
+
+  if (oldPrice && oldPrice > item.price) {
+    return sum + oldPrice * qty;
+  }
+}
 
     return sum + item.price * qty;
   }, 0);
@@ -483,12 +488,20 @@ const correctSubtotal = useMemo(() => {
 // ✅ OLD PRICE DISCOUNT
 const oldPriceDiscount = useMemo(() => {
   return checkoutItems.reduce((sum, item) => {
-    const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+    
     const qty = item.quantity ?? 1;
+if (item.displayDiscountType === "OldPrice") {
 
-    if (oldPrice && oldPrice > item.price) {
-      return sum + (oldPrice - item.price) * qty;
-    }
+  const oldPrice =
+    item.oldPrice ??
+    item.productData?.oldPrice;
+
+  if (oldPrice && oldPrice > item.price) {
+    return sum + (oldPrice - item.price) * qty;
+  }
+}
+  
+  
 
     return sum;
   }, 0);
@@ -1590,16 +1603,58 @@ setShippingAddressQuery("");
           </p>
         )}
 
-        <div className="text-xs text-gray-600 flex items-center gap-2">
+        <div className="text-xs text-gray-600 flex items-center gap-1">
           <span>Qty: {it.quantity}</span>
           <span className="text-gray-400">•</span>
-          <span className="font-medium text-gray-800">
-            {formatCurrency((it.finalPrice ?? it.price) * it.quantity)}
-          </span>
+         <div className="flex items-center gap-1 flex-wrap">
+
+  {/* FINAL PRICE */}
+  <span className="font-medium text-gray-800">
+    {formatCurrency((it.finalPrice ?? it.price) * it.quantity)}
+  </span>
+
+  {/* CUT PRICE */}
+  {(() => {
+
+    let comparePrice: number | null = null;
+
+    // SYSTEM DISCOUNT
+    if (
+      it.displayDiscountType === "System" &&
+      (it.discountAmount ?? 0) > 0
+    ) {
+      comparePrice =
+        (it.price + (it.discountAmount ?? 0)) *
+        it.quantity;
+    }
+
+    // OLD PRICE
+    else if (it.displayDiscountType === "OldPrice") {
+
+      const oldPrice =
+        it.oldPrice ??
+        it.productData?.oldPrice;
+
+      if (oldPrice && oldPrice > it.price) {
+        comparePrice = oldPrice * it.quantity;
+      }
+    }
+
+    if (!comparePrice) return null;
+
+    return (
+      <span className="text-[11px] text-gray-400 line-through">
+        {formatCurrency(comparePrice)}
+      </span>
+    );
+
+  })()}
+
+</div>
 
           {getItemLoyaltyPoints(it) > 0 && (
-            <div className="text-[11px] text-green-700 font-medium">
-              ( Earn {getItemLoyaltyPoints(it)} loyalty points)
+            <div className="text-[10px] text-green-700 font-medium">
+              (Earn {getItemLoyaltyPoints(it)} loyalty points)
             </div>
           )}
         </div>

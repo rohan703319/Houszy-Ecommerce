@@ -35,8 +35,13 @@ export interface CartItem {
   price: number;
   priceBeforeDiscount?: number;
   finalPrice?: number;
-  oldPrice?: number;
+  oldPrice?: number | null;
   discountAmount?: number;
+  displayDiscountType?: "None" | "OldPrice" | "System";
+
+  hasSystemDiscount?: boolean;
+
+  systemDiscountAmount?: number;
   appliedDiscountId?: string | null;
   couponCode?: string | null;
   image: string;
@@ -72,6 +77,7 @@ export interface CartItem {
   bundleParentInstanceId?: string;
   shipSeparately?: boolean;
   pharmaApproved?: boolean;
+  freeShippingThreshold?: number | null;
 }
 
 // ─── Context type ─────────────────────────────────────────────────────────────
@@ -86,6 +92,7 @@ interface CartContextType {
   cartTotal: number;
   isInitialized: boolean;
   sessionId: string;
+  cartActivity: { productId: string; message: string; timestamp: number } | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -99,22 +106,30 @@ function backendToFrontend(dto: any): CartItem {
     productId: dto.productId,
     name: dto.productName,
     price: dto.price,
-  oldPrice:
-  dto.oldPrice ??
-  dto.product?.oldPrice ??
-  dto.productData?.oldPrice ??
-  dto.variant?.oldPrice ??
-  null,
+    oldPrice:
+      dto.oldPrice ??
+      dto.product?.oldPrice ??
+      dto.productData?.oldPrice ??
+      dto.variant?.oldPrice ??
+      null,
     priceBeforeDiscount: dto.price,
     finalPrice: dto.finalPrice,
     discountAmount: dto.discountAmount,
+    displayDiscountType:
+      dto.displayDiscountType ?? "None",
+
+    hasSystemDiscount:
+      dto.hasSystemDiscount ?? false,
+
+    systemDiscountAmount:
+      dto.systemDiscountAmount ?? 0,
     appliedDiscountId: dto.appliedDiscountId,
     couponCode: dto.couponCode,
-image: dto.productImageUrl
-  ? dto.productImageUrl.startsWith("http")
-    ? dto.productImageUrl
-    : `${API_BASE_URL}${dto.productImageUrl}`
-  : "",
+    image: dto.productImageUrl
+      ? dto.productImageUrl.startsWith("http")
+        ? dto.productImageUrl
+        : `${API_BASE_URL}${dto.productImageUrl}`
+      : "",
     quantity: dto.quantity,
     sku: dto.productSku,
     variantId: dto.variantId,
@@ -141,6 +156,22 @@ image: dto.productImageUrl
     nextDayDeliveryFree: dto.nextDayDeliveryFree ?? false, // 🔥 ADD THIS LINE
     sameDayDeliveryEnabled: dto.sameDayDeliveryEnabled,
     shipSeparately: dto.shipSeparately,
+    freeShippingThreshold: dto.freeShippingThreshold ?? null,
+    vatIncluded:
+      dto.vatIncluded ??
+      dto.productData?.vatIncluded ??
+      dto.product?.vatIncluded ??
+      false,
+
+    productData:
+      dto.productData ??
+      dto.product ??
+      null,
+
+    maxStock:
+      dto.variant?.stockQuantity ??
+      dto.product?.stockQuantity ??
+      undefined,
   };
 }
 
@@ -156,9 +187,19 @@ function frontendToBackend(item: CartItem, sessionId: string) {
     productImageUrl: item.image ?? null,
     quantity: item.quantity,
     price: item.price,
-    
+
     finalPrice: item.finalPrice ?? item.price,
     discountAmount: item.discountAmount ?? 0,
+    oldPrice: item.oldPrice ?? null,
+
+    displayDiscountType:
+      item.displayDiscountType ?? "None",
+
+    hasSystemDiscount:
+      item.hasSystemDiscount ?? false,
+
+    systemDiscountAmount:
+      item.systemDiscountAmount ?? 0,
     appliedDiscountId: item.appliedDiscountId ?? null,
     couponCode: item.couponCode ?? null,
     variantOption1: item.variantOptions?.option1 ?? null,
@@ -181,6 +222,7 @@ function frontendToBackend(item: CartItem, sessionId: string) {
     nextDayDeliveryFree: item.nextDayDeliveryFree ?? false,
     sameDayDeliveryEnabled: item.sameDayDeliveryEnabled ?? false,
     shipSeparately: item.shipSeparately ?? false,
+    freeShippingThreshold: item.freeShippingThreshold ?? null,
   };
 }
 
@@ -189,6 +231,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [sessionId, setSessionId] = useState<string>(() => getSessionId());
+  const [cartActivity, setCartActivity] = useState<{ productId: string; message: string; timestamp: number } | null>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
   const toast = useToast();
 
@@ -203,52 +246,52 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           setCart(res.data.map(backendToFrontend));
         }
       })
-      .catch(() => {/* silently fail — cart stays empty */})
+      .catch(() => {/* silently fail — cart stays empty */ })
       .finally(() => setIsInitialized(true));
   }, [sessionId]);
 
   // ── React to login / logout events ────────────────────────────────────────
   useEffect(() => {
-const handleLogin = async () => {
-  const oldGuestId = localStorage.getItem("cart_guest");
-  const newUserSession = getSessionId();
+    const handleLogin = async () => {
+      const oldGuestId = localStorage.getItem("cart_guest");
+      const newUserSession = getSessionId();
 
-  // 🔥 STEP 1: resync FIRST
-  if (oldGuestId && oldGuestId !== newUserSession) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/Cart/${oldGuestId}`);
-      const data = await res.json();
+      // 🔥 STEP 1: resync FIRST
+      if (oldGuestId && oldGuestId !== newUserSession) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/Cart/${oldGuestId}`);
+          const data = await res.json();
 
-      if (data.success && Array.isArray(data.data)) {
-        // 🔥 WAIT for all items to be added
-        await Promise.all(
-          data.data.map((item: any) =>
-            fetch(`${API_BASE_URL}/api/Cart/items`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...item,
-                sessionId: newUserSession,
-              }),
-            })
-          )
-        );
-          // 🔥 ADD THIS LINE HERE
-  localStorage.removeItem("cart_guest");
+          if (data.success && Array.isArray(data.data)) {
+            // 🔥 WAIT for all items to be added
+            await Promise.all(
+              data.data.map((item: any) =>
+                fetch(`${API_BASE_URL}/api/Cart/items`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    ...item,
+                    sessionId: newUserSession,
+                  }),
+                })
+              )
+            );
+            // 🔥 ADD THIS LINE HERE
+            localStorage.removeItem("cart_guest");
+          }
+        } catch { }
       }
-    } catch {}
-  }
 
-  // 🔥 STEP 2: THEN switch session
-  setSessionId(newUserSession);
-};
+      // 🔥 STEP 2: THEN switch session
+      setSessionId(newUserSession);
+    };
 
     const handleLogout = () => {
       // Clear in-memory cart immediately
       setCart([]);
       // Generate a fresh anonymous session for the next visitor
       const newId = crypto.randomUUID();
-     localStorage.setItem("cart_guest", newId);
+      localStorage.setItem("cart_guest", newId);
       setSessionId(newId);
     };
 
@@ -262,49 +305,87 @@ const handleLogin = async () => {
 
   // ── SignalR: connect to cart activity hub (anonymous) ──────────────────────
   useEffect(() => {
-  const connection = new signalR.HubConnectionBuilder()
-    .withUrl(`${API_BASE_URL}/hubs/cart-activity`)
-    .withAutomaticReconnect()
-    .configureLogging(signalR.LogLevel.Warning)
-    .build();
+    let batchTimeout: NodeJS.Timeout | null = null;
+    let batchCount = 0;
+    let singleMessage = "";
 
-connection.on(
-  "CartItemAdded",
-  (payload: { productId: string; message: string; sessionId?: string }) => {
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${API_BASE_URL}/hubs/cart-activity`)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
 
-    const currentSessionId = localStorage.getItem("cartSessionId");
+    connection.on(
+      "CartItemAdded",
+      (payload: { productId: string; message: string; sessionId?: string }) => {
+        const currentSessionId = getSessionId();
+        const incomingSessionId = payload.sessionId || (payload as any).SessionId || (payload as any).sessionid;
 
-    // ❌ ignore own event
-    if (payload.sessionId && payload.sessionId === currentSessionId) return;
+        // ❌ ignore own event (by ID)
+        if (incomingSessionId && incomingSessionId === currentSessionId) return;
 
-    // ✅ delay to avoid clash
-    setTimeout(() => {
-      toast.info(payload.message);
-    }, 300);
-  }
-);
+        // ❌ ignore own event (foolproof local timestamp check)
+        const lastAdded = sessionStorage.getItem(`lastAdded_${payload.productId}`);
+        if (lastAdded && Date.now() - parseInt(lastAdded) < 5000) {
+          return; // Ignore if we added this exact product in the last 5 seconds
+        }
 
-  connection
-    .start()
-    .then(() => {
-      hubRef.current = connection;
-    })
-    .catch(() => {
-      // SignalR not critical — cart still works
-    });
+        // ✅ Instant show + Grouping (Now uses local state for in-page banner instead of toast)
+        if (batchCount === 0) {
+          // Instantly show the first one
+          setCartActivity({ productId: payload.productId, message: payload.message, timestamp: Date.now() });
+          batchCount = 1;
 
-  return () => {
-    connection.stop();
-  };
-}, []);
+          // Clear after 5 seconds if no more come in
+          batchTimeout = setTimeout(() => {
+            if (batchCount > 1) {
+              // Update with grouped message
+              setCartActivity({ 
+                productId: payload.productId, 
+                message: `🔥 ${batchCount - 1} more people just added this to their cart!`, 
+                timestamp: Date.now() 
+              });
+              // Clear after another 5 seconds
+              setTimeout(() => {
+                setCartActivity(null);
+              }, 5000);
+            } else {
+              setCartActivity(null);
+            }
+
+            // Reset for next batch
+            batchCount = 0;
+            batchTimeout = null;
+          }, 4000); // 4-second window
+        } else {
+          // If already in a window, just increment the count
+          batchCount += 1;
+        }
+      }
+    );
+
+    connection
+      .start()
+      .then(() => {
+        hubRef.current = connection;
+      })
+      .catch(() => {
+        // SignalR not critical — cart still works
+      });
+
+    return () => {
+      if (batchTimeout) clearTimeout(batchTimeout);
+      connection.stop();
+    };
+  }, []);
 
   // ── Subscribe to a product page (call from product page component) ─────────
   const subscribeToProduct = useCallback((productId: string) => {
-    hubRef.current?.invoke("SubscribeToProduct", productId).catch(() => {});
+    hubRef.current?.invoke("SubscribeToProduct", productId).catch(() => { });
   }, []);
 
   const unsubscribeFromProduct = useCallback((productId: string) => {
-    hubRef.current?.invoke("UnsubscribeFromProduct", productId).catch(() => {});
+    hubRef.current?.invoke("UnsubscribeFromProduct", productId).catch(() => { });
   }, []);
 
   // Expose subscribeToProduct on the hub ref so product pages can call it
@@ -312,6 +393,11 @@ connection.on(
 
   // ── ADD TO CART ────────────────────────────────────────────────────────────
   const addToCart = (item: CartItem) => {
+    // 🔥 FOOLPROOF LOCAL FLAG (to strictly prevent own events from showing)
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(`lastAdded_${item.productId ?? item.id}`, Date.now().toString());
+    }
+
     setCart((prev) => {
       // ── Subscription merge ──
       if (item.type === "subscription") {
@@ -324,12 +410,14 @@ connection.on(
         if (existingSub) {
           return prev.map((p) =>
             p.productId === item.productId &&
-            p.variantId === item.variantId &&
-            p.type === "subscription"
-              ? { ...p, quantity: item.quantity, frequency: item.frequency,
-                  frequencyPeriod: item.frequencyPeriod,
-                  subscriptionTotalCycles: item.subscriptionTotalCycles,
-                  sku: item.sku ?? p.sku }
+              p.variantId === item.variantId &&
+              p.type === "subscription"
+              ? {
+                ...p, quantity: item.quantity, frequency: item.frequency,
+                frequencyPeriod: item.frequencyPeriod,
+                subscriptionTotalCycles: item.subscriptionTotalCycles,
+                sku: item.sku ?? p.sku
+              }
               : p
           );
         }
@@ -361,12 +449,29 @@ connection.on(
 
         return prev.map((p) =>
           p.productId === item.productId &&
-          (p.variantId ?? null) === (item.variantId ?? null) &&
-          (p.type ?? "one-time") === (item.type ?? "one-time") &&
-          (p.purchaseContext ?? "standalone") === (item.purchaseContext ?? "standalone")
-            ? { ...p, quantity: p.quantity + item.quantity, sku: item.sku ?? p.sku,
-                finalPrice: item.finalPrice ?? p.finalPrice,
-                discountAmount: item.discountAmount ?? p.discountAmount }
+            (p.variantId ?? null) === (item.variantId ?? null) &&
+            (p.type ?? "one-time") === (item.type ?? "one-time") &&
+            (p.purchaseContext ?? "standalone") === (item.purchaseContext ?? "standalone")
+            ? {
+              ...p, quantity: p.quantity + item.quantity, sku: item.sku ?? p.sku,
+              finalPrice: item.finalPrice ?? p.finalPrice,
+              discountAmount: item.discountAmount ?? p.discountAmount,
+
+              oldPrice:
+                item.oldPrice ?? p.oldPrice,
+
+              displayDiscountType:
+                item.displayDiscountType ??
+                p.displayDiscountType,
+
+              hasSystemDiscount:
+                item.hasSystemDiscount ??
+                p.hasSystemDiscount,
+
+              systemDiscountAmount:
+                item.systemDiscountAmount ??
+                p.systemDiscountAmount,
+            }
             : p
         );
       }
@@ -379,17 +484,27 @@ connection.on(
           priceBeforeDiscount: item.priceBeforeDiscount ?? item.price,
           finalPrice: item.finalPrice ?? item.price,
           discountAmount: item.discountAmount ?? 0,
-          type: item.type ?? "one-time",
-            // 🔥🔥🔥 MAIN FIX
-    nextDayDeliveryEnabled:
-      item.nextDayDeliveryEnabled ??
-      item.productData?.nextDayDeliveryEnabled ??
-      false,
+          oldPrice: item.oldPrice ?? null,
 
-    nextDayDeliveryFree:
-      item.nextDayDeliveryFree ??
-      item.productData?.nextDayDeliveryFree ??
-      false,
+          displayDiscountType:
+            item.displayDiscountType ?? "None",
+
+          hasSystemDiscount:
+            item.hasSystemDiscount ?? false,
+
+          systemDiscountAmount:
+            item.systemDiscountAmount ?? 0,
+          type: item.type ?? "one-time",
+          // 🔥🔥🔥 MAIN FIX
+          nextDayDeliveryEnabled:
+            item.nextDayDeliveryEnabled ??
+            item.productData?.nextDayDeliveryEnabled ??
+            false,
+
+          nextDayDeliveryFree:
+            item.nextDayDeliveryFree ??
+            item.productData?.nextDayDeliveryFree ??
+            false,
         },
       ];
     });
@@ -407,15 +522,15 @@ connection.on(
           setCart((prev) =>
             prev.map((p) =>
               p.productId === item.productId &&
-              (p.variantId ?? null) === (item.variantId ?? null) &&
-              (p.type ?? "one-time") === (item.type ?? "one-time")
+                (p.variantId ?? null) === (item.variantId ?? null) &&
+                (p.type ?? "one-time") === (item.type ?? "one-time")
                 ? { ...p, backendId: res.data.id }
                 : p
             )
           );
         }
       })
-      .catch(() => {/* network error — item still in local state */});
+      .catch(() => {/* network error — item still in local state */ });
   };
 
   // ── REMOVE FROM CART ───────────────────────────────────────────────────────
@@ -433,7 +548,7 @@ connection.on(
         if (sessionId) {
           fetch(`${API_BASE_URL}/api/Cart/${sessionId}/bundle/${bundleInstanceId}`, {
             method: "DELETE",
-          }).catch(() => {});
+          }).catch(() => { });
         }
         return prev.filter(
           (p) =>
@@ -447,7 +562,7 @@ connection.on(
         fetch(
           `${API_BASE_URL}/api/Cart/items/${itemToRemove.backendId}?sessionId=${sessionId}`,
           { method: "DELETE" }
-        ).catch(() => {});
+        ).catch(() => { });
       }
 
       return prev.filter(
@@ -483,7 +598,7 @@ connection.on(
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId, quantity: finalQty }),
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       return prev.map((item) => {
@@ -514,10 +629,20 @@ connection.on(
           quantity: item.quantity,
           finalPrice: item.finalPrice,
           discountAmount: item.discountAmount,
+          oldPrice: item.oldPrice ?? null,
+
+          displayDiscountType:
+            item.displayDiscountType ?? "None",
+
+          hasSystemDiscount:
+            item.hasSystemDiscount ?? false,
+
+          systemDiscountAmount:
+            item.systemDiscountAmount ?? 0,
           couponCode: item.couponCode,
           appliedDiscountId: item.appliedDiscountId,
         }),
-      }).catch(() => {});
+      }).catch(() => { });
     });
   };
 
@@ -530,7 +655,7 @@ connection.on(
     }
     setCart([]);
     if (sessionId) {
-      fetch(`${API_BASE_URL}/api/Cart/${sessionId}`, { method: "DELETE" }).catch(() => {});
+      fetch(`${API_BASE_URL}/api/Cart/${sessionId}`, { method: "DELETE" }).catch(() => { });
     }
   };
 
@@ -554,6 +679,7 @@ connection.on(
         cartTotal,
         isInitialized,
         sessionId,
+        cartActivity,
       }}
     >
       {children}

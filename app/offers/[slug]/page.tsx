@@ -90,45 +90,6 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
   return (
     <div className="min-h-screen bg-gray-50">
       {/* DISCOUNT HERO */}
-      {bannerUrl ? (
-<div className="w-full h-52 overflow-hidden">
-  <img
-    src={`${baseUrl}${bannerUrl}`}
-    alt={discount.name}
-    className="w-full h-full object-cover"
-  />
-</div>
-      ) : (
-        <div className="bg-gradient-to-r from-[#445D41] via-[#3a5237] to-[#2d4029] text-white">
-          <div className="max-w-7xl mx-auto px-4 py-10">
-            <div className="inline-flex items-center gap-2 bg-white/20 text-white text-sm font-bold px-3 py-1.5 rounded-xl mb-3">
-              <BadgePercent className="h-4 w-4" />
-              {formatDiscount(discount)}
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold">{discount.name}</h1>
-            <div className="flex flex-wrap gap-4 mt-3">
-              {discount.productCount != null && discount.productCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-white/80">
-                  <ShoppingBag className="h-4 w-4" />
-                  {discount.productCount} products
-                </span>
-              )}
-              {daysLeft !== null && (
-                <span className={`inline-flex items-center gap-1.5 text-sm ${isExpiringSoon ? "text-yellow-300 font-semibold" : "text-white/80"}`}>
-                  <Clock className="h-4 w-4" />
-                  {daysLeft === 0 ? "Ends today!" : `${daysLeft} days left`}
-                </span>
-              )}
-              {discount.requiresCouponCode && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-white/80">
-                  <Tag className="h-4 w-4" />
-                  Requires coupon code
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <main className="max-w-7xl mx-auto px-4 py-2">
      

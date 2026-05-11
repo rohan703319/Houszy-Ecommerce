@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Info from "../ui/Info";
-import { getOrderStatusBadge, getCollectionStatusTextColor } from "./orderUtils";
+import { getOrderStatusBadge, getCollectionStatusTextColor,  getOrderStatusLabel } from "./orderUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Download, RefreshCcw, XCircle } from "lucide-react";
 const CANCELLATION_REASONS = [
   "Ordered by mistake",
   "Found a better price elsewhere",
@@ -91,18 +92,23 @@ function StripePaymentForm({
   return (
     <form onSubmit={handlePay} className="space-y-4">
       <div className="border rounded-lg p-4 bg-gray-50">
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#1a202c",
-                "::placeholder": { color: "#a0aec0" },
-              },
-              invalid: { color: "#e53e3e" },
-            },
-          }}
-        />
+       <CardElement
+  options={{
+    hidePostalCode: true,
+    style: {
+      base: {
+        fontSize: "16px",
+        color: "#1a202c",
+        "::placeholder": {
+          color: "#a0aec0",
+        },
+      },
+      invalid: {
+        color: "#e53e3e",
+      },
+    },
+  }}
+/>
       </div>
 
       {error && (
@@ -525,7 +531,7 @@ const handleReorder = async () => {
     const valid = results.filter((x: any) => x && !x.skipped);
 
     if (valid.length === 0) {
-      toast.error("All items are out of stock");
+      toast.error("Items are out of stock");
       return;
     }
 
@@ -559,7 +565,7 @@ const handleReorder = async () => {
 
         <span
           className={`inline-flex items-center justify-center h-7 px-3 rounded-full text-xs font-medium capitalize border whitespace-nowrap ${getOrderStatusBadge( order.status )}`} >
-          {order.statusName ?? order.status}
+        {getOrderStatusLabel(order.status, order.statusName)}
         </span>
       </div>
 
@@ -905,32 +911,43 @@ const handleReorder = async () => {
       <div className="flex flex-wrap justify-end items-center gap-2 pt-3 border-t">
       
 
-        <Button
-          onClick={handleDownloadInvoice}
-          size="sm"
-          variant="outline"
-          disabled={invoiceLoading}
-          className="text-white bg-[#445D41] hover:bg-black hover:text-white"
-        >
-          {invoiceLoading ? "Generating Invoice..." : "Download Invoice"}
-        </Button>
+       <Button
+  onClick={handleDownloadInvoice}
+  size="sm"
+  variant="outline"
+  disabled={invoiceLoading}
+  className="text-white bg-[#445D41] hover:bg-black hover:text-white gap-1"
+>
+  <Download className="h-4 w-4" />
+
+  {invoiceLoading
+    ? "Generating Invoice..."
+    : "Download Invoice"}
+</Button>
 
         {["pending", "processing"].includes(order.status?.toLowerCase()) &&
 order.status !== "CancellationRequested" && (
-          <Button size="sm" variant="destructive" onClick={() => setShowCancelModal(true)}>
-            Cancel Order
-          </Button>
+         <Button
+  size="sm"
+  variant="destructive"
+  onClick={() => setShowCancelModal(true)}
+  className="gap-1"
+>
+  <XCircle className="h-4 w-4" />
+  Cancel Order
+</Button>
         )}
 
          {order.status?.toLowerCase() !== "processing" && (
-  <Button
-    size="sm"
-    variant="outline"
-    onClick={handleReorder}
-    className="text-white bg-black hover:bg-[#445D41] hover:text-white"
-  >
-    Reorder
-  </Button>
+<Button
+  size="sm"
+  variant="outline"
+  onClick={handleReorder}
+  className="text-white bg-black hover:bg-[#445D41] hover:text-white gap-1"
+>
+  <RefreshCcw className="h-4 w-4" />
+  Reorder
+</Button>
 )}
       </div>
 

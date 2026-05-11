@@ -22,6 +22,49 @@ export function getOrderStatusBadge(status: string) {
       return "bg-gray-100 text-gray-700";
   }
 }
+export const getOrderStatusLabel = (
+  status?: string,
+  statusName?: string
+) => {
+  const normalized =
+    statusName?.trim().toLowerCase() ||
+    status?.trim().toLowerCase();
+
+  switch (normalized) {
+    case "cancellationrequested":
+      return "Cancellation Requested";
+
+    case "processing":
+      return "Processing";
+
+    case "pending":
+      return "Pending";
+
+    case "shipped":
+      return "Shipped";
+
+    case "delivered":
+      return "Delivered";
+
+    case "completed":
+      return "Completed";
+
+    case "cancelled":
+      return "Cancelled";
+
+    case "failed":
+      return "Failed";
+
+    case "refunded":
+      return "Refunded";
+
+    case "collected":
+      return "Collected";
+
+    default:
+      return statusName || status || "Unknown";
+  }
+};
 export const getCollectionStatusTextColor = (status?: string) => {
   if (!status) return "text-gray-800";
 

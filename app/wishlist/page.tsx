@@ -72,7 +72,16 @@ priceBeforeDiscount:
 discountAmount: item.discountAmount ?? 0,
 appliedDiscountId: item.appliedDiscountId ?? null,
 couponCode: item.couponCode ?? null,
+oldPrice: item.oldPrice ?? null,
 
+displayDiscountType:
+  item.displayDiscountType ?? "None",
+
+hasSystemDiscount:
+  item.hasSystemDiscount ?? false,
+
+systemDiscountAmount:
+  item.systemDiscountAmount ?? 0,
     quantity: finalQty,
 
     image: item.image,
@@ -158,20 +167,68 @@ couponCode: item.couponCode ?? null,
 </Link>
          
             {/* Price + VAT */}
-            <div className="flex items-baseline gap-1 flex-wrap mb-3 mt-auto">
-              <span className="text-sm font-bold text-[#445D41]">
-                £{item.price.toFixed(2)}
-              </span>
-              {item.vatExempt ? (
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1 py-0.5 rounded whitespace-nowrap">
-                  <BadgePercent className="h-2.5 w-2.5" /> VAT Exempt
-                </span>
-              ) : item.vatRate != null ? (
-                <span className="text-[9px] font-semibold text-green-700 bg-green-100 px-1 py-0.5 rounded whitespace-nowrap">
-                  ({item.vatRate}% VAT)
-                </span>
-              ) : null}
-            </div>
+           <div className="flex items-baseline gap-1 flex-wrap mb-3 mt-auto">
+  <span className="text-sm font-bold text-[#445D41]">
+    £{
+      (
+        item.displayDiscountType === "System"
+          ? (item.finalPrice ?? item.price)
+          : item.price
+      ).toFixed(2)
+    }
+  </span>
+
+  {/* SYSTEM DISCOUNT */}
+  {item.displayDiscountType === "System" &&
+    (item.priceBeforeDiscount ?? item.price) >
+      (item.finalPrice ?? item.price) && (
+      <>
+        <span className="text-[11px] text-gray-400 line-through">
+          £{(item.priceBeforeDiscount ?? item.price).toFixed(2)}
+        </span>
+
+        <span className="text-[10px] font-semibold text-green-700">
+          {Math.round(
+            (((item.priceBeforeDiscount ?? item.price) -
+              (item.finalPrice ?? item.price)) /
+              (item.priceBeforeDiscount ?? item.price)) *
+              100
+          )}
+          % OFF
+        </span>
+      </>
+    )}
+
+  {/* OLD PRICE */}
+  {item.displayDiscountType === "OldPrice" &&
+    item.oldPrice &&
+    item.oldPrice > item.price && (
+      <>
+        <span className="text-[11px] text-gray-400 line-through">
+          £{item.oldPrice.toFixed(2)}
+        </span>
+
+        <span className="text-[10px] font-semibold text-green-700">
+          {Math.round(
+            ((item.oldPrice - item.price) /
+              item.oldPrice) *
+              100
+          )}
+          % OFF
+        </span>
+      </>
+    )}
+
+  {item.vatExempt ? (
+    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1 py-0.5 rounded whitespace-nowrap">
+      <BadgePercent className="h-2.5 w-2.5" /> VAT Exempt
+    </span>
+  ) : item.vatRate != null ? (
+    <span className="text-[9px] font-semibold text-green-700 bg-green-100 px-1 py-0.5 rounded whitespace-nowrap">
+      ({item.vatRate}% VAT)
+    </span>
+  ) : null}
+</div>
 
             {/* Buttons */}
             <div className="flex gap-1">

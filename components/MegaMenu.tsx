@@ -11,10 +11,14 @@ import { getImageUrl } from "@/app/lib/getImageUrl";
 ===================== */
 
 interface Discount {
+  id?: string;
   usePercentage: boolean;
   discountPercentage: number;
   requiresCouponCode: boolean;
   couponCode: string;
+  isActive?: boolean;
+  startDate?: string;
+  endDate?: string;
 }
 
 interface Category {
@@ -170,6 +174,29 @@ useEffect(() => {
   return () => observer.disconnect();
 }, [brands.length]);
 
+const isDiscountValid = (discount: Discount) => {
+  if (discount.isActive === false) return false;
+
+  const now = new Date();
+
+  const start = discount.startDate
+    ? new Date(discount.startDate)
+    : null;
+
+  const end = discount.endDate
+    ? new Date(discount.endDate)
+    : null;
+
+  return (!start || now >= start) && (!end || now <= end);
+};
+
+const getValidDiscounts = (cat: Category | null) => {
+  if (!cat?.assignedDiscounts?.length) return null;
+
+  const discounts = cat.assignedDiscounts.filter(isDiscountValid);
+
+  return discounts.length ? discounts : null;
+};
   const getMaxDiscount = (cat: Category | null) => {
     if (!cat?.assignedDiscounts?.length) return null;
 
@@ -210,6 +237,12 @@ useEffect(() => {
 const theme =
   bannerThemes[getThemeIndex(activeMainCategory.slug)];
 
+const offerDiscountIds = (
+  getValidDiscounts(activeMainCategory) ?? []
+)
+  .map((d) => d.id)
+  .filter(Boolean)
+  .join(",");
 
   return (
    <div className="absolute left-20 top-full z-50">
@@ -292,9 +325,13 @@ const theme =
           {/* RIGHT COLUMN */}
           <div className="w-1/3 p-4">
             {maxDiscount ? (
-              <Link
-                href={`/category/${activeMainCategory.slug}?offer=true`}
-              >
+             <Link
+  href={`/category/${activeMainCategory.slug}?offer=true${
+    offerDiscountIds
+      ? `&discountIds=${encodeURIComponent(offerDiscountIds)}`
+      : ""
+  }`}
+>
                 <div
                   className={`relative h-full min-h-[260px] rounded-2xl overflow-hidden bg-gradient-to-br ${theme.bg} shadow-xl p-5 flex flex-col justify-between text-white transition-all duration-500 hover:scale-[1.01] hover:shadow-2xl`}
                 >

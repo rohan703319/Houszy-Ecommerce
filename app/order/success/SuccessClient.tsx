@@ -411,6 +411,7 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
 
               <div className="border rounded-lg divide-y">
                 {order.orderItems.map((item: any) => (
+                  
                   <div
                     key={item.id}
                     className="flex gap-4 p-4 items-start"
@@ -438,12 +439,57 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
                         </p>
                       )}
 
-                      <div className="flex justify-between mt-2 text-sm">
-                        <span>Qty {item.quantity}</span>
-                        <span className="font-semibold">
-                          {formatCurrency(item.totalPrice)}
-                        </span>
-                      </div>
+    <div className="flex items-center justify-between mt-2 gap-4">
+  
+  {/* LEFT */}
+  <div className="flex items-center flex-wrap gap-2 text-sm text-gray-600">
+    
+    <span>Qty {item.quantity}</span>
+
+    {(item.productSavingAmount > 0 ||
+      item.discountAmount > 0) && (
+      <>
+        <span className="text-gray-300">•</span>
+
+        <span className="text-green-700 font-medium">
+          You saved{" "}
+          {formatCurrency(
+            item.productSavingAmount ||
+              item.discountAmount
+          )}
+        </span>
+      </>
+    )}
+  </div>
+
+  {/* RIGHT */}
+  <div className="flex items-center gap-2 shrink-0">
+
+    {/* FINAL PRICE */}
+    <span className="text-base font-semibold text-black">
+      {formatCurrency(
+        (
+          item.discountAmount > 0
+            ? item.unitPrice - item.discountAmount
+            : item.unitPrice
+        ) * item.quantity
+      )}
+    </span>
+
+    {/* CUT PRICE */}
+    {(item.oldUnitPrice ||
+      item.discountAmount > 0) && (
+      <span className="text-sm text-gray-400 line-through">
+        {formatCurrency(
+          (
+            item.oldUnitPrice ||
+            item.unitPrice
+          ) * item.quantity
+        )}
+      </span>
+    )}
+  </div>
+</div>
                     </div>
                   </div>
                 ))}
@@ -505,10 +551,16 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
                   Summary
                 </h2>
                 <div className="border rounded-lg p-4 space-y-2 bg-gray-50">
-                  <div className="flex justify-between">
-                    <span>Subtotal (Incl. VAT)</span>
-                    <span>{formatCurrency(order.subtotalAmount)}</span>
-                  </div>
+                 <div className="flex justify-between">
+  <span>Subtotal (Incl. VAT)</span>
+
+  <span>
+    {formatCurrency(
+      order.subtotalAmount +
+      (order.productSavingsAmount ?? 0)
+    )}
+  </span>
+</div>
                   {order.taxAmount > 0 && (
   <div className="flex justify-between text-sm text-gray-600">
     <span>VAT</span>
@@ -527,10 +579,23 @@ className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 
     <span>{formatCurrency(order.shippingAmount)}</span>
   </div>
 )}
-                  <div className="flex justify-between">
-                    <span>Discount</span>
-                    <span>-{formatCurrency(order.discountAmount)}</span>
-                  </div>
+                  {order.productSavingsAmount > 0 && (
+  <div className="flex justify-between text-green-700">
+    <span>Item Savings</span>
+    <span>
+      -{formatCurrency(order.productSavingsAmount)}
+    </span>
+  </div>
+)}
+
+{order.discountAmount > 0 && (
+  <div className="flex justify-between text-green-700">
+    <span>Discount</span>
+    <span>
+      -{formatCurrency(order.discountAmount)}
+    </span>
+  </div>
+)}
                   {loyaltyDiscount > 0 && (
   <div className="flex justify-between text-green-700 text-xs">
     <span>Loyalty points Discount</span>

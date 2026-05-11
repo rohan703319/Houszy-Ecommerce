@@ -36,11 +36,13 @@ useEffect(() => {
   setProducts(initialItems ?? []);
   setPage(1);
   setHasMore(totalPages > 1);
+  setHasInitializedPrice(false);
 }, [initialItems, totalPages]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(0);
+  const [hasInitializedPrice, setHasInitializedPrice] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [brandInfo, setBrandInfo] = useState<any>(null);
 const [brandLoading, setBrandLoading] = useState(false);
@@ -103,10 +105,16 @@ useEffect(() => {
   const min = Math.floor(Math.min(...prices));
   const max = Math.ceil(Math.max(...prices));
 
-  setMinPrice(min);
-  setMaxPrice(max);
-  setPriceRange([min, max]);
-}, [products]);
+  // 1. Always update boundaries to accommodate new products
+  setMinPrice((prev) => (hasInitializedPrice ? Math.min(prev, min) : min));
+  setMaxPrice((prev) => (hasInitializedPrice ? Math.max(prev, max) : max));
+
+  // 2. Only set the selection range ONCE (on initial load)
+  if (!hasInitializedPrice) {
+    setPriceRange([min, max]);
+    setHasInitializedPrice(true);
+  }
+}, [products, hasInitializedPrice]);
 
 useEffect(() => {
   const fetchBrandInfo = async () => {
@@ -141,94 +149,76 @@ if (json?.success) {
   if (brandSlug) fetchBrandInfo();
 }, [brandSlug]);
 
-  const filteredProducts = useMemo(() => {
-    const result = products.filter((product) => {
+  const flattenedProducts = useMemo(() => {
+    // 1. Flatten all products into individual variant cards
+    const allCards = flattenProductsForListing(products);
+
+    // 2. Apply filters to the individual cards
+    const filtered = allCards.filter((item) => {
+      const product = item.productData;
+      const variant = item.variantForCard;
+      
+      const cardPrice =
+        typeof variant?.price === "number" && variant.price > 0
+          ? variant.price
+          : product.price ?? 0;
+
+      // Category filter
       if (selectedCategories.length > 0) {
         const ids = product.categories?.map((c: any) => c.categoryId) ?? [];
         if (!ids.some((id: string) => selectedCategories.includes(id)))
           return false;
       }
 
-      if (product.price < priceRange[0] || product.price > priceRange[1])
+      // Price filter
+      if (cardPrice < priceRange[0] || cardPrice > priceRange[1])
         return false;
 
+      // Rating filter
       if ((product.averageRating ?? 0) < minRating) return false;
 
       return true;
     });
 
-  return result;
-  }, [
-    products,
-    selectedCategories,
-    priceRange,
-    minRating,
-   
-  ]);
-const flattenedProducts = useMemo(() => {
+    // 3. De-duplicate (if necessary, though flattenProductsForListing should handle it)
+    const seen = new Set<string>();
+    const unique = filtered.filter((item: any) => {
+      const key = `${item.productData.id}-${item.variantForCard?.id ?? "parent"}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
-  const flat = flattenProductsForListing(filteredProducts);
+    // 4. Sort the filtered cards
+    const sorted = [...unique].sort((a, b) => {
+      // STOCK PRIORITY
+      const stockA = a.variantForCard?.stockQuantity ?? a.productData?.stockQuantity ?? 0;
+      const stockB = b.variantForCard?.stockQuantity ?? b.productData?.stockQuantity ?? 0;
+      const isOutA = stockA <= 0;
+      const isOutB = stockB <= 0;
 
-  const seen = new Set<string>();
+      if (isOutA !== isOutB) return isOutA ? 1 : -1;
 
-  const unique = flat.filter((item: any) => {
-    const key = `${item.productData.id}-${item.variantForCard?.id ?? "parent"}`;
+      // TOP RATED
+      if (sortBy === "rating") {
+        const ratingA = a.productData.averageRating ?? 0;
+        const ratingB = b.productData.averageRating ?? 0;
+        return ratingB - ratingA;
+      }
 
-    if (seen.has(key)) return false;
+      // PRICE SORT
+      if (sortBy === "price") {
+        const priceA = typeof a.variantForCard?.price === "number" && a.variantForCard.price > 0 ? a.variantForCard.price : a.productData.price;
+        const priceB = typeof b.variantForCard?.price === "number" && b.variantForCard.price > 0 ? b.variantForCard.price : b.productData.price;
+        const comparison = priceA - priceB;
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
 
-    seen.add(key);
-    return true;
-  });
+      return 0;
+    });
 
-  const getCardPrice = (item: any) => {
-    const basePrice =
-      typeof item.variantForCard?.price === "number"
-        ? item.variantForCard.price
-        : item.productData.price;
-
-    return basePrice;
-  };
-
-  const sorted = [...unique].sort((a, b) => {
-  // ✅ STEP 1: STOCK PRIORITY
-  const stockA =
-    a.variantForCard?.stockQuantity ??
-    a.productData?.stockQuantity ??
-    0;
-
-  const stockB =
-    b.variantForCard?.stockQuantity ??
-    b.productData?.stockQuantity ??
-    0;
-
-  const isOutA = stockA <= 0;
-  const isOutB = stockB <= 0;
-
-  // 👉 in-stock first
-  if (isOutA !== isOutB) {
-    return isOutA ? 1 : -1;
-  }
-
-// ⭐ TOP RATED
-if (sortBy === "rating") {
-  const ratingA = a.productData.averageRating ?? 0;
-  const ratingB = b.productData.averageRating ?? 0;
-
-  return ratingB - ratingA; // high → low
-}
-    if (sortBy === "price") {
-
-      const comparison = getCardPrice(a) - getCardPrice(b);
-
-      return sortDirection === "asc" ? comparison : -comparison;
-    }
-
-    return 0;
-  });
-
-  return sorted;
-
-}, [filteredProducts, sortBy, sortDirection]);
+    return sorted;
+  }, [products, selectedCategories, priceRange, minRating, sortBy, sortDirection]);
 
 const fetchMoreProducts = useCallback(async () => {
   if (isFetchingRef.current || !hasMore) return;
@@ -527,7 +517,7 @@ useEffect(() => {
 </div>
 
 
-            {filteredProducts.length === 0 && (
+            {flattenedProducts.length === 0 && (
               <div className="py-12 text-center text-gray-500">
                 No products found
               </div>

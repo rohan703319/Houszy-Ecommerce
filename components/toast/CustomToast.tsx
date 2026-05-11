@@ -130,35 +130,39 @@ const ToastItem = ({
 /* ================= PROVIDER ================= */
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
-const [topOffset, setTopOffset] = useState(120);
-useEffect(() => {
-  const header = document.getElementById("main-header");
-  if (!header) return;
+  const [topOffset, setTopOffset] = useState(120);
+  const [mounted, setMounted] = useState(false);
 
-  const updateOffset = () => {
-    setTopOffset(header.offsetHeight);
-  };
+  useEffect(() => {
+    setMounted(true);
+    const header = document.getElementById("main-header");
+    if (!header) return;
 
-  // initial
-  updateOffset();
+    const updateOffset = () => {
+      setTopOffset(header.offsetHeight);
+    };
 
-  // observe header size changes (BEST WAY)
-  const observer = new ResizeObserver(() => {
     updateOffset();
-  });
 
-  observer.observe(header);
+    const observer = new ResizeObserver(() => {
+      updateOffset();
+    });
 
-  return () => {
-    observer.disconnect();
-  };
-}, []);
+    observer.observe(header);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
-const removeAllToasts = () => {
-  setToasts([]);
-};
+
+  const removeAllToasts = () => {
+    setToasts([]);
+  };
+
   const showToast = (
     message: ReactNode,
     type: ToastType,
@@ -176,40 +180,45 @@ const removeAllToasts = () => {
     clearAll: removeAllToasts,
   };
 
- return (
-  <ToastContext.Provider value={value}>
-    {children}
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
 
-    {/* ===== TOP TOASTS (SUCCESS / ERROR / WARNING SAME) ===== */}
-   <div
-  style={{ top: `${topOffset}px` }}
-  className="fixed left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3"
->
-      {toasts
-        .filter((t) => t.type !== "info")
-        .map((toast) => (
-          <ToastItem
-            key={toast.id}
-            toast={toast}
-            onRemove={removeToast}
-          />
-        ))}
-    </div>
+      {/* Only render toasts on the client to avoid SSR hydration mismatches */}
+      {mounted && (
+        <>
+          {/* ===== TOP TOASTS (SUCCESS / ERROR / WARNING SAME) ===== */}
+          <div
+            style={{ top: `${topOffset}px` }}
+            className="fixed left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3"
+          >
+            {toasts
+              .filter((t) => t.type !== "info")
+              .map((toast) => (
+                <ToastItem
+                  key={toast.id}
+                  toast={toast}
+                  onRemove={removeToast}
+                />
+              ))}
+          </div>
 
-    {/* ===== INFO TOAST (BOTTOM RIGHT PREMIUM) ===== */}
-    <div className="fixed bottom-6 right-4 z-[9999] flex flex-col gap-3">
-      {toasts
-        .filter((t) => t.type === "info")
-        .map((toast) => (
-          <ToastItem
-            key={toast.id}
-            toast={toast}
-            onRemove={removeToast}
-          />
-        ))}
-    </div>
-  </ToastContext.Provider>
-);
+          {/* ===== INFO TOAST (BOTTOM RIGHT PREMIUM) ===== */}
+          <div className="fixed bottom-6 right-4 z-[9999] flex flex-col gap-3">
+            {toasts
+              .filter((t) => t.type === "info")
+              .map((toast) => (
+                <ToastItem
+                  key={toast.id}
+                  toast={toast}
+                  onRemove={removeToast}
+                />
+              ))}
+          </div>
+        </>
+      )}
+    </ToastContext.Provider>
+  );
 };
 
 /* ================= HOOK ================= */

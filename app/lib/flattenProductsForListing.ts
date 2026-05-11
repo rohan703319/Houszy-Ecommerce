@@ -1,3 +1,4 @@
+//app\lib\flattenProductsForListing.ts
 export interface FlattenedProduct {
   productData: any;
   variantForCard?: any | null;

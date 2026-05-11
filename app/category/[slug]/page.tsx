@@ -15,6 +15,7 @@ interface SearchParams {
   page?: string;
   pageSize?: string;
   discount?: string;
+   discountIds?: string;
   subCategorySlug?: string;
   brands?: string;    // brand slugs, comma-separated  e.g. "acme,bandaid"
   price?: string;     // price range e.g. "10-100"
@@ -79,6 +80,7 @@ async function getProducts(
     sortDirection = "asc",
     price,
     minRating,
+     discountIds,
   } = params;
 
   const query = new URLSearchParams({
@@ -102,7 +104,9 @@ async function getProducts(
   }
 
   if (minRating) query.set("minRating", minRating);
-
+if (discountIds) {
+  query.set("discountIds", discountIds);
+}
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`,
     { cache: "no-store" }

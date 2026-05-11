@@ -13,6 +13,13 @@ export interface WishlistItem {
   priceBeforeDiscount?: number;
   finalPrice?: number;
   discountAmount?: number;
+  oldPrice?: number | null;
+
+displayDiscountType?: "None" | "OldPrice" | "System";
+
+hasSystemDiscount?: boolean;
+
+systemDiscountAmount?: number;
   appliedDiscountId?: string | null;
   couponCode?: string | null;
   image: string;

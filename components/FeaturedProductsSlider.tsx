@@ -23,6 +23,8 @@ import { useAuth } from "@/context/AuthContext";
 import { getBackorderUIState } from "@/app/lib/backorderHelpers";
 import BackInStockModal from "@/components/backorder/BackInStockModal";
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
+import { useVatRates } from "@/app/hooks/useVatRates";
+import { getVatRate } from "@/app/lib/vatHelpers";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/autoplay";
@@ -49,6 +51,11 @@ orderMaximumQuantity?: number;
   slug: string;
   price: number;
   oldPrice?: number | null;
+  displayDiscountType?: "None" | "OldPrice" | "System";
+
+hasSystemDiscount?: boolean;
+
+systemDiscountAmount?: number;
   averageRating?: number;
   reviewCount?: number;
   images?: { imageUrl: string }[];
@@ -91,11 +98,11 @@ const flattenedProducts = useMemo(() => {
   return flattenProductsForListing(products);
 }, [products]);
 const shouldShowNav = flattenedProducts.length > 4;
-const [vatRates, setVatRates] = useState<any[]>([]);
 const [notifyProduct, setNotifyProduct] = useState<{
   productId: string;
   variantId?: string | null;
 } | null>(null);
+const vatRates = useVatRates();
 const [pharmaModal, setPharmaModal] = useState<{
   product: Product;
   variant?: Variant;
@@ -155,12 +162,15 @@ const handleBuyNow = (
 ) => {
  const finalQty = getInitialQty(product);
 
-const vatRate =
-  !product.vatExempt && (product as any).vatRateId
-    ? vatRates.find(v => v.id === (product as any).vatRateId)?.rate ?? null
-    : null;
+const vatRate = getVatRate(
+  vatRates,
+  (product as any).vatRateId,
+  product.vatExempt
+);
 const selected = defaultVariant ?? null;
-
+const oldPriceValue =
+  (defaultVariant as any)?.oldPrice ??
+  product.oldPrice;
 const stockQty =
   selected?.stockQuantity ??
   (product as any).stockQuantity ??
@@ -198,7 +208,20 @@ if (finalQty > maxQty) {
       price: finalPrice,
       priceBeforeDiscount: basePrice,
       finalPrice: finalPrice,
-      discountAmount: discountAmount,
+     discountAmount:
+  product.displayDiscountType === "System"
+    ? discountAmount
+    : 0,
+    oldPrice: oldPriceValue ?? null,
+
+displayDiscountType:
+  product.displayDiscountType ?? "None",
+
+hasSystemDiscount:
+  product.hasSystemDiscount ?? false,
+
+systemDiscountAmount:
+  product.systemDiscountAmount ?? 0,
       quantity: finalQty,
         vatRate: vatRate,
   vatIncluded: vatRate !== null,
@@ -231,19 +254,6 @@ if (finalQty > maxQty) {
 
 
 
-useEffect(() => {
-  const fetchVatRates = async () => {
-    try {
-      const res = await fetch("https://testapi.knowledgemarkg.com/api/VATRates?activeOnly=true");
-      const json = await res.json();
-      setVatRates(json.data || []);
-    } catch (error) {
-      console.error("VAT rates error:", error);
-    }
-  };
-
-  fetchVatRates();
-}, []);
 const getInitialQty = (product: any) => {
   return product.orderMinimumQuantity ?? 1;
 };
@@ -350,11 +360,14 @@ const finalPrice = getDiscountedPrice(product, basePrice);
 const oldPriceValue =
   (defaultVariant as any)?.oldPrice ?? product.oldPrice;
 
-const oldPriceData = getOldPriceDiscount(
-  finalPrice,
-  oldPriceValue,
-  !!discountBadge // agar already discount hai to skip
-);
+const oldPriceData =
+  product.displayDiscountType === "OldPrice"
+    ? getOldPriceDiscount(
+        basePrice,
+        oldPriceValue,
+        false
+      )
+    : null;
 // ---------- Active Coupon (indicator only) ----------
 const hasActiveCoupon = (product as any).assignedDiscounts?.some((d: any) => {
   if (!d.isActive) return false;
@@ -380,10 +393,11 @@ const backorderState = getBackorderUIState({
 });
 
 
-  const vatRate =
-    !product.vatExempt && (product as any).vatRateId
-      ? vatRates.find(v => v.id === (product as any).vatRateId)?.rate
-      : null;
+  const vatRate = getVatRate(
+    vatRates,
+    (product as any).vatRateId,
+    product.vatExempt
+  );
         
        return (
           <SwiperSlide key={variantForCard?.id ?? product.id}>
@@ -421,7 +435,8 @@ const backorderState = getBackorderUIState({
   </span>
 )}
 {/* Offer badge — top right, smaller */}
-{discountBadge && (
+{product.displayDiscountType === "System" &&
+ discountBadge && (
   <div className="absolute top-1 right-2 z-20">
     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
       <div className="flex flex-col items-center leading-none">
@@ -504,7 +519,20 @@ const backorderState = getBackorderUIState({
  
 priceBeforeDiscount: basePrice,
 finalPrice: finalPrice,
-discountAmount: discountAmount ?? 0,
+discountAmount:
+  product.displayDiscountType === "System"
+    ? discountAmount
+    : 0,
+oldPrice: oldPriceValue ?? null,
+
+displayDiscountType:
+  product.displayDiscountType ?? "None",
+
+hasSystemDiscount:
+  product.hasSystemDiscount ?? false,
+
+systemDiscountAmount:
+  product.systemDiscountAmount ?? 0,
 appliedDiscountId: null, // slider me coupon nahi hai
 couponCode: null,
   image: getProductDisplayImage(product, defaultVariant),
@@ -532,7 +560,10 @@ couponCode: null,
 }
   }}
   className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all ${
-    (discountBadge || oldPriceData || hasActiveCoupon) ? "top-12" : "top-2"
+    (
+  product.displayDiscountType !== "None" ||
+  hasActiveCoupon
+) ? "top-12" : "top-2"
   } ${
     isInWishlist(defaultVariant?.id ?? product.id)
       ? "bg-red-50 border-red-200"
@@ -606,11 +637,18 @@ couponCode: null,
   {/* PRICE ROW */}
   <div className="flex items-center gap-1 sm:gap-2">
    <span className="text-lg font-bold text-[#445D41] leading-none">
-  £{finalPrice.toFixed(2)}
+ £{
+  (
+    product.displayDiscountType === "System"
+      ? finalPrice
+      : basePrice
+  ).toFixed(2)
+} 
 </span>
 
 {/* 🔥 CASE 1: REAL DISCOUNT */}
-{discountBadge && (
+{product.displayDiscountType === "System" &&
+ discountBadge && (
   <span className="text-xs text-gray-400 line-through leading-none">
     £{basePrice.toFixed(2)}
   </span>
@@ -708,8 +746,32 @@ if (existingCartQty + finalQty > maxQty) {
     price: finalPrice,
     priceBeforeDiscount: basePrice,
     finalPrice: finalPrice,
-     oldPrice: oldPriceValue ?? null,
-    discountAmount: discountAmount,
+    oldPrice:
+  defaultVariant?.oldPrice ??
+  oldPriceValue ??
+  product.oldPrice ??
+  undefined,
+    displayDiscountType:
+  defaultVariant?.displayDiscountType ??
+  product.displayDiscountType ??
+  "None",
+
+hasSystemDiscount:
+  defaultVariant?.hasSystemDiscount ??
+  product.hasSystemDiscount ??
+  false,
+
+systemDiscountAmount:
+  defaultVariant?.systemDiscountAmount ??
+  product.systemDiscountAmount ??
+  0,
+  discountAmount:
+  (
+    defaultVariant?.displayDiscountType ??
+    product.displayDiscountType
+  ) === "System"
+    ? discountAmount
+    : 0,
     quantity: finalQty,
       // ✅ ADD THESE 👇
  vatRate: vatRate,

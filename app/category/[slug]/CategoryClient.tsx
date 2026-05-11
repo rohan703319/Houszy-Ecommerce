@@ -155,7 +155,14 @@ useEffect(() => {
   // ✅ Always use URL slug (not category.slug which may differ from URL)
   const urlSlug = (routeParams?.slug as string) ?? category?.slug ?? "";
   const isOfferPage = searchParams.get("offer") === "true";
-
+const offerDiscountIds = useMemo(
+  () =>
+    (searchParams.get("discountIds") || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  [searchParams]
+);
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [products, setProducts] = useState<Product[]>(initialProducts ?? []);
@@ -293,7 +300,17 @@ else if (isOfferPage) {
       const started = !start || now >= start;
       const notEnded = !end || now <= end;
 
-      return started && notEnded;
+      if (!started || !notEnded) return false;
+
+      // ✅ ONLY ALLOW URL DISCOUNT IDS
+      if (
+        offerDiscountIds.length > 0 &&
+        !offerDiscountIds.includes(d.id)
+      ) {
+        return false;
+      }
+
+      return true;
     }
   );
 
@@ -338,6 +355,9 @@ return filtered;
     selectedBrands,
     minRating,
     selectedSubCategories,
+    discount,
+    isOfferPage,
+    offerDiscountIds,
   ]);
 
 const flattenedProducts = useMemo(() => {
@@ -479,7 +499,11 @@ query.set("isDeleted", "false");
     // rating
     const ratingParam = searchParams.get("minRating");
     if (ratingParam) query.set("minRating", ratingParam);
+const discountIdsParam = searchParams.get("discountIds");
 
+if (discountIdsParam) {
+  query.set("discountIds", discountIdsParam);
+}
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`
     );
@@ -625,11 +649,24 @@ const resetFilters = useCallback(() => {
 setSortDirection(initialSortDirection as "asc" | "desc");
   setDragRange(null); // clear any in-progress drag
 
-  const params = new URLSearchParams();
-  if (discount) params.set("discount", String(discount));
+ const params = new URLSearchParams();
+
+if (discount) {
+  params.set("discount", String(discount));
+}
+
+if (isOfferPage) {
+  params.set("offer", "true");
+
+  const discountIdsParam = searchParams.get("discountIds");
+
+  if (discountIdsParam) {
+    params.set("discountIds", discountIdsParam);
+  }
+}
 
   router.push(`/category/${urlSlug}?${params.toString()}`);
-}, [router, urlSlug, discount]);
+}, [router, urlSlug, discount, isOfferPage, searchParams]);
 
 // Subcategory toggle — pass all selected slugs comma-separated to backend
 // Backend already supports comma-separated categorySlug (splits & OR-filters by all)

@@ -6,7 +6,7 @@ import Link from "next/link";
 import CommentForm from "./CommentForm";
 import CommentsList from "./CommentsList";
 import * as LucideIcons from "lucide-react";
-
+import TableOfContents from "@/components/blog/TableOfContents";
 const API_BASE = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "";
 
 // ⭐ FIX: params is now Promise in Next.js 15
@@ -192,7 +192,7 @@ export default async function BlogDetailPage({
    <div className="max-w-full mx-4 grid grid-cols-1 lg:grid-cols-3 gap-4 px-0 md:px-12 lg:h-full">
 
         {/* LEFT ARTICLE CARD */}
-      <div className="lg:col-span-2 ml-0 mr-0 md:ml-[-20px] md:mr-[-40px] lg:ml-[-55px] lg:mr-[-119px] lg:h-full lg:overflow-y-auto pr-2">
+      <div className="blog-scroll-container lg:col-span-2 ml-0 mr-0 md:ml-[-20px] md:mr-[-40px] lg:ml-[-55px] lg:mr-[-119px] lg:h-full lg:overflow-y-auto pr-2">
         <div className="bg-white shadow-lg rounded-2xl p-4 md:p-8 border min-h-full">
 
             {/* Breadcrumb */}
@@ -275,10 +275,67 @@ export default async function BlogDetailPage({
 )}
 
             {/* Body */}
-            <article
-              dangerouslySetInnerHTML={{ __html: post.body }}
-              className="prose max-w-none text-[15px] leading-6"
-            />
+        <article
+  dangerouslySetInnerHTML={{
+    __html: (() => {
+      let headingIndex = 0;
+
+      return post.body.replace(
+        /<(h2|h3|h4)([^>]*)>(.*?)<\/\1>/gi,
+        (
+          match: string,
+          tag: string,
+          attrs: string,
+          text: string
+        ) => {
+          const cleanText = text
+            .replace(/<[^>]+>/g, "")
+            .trim();
+
+          const id =
+            cleanText
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, "")
+              .replace(/\s+/g, "-") +
+            `-${headingIndex++}`;
+
+         const hasExistingId = /id=["']([^"']+)["']/.test(
+  attrs
+);
+
+return `
+  <${tag}
+    ${attrs}
+    ${
+      hasExistingId
+        ? ""
+        : `id="${id}"`
+    }
+    class="scroll-mt-28"
+  >
+    ${text}
+  </${tag}>
+`;
+        }
+      );
+    })(),
+  }}
+  className="
+    prose max-w-none text-[15px] leading-7
+    prose-headings:text-gray-900
+    prose-h2:text-2xl
+    prose-h2:font-bold
+    prose-h2:mt-10
+    prose-h2:mb-4
+    prose-h3:text-xl
+    prose-h3:font-semibold
+    prose-h3:mt-8
+    prose-h3:mb-3
+    prose-p:text-gray-700
+    prose-p:leading-7
+    prose-li:text-gray-700
+  "
+/>
 
             {/* Gallery */}
             {/* {gallery.length > 0 && (
@@ -328,7 +385,12 @@ export default async function BlogDetailPage({
         {/* RIGHT SIDEBAR */}
     <aside className="lg:col-span-1 mt-10 lg:mt-0 order-last lg:order-none ml-0 mr-0 md:ml-[10px] md:mr-[10px] lg:ml-[118px] lg:mr-[-55px] self-start">
        <div className="w-full self-start lg:sticky lg:top-28 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto pr-2">
-
+{/* TABLE OF CONTENTS */}
+{post.body && (
+  <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
+    <TableOfContents content={post.body} />
+  </div>
+)}
             {/* RECENT ARTICLES CARD */}
             <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
               <h3 className="text-xl font-semibold mb-5">🕗 Recent Articles</h3>
