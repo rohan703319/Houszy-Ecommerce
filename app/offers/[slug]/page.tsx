@@ -1,5 +1,5 @@
 // app/offers/[slug]/page.tsx
-export const dynamic = "force-dynamic";
+export const revalidate = 1800;
 
 import { notFound } from "next/navigation";
 import DiscountProductsClient from "./DiscountProductsClient";
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
   const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
   try {
-    const res = await fetch(`${baseUrl}/api/Discounts/by-slug/${slug}`, { cache: "no-store" });
+    const res = await fetch(`${baseUrl}/api/Discounts/by-slug/${slug}`, { next: { revalidate: 1800 } });
     if (res.ok) {
       const json = await res.json();
       const d = json?.data;
@@ -53,7 +53,7 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
   // Fetch discount info by slug
   let discount: any = null;
   try {
-    const res = await fetch(`${baseUrl}/api/Discounts/by-slug/${slug}`, { cache: "no-store" });
+    const res = await fetch(`${baseUrl}/api/Discounts/by-slug/${slug}`, { next: { revalidate: 1800 } });
     if (res.ok) {
       const json = await res.json();
       discount = json?.data ?? null;
@@ -74,7 +74,7 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
   let initialItems: any[] = [];
   let initialHasMore = false;
   try {
-    const res = await fetch(`${baseUrl}/api/Products/discounted?${productParams.toString()}`, { cache: "no-store" });
+    const res = await fetch(`${baseUrl}/api/Products/discounted?${productParams.toString()}`, { next: { revalidate: 1800 } });
     if (res.ok) {
       const json = await res.json();
       const items = json?.data?.items ?? [];

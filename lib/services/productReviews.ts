@@ -17,6 +17,7 @@ export interface ProductReview {
   id: string;
   productId: string;
   productName?: string;
+  productSlug?: string;
   productSku?: string;
   customerId: string;
   customerName: string;

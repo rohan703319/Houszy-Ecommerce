@@ -194,11 +194,12 @@ input[type="number"] {
   animation: toastIn 0.28s ease-out;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="time"]::-webkit-calendar-picker-indicator,
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-filter: invert(1) brightness(1.2);
-cursor: pointer;
+/* Calendar picker — dark mode only (light mode uses native OS appearance) */
+html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+html.dark input[type="time"]::-webkit-calendar-picker-indicator,
+html.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  cursor: pointer;
 }
 .custom-scrollbar {
   overscroll-behavior: contain;
@@ -221,3 +222,191 @@ cursor: pointer;
     background-position: 200% 50%;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN PANEL — LIGHT MODE THEME OVERRIDES
+   Applies when html does NOT have the .dark class.
+   All rules scoped to [data-admin] (AdminLayout root wrapper).
+   Uses !important to override Tailwind utility layer.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Background colours ─────────────────────────────────────── */
+html:not(.dark) [data-admin] .bg-slate-950,
+html:not(.dark) [data-admin] .bg-gray-950 { background-color: #f1f5f9 !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900,
+html:not(.dark) [data-admin] .bg-gray-900 { background-color: #f8fafc !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/20,
+html:not(.dark) [data-admin] .bg-gray-900\/20 { background-color: rgba(248,250,252,0.3) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/30,
+html:not(.dark) [data-admin] .bg-gray-900\/30 { background-color: rgba(248,250,252,0.5) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/40,
+html:not(.dark) [data-admin] .bg-gray-900\/40 { background-color: rgba(248,250,252,0.65) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/50,
+html:not(.dark) [data-admin] .bg-gray-900\/50 { background-color: rgba(248,250,252,0.75) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/60,
+html:not(.dark) [data-admin] .bg-gray-900\/60 { background-color: rgba(248,250,252,0.85) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/80,
+html:not(.dark) [data-admin] .bg-gray-900\/80 { background-color: rgba(255,255,255,0.95) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-900\/90,
+html:not(.dark) [data-admin] .bg-gray-900\/90 { background-color: rgba(255,255,255,0.97) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800,
+html:not(.dark) [data-admin] .bg-gray-800 { background-color: #ffffff !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/30,
+html:not(.dark) [data-admin] .bg-gray-800\/30 { background-color: rgba(241,245,249,0.45) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/40,
+html:not(.dark) [data-admin] .bg-gray-800\/40 { background-color: rgba(241,245,249,0.6) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/50,
+html:not(.dark) [data-admin] .bg-gray-800\/50 { background-color: rgba(241,245,249,0.7) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/60,
+html:not(.dark) [data-admin] .bg-gray-800\/60 { background-color: rgba(241,245,249,0.8) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/70,
+html:not(.dark) [data-admin] .bg-gray-800\/70 { background-color: rgba(241,245,249,0.85) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/80,
+html:not(.dark) [data-admin] .bg-gray-800\/80 { background-color: rgba(241,245,249,0.9) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/90,
+html:not(.dark) [data-admin] .bg-gray-800\/90 { background-color: rgba(255,255,255,0.95) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/10,
+html:not(.dark) [data-admin] .bg-gray-800\/10 { background-color: rgba(241,245,249,0.2) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/20,
+html:not(.dark) [data-admin] .bg-gray-800\/20 { background-color: rgba(241,245,249,0.3) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-700,
+html:not(.dark) [data-admin] .bg-gray-700 { background-color: #e2e8f0 !important; }
+
+html:not(.dark) [data-admin] .bg-slate-700\/30,
+html:not(.dark) [data-admin] .bg-gray-700\/30 { background-color: rgba(226,232,240,0.4) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-700\/50,
+html:not(.dark) [data-admin] .bg-gray-700\/50 { background-color: rgba(226,232,240,0.6) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-700\/60,
+html:not(.dark) [data-admin] .bg-gray-700\/60 { background-color: rgba(226,232,240,0.7) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-600,
+html:not(.dark) [data-admin] .bg-gray-600 { background-color: #cbd5e1 !important; }
+
+html:not(.dark) [data-admin] .bg-black\/50 { background-color: rgba(0,0,0,0.2) !important; }
+html:not(.dark) [data-admin] .bg-black\/70 { background-color: rgba(0,0,0,0.3) !important; }
+
+/* ── Border colours ─────────────────────────────────────────── */
+html:not(.dark) [data-admin] .border-slate-800,
+html:not(.dark) [data-admin] .border-gray-800 { border-color: #e2e8f0 !important; }
+
+html:not(.dark) [data-admin] .border-slate-800\/60,
+html:not(.dark) [data-admin] .border-gray-800\/60 { border-color: rgba(226,232,240,0.7) !important; }
+
+html:not(.dark) [data-admin] .border-slate-700,
+html:not(.dark) [data-admin] .border-gray-700 { border-color: #cbd5e1 !important; }
+
+html:not(.dark) [data-admin] .border-slate-600,
+html:not(.dark) [data-admin] .border-gray-600 { border-color: #94a3b8 !important; }
+
+/* ── Text colours ───────────────────────────────────────────── */
+html:not(.dark) [data-admin] .text-white { color: #1e293b !important; }
+html:not(.dark) [data-admin] .text-slate-100,
+html:not(.dark) [data-admin] .text-gray-100 { color: #1e293b !important; }
+html:not(.dark) [data-admin] .text-slate-200,
+html:not(.dark) [data-admin] .text-gray-200 { color: #334155 !important; }
+html:not(.dark) [data-admin] .text-slate-300,
+html:not(.dark) [data-admin] .text-gray-300 { color: #475569 !important; }
+html:not(.dark) [data-admin] .text-slate-400,
+html:not(.dark) [data-admin] .text-gray-400 { color: #64748b !important; }
+html:not(.dark) [data-admin] .text-slate-500,
+html:not(.dark) [data-admin] .text-gray-500 { color: #6b7280 !important; }
+
+/* Keep white text + icons inside gradient active nav items */
+html:not(.dark) [data-admin] [class*="from-violet-5"] * { color: #ffffff !important; }
+html:not(.dark) [data-admin] [class*="from-violet-4"] * { color: #ffffff !important; }
+
+/* ── Hover backgrounds ──────────────────────────────────────── */
+html:not(.dark) [data-admin] .hover\:bg-slate-900:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-900:hover { background-color: #e2e8f0 !important; }
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800:hover { background-color: #e2e8f0 !important; }
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/50:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/50:hover { background-color: rgba(226,232,240,0.6) !important; }
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/60:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/60:hover { background-color: rgba(226,232,240,0.7) !important; }
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/70:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/70:hover { background-color: rgba(226,232,240,0.8) !important; }
+
+html:not(.dark) [data-admin] .hover\:bg-slate-700:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-700:hover { background-color: #cbd5e1 !important; }
+
+html:not(.dark) [data-admin] .hover\:text-white:hover { color: #0f172a !important; }
+
+/* ── Divide colours ─────────────────────────────────────────── */
+html:not(.dark) [data-admin] .divide-slate-800 > * + *,
+html:not(.dark) [data-admin] .divide-gray-800 > * + * { border-color: #e2e8f0 !important; }
+html:not(.dark) [data-admin] .divide-slate-700 > * + *,
+html:not(.dark) [data-admin] .divide-gray-700 > * + * { border-color: #cbd5e1 !important; }
+
+/* ── Placeholder ────────────────────────────────────────────── */
+html:not(.dark) [data-admin] ::placeholder { color: #94a3b8 !important; }
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+html:not(.dark) [data-admin] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148,163,184,0.5);
+}
+html:not(.dark) [data-admin] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100,116,139,0.6);
+}
+
+/* ── Shadow softening ───────────────────────────────────────── */
+html:not(.dark) [data-admin] .shadow-black\/50 { --tw-shadow-color: rgba(0,0,0,0.08) !important; }
+html:not(.dark) [data-admin] .shadow-2xl { box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+
+/* ── Ring/Focus ─────────────────────────────────────────────── */
+html:not(.dark) [data-admin] .ring-slate-700,
+html:not(.dark) [data-admin] .ring-gray-700 { --tw-ring-color: #e2e8f0 !important; }
+
+/* ── Native <select> & <option> in light mode ───────────────── */
+html:not(.dark) [data-admin] select {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+html:not(.dark) [data-admin] select option {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+/* ── Input / Textarea background in light mode ───────────────── */
+html:not(.dark) [data-admin] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html:not(.dark) [data-admin] textarea {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+/* ── Hardcoded dark hex colours used in edit/add product pages ── */
+html:not(.dark) [data-admin] .bg-\[\#071120\] { background-color: #f1f5f9 !important; }
+html:not(.dark) [data-admin] .bg-\[\#071120\]\/95 { background-color: rgba(241,245,249,0.97) !important; }
+
+/* ── bg-slate-950 override (sticky top bar) ─────────────────── */
+html:not(.dark) [data-admin] .bg-slate-950 { background-color: #f1f5f9 !important; }
+
+/* ── Text visibility in light mode ──────────────────────────── */
+html:not(.dark) [data-admin] .text-slate-400 { color: #475569 !important; }
+html:not(.dark) [data-admin] .placeholder-slate-500::placeholder { color: #94a3b8 !important; }
+html:not(.dark) [data-admin] .placeholder-slate-400::placeholder { color: #94a3b8 !important; }

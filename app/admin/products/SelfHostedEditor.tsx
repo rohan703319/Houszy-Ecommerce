@@ -3,6 +3,7 @@
 
 import { extractFileName, deleteEditorImage, uploadEditorImage } from '@/lib/services/editorService';
 import React, { useEffect, useRef, useState } from 'react';
+import { useTheme } from '@/app/admin/_context/theme-provider';
 
 interface SelfHostedTinyMCEProps {
   value: string;
@@ -31,6 +32,8 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
   maxLength = Infinity,
   showCharCount = true
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const editorRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
   const isUpdatingRef = useRef(false);
@@ -196,36 +199,36 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
         
         toolbar: 'undo redo | formatselect | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image deleteimage | removeformat code',
         
-        skin: 'oxide-dark',
-        content_css: 'dark',
-        
+        skin: isDark ? 'oxide-dark' : 'oxide',
+        content_css: isDark ? 'dark' : 'default',
+
         content_style: `
-          body { 
+          body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px; 
+            font-size: 14px;
             line-height: 1.6;
-            color: #f1f5f9 !important;
-            background-color: #0f172a !important;
+            color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
+            background-color: ${isDark ? '#0f172a' : '#ffffff'} !important;
             margin: 0;
             padding: 12px 14px !important;
             min-height: ${height - 100}px;
             box-sizing: border-box;
           }
-          
+
           body:empty::before {
             content: "${placeholder}";
-            color: #ffffff;
+            color: ${isDark ? '#ffffff' : '#94a3b8'};
             opacity: 0.6;
           }
-          
+
           * {
-            color: #f1f5f9 !important;
+            color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
           }
-          
+
           p {
             margin: 0 0 0.8em 0;
             line-height: 1.6;
-            color: #e2e8f0 !important;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
             min-height: 1.4em;
           }
           
@@ -237,99 +240,99 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
             margin-bottom: 0;
           }
           
-          h1, h2, h3, h4, h5, h6 { 
-            color: #f8fafc !important; 
+          h1, h2, h3, h4, h5, h6 {
+            color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
             margin: 1em 0 0.5em 0;
             font-weight: 600;
             line-height: 1.4;
           }
-          
+
           strong, b {
-            color: #f8fafc !important;
+            color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
             font-weight: 600;
           }
-          
+
           em, i {
-            color: #e2e8f0 !important;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
             font-style: italic;
           }
-          
+
           u {
-            color: #e2e8f0 !important;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
             text-decoration: underline;
           }
-          
-          a { 
-            color: #a855f7 !important; 
+
+          a {
+            color: #a855f7 !important;
             text-decoration: underline;
           }
-          
+
           a:hover {
             color: #c084fc !important;
           }
-          
+
           ul, ol {
-            color: #e2e8f0 !important;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
             padding-left: 1.5em;
             margin: 0.6em 0;
           }
-          
+
           li {
-            color: #e2e8f0 !important;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
             margin: 0.3em 0;
             line-height: 1.6;
           }
-          
-          table { 
-            border-collapse: collapse; 
-            width: 100%; 
+
+          table {
+            border-collapse: collapse;
+            width: 100%;
             margin: 0.8em 0;
-            background-color: #1e293b !important;
-            border: 1px solid #475569;
+            background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
+            border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
           }
-          
-          th, td { 
-            border: 1px solid #475569; 
+
+          th, td {
+            border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
             padding: 6px 10px;
-            text-align: left; 
-            color: #e2e8f0 !important;
+            text-align: left;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
           }
-          
-          th { 
-            background-color: #334155 !important; 
+
+          th {
+            background-color: ${isDark ? '#334155' : '#e2e8f0'} !important;
             font-weight: 600;
-            color: #f1f5f9 !important;
+            color: ${isDark ? '#f1f5f9' : '#0f172a'} !important;
           }
-          
-          code { 
-            background-color: #374151 !important; 
-            color: #fbbf24 !important; 
+
+          code {
+            background-color: ${isDark ? '#374151' : '#f1f5f9'} !important;
+            color: ${isDark ? '#fbbf24' : '#7c3aed'} !important;
             padding: 2px 5px;
             border-radius: 4px;
             font-family: 'SF Mono', Monaco, Consolas, monospace;
           }
-          
+
           pre {
-            background-color: #111827 !important;
-            color: #f3f4f6 !important;
+            background-color: ${isDark ? '#111827' : '#f8fafc'} !important;
+            color: ${isDark ? '#f3f4f6' : '#1e293b'} !important;
             padding: 12px;
             border-radius: 8px;
             overflow-x: auto;
-            border: 1px solid #374151;
+            border: 1px solid ${isDark ? '#374151' : '#e2e8f0'};
           }
-          
+
           blockquote {
             border-left: 4px solid #8b5cf6;
             margin: 0.8em 0;
             padding: 0.4em 0.8em;
-            color: #cbd5e1 !important;
-            background-color: #334155 !important;
+            color: ${isDark ? '#cbd5e1' : '#475569'} !important;
+            background-color: ${isDark ? '#334155' : '#f1f5f9'} !important;
             border-radius: 0 8px 8px 0;
           }
-          
+
           hr {
             border: none;
-            border-top: 2px solid #475569;
+            border-top: 2px solid ${isDark ? '#475569' : '#e2e8f0'};
             margin: 1.2em 0;
           }
           

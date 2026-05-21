@@ -46,10 +46,10 @@ class SignalRService {
 
     try {
       console.log('==================== 🚀 SIGNALR INIT ====================');
-      
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://testapi.knowledgemarkg.com';
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.direct-care.co.uk';
       const token = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
-      
+
       console.log('📍 API URL:', apiUrl);
       console.log('🔑 Token exists:', !!token);
       console.log('👤 User ID:', userId);
@@ -68,7 +68,7 @@ class SignalRService {
         console.log('🧪 Testing negotiate endpoint...');
         try {
           const negotiateUrl = `${hubUrl}/negotiate?negotiateVersion=1`;
-          
+
           const testResponse = await fetch(negotiateUrl, {
             method: 'POST',
             headers: {
@@ -77,9 +77,9 @@ class SignalRService {
             },
             credentials: 'include',
           });
-          
+
           console.log('📊 Negotiate status:', testResponse.status);
-          
+
           if (testResponse.ok) {
             console.log('✅ Negotiate successful');
           } else {
@@ -96,18 +96,18 @@ class SignalRService {
         .withUrl(hubUrl, {
           accessTokenFactory: () => {
             // ✅ Always get fresh token
-            const currentToken = localStorage.getItem('authToken') || 
-                                localStorage.getItem('accessToken');
-            
+            const currentToken = localStorage.getItem('authToken') ||
+              localStorage.getItem('accessToken');
+
             if (!currentToken) {
               console.error('❌ Token missing during connection');
             }
-            
+
             return currentToken || '';
           },
-          transport: signalR.HttpTransportType.WebSockets | 
-                    signalR.HttpTransportType.ServerSentEvents |
-                    signalR.HttpTransportType.LongPolling,
+          transport: signalR.HttpTransportType.WebSockets |
+            signalR.HttpTransportType.ServerSentEvents |
+            signalR.HttpTransportType.LongPolling,
           skipNegotiation: false,
           withCredentials: true,
         })
@@ -117,7 +117,7 @@ class SignalRService {
               console.error('❌ Max reconnect attempts reached');
               return null;
             }
-            
+
             // Exponential backoff: 0ms, 2s, 10s, 30s, 60s
             if (retryContext.previousRetryCount === 0) return 0;
             if (retryContext.previousRetryCount === 1) return 2000;
@@ -127,8 +127,8 @@ class SignalRService {
           }
         })
         .configureLogging(
-          process.env.NODE_ENV === 'development' 
-            ? signalR.LogLevel.Information 
+          process.env.NODE_ENV === 'development'
+            ? signalR.LogLevel.Information
             : signalR.LogLevel.Warning
         )
         .build();
@@ -154,11 +154,11 @@ class SignalRService {
       });
 
       console.log('🚀 Starting connection...');
-      
+
       // ✅ Start with timeout
       await Promise.race([
         this.connection.start(),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Connection timeout (15s)')), 15000)
         )
       ]);
@@ -199,7 +199,7 @@ class SignalRService {
       console.log('⏰ Expires:', data.expiresAt);
       console.log('⏱️ Time Left:', data.timeLeftSeconds, 'seconds');
       console.log('=========================================================');
-      
+
       this.emit('takeoverRequest', data);
     });
 
@@ -208,10 +208,10 @@ class SignalRService {
       console.log('✅ ==================== TAKEOVER APPROVED ====================');
       console.log('📦 Raw data:', productIdOrData);
       console.log('📦 Type:', typeof productIdOrData);
-      
+
       // ✅ TRANSFORM: Backend sends string, we need object
       let normalizedData;
-      
+
       if (typeof productIdOrData === 'string') {
         // Backend sent just productId string
         normalizedData = { productId: productIdOrData };
@@ -225,10 +225,10 @@ class SignalRService {
         console.warn('⚠️ Unknown format, using as-is:', productIdOrData);
         normalizedData = productIdOrData;
       }
-      
+
       console.log('📤 Emitting to handlers:', JSON.stringify(normalizedData));
       console.log('=========================================================');
-      
+
       this.emit('takeoverApproved', normalizedData);
     });
 
@@ -237,9 +237,9 @@ class SignalRService {
       console.log('❌ ==================== TAKEOVER REJECTED ====================');
       console.log('📦 Arg 1:', requestIdOrData);
       console.log('📦 Arg 2:', optionalData);
-      
+
       let normalizedData;
-      
+
       // Case 1: Backend sends (requestId, dataObject)
       if (optionalData && typeof optionalData === 'object') {
         normalizedData = optionalData;
@@ -260,17 +260,17 @@ class SignalRService {
         console.warn('⚠️ Unknown data format:', requestIdOrData);
         normalizedData = requestIdOrData;
       }
-      
+
       console.log('📤 Emitting:', JSON.stringify(normalizedData));
       console.log('=========================================================');
-      
+
       this.emit('takeoverRejected', normalizedData);
     });
 
     // ✅ FALLBACK: Alternative event name for rejection
     this.connection.on('TakeoverRejected', (requestIdOrData: any, optionalData?: any) => {
       console.log('❌ TAKEOVER REJECTED (alternative event)');
-      
+
       let normalizedData;
       if (optionalData && typeof optionalData === 'object') {
         normalizedData = optionalData;
@@ -281,7 +281,7 @@ class SignalRService {
       } else {
         normalizedData = requestIdOrData;
       }
-      
+
       this.emit('takeoverRejected', normalizedData);
     });
 
@@ -290,15 +290,15 @@ class SignalRService {
       console.log('⏰ ==================== TAKEOVER EXPIRED ====================');
       console.log('📦 Raw data:', requestIdOrData);
       console.log('📦 Type:', typeof requestIdOrData);
-      
+
       // Normalize to object format
-      const normalizedData = typeof requestIdOrData === 'string' 
+      const normalizedData = typeof requestIdOrData === 'string'
         ? { requestId: requestIdOrData }
         : requestIdOrData;
-      
+
       console.log('📤 Emitting:', JSON.stringify(normalizedData));
       console.log('=========================================================');
-      
+
       this.emit('takeoverExpired', normalizedData);
     });
 
@@ -307,15 +307,15 @@ class SignalRService {
       console.log('🔓 ==================== LOCK RELEASED ====================');
       console.log('📦 Raw data:', productIdOrData);
       console.log('📦 Type:', typeof productIdOrData);
-      
+
       // ✅ TRANSFORM: Backend sends string, we need object
       const normalizedData = typeof productIdOrData === 'string'
         ? { productId: productIdOrData }
         : productIdOrData;
-      
+
       console.log('📤 Emitting:', JSON.stringify(normalizedData));
       console.log('=========================================================');
-      
+
       this.emit('lockReleased', normalizedData);
     });
 
@@ -324,7 +324,7 @@ class SignalRService {
       console.log('🔒 ==================== LOCK ACQUIRED ====================');
       console.log('📦 Data:', JSON.stringify(data, null, 2));
       console.log('=========================================================');
-      
+
       this.emit('lockAcquired', data);
     });
   }
@@ -398,15 +398,15 @@ class SignalRService {
 
   // ✅ Add event listener
   on(
-    event: 'takeoverRequest' | 'takeoverApproved' | 'takeoverRejected' | 'takeoverExpired' | 'lockReleased' | 'lockAcquired', 
+    event: 'takeoverRequest' | 'takeoverApproved' | 'takeoverRejected' | 'takeoverExpired' | 'lockReleased' | 'lockAcquired',
     callback: (data: any) => void
   ) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
-    
+
     const callbacks = this.listeners.get(event)!;
-    
+
     // Prevent duplicate listeners
     if (!callbacks.includes(callback)) {
       callbacks.push(callback);
@@ -481,22 +481,22 @@ class SignalRService {
       }
 
       console.log('🧪 Testing connection...');
-      
+
       const status = this.getStatus();
       console.log('📊 Connection status:', {
         isConnected: status.isConnected,
         state: status.state,
         connectionId: status.connectionId
       });
-      
+
       if (status.isConnected && status.connectionId) {
         console.log('✅ Connection test passed - SignalR is ready');
         return true;
       }
-      
+
       console.warn('⚠️ Connection state invalid');
       return false;
-      
+
     } catch (error: any) {
       console.error('❌ Connection test failed:', error.message);
       return false;

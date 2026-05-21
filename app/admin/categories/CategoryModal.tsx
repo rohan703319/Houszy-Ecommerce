@@ -75,7 +75,7 @@ const traverse = (cats: any[], level = 0) => {
   cats.forEach((cat) => {
     if (editingCategory && cat.id === editingCategory.id) return;
 
-    if (level < 2) {
+    if (level < 3) {
       result.push({ ...cat, level });
     }
 

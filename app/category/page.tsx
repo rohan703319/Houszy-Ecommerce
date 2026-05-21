@@ -9,12 +9,31 @@ interface Category {
   slug: string;
   imageUrl: string;
   showOnHomepage?: boolean;
+  parentCategoryId?: string | null;
+  parentCategoryName?: string | null;
+  subCategories?: Category[];
+}
+
+function flattenCategories(categories: Category[]): Category[] {
+  const result: Category[] = [];
+  function recurse(cats: Category[]) {
+    for (const cat of cats) {
+      if (!result.some((r) => r.id === cat.id)) {
+        result.push(cat);
+      }
+      if (cat.subCategories && cat.subCategories.length > 0) {
+        recurse(cat.subCategories);
+      }
+    }
+  }
+  recurse(categories);
+  return result;
 }
 
 async function getAllCategories(baseUrl: string): Promise<Category[]> {
   try {
     const res = await fetch(
-      `${baseUrl}/api/Categories?includeInactive=false&includeSubCategories=false&isActive=true&isDeleted=false`,
+      `${baseUrl}/api/Categories?includeInactive=false&includeSubCategories=true&isActive=true&isDeleted=false`,
       { next: { revalidate: 300 } }
     );
 
@@ -41,15 +60,19 @@ async function getAllCategories(baseUrl: string): Promise<Category[]> {
     }
 
     // ✅ FINAL FIX (IMPORTANT)
+    let rawCategories: Category[] = [];
     if (result?.success) {
       // case 1: direct array
-      if (Array.isArray(result.data)) return result.data;
-
+      if (Array.isArray(result.data)) {
+        rawCategories = result.data;
+      }
       // case 2: { items: [] }
-      if (Array.isArray(result.data?.items)) return result.data.items;
+      else if (Array.isArray(result.data?.items)) {
+        rawCategories = result.data.items;
+      }
     }
 
-    return [];
+    return flattenCategories(rawCategories);
   } catch (err) {
     console.error("Categories fetch failed:", err);
     return [];

@@ -15,9 +15,11 @@ import { getActiveBanners } from "@/lib/bannerUtils";
 import Script from "next/script";
 import { ShoppingCart, Star, TrendingUp, Zap, Gift, Shield, } from "lucide-react";
 import WhyChooseUs from "@/components/WhyChooseUs";
+import LatestBlogs from "@/components/LatestBlogs";
+import DiscountedProductsSlider from "@/components/DiscountedProductsSlider";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 // ✅ Static feature section
 const features = [
@@ -54,6 +56,7 @@ interface Product {
   averageRating?: number;
   reviewCount?: number;
   images?: { imageUrl: string }[];
+  assignedDiscounts?: any[]; // ✅ ADD THIS
 }
 interface Discount {
   usePercentage: boolean;
@@ -95,7 +98,7 @@ interface HomeBanner {
 async function getBanners(baseUrl: string): Promise<Banner[]> {
   try {
     const res = await fetch(`${baseUrl}/api/Banners`, {
-      cache: "no-store",
+      next: { revalidate: 3600 },
     });
     const result = await res.json();
     return result.success ? result.data : [];
@@ -107,9 +110,9 @@ async function getBanners(baseUrl: string): Promise<Banner[]> {
 async function getProducts(baseUrl: string) {
   try {
     const res = await fetch(
-      `${baseUrl}/api/Products?page=1&pageSize=10000&sortDirection=asc&isPublished=true&showOnHomepage=true&isDeleted=false`,
+      `${baseUrl}/api/Products?page=1&pageSize=20&sortDirection=asc&isPublished=true&showOnHomepage=true&isDeleted=false`,
       {
-        cache: "no-store",
+        next: { revalidate: 60 },
       }
     );
     const result = await res.json();
@@ -146,39 +149,33 @@ async function getCategories(baseUrl: string) {
   }
 }
 
-async function getBrands(baseUrl: string) {
+async function getDiscountedProducts(baseUrl: string) {
   try {
+    // No showOnHomepage filter — fetch ALL published products to find discounted ones
     const res = await fetch(
-      `${baseUrl}/api/Brands?includeUnpublished=false&isActive=true&isDeleted=false`,
-      {
-        next: { revalidate: 60 },
-      }
+      `${baseUrl}/api/Products?page=1&pageSize=100&sortDirection=asc&isPublished=true&isDeleted=false`,
+      { cache: 'no-store' }
     );
-
     const result = await res.json();
-
-    if (!result?.success) return [];
-
-    // 🔥 FIX: सही array निकालो
-    const dataArray = Array.isArray(result.data)
-      ? result.data
-      : result.data?.items || [];
-
-    return dataArray
-      .filter((b: Brand) => b.showOnHomepage)
-      .sort((a: Brand, b: Brand) => a.displayOrder - b.displayOrder);
+    if (!result.success) return [];
+    const items: any[] = result.data?.items ?? [];
+    return items.filter(
+      (p: any) => Array.isArray(p.assignedDiscounts) && p.assignedDiscounts.length > 0
+    );
   } catch {
     return [];
   }
 }
 
+
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.direct-care.co.uk"),
 
-  title: "Direct Care UK - Shop Beauty, Health, Incontinence Items & More",
+  title: "Shop Kitchenware, Fitness Equipment, Home Essentials & Toys - Houszy",
 
   description:
-    "Shop medicines, healthcare, beauty, and personal care products online in the UK. Fast delivery, trusted brands, and best prices at Direct Care.",
+    "Buy quality homeware, kitchenware, fitness gear, and toys. Find glass containers, cookware, gym gear, bedding, and games for everyone. Explore our wide range today!",
 
   keywords: [
     "buy medicines online UK",
@@ -189,7 +186,7 @@ export const metadata: Metadata = {
   ],
 
   openGraph: {
-    title: "Direct Care UK - Healthcare & Personal Care Online",
+    title: "Shop Kitchenware, Fitness Equipment, Home Essentials & Toys - Houszy",
     description:
       "Order medicines and healthcare products online in the UK with fast delivery and trusted brands.",
     url: "https://www.direct-care.co.uk",
@@ -211,11 +208,11 @@ export const metadata: Metadata = {
 export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL!;
 
-  const [products, categories, brands, banners] = await Promise.all([
+  const [products, categories, banners, discountedProducts] = await Promise.all([
     getProducts(baseUrl),
     getCategories(baseUrl),
-    getBrands(baseUrl),
     getBanners(baseUrl),
+    getDiscountedProducts(baseUrl),
   ]);
   const activeBanners = getActiveBanners(banners);
 
@@ -233,8 +230,6 @@ export default async function Home() {
   const homeProducts = [...products].sort(
     (a: any, b: any) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
   );
-
-
 
   return (
     <>
@@ -284,7 +279,7 @@ export default async function Home() {
         </h1>
 
         {/* ===== HERO SLIDER ===== */}
-        <section className="w-full">
+        <section className="w-full px-3 mt-4 lg:px-5 lg:mt-6 max-w-[1920px] mx-auto">
           <HomeBannerSlider banners={homeBanners} baseUrl={baseUrl} />
         </section>
 
@@ -292,7 +287,7 @@ export default async function Home() {
         <CategoryOffersSlider categories={categories} baseUrl={baseUrl} />
         {/* ===== PROMO BANNER ===== */}
         {seasonalBanners.length > 0 && (
-          <section className="w-full py-4 bg-white">
+          <section className="w-full py-10 md:py-14 bg-white">
             {seasonalBanners.map((banner) => {
               const desktopSrc = `${baseUrl}${banner.imageUrl}`;
               const mobileSrc = banner.mobileImageUrl ? `${baseUrl}${banner.mobileImageUrl}` : null;
@@ -322,88 +317,53 @@ export default async function Home() {
           </section>
         )}
 
+        {/* ===== OUR POPULAR COLLECTIONS ===== */}
+        <section className="w-full bg-white py-10 md:py-14">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
 
-        {/* ===== FEATURED PRODUCTS ===== */}
-        <section className="w-full bg-gray-50 py-4">
-          <div className="max-w-7xl mx-auto px-4">
-            <FeaturedProductsSlider products={homeProducts} baseUrl={baseUrl} />
-
-          </div>
-        </section>
-
-        {/* ===== CATEGORIES ===== */}
-        {/* ===== CATEGORIES ===== */}
-        <section className="w-full bg-gray-100 py-4">
-          <div className="max-w-7xl mx-auto px-4">
-
-            <div className="relative mb-3 md:mb-8">
-
-              {/* View All Button - Right Side */}
-              <Link
-                href="/category"
-                className="absolute right-0 top-0 text-xs md:text-base font-medium text-[#445D41] bg-green-50 border border-green-200 px-1 md:px-2 py-1 rounded hover:text-green-700 transition"
-              >
-                View All →
-              </Link>
-
-              {/* Centered Heading */}
-              <div className="text-center">
-                <h2 className="text-xl md:text-3xl font-bold mb-1">
-                  Shop by Category
-                </h2>
-                <p className="text-gray-600 text-sm md:text-base">
-                  Browse our wide range of products
-                </p>
-              </div>
-
+            {/* Heading */}
+            <div className="text-center mb-8">
+              <h2 className="text-[15px] md:text-[22px] font-bold text-black">
+                Our Popular Collections
+              </h2>
             </div>
 
+            {/* Category Slider for dynamic Swiper support across devices */}
             <CategorySlider categories={homeCategories} baseUrl={baseUrl} />
 
           </div>
         </section>
-        {/* ===== NEW ARRIVALS ===== */}
-        <section className="w-full bg-gray-50 py-4">
-          <div className="max-w-7xl mx-auto px-4">
+        {/* ===== FEATURED PRODUCTS ===== */}
+        <section className="w-full bg-white py-10">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+            <FeaturedProductsSlider products={homeProducts} baseUrl={baseUrl} title="Our Top Selling Products" />
+          </div>
+        </section>
+
+        {/* <section className="w-full bg-white py-10 md:py-14">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
             <NewArrivalsProductsSlider baseUrl={baseUrl} />
           </div>
-        </section>
-        {/* ===== TOP BRANDS ===== */}
-        <section className="w-full bg-white py-4">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="relative mb-4 md:mb-8">
+        </section> */}
 
-              {/* View All Button - Right Side */}
-              <Link
-                href="/brands"
-                className="absolute right-0 top-0 text-xs md:text-base font-medium text-[#445D41] bg-green-50 border border-green-200 px-2 py-1 rounded hover:text-green-700 transition"
-              >
-                View All →
-              </Link>
-
-              {/* Centered Heading */}
-              <div className="text-center">
-                <h2 className="text-xl md:text-3xl font-bold mb-1">
-                  Top Brands
-                </h2>
-                <p className="text-gray-600 text-sm md:text-base">
-                  Explore popular brands you can trust
-                </p>
-              </div>
-
-            </div>
-
-            {brands.length === 0 ? (
-              <p className="text-center text-gray-500">No brands available.</p>
-            ) : (
-              <TopBrandsSlider brands={brands} baseUrl={baseUrl} />
-            )}
+        {/* ===== WHY CHOOSE US ===== */}
+        <section className="w-full bg-white py-10 md:py-12">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+            <WhyChooseUs />
           </div>
         </section>
-        {/* ===== WHY CHOOSE US ===== */}
-        <section className="w-full bg-gray-100 py-0">
-          <div className="max-w-7xl mx-auto px-4">
-            <WhyChooseUs />
+
+        {/* ===== DISCOUNTED PRODUCTS (FITNESS HOT DEALS) ===== */}
+        <section className="w-full bg-white py-10">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+            <DiscountedProductsSlider products={discountedProducts} baseUrl={baseUrl} />
+          </div>
+        </section>
+
+        {/* ===== LATEST BLOGS ===== */}
+        <section className="w-full bg-white py-10 md:py-14">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+            <LatestBlogs />
           </div>
         </section>
       </div>

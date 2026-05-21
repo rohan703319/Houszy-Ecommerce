@@ -171,43 +171,74 @@ export interface Order {
   orderNumber: string;
   status: OrderStatus;
   orderDate: string;
+  productSavingsAmount?: number;
+
   estimatedDispatchDate?: string;
-  pendingPaymentAmount:number;
   dispatchedAt?: string;
   dispatchNote?: string;
+
+  pendingPaymentAmount: number;
+
   subtotalAmount: number;
-  totalPaidAmount: number;
   taxAmount: number;
   shippingAmount: number;
   discountAmount: number;
   totalAmount: number;
+
+  totalPaidAmount: number;
+  totalRefundedAmount: number;
+  remainingRefundableAmount?: number;
+  netAmountPaid: number;
+
   currency: string;
   notes?: string;
   couponCode?: string;
+
   isGuestOrder: boolean;
   subscriptionId?: string;
+  userId?: string;
+
+  customerName: string;
   customerEmail: string;
   customerPhone?: string;
+
   billingAddress: Address;
   shippingAddress: Address;
-  userId?: string;
-  customerName: string;
-  shippingMethodName: string;
-  collectionStoreName: string;
-  deliveryMethod: DeliveryMethod;
-  clickAndCollectFee?: number;
-  remainingRefundableAmount?: number;
 
-  totalRefundedAmount: number;
-  netAmountPaid: number;
+  // ================= DELIVERY =================
+  deliveryMethod: DeliveryMethod;
+  shippingMethodName: string;
+
+  clickAndCollectFee?: number;
+
+  // ================= COLLECTION STORE =================
+  collectionStoreId?: string;
+  collectionStoreName?: string;
+
+  collectionStoreAddressLine1?: string;
+  collectionStoreAddressLine2?: string;
+  collectionStoreCity?: string;
+  collectionStorePostalCode?: string;
+  collectionStoreCountry?: string;
+
+  collectionStorePhone?: string;
+  collectionStoreOpeningHours?: string;
+
   collectionStatus?: CollectionStatus;
   readyForCollectionAt?: string;
   collectedAt?: string;
   collectedBy?: string;
+
   collectorIDType?: string;
+  collectorIDNumber?: string;
+
   collectionExpiryDate?: string;
-  isShippingRefunded?:string
-  collectorIDNumber?:string
+
+  // ================= REFUND =================
+  isShippingRefunded?: boolean;
+  shippingRefundedAmount?: number;
+
+  refundHistory?: RefundHistory[];
 
   // ================= PHARMACY =================
   pharmacyVerificationStatus?: PharmacyVerificationStatus;
@@ -222,16 +253,20 @@ export interface Order {
     answeredAt: string;
   }[];
 
-  // Payment summary fields (from backend OrderDto)
+  // ================= PAYMENT =================
   paymentMethod?: string;
   paymentStatus?: string;
+
+  payments: Payment[];
+
+  // ================= ITEMS =================
+  orderItems: OrderItem[];
   unshippedItems?: UnshippedItem[];
 
-  orderItems: OrderItem[];
-    // ✅ ADD THIS
-  refundHistory?: RefundHistory[];
-  payments: Payment[];
+  // ================= SHIPPING =================
   shipments: Shipment[];
+
+  // ================= SYSTEM =================
   createdAt: string;
   updatedAt?: string;
 }
@@ -275,6 +310,15 @@ export interface WooCommerceOrderImportResult {
   createdCustomers: number;
   skippedOrders: number;
   errors: string[];
+}
+
+export interface OrderBulkUpdateResult {
+  totalRows: number;
+  ordersUpdated: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+  warnings: string[];
 }
 
 // ==================== REQUEST DTOs ====================
@@ -607,6 +651,30 @@ async importWooCommerce(file: File) {
   }
 }
 
+  async bulkUpdateExcel(file: File) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await apiClient.post<ApiResponse<OrderBulkUpdateResult>>(
+        API_ENDPOINTS.bulkUpdateOrdersExcel,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error?.response?.data?.message || 'Failed to bulk update orders via Excel'
+      );
+    }
+  }
+
+
 async downloadInvoice(orderId: string): Promise<void> {
   try {
     const response = await apiClient.get<Blob>(
@@ -646,6 +714,93 @@ async downloadInvoice(orderId: string): Promise<void> {
   }
 }
 
+/**
+ * Export Orders to Excel
+ */
+async exportOrders(params: {
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+  searchTerm?: string;
+  deliveryMethod?: string;
+}) {
+  const queryParams = new URLSearchParams();
+  
+  if (params.status && params.status !== 'all') {
+    queryParams.append('status', params.status);
+  }
+  if (params.fromDate) {
+    queryParams.append('fromDate', params.fromDate);
+  }
+  if (params.toDate) {
+    queryParams.append('toDate', params.toDate);
+  }
+  if (params.searchTerm) {
+    queryParams.append('searchTerm', params.searchTerm);
+  }
+  if (params.deliveryMethod && params.deliveryMethod !== 'all') {
+    queryParams.append('deliveryMethod', params.deliveryMethod);
+  }
+
+  const url = `${API_ENDPOINTS.exportOrders}${
+    queryParams.toString() ? `?${queryParams.toString()}` : ''
+  }`;
+
+  return apiClient.get(url, {
+    responseType: 'blob',
+  });
+}
+
+/**
+ * Hard-delete (permanent) an order. Only allowed for orders with no successful payment
+ * and no generated invoice. Caller must pass the order number as a typo-guard.
+ */
+async hardDeleteOrder(orderId: string, confirmOrderNumber: string) {
+  try {
+    const response = await apiClient.delete<ApiResponse<any>>(
+      `${API_ENDPOINTS.orders}/${orderId}/hard`,
+      { data: { confirmOrderNumber } }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message || 'Failed to hard-delete order'
+    );
+  }
+}
+
+async exportOrdersTravelbook(params: {
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+  searchTerm?: string;
+  deliveryMethod?: string;
+}) {
+  const queryParams = new URLSearchParams();
+  if (params.status && params.status !== 'all') queryParams.append('status', params.status);
+  if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+  if (params.toDate) queryParams.append('toDate', params.toDate);
+  if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
+  if (params.deliveryMethod && params.deliveryMethod !== 'all') queryParams.append('deliveryMethod', params.deliveryMethod);
+
+  const url = `${API_ENDPOINTS.exportOrdersTravelbook}${
+    queryParams.toString() ? `?${queryParams.toString()}` : ''
+  }`;
+
+  return apiClient.get(url, { responseType: 'blob' });
+}
+
+async exportProcessingForShipment() {
+  return apiClient.get(API_ENDPOINTS.exportProcessingForShipment, { responseType: 'blob' });
+}
+
+async bulkShipFromExcel(file: File) {
+  const fd = new FormData();
+  fd.append('file', file);
+  return apiClient.post<any>(API_ENDPOINTS.bulkShipFromExcel, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
 
 }
 

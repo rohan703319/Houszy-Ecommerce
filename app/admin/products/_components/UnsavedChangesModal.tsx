@@ -12,18 +12,18 @@ interface UnsavedChangesModalProps {
   changedFieldsList: string[];
   changedFieldsCount: number;
   isSubmitting: boolean;
-  
-  // Validation status
+
+  // ADD THIS
+  isEditMode: boolean;
+
   canSaveDraft: boolean;
   canUpdate: boolean;
-  
-  // Callbacks
+
   onSaveDraft: () => void;
   onUpdate: () => void;
   onDiscard: () => void;
   onCancel: () => void;
 }
-
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -33,6 +33,7 @@ export default function UnsavedChangesModal({
   changedFieldsList,
   changedFieldsCount,
   isSubmitting,
+  isEditMode,
   canSaveDraft,
   canUpdate,
   onSaveDraft,
@@ -156,7 +157,7 @@ export default function UnsavedChangesModal({
           {/* Action Buttons Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             
-            {/* Update Draft Button */}
+      {/* Update Draft Button */}
             <button
               onClick={onSaveDraft}
               disabled={!canSaveDraft || isSubmitting}
@@ -167,15 +168,20 @@ export default function UnsavedChangesModal({
                   <Save className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-white text-sm mb-1">Update Draft</h4>
+              <h4 className="font-semibold text-white text-sm mb-1">
+  {isEditMode ? 'Update Draft' : 'Create Draft'}
+</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Save changes and leave. Publish later.
+                    {
+  isEditMode
+    ? 'Save product updates and publish later.'
+    : 'Create draft and continue later.'
+}
                   </p>
                 </div>
               </div>
             </button>
-
-            {/* Update Product Button */}
+{/* Product Action Button */}
             <button
               onClick={onUpdate}
               disabled={!canUpdate || isSubmitting}
@@ -188,13 +194,17 @@ export default function UnsavedChangesModal({
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-white text-sm mb-1">Update Product</h4>
-                  <p className="text-xs text-white/80 leading-relaxed">
-                    {missingFields.length > 0 
-                      ? `${missingFields.length} field${missingFields.length !== 1 ? 's' : ''} required`
-                      : 'Publish changes and leave'
-                    }
-                  </p>
+                 <h4 className="font-semibold text-white text-sm mb-1">
+  {isEditMode ? 'Update Product' : 'Create Product'}
+</h4>
+               <p className="text-xs text-white/80 leading-relaxed">
+  {missingFields.length > 0
+    ? `${missingFields.length} field${missingFields.length !== 1 ? 's' : ''} required`
+    : isEditMode
+      ? 'Save and publish updates'
+      : 'Create and publish product'
+  }
+</p>
                 </div>
               </div>
             </button>

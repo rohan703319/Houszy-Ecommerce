@@ -1,7 +1,7 @@
 // lib/api.ts
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://testapi.knowledgemarkg.com';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.direct-care.co.uk';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -18,7 +18,7 @@ class ApiClient {
     // ✅ Validate and log base URL
     if (!baseURL || baseURL === 'undefined') {
       console.error('❌ Invalid API_BASE_URL:', baseURL);
-      baseURL = 'https://testapi.knowledgemarkg.com';
+      baseURL = 'https://api.direct-care.co.uk';
     }
 
     console.log('🔧 API Client initialized with URL:', baseURL);
@@ -43,7 +43,15 @@ class ApiClient {
         config.maxContentLength = Infinity;
         config.maxBodyLength = Infinity;
 
-        const fullUrl = `${config.baseURL}${config.url}`;
+        const queryString = config.params
+          ? `?${new URLSearchParams(config.params).toString()}`
+          : "";
+
+        const fullUrl = `${config.baseURL}${config.url}${queryString}`;
+
+        console.log(
+          `🚀 API Request: ${config.method?.toUpperCase()} ${fullUrl}`
+        );
         console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${fullUrl}`);
 
         if (typeof window !== 'undefined') {
@@ -62,66 +70,66 @@ class ApiClient {
     );
 
     // ✅ RESPONSE INTERCEPTOR - FIXED!
-this.client.interceptors.response.use(
-  (response) => {
-    console.log(`✅ API Response: ${response.status} ${response.config?.url}`);
-    return response;
-  },
+    this.client.interceptors.response.use(
+      (response) => {
+        console.log(`✅ API Response: ${response.status} ${response.config?.url}`);
+        return response;
+      },
 
-  (error: AxiosError) => {
-    console.group('🚨 API ERROR');
+      (error: AxiosError) => {
+        console.group('🚨 API ERROR');
 
-    const status = error.response?.status;
-    const url = error.config?.url;
-    const method = error.config?.method?.toUpperCase();
+        const status = error.response?.status;
+        const url = error.config?.url;
+        const method = error.config?.method?.toUpperCase();
 
-    console.log('📍 URL:', `${error.config?.baseURL}${url}`);
-    console.log('📍 Method:', method);
-    console.log('📍 Code:', error.code);
-    console.log('📍 Message:', error.message);
+        console.log('📍 URL:', `${error.config?.baseURL}${url}`);
+        console.log('📍 Method:', method);
+        console.log('📍 Code:', error.code);
+        console.log('📍 Message:', error.message);
 
-    if (error.response) {
-      // ✅ BACKEND ERROR (REAL RESPONSE)
-      console.log('📦 Status:', status);
-      console.log('📦 Data:', error.response.data);
+        if (error.response) {
+          // ✅ BACKEND ERROR (REAL RESPONSE)
+          console.log('📦 Status:', status);
+          console.log('📦 Data:', error.response.data);
 
-    } else if (error.request) {
-      // ❌ NETWORK ERROR (YOUR CURRENT CASE)
-      console.log('❌ NETWORK FAILURE');
+        } else if (error.request) {
+          // ❌ NETWORK ERROR (YOUR CURRENT CASE)
+          console.log('❌ NETWORK FAILURE');
 
-      // 🔥 ADD THIS (CRITICAL)
-      const payloadSize = error.config?.data
-        ? JSON.stringify(error.config.data).length / 1024
-        : 0;
+          // 🔥 ADD THIS (CRITICAL)
+          const payloadSize = error.config?.data
+            ? JSON.stringify(error.config.data).length / 1024
+            : 0;
 
-      console.log('📦 Payload Size (KB):', payloadSize);
+          console.log('📦 Payload Size (KB):', payloadSize);
 
-      if (payloadSize > 500) {
-        console.warn('⚠️ Payload too large → likely backend drop');
+          if (payloadSize > 500) {
+            console.warn('⚠️ Payload too large → likely backend drop');
+          }
+
+          console.log('Possible Causes:', [
+            'Server crash / timeout',
+            'Payload too large',
+            'CORS issue',
+            'Invalid JSON structure'
+          ]);
+
+        } else {
+          console.log('⚠️ Unknown error:', error.message);
+        }
+
+        console.groupEnd();
+
+        // ✅ AUTH HANDLING
+        if (status === 401 && typeof window !== 'undefined') {
+          localStorage.removeItem('authToken');
+          window.location.href = '/login';
+        }
+
+        return Promise.reject(error);
       }
-
-      console.log('Possible Causes:', [
-        'Server crash / timeout',
-        'Payload too large',
-        'CORS issue',
-        'Invalid JSON structure'
-      ]);
-
-    } else {
-      console.log('⚠️ Unknown error:', error.message);
-    }
-
-    console.groupEnd();
-
-    // ✅ AUTH HANDLING
-    if (status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
-
-    return Promise.reject(error);
-  }
-);
+    );
   }
 
   private async request<T>(
@@ -143,14 +151,14 @@ this.client.interceptors.response.use(
       });
 
       // ✅ Handle API success: false in response body
-if (response.data?.success === false) {
-  return {
-    error: response.data.message || 'Operation failed',
-    status: response.status,
-    data: response.data,
-    errors: response.data.errors || []
-  };
-}
+      if (response.data?.success === false) {
+        return {
+          error: response.data.message || 'Operation failed',
+          status: response.status,
+          data: response.data,
+          errors: response.data.errors || []
+        };
+      }
 
       // ✅ This shouldn't happen now (removed validateStatus)
       // But keep as safety check
@@ -227,35 +235,52 @@ if (response.data?.success === false) {
         }
 
       } else if (error?.request) {
-        // ✅ Request made but no response
-        switch (error.code) {
-          case 'ERR_NETWORK':
-            errorMessage = '🔴 Network Error - Cannot connect to server.\n\nCheck:\n' +
-              '1. Backend server is running\n' +
-              '2. API URL: ' + this.client.defaults.baseURL + '\n' +
-              '3. CORS enabled on backend\n' +
-              '4. Internet connection active\n' +
-              '5. Firewall not blocking';
-            break;
 
-          case 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED':
-            errorMessage = 'Request data too large. Check server configuration.';
-            break;
+        // ✅ backend plain text response
+        if (typeof error?.response?.data === 'string') {
+          errorMessage = error.response.data;
+        }
 
-          case 'ECONNABORTED':
-            errorMessage = 'Request timeout (2 min). Connection slow or data too large.';
-            break;
+        // ✅ backend structured response
+        else if (error?.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
 
-          case 'ECONNREFUSED':
-            errorMessage = 'Connection refused. Server not running or not accessible.';
-            break;
+        else {
+          switch (error.code) {
 
-          case 'ENOTFOUND':
-            errorMessage = 'Server not found. Check API URL: ' + this.client.defaults.baseURL;
-            break;
+            case 'ERR_NETWORK':
 
-          default:
-            errorMessage = 'No response from server. Please check your connection.';
+              // 🔥 If backend status exists
+              if (error?.request?.status === 503) {
+                errorMessage = 'The service is unavailable.';
+              }
+
+              else {
+                errorMessage = 'Unable to connect to server.';
+              }
+
+              break;
+
+            case 'ERR_FR_MAX_BODY_LENGTH_EXCEEDED':
+              errorMessage = 'Request data too large.';
+              break;
+
+            case 'ECONNABORTED':
+              errorMessage = 'Request timeout.';
+              break;
+
+            case 'ECONNREFUSED':
+              errorMessage = 'Connection refused.';
+              break;
+
+            case 'ENOTFOUND':
+              errorMessage = 'Server not found.';
+              break;
+
+            default:
+              errorMessage = 'No response from server.';
+          }
         }
 
       } else {

@@ -121,12 +121,18 @@ uploadImage: async (file: File, params?: Record<string, any>) => {
   apiClient.delete(
     `${API_ENDPOINTS.deleteCategoryImage}/${encodeURIComponent(imageUrl)}`
   ),
-// Restore Category (Soft Delete Restore)
-restore: (id: string, config: any = {}) =>
-  apiClient.post<void>(
-    `${API_ENDPOINTS.categories}/${id}/restore`,
-    {},
-    config
-  ),
+  // Restore Category (Soft Delete Restore)
+  restore: (id: string, config: any = {}) =>
+    apiClient.post<void>(
+      `${API_ENDPOINTS.categories}/${id}/restore`,
+      {},
+      config
+    ),
 
+  // Get simple list for dropdowns
+  getSimple: (params?: { includeInactive?: boolean; isDeleted?: boolean }) =>
+    apiClient.get<ApiResponse<Category[]>>(
+      `${API_ENDPOINTS.categories}/simple`,
+      { params }
+    ),
 };

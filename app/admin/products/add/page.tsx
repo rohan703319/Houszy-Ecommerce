@@ -1,848 +1,814 @@
-"use client";
-import { useState, useRef, useEffect, JSX, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, Upload, X, Info, Search, Image, Package, Tag,  Globe,  Truck, PoundSterling, Link as LinkIcon, ShoppingCart, Video, Play, Plus, Settings, ChevronDown } from "lucide-react";
-import Link from "next/link"
-import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
-import { useToast } from "@/app/admin/_components/CustomToast";
-import {   brandsService, DropdownsData, ProductAttribute, ProductImage,  ProductOption,  productsService, ProductVariant, SimpleProduct,  VATRateData } from '@/lib/services';
-import { GroupedProductModal } from '../GroupedProductModal';
-import { MultiBrandSelector } from "../MultiBrandSelector";
-import {  vatratesService } from "@/lib/services/vatrates";
-import { MultiCategorySelector } from "../MultiCategorySelector";
-import RelatedProductsSelector from "../RelatedProductsSelector";
-import ProductVariantsManager from "../ProductVariantsManager";
-import PharmacyQuestionAssignModal from "../PharmacyQuestionAssignModal";
-import { AssignProductPharmacyQuestionDto, pharmacyQuestionsService } from "@/lib/services/PharmacyQuestions";
-import ProductNameInput from "../ProductNameInput";
-import SKUInput from "../SKUInput";
-import { categoriesService } from "@/lib/services/categories";
-import UnsavedChangesModal from "../_components/UnsavedChangesModal";
+  "use client";
+  import { useState, useRef, useEffect, JSX, useCallback } from "react";
+  import { useRouter } from "next/navigation";
+  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  import { ArrowLeft, Save, Upload, X, Info, Search, Image, Package, Tag,  Globe,  Truck, PoundSterling, Link as LinkIcon, ShoppingCart, Video, Play, Plus, Settings, ChevronDown } from "lucide-react";
+  import Link from "next/link"
+  import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
+  import { useToast } from "@/app/admin/_components/CustomToast";
+  import {   brandsService, DropdownsData, ProductAttribute, ProductImage,  ProductOption,  productsService, ProductVariant, SimpleProduct,  VATRateData } from '@/lib/services';
+  import { GroupedProductModal } from '../GroupedProductModal';
+  import { MultiBrandSelector } from "../MultiBrandSelector";
+  import { MultiCategorySelector } from "../MultiCategorySelector";
+  import RelatedProductsSelector from "../RelatedProductsSelector";
+  import ProductVariantsManager from "../ProductVariantsManager";
+  import PharmacyQuestionAssignModal from "../PharmacyQuestionAssignModal";
+  import { AssignProductPharmacyQuestionDto, pharmacyQuestionsService } from "@/lib/services/PharmacyQuestions";
+  import ProductNameInput from "../ProductNameInput";
+  import SKUInput from "../SKUInput";
+  import { categoriesService } from "@/lib/services/categories";
+  import UnsavedChangesModal from "../_components/UnsavedChangesModal";
+  import VatRateSelector from "../VatRateSelector";
+  import { scrollCls } from "../../_utils/styles";
+  import { cn } from "@/lib/utils";
+  import { getBackendMessage } from "../../_utils/errorUtils";
 
-export default function AddProductPage() {
-  const router = useRouter();
-  const toast = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchTermCross, setSearchTermCross] = useState('');
-  const [productAttributes, setProductAttributes] = useState<ProductAttribute[]>([]);
-  const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-// ✅ Variant SKU Validation States
-const [checkingVariantSku, setCheckingVariantSku] = useState<Record<string, boolean>>({});
-const [variantSkuErrors, setVariantSkuErrors] = useState<Record<string, string>>({});
+  export default function AddProductPage() {
+    const router = useRouter();
+    const toast = useToast();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTermCross, setSearchTermCross] = useState('');
+    const [productAttributes, setProductAttributes] = useState<ProductAttribute[]>([]);
+    const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+  //   Variant SKU Validation States
+  const [checkingVariantSku, setCheckingVariantSku] = useState<Record<string, boolean>>({});
+  const [variantSkuErrors, setVariantSkuErrors] = useState<Record<string, string>>({});
 
-const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
-const [quantityMode, setQuantityMode] = useState<'range' | 'fixed' | 'unlimited'>('unlimited');
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [quantityMode, setQuantityMode] = useState<'range' | 'fixed' | 'unlimited'>('unlimited');
 
-// ============================================================
-// ADD THESE STATES (After other useState declarations)
-// ============================================================
-const [showUnsavedModal, setShowUnsavedModal] = useState(false);
-const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-const [showPharmacyModal, setShowPharmacyModal] = useState(false);
-const [pharmacyQuestions, setPharmacyQuestions] = useState<AssignProductPharmacyQuestionDto[]>([]);
+  // ============================================================
+  // ADD THESE STATES (After other useState declarations)
+  // ============================================================
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [showPharmacyModal, setShowPharmacyModal] = useState(false);
+  const [pharmacyQuestions, setPharmacyQuestions] = useState<AssignProductPharmacyQuestionDto[]>([]);
 
-const [nameError, setNameError] = useState(false);
-const [skuError, setSkuError] = useState(false);
-const [checkingSku, setCheckingSku] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [skuError, setSkuError] = useState(false);
+  const [checkingSku, setCheckingSku] = useState(false);
 
-// ✅ LOADING & SUBMISSION STATES
-// ================================
-const [isSubmitting, setIsSubmitting] = useState(false);
-const [submitProgress, setSubmitProgress] = useState<{
-  step: string;
-  percentage: number;
-} | null>(null);
+  //   LOADING & SUBMISSION STATES
+  // ================================
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState<{
+    step: string;
+    percentage: number;
+  } | null>(null);
 
-  // ✅ Check for variant SKU errors before submitting
-const hasVariantSkuErrors = Object.keys(variantSkuErrors).length > 0;
-const hasCheckingVariantSku = Object.values(checkingVariantSku).some(checking => checking);
-const getPlainText = (html: string) =>
-  html.replace(/<[^>]*>/g, '').trim();
+    //   Check for variant SKU errors before submitting
+  const hasVariantSkuErrors = Object.keys(variantSkuErrors).length > 0;
+  const hasCheckingVariantSku = Object.values(checkingVariantSku).some(checking => checking);
+  const getPlainText = (html: string) =>
+    html.replace(/<[^>]*>/g, '').trim();
 
-// ✂️ Utility: truncate HTML by plain text length
-const truncateHtmlByTextLength = (html: string, maxLength: number) => {
-  const div = document.createElement('div');
-  div.innerHTML = html;
+  //Utility: truncate HTML by plain text length
+  const truncateHtmlByTextLength = (html: string, maxLength: number) => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
 
-  let count = 0;
-  const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+    let count = 0;
+    const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
 
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
-    const remaining = maxLength - count;
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      const remaining = maxLength - count;
 
-    if (remaining <= 0) {
-      node.textContent = '';
-    } else if (node.textContent!.length > remaining) {
-      node.textContent = node.textContent!.slice(0, remaining);
-      count = maxLength;
-    } else {
-      count += node.textContent!.length;
+      if (remaining <= 0) {
+        node.textContent = '';
+      } else if (node.textContent!.length > remaining) {
+        node.textContent = node.textContent!.slice(0, remaining);
+        count = maxLength;
+      } else {
+        count += node.textContent!.length;
+      }
     }
-  }
 
-  return div.innerHTML;
-};
-
+    return div.innerHTML;
+  };
 
 
 
-// Add this to your component state
-const [availableProducts, setAvailableProducts] = useState<Array<{id: string, name: string, sku: string, price: string}>>([]);
-const [uploadingImages, setUploadingImages] = useState(false);
-const [vatSearch, setVatSearch] = useState('');
-const [showVatDropdown, setShowVatDropdown] = useState(false);
 
-  
-  // ============ NEW STATES FOR DRAFT/EDIT MODE ============
-  const [productId, setProductId] = useState<string | null>(null); // Track created product ID
-  const [isEditMode, setIsEditMode] = useState<boolean>(false); // Track if in edit mode
-  const [lastSavedData, setLastSavedData] = useState<any>(null); // Track last saved state
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false)
+  // Add this to your component state
+  const [availableProducts, setAvailableProducts] = useState<Array<{id: string, name: string, sku: string, price: string}>>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
-const [dropdownsData, setDropdownsData] = useState<DropdownsData>({
-  brands: [],
-  categories: [],
-  vatRates: []  // ✅ Add this
-});
- // ✅ ADD THIS STATE FOR MODAL
-  const [isGroupedModalOpen, setIsGroupedModalOpen] = useState(false);
-const [missingFields, setMissingFields] = useState<string[]>([]);
-const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
-// ============================================================
-// ADD THIS NEW STATE (After other useState declarations)
-// ============================================================
-const [initialFormData, setInitialFormData] = useState<any>(null);
+    
+    // ============ NEW STATES FOR DRAFT/EDIT MODE ============
+    const [productId, setProductId] = useState<string | null>(null); // Track created product ID
+    const [isEditMode, setIsEditMode] = useState<boolean>(false); // Track if in edit mode
 
-// ✅ ADD THESE TWO STATES
-const [simpleProducts, setSimpleProducts] = useState<SimpleProduct[]>([]);
-const [selectedGroupedProducts, setSelectedGroupedProducts] = useState<string[]>([]);
-// ✅ ADD THESE STATES AFTER YOUR OTHER useState DECLARATIONS
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false)
 
-// Homepage Count State
-const [homepageCount, setHomepageCount] = useState<number | null>(null);
-const MAX_HOMEPAGE = 50;
+  const [dropdownsData, setDropdownsData] = useState<DropdownsData>({
+    brands: [],
+    categories: [],
 
+  });
+  //   ADD THIS STATE FOR MODAL
+    const [isGroupedModalOpen, setIsGroupedModalOpen] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  // ============================================================
+  // ADD THIS NEW STATE (After other useState declarations)
+  // ============================================================
+  const [initialFormData, setInitialFormData] = useState<any>(null);
+
+  //   ADD THESE TWO STATES
+  const [simpleProducts, setSimpleProducts] = useState<SimpleProduct[]>([]);
+  const [selectedGroupedProducts, setSelectedGroupedProducts] = useState<string[]>([]);
+  //   ADD THESE STATES AFTER YOUR OTHER useState DECLARATIONS
+
+  // Homepage Count State
+  const [homepageCount, setHomepageCount] = useState<number | null>(null);
+  const MAX_HOMEPAGE = 50;
 
 
-// ============================================================
-// ADD THIS useEffect AFTER YOUR OTHER useEffect HOOKS
-// (Near your other useEffect declarations, NOT inside JSX)
-// ============================================================
 
-// ESC Key Support for Modal
-useEffect(() => {
-  const handleEscape = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && showUnsavedModal) {
-      handleModalCancel();
+  // ============================================================
+  // ADD THIS useEffect AFTER YOUR OTHER useEffect HOOKS
+  // (Near your other useEffect declarations, NOT inside JSX)
+  // ============================================================
+
+  // ESC Key Support for Modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showUnsavedModal) {
+        handleModalCancel();
+      }
+    };
+    
+    if (showUnsavedModal) {
+      window.addEventListener('keydown', handleEscape);
+    }
+    
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [showUnsavedModal]);
+
+  // ============================================================
+  // ADD THIS HANDLER FOR MODAL ACTIONS
+  // ============================================================
+  const handleModalSaveDraft = async () => {
+    setShowUnsavedModal(false);
+    
+    // Trigger draft save
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    await handleDraftSave(fakeEvent);
+    
+    // After save, navigate
+    if (pendingNavigation) {
+      setTimeout(() => {
+        router.push(pendingNavigation);
+        setPendingNavigation(null);
+      }, 500);
     }
   };
-  
-  if (showUnsavedModal) {
-    window.addEventListener('keydown', handleEscape);
-  }
-  
-  return () => {
-    window.removeEventListener('keydown', handleEscape);
-  };
-}, [showUnsavedModal]);
 
-// ============================================================
-// ADD THIS HANDLER FOR MODAL ACTIONS
-// ============================================================
-const handleModalSaveDraft = async () => {
-  setShowUnsavedModal(false);
-  
-  // Trigger draft save
-  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-  await handleDraftSave(fakeEvent);
-  
-  // After save, navigate
-  if (pendingNavigation) {
-    setTimeout(() => {
+  const handleModalCreateProduct = async () => {
+    setShowUnsavedModal(false);
+    
+    // Trigger publish
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    await handlePublish(fakeEvent);
+    
+    // Navigation will happen automatically in handleSubmit
+    setPendingNavigation(null);
+  };
+
+  const handleModalDiscard = () => {
+    setShowUnsavedModal(false);
+    setHasUnsavedChanges(false); // Clear flag to prevent further warnings
+    
+    if (pendingNavigation) {
       router.push(pendingNavigation);
       setPendingNavigation(null);
-    }, 500);
-  }
-};
+    }
+  };
 
-const handleModalCreateProduct = async () => {
-  setShowUnsavedModal(false);
-  
-  // Trigger publish
-  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-  await handlePublish(fakeEvent);
-  
-  // Navigation will happen automatically in handleSubmit
-  setPendingNavigation(null);
-};
-
-const handleModalDiscard = () => {
-  setShowUnsavedModal(false);
-  setHasUnsavedChanges(false); // Clear flag to prevent further warnings
-  
-  if (pendingNavigation) {
-    router.push(pendingNavigation);
+  const handleModalCancel = () => {
+    setShowUnsavedModal(false);
     setPendingNavigation(null);
-  }
-};
-
-const handleModalCancel = () => {
-  setShowUnsavedModal(false);
-  setPendingNavigation(null);
-};
-
-
-
-// ============================================================
-// UPDATE handleNavigateAway FUNCTION
-// ============================================================
-const handleNavigateAway = useCallback((targetPath?: string) => {
-  if (hasUnsavedChanges) {
-    setPendingNavigation(targetPath || '/admin/products');
-    setShowUnsavedModal(true);
-  } else {
-    router.push(targetPath || '/admin/products');
-  }
-}, [hasUnsavedChanges, router]);
-/**
- * ✅ CHECK DRAFT REQUIREMENTS (Minimal)
- * Only basic fields required to save as draft
- */
-const checkDraftRequirements = (): { isValid: boolean; missing: string[] } => {
-  const missing: string[] = [];
-
-  // 1. Product Name
-  if (!formData.name?.trim()) {
-    missing.push('Product Name');
-  }
-
-  // 2. SKU (optional for variable products — auto-generated)
-  if (!formData.sku?.trim() && formData.productType !== 'variable') {
-    missing.push('SKU');
-  }
-
-  // 3. At least one category
-  if (!formData.categoryIds || formData.categoryIds.length === 0) {
-    missing.push('Category');
-  }
-
-  // 4. At least one brand
-  const hasBrand = (formData.brandIds && formData.brandIds.length > 0) || formData.brand?.trim();
-  if (!hasBrand) {
-    missing.push('Brand');
-  }
-
-  return {
-    isValid: missing.length === 0,
-    missing
-  };
-};
-
-
-
-
-/**
- * ✅ CHECK PUBLISH REQUIREMENTS (Complete)
- * All required fields for creating/publishing product
- */
-const checkPublishRequirements = (): { isValid: boolean; missing: string[] } => {
-  const missing: string[] = [];
-
-  // 1. Basic Info
-  if (!formData.name?.trim()) missing.push('Product Name');
-  if (!formData.sku?.trim() && formData.productType !== 'variable') missing.push('SKU');
-  if (!formData.shortDescription?.trim()) missing.push('Short Description');
-  if (!formData.fullDescription?.trim()) missing.push('full Description');
-  // 3. Categories
-  if (!formData.categoryIds || formData.categoryIds.length === 0) {
-    missing.push('Category (at least 1)');
-  }
-  // Price only required for non-variable products
-  if (formData.productType !== 'variable') {
-    const price = Number(formData.price);
-    if (isNaN(price) || price <= 0) missing.push('Valid Price');
-  }
-
-  // 4. Brands
-  const hasBrand = (formData.brandIds && formData.brandIds.length > 0) || formData.brand?.trim();
-  if (!hasBrand) {
-    missing.push('Brand (at least 1)');
-  }
-
-  // 5. Images
-  if (!formData.productImages || formData.productImages.length < 5) {
-    missing.push(`Product Images (minimum 5, current: ${formData.productImages?.length || 0})`);
-  }
-
-  // 6. Stock (if tracking - skip for variable products, variants manage their own stock)
-  if (formData.productType !== 'variable' && formData.manageInventory === 'track') {
-    const stock = parseInt(formData.stockQuantity?.toString() || '0');
-    if (isNaN(stock) || stock < 0) {
-      missing.push('Stock Quantity (valid number)');
-    }
-  }
-
-  // 6b. Variable products: require at least 1 variant
-  if (formData.productType === 'variable' && productVariants.length === 0) {
-    missing.push('At least 1 variant (go to Variants tab)');
-  }
-
-  // 7. Shipping (if enabled)
-  // if (formData.isShipEnabled) {
-  //   if (!formData.weight || parseFloat(formData.weight.toString()) <= 0) {
-  //     missing.push('Weight (required for shipping)');
-  //   }
-  // }
-
-  // 8. Grouped Product Requirements
-  if (formData.productType === 'grouped' && formData.requireOtherProducts) {
-    if (!formData.requiredProductIds?.trim()) {
-      missing.push('Grouped Products (at least 1)');
-    }
-  }
-
-   // IMPORTANT: Jab vatExempt true hai, toh yeh condition execute nahi hogi
-  if (!formData.vatExempt) {
-    if (!formData.vatRateId || formData.vatRateId.trim() === '') {
-      missing.push('VAT Rate (required when product is taxable)');
-    }
-  }
-
-  // VAT Validation - Only if NOT exempt
- 
-  return {
-    isValid: missing.length === 0,
-    missing
-  };
-};
-
-/**
- * ✅ SHOW MISSING FIELDS TOAST
- */
-const showMissingFieldsToast = (missing: string[], isDraft: boolean) => {
-  const title = isDraft ? 'Draft Requirements' : 'Required Fields Missing';
-  const message = missing.length === 1 
-    ? `📋 Missing: ${missing[0]}`
-    : `📋 Missing ${missing.length} fields:\n\n${missing.map((f, i) => `${i + 1}. ${f}`).join('\n')}`;
-
-  toast.warning(message, {
-    autoClose: 8000,
-    position: 'top-center',
-  });
-};
-
-
-
-/**
- * ✅ CLEAN VARIANT OPTIONS - Save only if BOTH name AND value exist
- */
-const cleanVariantOptions = (variant: any, firstVariant: any) => {
-  const cleaned = { ...variant };
-
-  // ✅ Non-first variants: Inherit names from first variant
-  const option1Name = variant.option1Name || firstVariant.option1Name;
-  const option2Name = variant.option2Name || firstVariant.option2Name;
-  const option3Name = variant.option3Name || firstVariant.option3Name;
-
-  // ✅ Option 1: Name aur Value DONO chahiye
-  if (option1Name && variant.option1Value) {
-    cleaned.option1Name = option1Name;
-    cleaned.option1Value = variant.option1Value;
-  } else {
-    cleaned.option1Name = null;
-    cleaned.option1Value = null;
-  }
-
-  // ✅ Option 2: Name aur Value DONO chahiye
-  if (option2Name && variant.option2Value) {
-    cleaned.option2Name = option2Name;
-    cleaned.option2Value = variant.option2Value;
-  } else {
-    cleaned.option2Name = null;
-    cleaned.option2Value = null;
-  }
-
-  // ✅ Option 3: Name aur Value DONO chahiye
-  if (option3Name && variant.option3Value) {
-    cleaned.option3Name = option3Name;
-    cleaned.option3Value = variant.option3Value;
-  } else {
-    cleaned.option3Name = null;
-    cleaned.option3Value = null;
-  }
-
-  return cleaned;
-};
-
-// Updated combined useEffect with manufacturers API
-useEffect(() => {
-  const fetchAllData = async () => {
-    try {
-      console.log('🔄 Fetching all data (dropdowns + products)...');
-      
-      const [
-        brandsResponse, 
-        categoriesResponse, 
-        vatRatesResponse,
-        // allProductsResponse,
-        simpleProductsResponse
-      ] = await Promise.all([
-        brandsService.getAll({ includeInactive: true }),
-        categoriesService.getAll({ includeInactive: true, includeSubCategories: true }),
-        vatratesService.getAll(),
-        // productsService.getAll({ pageSize: 100 }),
-        productsService.getSimpleProducts()
-      ]);
-
-      console.log('✅ All data fetched');
-
-  const brandsData = Array.isArray(brandsResponse?.data?.data?.items)
-  ? brandsResponse.data.data.items
-  : [];
-
-const categoriesData = Array.isArray(categoriesResponse?.data?.data?.items)
-  ? categoriesResponse.data.data.items
-  : [];
-
-const vatRatesData = Array.isArray(vatRatesResponse?.data?.data)
-  ? vatRatesResponse.data.data
-  : [];
-      setDropdownsData({
-        brands: brandsData,
-        categories: categoriesData,
-        vatRates: vatRatesData
-      });
-
-      console.log('📊 Dropdowns:', {
-        brands: brandsData.length,
-        categories: categoriesData.length,
-        vat: vatRatesData.length
-      });
-
-  //     // ✅ ==================== SET DEFAULT VAT RATE ====================
-  //  if (vatRatesData.length > 0 && !formData.vatRateId && !formData.vatExempt) {
-  //       const defaultRate = vatRatesData.find((v: any) => v.isDefault === true);
-        
-  //       if (defaultRate) {
-  //         console.log('✅ Setting default VAT rate:', defaultRate.name, `(${defaultRate.rate}%)`);
-  //         setFormData(prev => ({ 
-  //           ...prev, 
-  //           vatRateId: defaultRate.id,
-  //           vatExempt: false
-  //         }));
-  //       }
-  //     }
-
-      // ==================== HELPER FUNCTION ====================
-      const extractProducts = (response: any): any[] => {
-        const data = response?.data?.data || response?.data || {};
-        return data.items || (Array.isArray(data) ? data : []);
-      };
-
-      // ==================== SIMPLE PRODUCTS ====================
-      const simpleItems = extractProducts(simpleProductsResponse);
-
-      if (simpleItems.length > 0) {
-        setSimpleProducts(simpleItems.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          price: typeof p.price === 'number' ? p.price.toFixed(2) : '0.00',
-          stockQuantity: p.stockQuantity || 0,
-          
-          // ✅ Brand & Category for filtering
-          brandId: p.brandId || p.brands?.[0]?.brandId || null,
-          brandName: p.brandName || p.brands?.[0]?.brandName || 'Unknown Brand',
-          categories: p.categories || []
-        })));
-        
-        console.log('✅ Simple products:', simpleItems.length);
-      }
-
-      // ==================== ALL PRODUCTS (FIXED) ====================
-      // const allItems = extractProducts(allProductsResponse);
-      
-      // if (allItems.length > 0) {
-      //   setAvailableProducts(allItems.map((p: any) => ({
-      //     id: p.id,
-      //     name: p.name,
-      //     sku: p.sku,
-      //     price: typeof p.price === 'number' ? p.price.toFixed(2) : '0.00', // ✅ Fixed format
-          
-      //     // ✅ ADD THESE 3 LINES FOR FILTERING
-      //     brandId: p.brandId || p.brands?.[0]?.brandId || null,
-      //     brandName: p.brandName || p.brands?.[0]?.brandName || 'Unknown Brand',
-      //     categories: p.categories || []
-      //   })));
-        
-      //   console.log('✅ Available products:', allItems.length);
-        
-      //   // ✅ DEBUG: Log sample product
-      //   if (allItems.length > 0) {
-      //     console.log('📦 Sample Product:', {
-      //       name: allItems[0].name,
-      //       brandId: allItems[0].brandId || allItems[0].brands?.[0]?.brandId,
-      //       brandName: allItems[0].brandName || allItems[0].brands?.[0]?.brandName,
-      //       categories: allItems[0].categories?.length || 0
-      //     });
-      //   }
-      // }
-
-    } catch (error) {
-      console.error('❌ Error fetching data:', error);
-      toast.error('Failed to load data');
-      setAvailableProducts([]);
-    }
   };
 
-  fetchAllData();
-}, []); // Only run once on mount
 
 
- const [formData, setFormData] = useState({
-  // ===== BASIC INFO =====
-  name: '',
-  shortDescription: '',
-  fullDescription: '',
-  sku: '',
-  // ✅ NEW - Add this:
-  categoryIds: [] as string[], // Multiple categories array
-  brand: '', // For backward compatibility (primary brand)
-  brandIds: [] as string[], // ✅ NEW - Multiple brands array
-  
-  published: true,
-  productType: 'simple',
-  visibleIndividually: true,
-  gender: '',
-  customerRoles: 'all',
-  limitedToStores: false,
-  vendorId: '',
-  requireOtherProducts: false,
-  requiredProductIds: '',
-  automaticallyAddProducts: false,
-  showOnHomepage: false,
-  displayOrder: '1',
-  productTags: '',
-  gtin: '',
-  manufacturerPartNumber: '',
-  adminComment: '',
-  categoryName: '', // For clean category name display
-  // Delivery flags (charges managed via Shipping Methods)
-  sameDayDeliveryEnabled: false,
-  nextDayDeliveryEnabled: false,
-  nextDayDeliveryFree: false,   // ✅ ADD THIS
-  standardDeliveryEnabled: true,
-  nextDayDeliveryCutoffTime: '',
-
-  // ===== RELATED PRODUCTS =====
-  relatedProducts: [] as string[],
-  crossSellProducts: [] as string[],
-    // ✅ ADD THESE NEW BUNDLE DISCOUNT FIELDS
-  groupBundleDiscountType: 'None' as 'None' | 'Percentage' | 'FixedAmount' | 'SpecialPrice',
-  groupBundleDiscountPercentage: 0,
-  groupBundleDiscountAmount: 0,
-  groupBundleSpecialPrice: 0,
-  groupBundleSavingsMessage: '',
-  showIndividualPrices: true,
-  applyDiscountToAllItems: false,
-
-  // ===== MEDIA =====
-  productImages: [] as ProductImage[],
-  videoUrls: [] as string[],
-  specifications: [] as Array<{id: string, name: string, value: string, displayOrder: number}>,
-
-  // ===== PRICING =====
-  price: '',
-  oldPrice: '',
-  cost: '',
-  disableBuyButton: false,
-  disableWishlistButton: false,
-  availableForPreOrder: false,
-  preOrderAvailabilityStartDate: '',
-
-
-  
-  // Base Price
-  basepriceEnabled: false,
-  basepriceAmount: '',
-  basepriceUnit: '',
-  basepriceBaseAmount: '',
-  basepriceBaseUnit: '',
-  
-  // Mark as New
-  markAsNew: false,
-  markAsNewStartDate: '',
-  markAsNewEndDate: '',
-
-  // ===== DISCOUNTS / AVAILABILITY =====
-  hasDiscountsApplied: false,
-  availableStartDate: '',
-  availableEndDate: '',
-
-  // ===== TAX =====
-  vatExempt: false,
-  vatRateId: '',
-
-  // ===== LOYALTY & PHARMA =====
-  excludeFromLoyaltyPoints: true,
-  isPharmaProduct: false,
-
-
-  // ===== RECURRING / SUBSCRIPTION =====
-  isRecurring: false,
-  recurringCycleLength: '',
-  recurringCyclePeriod: 'days',
-  recurringTotalCycles: '',
-  subscriptionDiscountPercentage: '',
-  allowedSubscriptionFrequencies: '',
-  subscriptionDescription: '',
-
-  // ===== PACK PRODUCT =====
-  isPack: false,
-  packSize: '',
-
-  // ===== INVENTORY ===== ✅ UPDATED
-  manageInventory: 'track',
-  stockQuantity: '',
-  displayStockAvailability: true,
-  displayStockQuantity: false,
-  minStockQuantity: '',
-  lowStockActivity: 'nothing',
-  
-  // ✅ NOTIFICATION FIELDS - UPDATED
-  notifyAdminForQuantityBelow: true,  // ✅ Backend boolean (always true)
-notifyQuantityBelow: "",          // ✅ User input threshold
-  
-  // ✅ BACKORDER FIELDS - UPDATED
-  allowBackorder: false,              // ✅ Checkbox
-  backorderMode: 'no-backorders',     // ✅ Dropdown (conditional)
-  backorders: 'no-backorders',        // ✅ Keep for backward compatibility
-  
-  allowBackInStockSubscriptions: false,
-  productAvailabilityRange: '',
-  
-  // Cart Limits
-// Cart Limits
-orderMinimumQuantity: '1',      // ✅ NEW (matches API)
-orderMaximumQuantity: '10',     // ✅ NEW (matches API)
-allowedQuantities: '',
-
-  allowAddingOnlyExistingAttributeCombinations: false,
-  notReturnable: false,
-
-  // ===== SHIPPING =====
-  isShipEnabled: true,
-
-  shipSeparately: false,
-
-  deliveryDateId: '',
-  weight: '',
-  length: '',
-  width: '',
-  height: '',
-
-  // ===== GIFT CARDS =====
-  isGiftCard: false,
-  giftCardType: 'virtual',
-  overriddenGiftCardAmount: '',
-
-  // ===== DOWNLOADABLE PRODUCT =====
-  isDownload: false,
-  downloadId: '',
-  unlimitedDownloads: true,
-  maxNumberOfDownloads: '',
-  downloadExpirationDays: '',
-  downloadActivationType: 'when-order-is-paid',
-  hasUserAgreement: false,
-  userAgreementText: '',
-  hasSampleDownload: false,
-  sampleDownloadId: '',
-
-  // ===== RENTAL PRODUCT =====
-  isRental: false,
-  rentalPriceLength: '',
-  rentalPricePeriod: 'days',
-
-  // ===== REVIEWS =====
-  allowCustomerReviews: true,
-   metaTitle: '',
-  metaKeywords: '',
-  metaDescription: '',
-  searchEngineFriendlyPageName: '',
-});
-
-// Helper function to get list of changed fields
-const getChangedFieldsList = useCallback(() => {
-  const changes: string[] = [];
-  if (!initialFormData) return changes;
-  
-  if (formData.name !== initialFormData.name) changes.push('Product Name');
-  if (formData.sku !== initialFormData.sku) changes.push('SKU');
-  if (formData.shortDescription !== initialFormData.shortDescription) changes.push('Short Description');
-  if (formData.fullDescription !== initialFormData.fullDescription) changes.push('Full Description');
-  if (formData.productType !== initialFormData.productType) changes.push('Product Type');
-  if (formData.price !== initialFormData.price) changes.push('Price');
-  if (formData.oldPrice !== initialFormData.oldPrice) changes.push('Old Price');
-  if (formData.cost !== initialFormData.cost) changes.push('Cost');
-  if (JSON.stringify(formData.categoryIds) !== JSON.stringify(initialFormData.categoryIds)) 
-    changes.push('Categories');
-  if (JSON.stringify(formData.brandIds) !== JSON.stringify(initialFormData.brandIds)) 
-    changes.push('Brands');
-  if (formData.stockQuantity !== initialFormData.stockQuantity) changes.push('Stock');
-  if (formData.manageInventory !== initialFormData.manageInventory) changes.push('Inventory Management');
-  if (formData.isShipEnabled !== initialFormData.isShipEnabled) changes.push('Shipping Enabled');
-  if (formData.weight !== initialFormData.weight) changes.push('Weight');
-  if (formData.metaTitle !== initialFormData.metaTitle) changes.push('Meta Title');
-  if (formData.metaDescription !== initialFormData.metaDescription) changes.push('Meta Description');
-  if (formData.showOnHomepage !== initialFormData.showOnHomepage) changes.push('Show on Homepage');
-  if (formData.adminComment !== initialFormData.adminComment) changes.push('Admin Comment');
-  
-  return changes;
-}, [formData, initialFormData]);
-// ✅ SEPARATE useEffect FOR DEFAULT VAT RATE
-useEffect(() => {
-  // Only run when VAT rates are loaded AND no rate selected AND not exempt
-  if (dropdownsData.vatRates.length > 0 && !formData.vatRateId && !formData.vatExempt) {
-    // Find default rate (isDefault: true)
-    const defaultRate = dropdownsData.vatRates.find((v: any) => v.isDefault === true);
-    
-    if (defaultRate) {
-      console.log('✅ Setting default VAT rate:', defaultRate.name, `(${defaultRate.rate}%)`);
-      setFormData(prev => ({ 
-        ...prev, 
-        vatRateId: defaultRate.id,
-        vatExempt: false  // Ensure not exempt
-      }));
-    } else {
-      // If no default rate found, optionally find 0% rate
-      const zeroRate = dropdownsData.vatRates.find((v: any) => v.rate === 0);
-      if (zeroRate) {
-        console.log('✅ Setting 0% VAT rate as default:', zeroRate.name);
-        setFormData(prev => ({ 
-          ...prev, 
-          vatRateId: zeroRate.id,
-          vatExempt: false
-        }));
-      }
-    }
-  }
-}, [dropdownsData.vatRates, formData.vatRateId, formData.vatExempt]); // ✅ Dependencies
-useEffect(() => {
-  const { missing } = checkPublishRequirements();
-  setMissingFields(missing);
-}, [
-  formData.name,
-  formData.sku,
-  formData.shortDescription,
-  formData.price,
-  formData.categoryIds,
-  formData.brandIds,
-  formData.brand,
-  formData.productImages,
-  formData.stockQuantity,
-  formData.manageInventory,
-  formData.isShipEnabled,
-  formData.productType,
-  formData.requireOtherProducts,
-  formData.requiredProductIds,
-  formData.vatExempt,
-  formData.vatRateId,
-  productVariants,
-]);
-
-/**
- * ✅ HANDLE DRAFT SAVE
- */
-
-// ============ HANDLE DRAFT SAVE - NO REDIRECT ============
-const handleDraftSave = (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Check draft requirements (minimal fields only)
-  const { isValid, missing } = checkDraftRequirements();
-  if (!isValid) {
-    showMissingFieldsToast(missing, true);
-    return;
-  }
-  
-  // Pass: isDraft = true, shouldRedirect = false
-  handleSubmit(e, true, false);
-};
-
-// ============ HANDLE PUBLISH - WITH REDIRECT ============
-const handlePublish = (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Check FULL requirements for publishing
-  const { isValid, missing } = checkPublishRequirements();
-  if (!isValid) {
-    showMissingFieldsToast(missing, false);
-    return;
-  }
-  
-  // Pass: isDraft = false, shouldRedirect = true
-  handleSubmit(e, false, true);
-};
-// ============ FIX 3: Add Navigation Guard ============
-// Add this useEffect for unsaved changes warning:
-useEffect(() => {
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  // ============================================================
+  // UPDATE handleNavigateAway FUNCTION
+  // ============================================================
+  const handleNavigateAway = useCallback((targetPath?: string) => {
     if (hasUnsavedChanges) {
-      e.preventDefault();
-      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      setPendingNavigation(targetPath || '/admin/products');
+      setShowUnsavedModal(true);
+    } else {
+      router.push(targetPath || '/admin/products');
     }
+  }, [hasUnsavedChanges, router]);
+  /**
+   *   CHECK DRAFT REQUIREMENTS (Minimal)
+   * Only basic fields required to save as draft
+   */
+  const checkDraftRequirements = (): { isValid: boolean; missing: string[] } => {
+    const missing: string[] = [];
+
+    // 1. Product Name
+    if (!formData.name?.trim()) {
+      missing.push('Product Name');
+    }
+
+    // 2. SKU (optional for variable products   €” auto-generated)
+    if (!formData.sku?.trim() && formData.productType !== 'variable') {
+      missing.push('SKU');
+    }
+
+    // 3. At least one category
+    if (!formData.categoryIds || formData.categoryIds.length === 0) {
+      missing.push('Category');
+    }
+
+    // 4. At least one brand
+    const hasBrand = (formData.brandIds && formData.brandIds.length > 0) || formData.brand?.trim();
+    if (!hasBrand) {
+      missing.push('Brand');
+    }
+
+    return {
+      isValid: missing.length === 0,
+      missing
+    };
   };
 
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-}, [hasUnsavedChanges]);
+  /**
+   *   CHECK PUBLISH REQUIREMENTS (Complete)
+   * All required fields for creating/publishing product
+   */
+  const checkPublishRequirements = (): { isValid: boolean; missing: string[] } => {
+    const missing: string[] = [];
+
+    // 1. Basic Info
+    if (!formData.name?.trim()) missing.push('Product Name');
+    if (!formData.sku?.trim() && formData.productType !== 'variable') missing.push('SKU');
+    if (!formData.shortDescription?.trim()) missing.push('Short Description');
+    if (!formData.fullDescription?.trim()) missing.push('full Description');
+    // 3. Categories
+    if (!formData.categoryIds || formData.categoryIds.length === 0) {
+      missing.push('Category (at least 1)');
+    }
+    // Price only required for non-variable products
+    if (formData.productType !== 'variable') {
+      const price = Number(formData.price);
+      if (isNaN(price) || price <= 0) missing.push('Valid Price');
+    }
+
+    // 4. Brands
+    const hasBrand = (formData.brandIds && formData.brandIds.length > 0) || formData.brand?.trim();
+    if (!hasBrand) {
+      missing.push('Brand (at least 1)');
+    }
+
+    // 5. Images
+    if (!formData.productImages || formData.productImages.length < 5) {
+      missing.push(`Product Images (minimum 5, current: ${formData.productImages?.length || 0})`);
+    }
+
+    // 6. Stock (if tracking - skip for variable products, variants manage their own stock)
+    if (formData.productType !== 'variable' && formData.manageInventory === 'track') {
+      const stock = parseInt(formData.stockQuantity?.toString() || '0');
+      if (isNaN(stock) || stock < 0) {
+        missing.push('Stock Quantity (valid number)');
+      }
+    }
+
+    // 6b. Variable products: require at least 1 variant
+    if (formData.productType === 'variable' && productVariants.length === 0) {
+      missing.push('At least 1 variant (go to Variants tab)');
+    }
+
+    // 7. Shipping (if enabled)
+    // if (formData.isShipEnabled) {
+    //   if (!formData.weight || parseFloat(formData.weight.toString()) <= 0) {
+    //     missing.push('Weight (required for shipping)');
+    //   }
+    // }
+
+    // 8. Grouped Product Requirements
+    if (formData.productType === 'grouped' && formData.requireOtherProducts) {
+      if (!formData.requiredProductIds?.trim()) {
+        missing.push('Grouped Products (at least 1)');
+      }
+    }
+
+    // IMPORTANT: Jab vatExempt true hai, toh yeh condition execute nahi hogi
+    if (!formData.vatExempt) {
+      if (!formData.vatRateId || formData.vatRateId.trim() === '') {
+        missing.push('VAT Rate (required when product is taxable)');
+      }
+    }
+
+    // VAT Validation - Only if NOT exempt
+  
+    return {
+      isValid: missing.length === 0,
+      missing
+    };
+  };
+
+  /**
+   *   SHOW MISSING FIELDS TOAST
+   */
+  const showMissingFieldsToast = (missing: string[], isDraft: boolean) => {
+    const title = isDraft ? 'Draft Requirements' : 'Required Fields Missing';
+    const message = missing.length === 1 
+      ? `‹ Missing: ${missing[0]}`
+      : `‹ Missing ${missing.length} fields:\n\n${missing.map((f, i) => `${i + 1}. ${f}`).join('\n')}`;
+
+    toast.warning(message, {
+      autoClose: 8000,
+      position: 'top-center',
+    });
+  };
+
+
+
+  /**
+   *   CLEAN VARIANT OPTIONS - Save only if BOTH name AND value exist
+   */
+  const cleanVariantOptions = (variant: any, firstVariant: any) => {
+    const cleaned = { ...variant };
+
+    //   Non-first variants: Inherit names from first variant
+    const option1Name = variant.option1Name || firstVariant.option1Name;
+    const option2Name = variant.option2Name || firstVariant.option2Name;
+    const option3Name = variant.option3Name || firstVariant.option3Name;
+
+    //   Option 1: Name aur Value DONO chahiye
+    if (option1Name && variant.option1Value) {
+      cleaned.option1Name = option1Name;
+      cleaned.option1Value = variant.option1Value;
+    } else {
+      cleaned.option1Name = null;
+      cleaned.option1Value = null;
+    }
+
+    //   Option 2: Name aur Value DONO chahiye
+    if (option2Name && variant.option2Value) {
+      cleaned.option2Name = option2Name;
+      cleaned.option2Value = variant.option2Value;
+    } else {
+      cleaned.option2Name = null;
+      cleaned.option2Value = null;
+    }
+
+    //   Option 3: Name aur Value DONO chahiye
+    if (option3Name && variant.option3Value) {
+      cleaned.option3Name = option3Name;
+      cleaned.option3Value = variant.option3Value;
+    } else {
+      cleaned.option3Name = null;
+      cleaned.option3Value = null;
+    }
+
+    return cleaned;
+  };
+
+  // Updated combined useEffect with manufacturers API
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        console.log(' Fetching all data (dropdowns + products)...');
+        
+        const [
+          brandsResponse, 
+          categoriesResponse, 
+        
+          // allProductsResponse,
+          simpleProductsResponse
+        ] = await Promise.all([
+          brandsService.getAll({ includeInactive: true }),
+          categoriesService.getAll({ includeInactive: true, includeSubCategories: true }),    
+          // productsService.getAll({ pageSize: 100 }),
+          productsService.getSimpleProducts()
+        ]);
+
+        console.log('  All data fetched');
+
+    const brandsData = Array.isArray(brandsResponse?.data?.data?.items)
+    ? brandsResponse.data.data.items
+    : [];
+
+  const categoriesData = Array.isArray(categoriesResponse?.data?.data?.items)
+    ? categoriesResponse.data.data.items
+    : [];
+
+
+        setDropdownsData({
+          brands: brandsData,
+          categories: categoriesData,
+        
+        });
+
+        console.log('Dropdowns:', {
+          brands: brandsData.length,
+          categories: categoriesData.length,
+  
+        });
+
+    //     //   ==================== SET DEFAULT VAT RATE ====================
+    //  if (vatRatesData.length > 0 && !formData.vatRateId && !formData.vatExempt) {
+    //       const defaultRate = vatRatesData.find((v: any) => v.isDefault === true);
+          
+    //       if (defaultRate) {
+    //         console.log('  Setting default VAT rate:', defaultRate.name, `(${defaultRate.rate}%)`);
+    //         setFormData(prev => ({ 
+    //           ...prev, 
+    //           vatRateId: defaultRate.id,
+    //           vatExempt: false
+    //         }));
+    //       }
+    //     }
+
+        // ==================== HELPER FUNCTION ====================
+        const extractProducts = (response: any): any[] => {
+          const data = response?.data?.data || response?.data || {};
+          return data.items || (Array.isArray(data) ? data : []);
+        };
+
+        // ==================== SIMPLE PRODUCTS ====================
+        const simpleItems = extractProducts(simpleProductsResponse);
+
+        if (simpleItems.length > 0) {
+          setSimpleProducts(simpleItems.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            price: typeof p.price === 'number' ? p.price.toFixed(2) : '0.00',
+            stockQuantity: p.stockQuantity || 0,
+            
+            //   Brand & Category for filtering
+            brandId: p.brandId || p.brands?.[0]?.brandId || null,
+            brandName: p.brandName || p.brands?.[0]?.brandName || 'Unknown Brand',
+            categories: p.categories || []
+          })));
+          
+          console.log('  Simple products:', simpleItems.length);
+        }
+
+        // ==================== ALL PRODUCTS (FIXED) ====================
+        // const allItems = extractProducts(allProductsResponse);
+        
+        // if (allItems.length > 0) {
+        //   setAvailableProducts(allItems.map((p: any) => ({
+        //     id: p.id,
+        //     name: p.name,
+        //     sku: p.sku,
+        //     price: typeof p.price === 'number' ? p.price.toFixed(2) : '0.00', //   Fixed format
+            
+        //     //   ADD THESE 3 LINES FOR FILTERING
+        //     brandId: p.brandId || p.brands?.[0]?.brandId || null,
+        //     brandName: p.brandName || p.brands?.[0]?.brandName || 'Unknown Brand',
+        //     categories: p.categories || []
+        //   })));
+          
+        //   console.log('  Available products:', allItems.length);
+          
+        //   //   DEBUG: Log sample product
+        //   if (allItems.length > 0) {
+        //     console.log('¦ Sample Product:', {
+        //       name: allItems[0].name,
+        //       brandId: allItems[0].brandId || allItems[0].brands?.[0]?.brandId,
+        //       brandName: allItems[0].brandName || allItems[0].brands?.[0]?.brandName,
+        //       categories: allItems[0].categories?.length || 0
+        //     });
+        //   }
+        // }
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load data');
+        setAvailableProducts([]);
+      }
+    };
+
+    fetchAllData();
+  }, []); // Only run once on mount
+
+  const [formData, setFormData] = useState({
+    // ===== BASIC INFO =====
+    name: '',
+    shortDescription: '',
+    fullDescription: '',
+    sku: '',
+    categoryIds: [] as string[], // Multiple categories array
+    brand: '',            // For backward compatibility (primary brand)
+    brandIds: [] as string[], //   NEW - Multiple brands array
+    published: true,
+    productType: 'simple',
+    visibleIndividually: true,
+    gender: '',
+    customerRoles: 'all',
+    limitedToStores: false,
+    vendorId: '',
+    requireOtherProducts: false,
+    requiredProductIds: '',
+    automaticallyAddProducts: false,
+    showOnHomepage: false,
+    displayOrder: '1',
+    productTags: '',
+    gtin: '',
+    manufacturerPartNumber: '',
+    adminComment: '',
+    categoryName: '', // For clean category name display
+    // Delivery flags (charges managed via Shipping Methods)
+    sameDayDeliveryEnabled: false,
+    nextDayDeliveryEnabled: false,
+    nextDayDeliveryFree: false,   //   ADD THIS
+    standardDeliveryEnabled: true,
+    nextDayDeliveryCutoffTime: '',
+
+    // ===== RELATED PRODUCTS =====
+    relatedProducts: [] as string[],
+    crossSellProducts: [] as string[],
+      //   ADD THESE NEW BUNDLE DISCOUNT FIELDS
+    groupBundleDiscountType: 'None' as 'None' | 'Percentage' | 'FixedAmount' | 'SpecialPrice',
+    groupBundleDiscountPercentage: 0,
+    groupBundleDiscountAmount: 0,
+    groupBundleSpecialPrice: 0,
+    groupBundleSavingsMessage: '',
+    showIndividualPrices: true,
+    applyDiscountToAllItems: false,
+
+    // ===== MEDIA =====
+    productImages: [] as ProductImage[],
+    videoUrls: [] as string[],
+    specifications: [] as Array<{id: string, name: string, value: string, displayOrder: number}>,
+
+    // ===== PRICING =====
+    price: '',
+    oldPrice: '',
+    cost: '',
+    disableBuyButton: false,
+    disableWishlistButton: false,
+    availableForPreOrder: false,
+    preOrderAvailabilityStartDate: '',
+    // Base Price
+    basepriceEnabled: false,
+    basepriceAmount: '',
+    basepriceUnit: '',
+    basepriceBaseAmount: '',
+    basepriceBaseUnit: '',
+    
+    // Mark as New
+    markAsNew: false,
+    markAsNewStartDate: '',
+    markAsNewEndDate: '',
+
+    // ===== DISCOUNTS / AVAILABILITY =====
+    hasDiscountsApplied: false,
+    availableStartDate: '',
+    availableEndDate: '',
+
+    // ===== TAX =====
+    vatExempt: false,
+    vatRateId: '',
+
+    // ===== LOYALTY & PHARMA =====
+    excludeFromLoyaltyPoints: true,
+    isPharmaProduct: false,
+
+
+    // ===== RECURRING / SUBSCRIPTION =====
+    isRecurring: false,
+    recurringCycleLength: '',
+    recurringCyclePeriod: 'days',
+    recurringTotalCycles: '',
+    subscriptionDiscountPercentage: '',
+  allowedSubscriptionFrequencies:
+    '7 days , 15 days , 30 days , 60 days, 90 days',
+    subscriptionDescription: '',
+
+    // ===== PACK PRODUCT =====
+    isPack: false,
+    packSize: '',
+
+    // ===== INVENTORY =====   UPDATED
+    manageInventory: 'track',
+    stockQuantity: '',
+    displayStockAvailability: true,
+    displayStockQuantity: false,
+    minStockQuantity: '',
+    lowStockActivity: 'nothing',
+    
+    //   NOTIFICATION FIELDS - UPDATED
+    notifyAdminForQuantityBelow: true,  //   Backend boolean (always true)
+  notifyQuantityBelow: "",          //   User input threshold
+    
+    //   BACKORDER FIELDS - UPDATED
+    allowBackorder: false,              //   Checkbox
+    backorderMode: 'no-backorders',     //   Dropdown (conditional)
+    backorders: 'no-backorders',        //   Keep for backward compatibility
+    
+    allowBackInStockSubscriptions: false,
+    productAvailabilityRange: '',
+    
+    // Cart Limits
+  // Cart Limits
+  orderMinimumQuantity: '1',      //   NEW (matches API)
+  orderMaximumQuantity: '10',     //   NEW (matches API)
+  allowedQuantities: '',
+
+    allowAddingOnlyExistingAttributeCombinations: false,
+    notReturnable: false,
+
+    // ===== SHIPPING =====
+    isShipEnabled: true,
+
+    shipSeparately: false,
+
+    deliveryDateId: '',
+    weight: '',
+    length: '',
+    width: '',
+    height: '',
+
+    // ===== GIFT CARDS =====
+    isGiftCard: false,
+    giftCardType: 'virtual',
+    overriddenGiftCardAmount: '',
+
+    // ===== DOWNLOADABLE PRODUCT =====
+    isDownload: false,
+    downloadId: '',
+    unlimitedDownloads: true,
+    maxNumberOfDownloads: '',
+    downloadExpirationDays: '',
+    downloadActivationType: 'when-order-is-paid',
+    hasUserAgreement: false,
+    userAgreementText: '',
+    hasSampleDownload: false,
+    sampleDownloadId: '',
+
+    // ===== RENTAL PRODUCT =====
+    isRental: false,
+    rentalPriceLength: '',
+    rentalPricePeriod: 'days',
+
+    // ===== REVIEWS =====
+    allowCustomerReviews: true,
+    metaTitle: '',
+    metaKeywords: '',
+    metaDescription: '',
+    searchEngineFriendlyPageName: '',
+  });
+
+
+  const frequencyPresets: Record<string, string> = {
+    days: "7 days , 15 days , 30 days , 60 days, 90 days",
+    weeks: "1 weeks , 2 weeks , 3 weeks , 4 weeks",
+    months: "1 months , 2 months , 3 months , 4 months",
+  };
+
+  // Helper function to get list of changed fields
+  const getChangedFieldsList = useCallback(() => {
+    const changes: string[] = [];
+    if (!initialFormData) return changes;
+    
+    if (formData.name !== initialFormData.name) changes.push('Product Name');
+    if (formData.sku !== initialFormData.sku) changes.push('SKU');
+    if (formData.shortDescription !== initialFormData.shortDescription) changes.push('Short Description');
+    if (formData.fullDescription !== initialFormData.fullDescription) changes.push('Full Description');
+    if (formData.productType !== initialFormData.productType) changes.push('Product Type');
+    if (formData.price !== initialFormData.price) changes.push('Price');
+    if (formData.oldPrice !== initialFormData.oldPrice) changes.push('Old Price');
+    if (formData.cost !== initialFormData.cost) changes.push('Cost');
+    if (JSON.stringify(formData.categoryIds) !== JSON.stringify(initialFormData.categoryIds)) 
+      changes.push('Categories');
+    if (JSON.stringify(formData.brandIds) !== JSON.stringify(initialFormData.brandIds)) 
+      changes.push('Brands');
+    if (formData.stockQuantity !== initialFormData.stockQuantity) changes.push('Stock');
+    if (formData.manageInventory !== initialFormData.manageInventory) changes.push('Inventory Management');
+    if (formData.isShipEnabled !== initialFormData.isShipEnabled) changes.push('Shipping Enabled');
+    if (formData.weight !== initialFormData.weight) changes.push('Weight');
+    if (formData.metaTitle !== initialFormData.metaTitle) changes.push('Meta Title');
+    if (formData.metaDescription !== initialFormData.metaDescription) changes.push('Meta Description');
+    if (formData.showOnHomepage !== initialFormData.showOnHomepage) changes.push('Show on Homepage');
+    if (formData.adminComment !== initialFormData.adminComment) changes.push('Admin Comment');
+    
+    return changes;
+  }, [formData, initialFormData]);
+
+
+  useEffect(() => {
+    const { missing } = checkPublishRequirements();
+    setMissingFields(missing);
+  }, [
+    formData.name,
+    formData.sku,
+    formData.shortDescription,
+    formData.price,
+    formData.categoryIds,
+    formData.brandIds,
+    formData.brand,
+    formData.productImages,
+    formData.stockQuantity,
+    formData.manageInventory,
+    formData.isShipEnabled,
+    formData.productType,
+    formData.requireOtherProducts,
+    formData.requiredProductIds,
+    formData.vatExempt,
+    formData.vatRateId,
+    productVariants,
+  ]);
+
+  /**
+   *   HANDLE DRAFT SAVE
+   */
+
+  // ============ HANDLE DRAFT SAVE - NO REDIRECT ============
+  const handleDraftSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check draft requirements (minimal fields only)
+    const { isValid, missing } = checkDraftRequirements();
+    if (!isValid) {
+      showMissingFieldsToast(missing, true);
+      return;
+    }
+    handleSubmit(e, true, false);
+  };
+
+  // ============ HANDLE PUBLISH - WITH REDIRECT ============
+  const handlePublish = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check FULL requirements for publishing
+    const { isValid, missing } = checkPublishRequirements();
+    if (!isValid) {
+      showMissingFieldsToast(missing, false);
+      return;
+    }
+    
+    // Pass: isDraft = false, shouldRedirect = true
+    handleSubmit(e, false, true);
+  };
+  // ============ FIX 3: Add Navigation Guard ============
+  // Add this useEffect for unsaved changes warning:
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (id) {
+      setProductId(id);
+      setIsEditMode(true);
+    }
+  }, []);
+
+
+  // ============================================================
+  // REPLACE YOUR EXISTING "TRACK UNSAVED CHANGES" useEffect WITH THIS:
+  // ============================================================
 
 useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const id = urlParams.get('id');
-  if (id) {
-    setProductId(id);
-    setIsEditMode(true);
+  if (!initialFormData) {
+    setInitialFormData(structuredClone(formData));
+    console.log('Initial form state captured');
   }
 }, []);
 
-
-// ============================================================
-// REPLACE YOUR EXISTING "TRACK UNSAVED CHANGES" useEffect WITH THIS:
-// ============================================================
-
-// CAPTURE INITIAL STATE ON MOUNT
-useEffect(() => {
-  if (!initialFormData) {
-    setInitialFormData(JSON.parse(JSON.stringify(formData)));
-    console.log('📸 Initial form state captured');
-  }
-}, []); // Run once only
-
-// TRACK UNSAVED CHANGES (Works for BOTH Create & Edit)
+  // TRACK UNSAVED CHANGES (Works for BOTH Create & Edit)
 useEffect(() => {
   if (!initialFormData) return;
-  
-  // In EDIT mode: compare with lastSavedData
-  // In CREATE mode: compare with initial empty state
-  const compareWith = (isEditMode && lastSavedData) 
-    ? lastSavedData 
-    : initialFormData;
-  
-  const hasChanges = JSON.stringify(formData) !== JSON.stringify(compareWith);
+
+  const normalize = (data: any) => {
+    const clone = structuredClone(data);
+
+    delete clone.productImages;
+
+    return clone;
+  };
+
+  const hasChanges =
+    JSON.stringify(normalize(formData)) !==
+    JSON.stringify(normalize(initialFormData));
+
   setHasUnsavedChanges(hasChanges);
-  
-  // Debug log
-  console.log('🔍 Change Detection:', {
-    mode: isEditMode ? 'EDIT' : 'CREATE',
-    hasChanges,
-    formDataName: formData.name,
-    compareWithName: compareWith?.name
-  });
-}, [formData, lastSavedData, isEditMode, initialFormData]);
+
+}, [formData, initialFormData]);
 
 // ============================================================
 // BROWSER CLOSE/REFRESH WARNING (Keep existing)
@@ -862,7 +828,7 @@ useEffect(() => {
 
 
 
-// ✅ Extract YouTube Video ID from URL
+//   Extract YouTube Video ID from URL
 const getYouTubeVideoId = (url: string): string | null => {
   if (!url) return null;
   
@@ -882,25 +848,12 @@ const getYouTubeVideoId = (url: string): string | null => {
   return null;
 };
 
-// Filter VAT rates based on search
-const filteredVATRates = dropdownsData.vatRates.filter(vat =>
-  vat.name.toLowerCase().includes(vatSearch.toLowerCase()) ||
-  vat.rate.toString().includes(vatSearch)
-);
-
-  const removeRelatedProduct = (productId: string) => {
-    setFormData({
-      ...formData,
-      relatedProducts: formData.relatedProducts.filter(id => id !== productId)
-    });
-  };
-
 
 // ==================== SKU VALIDATION (COMPLETE - SERVICE-BASED) ====================
 ;
 
 
-// ✅ FLEXIBLE SKU VALIDATION - Allows: Pure Numbers, Pure Letters, OR Alphanumeric
+//   FLEXIBLE SKU VALIDATION - Allows: Pure Numbers, Pure Letters, OR Alphanumeric
 const validateSkuFormat = (sku: string): { isValid: boolean; error: string } => {
   const trimmedSku = sku.trim();
 
@@ -916,7 +869,7 @@ const validateSkuFormat = (sku: string): { isValid: boolean; error: string } => 
     return { isValid: false, error: 'SKU must not exceed 30 characters' };
   }
 
-  // ✅ Allows: letters (a-z A-Z), numbers (0-9), hyphens between groups
+  //   Allows: letters (a-z A-Z), numbers (0-9), hyphens between groups
   // Examples: 641256412, MOBILE, mobile, prod-001, 2025-xYz, ABC123
   if (!/^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$/.test(trimmedSku)) {
     return {
@@ -938,7 +891,7 @@ const validateSkuFormat = (sku: string): { isValid: boolean; error: string } => 
 
 
 
-// ✅ ADD THIS FUNCTION AFTER checkSkuExists FUNCTION
+//   ADD THIS FUNCTION AFTER checkSkuExists FUNCTION
 
 const getHomepageCount = async () => {
   try {
@@ -977,11 +930,21 @@ const handleSubmit = async (
   target.setAttribute("data-submitting", "true");
   setIsSubmitting(true); // START LOADER
 
+  // BACKUP TO LOCALSTORAGE
   try {
-    console.log("🚀 PRODUCT SUBMISSION START");
-    console.log("📋 Form Mode:", isDraft ? "DRAFT" : "PUBLISH");
-    console.log("🔄 Edit Mode:", isEditMode);
-    console.log("🆔 Product ID:", productId);
+    localStorage.setItem("product_draft_backup", JSON.stringify(formData));
+    console.log("Form data backed up to localStorage");
+  } catch (e) {
+    console.warn("Failed to backup to localStorage:", e);
+  }
+
+  const isEditModeInitial = isEditMode; // CAPTURE INITIAL STATE
+
+  try {
+    console.log(" PRODUCT SUBMISSION START");
+    console.log("‹ Form Mode:", isDraft ? "DRAFT" : "PUBLISH");
+    console.log("„ Edit Mode:", isEditMode);
+    console.log(" Product ID:", productId);
 
     // SHOW PROGRESS
     setSubmitProgress({
@@ -1230,7 +1193,7 @@ if (!formData.nextDayDeliveryEnabled) {
   formData.nextDayDeliveryEnabled &&
   !formData.nextDayDeliveryCutoffTime
 ) {
-  toast.error('❌ Next-Day Delivery cutoff time required');
+  toast.error('  Œ Next-Day Delivery cutoff time required');
 
   target.removeAttribute("data-submitting");
   setIsSubmitting(false);
@@ -1263,7 +1226,7 @@ if (!formData.nextDayDeliveryEnabled) {
         formData.allowedSubscriptionFrequencies ||
         formData.subscriptionDescription
       ) {
-        console.warn("⚠️ Grouped product has subscription data. Clearing...");
+        console.warn("  š ï¸ Grouped product has subscription data. Clearing...");
         // Force clear subscription fields
         formData.isRecurring = false;
         formData.recurringCycleLength = "";
@@ -1385,7 +1348,7 @@ if (!formData.nextDayDeliveryEnabled) {
           }
         }
 
-        console.log("✅ All variant SKUs are unique!");
+        console.log("  All variant SKUs are unique!");
       } catch (error) {
         console.warn("Failed to validate variant SKUs against database:", error);
         toast.warning("Could not verify variant SKUs. Proceeding...", { autoClose: 3000 });
@@ -1411,7 +1374,7 @@ if (!formData.nextDayDeliveryEnabled) {
     }
 
     if (categoryIdsArray.length === 0) {
-      console.error("❌ VALIDATION: No valid categories selected");
+      console.error("VALIDATION: No valid categories selected");
       toast.error("Please select at least one category");
       target.removeAttribute("data-submitting");
       setIsSubmitting(false);
@@ -1599,7 +1562,7 @@ if (
 
       // Status & Visibility
       isPublished: isDraft ? false : formData.published ?? true,
-      status: isDraft ? 1 : formData.published ? 2 : 1,
+      status: isDraft ? 'Draft' : 'Active',
       visibleIndividually: formData.visibleIndividually ?? true,
       showOnHomepage: formData.showOnHomepage ?? false,
 
@@ -1663,8 +1626,8 @@ if (
 
 
 // Cart Quantities - Use cleaned data
-orderMinimumQuantity: cleanedCartData.orderMinimumQuantity,      // ✅ CHANGED
-orderMaximumQuantity: cleanedCartData.orderMaximumQuantity,      // ✅ CHANGED
+orderMinimumQuantity: cleanedCartData.orderMinimumQuantity,      //   CHANGED
+orderMaximumQuantity: cleanedCartData.orderMaximumQuantity,      //   CHANGED
 allowedQuantities: cleanedCartData.allowedQuantities,
 
 
@@ -1838,72 +1801,129 @@ productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
     // Reviews
     if (formData.allowCustomerReviews) productData.allowCustomerReviews = true;
 
-    console.log("📦 FINAL PAYLOAD:");
+    console.log("¦ FINAL PAYLOAD:");
     console.log(JSON.stringify(productData, null, 2));
 
     // ============================================================
-    // SECTION 9: DYNAMIC CREATE OR UPDATE
+    // SECTION 9: DYNAMIC CREATE OR UPDATE (DRAFT-FIRST ARCHITECTURE)
     // ============================================================
     setSubmitProgress({
-      step: isEditMode ? "Updating product..." : isDraft ? "Saving draft..." : "Creating product...",
+      step: isEditModeInitial ? "Updating product..." : "Creating safe draft...",
       percentage: 70,
     });
 
     let response: any;
-    let currentProductId: string;
+    let currentProductId: string | any = productId;
 
-    if (isEditMode && productId) {
-      // ✅ UPDATE MODE - Use PUT/PATCH endpoint
-      console.log("🔄 Updating existing product:", productId);
-      response = await productsService.update(productId, productData);
-      currentProductId = productId;
+    if (!isEditModeInitial) {
+      // STEP 1: CREATE MINIMAL DRAFT
+      console.log(" • STEP 1: Creating minimal draft first...");
+      
+      const draftPayload: any = {
+        name: formData.name.trim(),
+        sku: formData.sku?.trim() || "",
+        status: "Draft",
+        isPublished: false,
+        productType: formData.productType || "simple",
+        brandId: brandIdsArray[0] || "",
+        categoryId: categoryIdsArray[0] || "",
+        // Required for basic creation
+        price: 0,
+        stockQuantity: 0,
+        description: formData.name.trim(),
+        shortDescription: formData.name.trim(),
+      };
 
-      toast.success(isDraft ? "Draft updated successfully!" : "Product updated successfully!", {
-        autoClose: 2000,
-      });
-    } else {
-      // ✅ CREATE MODE - Use POST endpoint
-      console.log("➕ Creating new product...");
-      response = await productsService.create(productData);
+      try {
+        const draftResponse = await productsService.create(draftPayload);
+        
+        // Extract product ID
+        currentProductId = (draftResponse.data as any)?.data?.id || (draftResponse.data as any)?.id || (draftResponse as any)?.id;
 
-      // Extract product ID from response
-      currentProductId = (response.data as any)?.data?.id || (response.data as any)?.id || (response as any)?.id || null;
+        if (!currentProductId) {
+          throw new Error("Product ID not found in draft response");
+        }
 
-      if (!currentProductId) {
-        console.error("Failed to extract product ID from response");
-        toast.error("Product created but ID not found.");
-        setIsSubmitting(false);
-        setSubmitProgress(null);
-        setTimeout(() => router.push("/admin/products"), 2000);
-        return;
+        // STEP 2: SWITCH TO EDIT MODE IMMEDIATELY
+        setProductId(currentProductId);
+        setIsEditMode(true);
+        
+        // Update URL without refresh (optional but recommended for persistence)
+        if (typeof window !== 'undefined') {
+          const newUrl = `${window.location.pathname}?id=${currentProductId}`;
+          window.history.replaceState(null, '', newUrl);
+        }
+
+        console.log("  Draft created successfully. ID:", currentProductId, "Switched to Edit Mode.");
+        
+        setSubmitProgress({
+          step: isDraft ? "Saving full draft..." : "Publishing full product...",
+          percentage: 75,
+        });
+      } catch (draftError: any) {
+        console.error("Critical Failure: Draft creation failed", draftError);
+        throw draftError; // Let main catch handle initial creation failure
       }
+    }
 
-      // ✅ SWITCH TO EDIT MODE after first save
-      setProductId(currentProductId);
-      setIsEditMode(true);
+    // STEP 3: UPDATE FULL PRODUCT (Works for both existing and newly created drafts)
+    try {
+      console.log(isEditModeInitial ? "Updating existing product:" : "Updating newly created draft:", currentProductId);
+      
+      response = await productsService.update(currentProductId, productData);
 
-      console.log("✅ Product created with ID:", currentProductId);
-      toast.success(isDraft ? "Draft saved! Now in edit mode." : "Product created successfully!", {
+      toast.success(isDraft ? "Draft saved successfully!" : "Product published successfully!", {
         autoClose: 2000,
       });
+      const snapshot = structuredClone({
+  ...formData,
+  productImages: undefined,
+});
+
+setInitialFormData(snapshot);
+setHasUnsavedChanges(false);
+    } catch (updateError: any) {
+      console.error("Update failed after draft creation:", updateError);
+      
+      // If we just created the draft, show specialized message
+      if (!isEditModeInitial) {
+        toast.warning("Draft saved but some sections failed to update. You can fix and retry.", {
+          autoClose: 10000,
+        });
+      } else {
+        // Normal update failure
+        const errorMessage = getBackendMessage(updateError);
+        toast.error(`Update failed: ${errorMessage}`);
+      }
+      
+      // IMPORTANT: We do NOT throw here if we want to proceed to image uploads 
+      // OR we can throw if we want to stop. Industry standard is to keep trying images 
+      // if the ID exists, but usually update failure means something is wrong with the payload.
+      // However, per requirements: "Failed update must NOT delete draft, form should NOT reset, page should remain in edit mode".
+      // Throwing here will skip images but go to main catch which is fine.
+      throw updateError; 
     }
 
     // ============================================================
     // SECTION 10: UPLOAD PRODUCT IMAGES
     // ============================================================
-    const imagesToUpload = formData.productImages.filter((img) => img.file);
+const imagesToUpload = formData.productImages.filter(
+  (img) =>
+    img.file instanceof File &&
+    img.imageUrl?.startsWith("blob:")
+);
     if (imagesToUpload.length > 0) {
       setSubmitProgress({
         step: `Uploading ${imagesToUpload.length} product images...`,
         percentage: 80,
       });
 
-      console.log(`📸 Uploading ${imagesToUpload.length} product images...`);
+      console.log(` Uploading ${imagesToUpload.length} product images...`);
 
       try {
         const uploadedImages = await uploadImagesToProduct(currentProductId, imagesToUpload);
         if (uploadedImages && uploadedImages.length > 0) {
-          console.log(`✅ Product images uploaded: ${uploadedImages.length}`);
+          console.log(`  Product images uploaded: ${uploadedImages.length}`);
         }
       } catch (imageError) {
         console.error("Error uploading product images:", imageError);
@@ -1915,21 +1935,25 @@ productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
     // SECTION 11: UPLOAD VARIANT IMAGES
     // ============================================================
     if (productVariants.length > 0) {
-      const variantsWithImages = productVariants.filter((v) => v.imageFile);
+  const variantsWithImages = productVariants.filter(
+  (v) =>
+    v.imageFile instanceof File &&
+    v.imageUrl?.startsWith("blob:")
+);
       if (variantsWithImages.length > 0) {
         setSubmitProgress({
           step: `Uploading ${variantsWithImages.length} variant images...`,
           percentage: 90,
         });
 
-        console.log(`🎨 Uploading ${variantsWithImages.length} variant images...`);
+        console.log(`Uploading ${variantsWithImages.length} variant images...`);
 
         try {
           const createdVariants = (response.data as any)?.data?.variants || (response.data as any)?.variants;
           if (createdVariants && createdVariants.length > 0) {
             await uploadVariantImages({ variants: createdVariants });
           } else {
-            console.warn("⚠️ No variants found in response");
+            console.warn("No variants found in response");
           }
         } catch (variantError) {
           console.error("Error uploading variant images:", variantError);
@@ -1951,14 +1975,14 @@ productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
         await pharmacyQuestionsService.assignProductQuestions(currentProductId, {
           questions: pharmacyQuestions,
         });
-        console.log("✅ Pharmacy questions assigned");
+        console.log("  Pharmacy questions assigned");
       } catch (pharmaError) {
         console.error("Error assigning pharmacy questions:", pharmaError);
         toast.warning("Product created but pharmacy questions failed to assign.");
       }
     }
 
-    console.log("✅ PRODUCT SUBMISSION SUCCESS");
+    console.log("  PRODUCT SUBMISSION SUCCESS");
 
     // ============================================================
     // SECTION 12: SUCCESS & REDIRECT
@@ -1968,64 +1992,26 @@ productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
       percentage: 100,
     });
 
-    // Store last saved data for change tracking
-    setLastSavedData({ ...formData });
+  
 
-    // ============ CONDITIONAL REDIRECT ============
-    if (shouldRedirect) {
-      setTimeout(() => {
-        console.log("Redirecting to /admin/products...");
-        router.push("/admin/products");
-      }, 1500);
-    } else {
-      // Stay on page - clear progress after delay
-      setTimeout(() => {
-        setSubmitProgress(null);
-      }, 2000);
+    // CLEAR BACKUP ON SUCCESS
+    try {
+      localStorage.removeItem("product_draft_backup");
+    } catch (e) {
+      console.warn("Failed to clear localStorage backup:", e);
     }
+
+setTimeout(() => {
+  setSubmitProgress(null);
+}, 2000);
+ 
   } catch (error: any) {
-    console.error("❌ ERROR SUBMITTING FORM");
+    console.error("ERROR SUBMITTING FORM");
     console.error("Error object:", error);
     setSubmitProgress(null);
 
-    if (error.response) {
-      const errorData = error.response.data;
-      const status = error.response.status;
-
-      console.error("Error details:", { status, statusText: error.response.statusText, data: errorData });
-
-      if (status === 400 && errorData?.errors) {
-        let errorMessage = "Validation Errors:\n";
-        for (const [field, messages] of Object.entries(errorData.errors)) {
-          const fieldName = field.replace(/\./g, " ").replace(/_/g, " ").trim();
-          const msg = Array.isArray(messages) ? messages.join(", ") : messages;
-          errorMessage += `• ${fieldName}: ${msg}\n`;
-          console.error(`${fieldName}:`, msg);
-        }
-        toast.warning(errorMessage, { autoClose: 10000 });
-      } else if (status === 400) {
-        const msg = errorData?.message || errorData?.title || "Bad request. Please check your data.";
-        console.error("400 Error:", msg);
-        toast.error(msg);
-      } else if (status === 401) {
-        console.error("401: Unauthorized");
-        toast.error("Session expired. Please login again.");
-        setTimeout(() => router.push("/login"), 2000);
-      } else if (status === 404) {
-        console.error("404: Endpoint not found");
-        toast.error("API endpoint not found. Please check the server configuration.");
-      } else {
-        console.error(status, errorData?.message || error.response.statusText);
-        toast.error(`Error ${status}: ${errorData?.message || error.response.statusText}`);
-      }
-    } else if (error.request) {
-      console.error("Network error - No response from server");
-      console.error("Request:", error.request);
-      toast.error("Network error: No response from server.");
-    } else {
-      console.error("Error:", error.message);
-      toast.error(`Error: ${error.message}`);
-    }
+    const errorMessage = getBackendMessage(error);
+    toast.error(errorMessage, { autoClose: 10000 });
 
     console.error("========== END ERROR LOG ==========");
   } finally {
@@ -2036,7 +2022,7 @@ productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
 };
 
 
-// ✅ ADD THIS useEffect AFTER OTHER useEffect HOOKS
+//   ADD THIS useEffect AFTER OTHER useEffect HOOKS
 
 useEffect(() => {
   if (formData.showOnHomepage) {
@@ -2061,7 +2047,7 @@ const generateSeoName = (text: string) => {
 };
 
 // ================================
-// ✅ COMPLETE handleChange - WITH GROUPED + SUBSCRIPTION VALIDATION
+//   COMPLETE handleChange - WITH GROUPED + SUBSCRIPTION VALIDATION
 // ================================
 const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
   const { name, value, type } = e.target;
@@ -2100,7 +2086,7 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElemen
   }
 
   // ================================
-  // ✅ 3. PRODUCT TYPE - CLEAR SUBSCRIPTION FOR GROUPED
+  //   3. PRODUCT TYPE - CLEAR SUBSCRIPTION FOR GROUPED
   // ================================
   if (name === 'productType') {
     if (value === 'grouped') {
@@ -2125,11 +2111,11 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElemen
         applyDiscountToAllItems: false,
       }),
 
-      // ✅ NEW: CLEAR SUBSCRIPTION when switching to grouped
+      //   NEW: CLEAR SUBSCRIPTION when switching to grouped
       ...(value === 'grouped' && {
         requireOtherProducts: true,
         
-        // ❌ Clear all subscription/recurring fields
+        //   Œ Clear all subscription/recurring fields
         isRecurring: false,
         recurringCycleLength: '',
         recurringCyclePeriod: 'days',
@@ -2144,9 +2130,9 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElemen
       setSelectedGroupedProducts([]);
     }
 
-    // ✅ Show warning when switching to grouped with existing subscription
+    //   Show warning when switching to grouped with existing subscription
     if (value === 'grouped' && formData.isRecurring) {
-      toast.warning('⚠️ Subscription settings cleared for grouped product', {
+      toast.warning('Subscription settings cleared for grouped product', {
         autoClose: 4000,
       });
     }
@@ -2188,13 +2174,13 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElemen
       deliveryDateId: checked ? prev.deliveryDateId : '',
       sameDayDeliveryEnabled: checked ? prev.sameDayDeliveryEnabled : false,
       nextDayDeliveryEnabled: checked ? prev.nextDayDeliveryEnabled : false,
-      nextDayDeliveryFree: checked ? prev.nextDayDeliveryFree : false, // ✅ ADD
+      nextDayDeliveryFree: checked ? prev.nextDayDeliveryFree : false, //   ADD
       standardDeliveryEnabled: checked ? prev.standardDeliveryEnabled : true,
     }));
     return;
   }
 // ================================
-// ✅ ADD THIS BLOCK HERE
+//   ADD THIS BLOCK HERE
 // ================================
 if (name === 'nextDayDeliveryEnabled') {
   setFormData(prev => ({
@@ -2205,30 +2191,40 @@ if (name === 'nextDayDeliveryEnabled') {
   return;
 }
   // ================================
-  // ✅ 6. IS RECURRING - BLOCK FOR GROUPED PRODUCTS
+  //   6. IS RECURRING - BLOCK FOR GROUPED PRODUCTS
   // ================================
   if (name === 'isRecurring') {
-    // ❌ BLOCK: Cannot enable subscription for grouped products
+    //   Œ BLOCK: Cannot enable subscription for grouped products
     if (checked && formData.productType === 'grouped') {
-      toast.error('❌ Subscription is not available for grouped products', {
+      toast.error('Subscription is not available for grouped products', {
         autoClose: 5000,
         position: 'top-center',
       });
       return; // Prevent enabling
     }
 
-    setFormData(prev => ({
-      ...prev,
-      isRecurring: checked,
-      ...(!checked && {
-        recurringCycleLength: '',
-        recurringCyclePeriod: 'days',
-        recurringTotalCycles: '',
-        subscriptionDiscountPercentage: '',
-        allowedSubscriptionFrequencies: '',
-        subscriptionDescription: '',
-      }),
-    }));
+setFormData(prev => ({
+  ...prev,
+  isRecurring: checked,
+
+  // ✅ DEFAULT VALUES
+  ...(checked && {
+    recurringCyclePeriod: prev.recurringCyclePeriod || "days",
+    allowedSubscriptionFrequencies:
+      prev.allowedSubscriptionFrequencies ||
+      frequencyPresets[prev.recurringCyclePeriod || "days"]
+  }),
+
+  // ❌ CLEAR WHEN DISABLED
+  ...(!checked && {
+    recurringCycleLength: "",
+    recurringCyclePeriod: "days",
+    recurringTotalCycles: "",
+    subscriptionDiscountPercentage: "",
+    allowedSubscriptionFrequencies: "",
+    subscriptionDescription: ""
+  })
+}));
     return;
   }
 
@@ -2436,6 +2432,20 @@ if (name === 'nextDayDeliveryEnabled') {
   }
 
   // ================================
+// ✅ RECURRING PERIOD AUTO PREFILL
+// ================================
+if (name === "recurringCyclePeriod") {
+  setFormData(prev => ({
+    ...prev,
+    recurringCyclePeriod: value,
+    allowedSubscriptionFrequencies:
+      frequencyPresets[value] || ""
+  }));
+
+  return;
+}
+
+  // ================================
   // 22. DEFAULT HANDLER
   // ================================
   if (type === 'checkbox') {
@@ -2492,7 +2502,7 @@ if (name === 'nextDayDeliveryEnabled') {
   };
  
 
-// ✅ FIXED - Add 'async' keyword
+//   FIXED - Add 'async' keyword
 const handleVariantImageUpload = async (variantId: string, file: File) => {
   // Validate file
   if (file.size > 5 * 1024 * 1024) {
@@ -2528,7 +2538,7 @@ const handleVariantImageUpload = async (variantId: string, file: File) => {
 };
 
 
-// ✅ NEW: Remove variant image preview
+//   NEW: Remove variant image preview
 const removeVariantImage = (variantId: string) => {
   setProductVariants(productVariants.map(variant => {
     if (variant.id === variantId) {
@@ -2600,7 +2610,7 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         productImages: [...prev.productImages, ...validImages]
       }));
       
-      toast.success(`${validImages.length} image(s) added for upload! 📷`);
+      toast.success(`${validImages.length} image(s) added for upload! ·`);
     }
 
     // Clear file input
@@ -2618,102 +2628,156 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
 
 // ==================== UPLOAD IMAGES TO PRODUCT (SERVICE-BASED) ====================
-const uploadImagesToProduct = async (productId: string, images: ProductImage[]) => {
-  console.log(`📤 Uploading ${images.length} images to product ${productId}...`);
+const uploadImagesToProduct = async (
+  productId: string,
+  images: ProductImage[]
+) => {
+  if (!productId) {
+    toast.error("Invalid product ID");
+    return [];
+  }
+
+  if (!Array.isArray(images) || images.length === 0) {
+    toast.warning("No images selected");
+    return [];
+  }
+
+  const MAX_IMAGES = 10;
+  const MAX_FILE_SIZE = 1 * 1024 * 1024;
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  const uploadFormData = new FormData();
+  let validImageCount = 0;
+
+  // ✅ ONLY UPLOAD NEW FILES
+  const newImages = images.filter(
+    (img) =>
+      img.file instanceof File &&
+      img.imageUrl?.startsWith("blob:")
+  );
+
+  if (newImages.length === 0) {
+    console.log("ℹ️ No new images to upload");
+    return [];
+  }
+
+  newImages.forEach((image, index) => {
+    const file = image.file as File;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.warning(`${file.name}: format not supported`);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.warning(`${file.name}: exceeds 1MB`);
+      return;
+    }
+
+    if (validImageCount >= MAX_IMAGES) {
+      toast.warning(`Maximum ${MAX_IMAGES} images allowed`);
+      return;
+    }
+
+    uploadFormData.append("images", file);
+
+    uploadFormData.append(
+      "altText",
+      image.altText?.trim() ||
+        file.name.replace(/\.[^/.]+$/, "")
+    );
+
+    uploadFormData.append(
+      "sortOrder",
+      String(image.sortOrder ?? index)
+    );
+
+    uploadFormData.append(
+      "isMain",
+      String(image.isMain ?? index === 0)
+    );
+
+    validImageCount++;
+  });
+
+  if (validImageCount === 0) {
+    toast.warning("No valid images to upload");
+    return [];
+  }
 
   try {
-    // BASIC VALIDATIONS
-    if (!productId) {
-      toast.error('Invalid product ID');
-      return;
+    console.log(`🖼️ Uploading ${validImageCount} new images...`);
+
+    const response = await productsService.addImages(
+      productId,
+      uploadFormData
+    );
+
+    if (
+      !response?.data?.success ||
+      !Array.isArray(response.data.data)
+    ) {
+      throw new Error(
+        response?.data?.message || "Invalid server response"
+      );
     }
 
-    if (!Array.isArray(images) || images.length === 0) {
-      toast.warning('No images selected');
-      return;
-    }
+    const uploadedImages = response.data.data || [];
+    // Clear file references after upload
+setFormData((prev) => ({
+  ...prev,
+  productImages: prev.productImages.map((img) => ({
+    ...img,
+    file: undefined,
+  })),
+}));
 
-    const MAX_IMAGES = 10;
-    const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    console.log(
+      `✅ ${uploadedImages.length} images uploaded successfully`
+    );
 
-    const uploadFormData = new FormData();
-    let validImageCount = 0;
+    toast.success(
+      `${uploadedImages.length} images uploaded successfully`
+    );
 
-    images.forEach((image) => {
-      if (!image.file) return;
+    return uploadedImages;
 
-      const file = image.file;
-
-      // File type validation
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.warning(`${file.name}: format not supported`);
-        return;
-      }
-
-      // File size validation
-      if (file.size > MAX_FILE_SIZE) {
-        toast.warning(`${file.name}: exceeds 1MB`);
-        return;
-      }
-
-      // Max image limit
-      if (validImageCount >= MAX_IMAGES) {
-        toast.warning(`Maximum ${MAX_IMAGES} images allowed`);
-        return;
-      }
-
-      uploadFormData.append('images', file);
-      validImageCount++;
-    });
-
-    if (validImageCount === 0) {
-      toast.warning('No valid images to upload');
-      return;
-    }
-
-    console.log(`✅ Uploading ${validImageCount} images in batch...`);
-
-    // ✅ USE SERVICE
-    const response = await productsService.addImages(productId, uploadFormData);
-
-    console.log('📥 Upload response:', response);
-
-    if (!response?.data?.success || !Array.isArray(response.data.data)) {
-      throw new Error(response?.data?.message || 'Invalid server response');
-    }
-
-    toast.success(`${response.data.data.length} images uploaded successfully`);
-    return response.data.data;
   } catch (error: any) {
-    console.error('❌ Error in uploadImagesToProduct:', error);
-    toast.error(`Failed to upload images: ${error.message}`);
+    console.error("❌ Upload error:", error);
+
+    toast.error(
+      `Failed to upload images: ${
+        error?.response?.data?.message ||
+        error.message ||
+        "Unknown error"
+      }`
+    );
+
     return [];
   }
 };
-
 // ==================== UPLOAD VARIANT IMAGES (SERVICE-BASED) ====================
 const uploadVariantImages = async (productResponse: any) => {
-  console.log('📤 Checking for variant images to upload...');
+  console.log(' Checking for variant images to upload...');
 
   try {
     // BASIC VALIDATIONS
     const createdVariants = productResponse?.variants;
 
     if (!Array.isArray(createdVariants) || createdVariants.length === 0) {
-      console.log('ℹ️ No variants found in product response');
+      console.log(' No variants found in product response');
       return;
     }
 
     if (!Array.isArray(productVariants) || productVariants.length === 0) {
-      console.log('ℹ️ No local variants available');
+      console.log(' No local variants available');
       return;
     }
 
     const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-    console.log(`✅ Found ${createdVariants.length} variants in response`);
+    console.log(`  Found ${createdVariants.length} variants in response`);
 
     // UPLOAD PROCESS
     const uploadPromises = productVariants.map(async (localVariant) => {
@@ -2725,14 +2789,14 @@ const uploadVariantImages = async (productResponse: any) => {
       );
 
       if (!createdVariant?.id) {
-        console.warn('⚠️ Variant not matched:', localVariant.name);
+        console.warn('  Variant not matched:', localVariant.name);
         return null;
       }
 
       // Image validation
       const file = localVariant.imageFile;
       if (!file) {
-        console.log(`ℹ️ No image for variant: ${localVariant.name}`);
+        console.log(`  No image for variant: ${localVariant.name}`);
         return null;
       }
 
@@ -2746,24 +2810,24 @@ const uploadVariantImages = async (productResponse: any) => {
         return null;
       }
 
-      console.log(`📤 Uploading image for variant: ${localVariant.name}`);
+      console.log(`Uploading image for variant: ${localVariant.name}`);
 
       try {
         const formData = new FormData();
         formData.append('image', file);
 
-        // ✅ USE SERVICE
+        //   USE SERVICE
         const response = await productsService.addVariantImage(createdVariant.id, formData);
 
         if (response.error) {
-          console.error(`❌ Variant upload failed for ${localVariant.name}:`, response.error);
+          console.error(`Variant upload failed for ${localVariant.name}:`, response.error);
           return null;
         }
 
-        console.log(`✅ Variant image uploaded: ${localVariant.name}`);
+        console.log(`  Variant image uploaded: ${localVariant.name}`);
         return response.data;
       } catch (error: any) {
-        console.error(`❌ Error uploading image for ${localVariant.name}:`, error);
+        console.error(`  Error uploading image for ${localVariant.name}:`, error);
         return null;
       }
     });
@@ -2772,13 +2836,13 @@ const uploadVariantImages = async (productResponse: any) => {
     const results = await Promise.all(uploadPromises);
     const successfulUploads = results.filter(Boolean);
 
-    console.log(`✅ ${successfulUploads.length} variant images uploaded`);
+    console.log(`  ${successfulUploads.length} variant images uploaded`);
 
     if (successfulUploads.length > 0) {
       toast.success(`${successfulUploads.length} variant images uploaded`);
     }
   } catch (error) {
-    console.error('❌ Error uploading variant images:', error);
+    console.error('  Error uploading variant images:', error);
     toast.error('Failed to upload variant images');
   }
 };
@@ -2826,14 +2890,16 @@ useEffect(() => {
 
 
   return (
-    <div className="space-y-2 ">
+    <div className="flex h-[calc(100svh-8rem)] min-h-0 flex-col gap-2 overflow-hidden">
 {/* ============================================================ */}
-{/* ✅ COMPLETE HEADER WITH EDIT MODE & VALIDATION */}
+{/*   COMPLETE HEADER WITH EDIT MODE & VALIDATION */}
 {/* ============================================================ */}
-<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-3">
-  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+<div className="sticky top-0 z-20 shrink-0 px-2 pt-1.5 relative isolate bg-slate-950">
+  <div className="pointer-events-none absolute inset-0 bg-slate-950 backdrop-blur-xl"></div>
+  <div className="relative bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-2.5">
+  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
     {/* ========== Left Side - Title & Status ========== */}
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-3">
 {/* ========== BACK BUTTON ========== */}
 <Link 
   href="/admin/products"
@@ -2845,11 +2911,11 @@ useEffect(() => {
   }}
 >
   <button 
-    className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     disabled={isSubmitting}
     title="Back to Products"
   >
-    <ArrowLeft className="h-5 w-5" />
+    <ArrowLeft className="h-4 w-4" />
   </button>
 </Link>
 
@@ -2858,15 +2924,15 @@ useEffect(() => {
       <div>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Main Title */}
-          <h1 className="text-2xl lg:text-2xl font-bold tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-xl lg:text-xl font-bold tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
             {isEditMode ? "Edit Product" : "Create New Product"}
           </h1>
 
           {/* Product Name Display */}
           {formData.name && (
             <div className="flex items-center gap-2">
-              <span className="text-slate-600">•</span>
-              <span className="text-lg font-semibold text-white truncate max-w-xs" title={formData.name}>
+              <span className="text-slate-600">-</span>
+              <span className="text-[15px] font-semibold text-white truncate max-w-xs" title={formData.name}>
                 {formData.name}
               </span>
             </div>
@@ -2877,7 +2943,7 @@ useEffect(() => {
             <div className="flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
               <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
               <span className="text-xs font-medium text-cyan-400">
-                Edit Mode • ID: {productId.slice(0, 8)}...
+                Edit Mode    ID: {productId.slice(0, 8)}...
               </span>
             </div>
           )}
@@ -2891,18 +2957,28 @@ useEffect(() => {
           )} */}
         </div>
 
-     
+        {missingFields.length > 0 && (
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-orange-500/10 bg-orange-500/5 px-2 py-1 overflow-hidden">
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400"></div>
+            <span className="shrink-0 text-[10px] font-semibold text-orange-300">
+              {missingFields.length} Required
+            </span>
+            <span className="truncate text-[10px] text-orange-200/80">
+              {missingFields.join(", ")}
+            </span>
+          </div>
+        )}
       </div>
     </div>
 
     {/* ========== Right Side - Action Buttons ========== */}
-    <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
       {/* ========== SAVE AS DRAFT BUTTON ========== */}
       <button
         type="button"
         onClick={handleDraftSave}
         disabled={isSubmitting || !checkDraftRequirements().isValid}
-        className="px-4 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed relative group"
+        className="px-3.5 py-2 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all text-[13px] font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed relative group"
         title={
           isSubmitting 
             ? "Processing..." 
@@ -2939,7 +3015,7 @@ useEffect(() => {
   type="button"
   onClick={() => handleNavigateAway('/admin/products')}
   disabled={isSubmitting}
-  className="px-5 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+  className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all text-[13px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
   title="Discard changes"
 >
   Cancel
@@ -2951,7 +3027,7 @@ useEffect(() => {
         type="button"
         onClick={handlePublish}
         disabled={isSubmitting || missingFields.length > 0}
-        className="px-6 py-2.5 bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-violet-500/50 transition-all text-sm flex items-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden min-w-[140px] justify-center"
+        className="px-5 py-2 bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-violet-500/50 transition-all text-[13px] flex items-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden min-w-[132px] justify-center"
         title={
           isSubmitting 
             ? "Creating product..." 
@@ -3016,12 +3092,9 @@ useEffect(() => {
       </div>
     </div>
   )}
-</div>
-
-{/* ================================ */}
-{/* ✅ INDUSTRY-LEVEL LOADING OVERLAY */}
-{/* ================================ */}
-{isSubmitting && (
+  </div>
+  </div>
+  {isSubmitting && (
   <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 max-w-md w-full shadow-2xl">
       {/* Animated Icon Header */}
@@ -3100,7 +3173,7 @@ useEffect(() => {
           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
         </svg>
         <span className="leading-relaxed">
-          Please don't close this page or refresh the browser
+          Please don&apos;t close this page or refresh the browser
         </span>
       </div>
 
@@ -3116,39 +3189,16 @@ useEffect(() => {
     </div>
   </div>
 )}
+
+
       {/* Main Content */}
-      <div className="w-full">
-         {missingFields.length > 0 && (
-          <div className="flex items-center gap-2 mb-2 px-1 py-1 bg-orange-500/10 border border-orange-500/30 rounded-lg flex-wrap">
-            
-            <svg
-              className="w-4 h-4 text-orange-400 flex-shrink-0"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-
-            <span className="text-xs font-medium text-orange-400">
-              {missingFields.length} required field
-              {missingFields.length !== 1 ? "s" : ""}:
-            </span>
-
-            <span className="text-xs text-orange-300">
-              {missingFields.join(", ")}
-            </span>
-          </div>
-          )}
+      <div className={cn("min-h-0 flex-1 overflow-y-auto px-2 pb-3", scrollCls)}>
         {/* Main Form */}
         <div className="w-full">
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-2">
             <Tabs defaultValue="product-info" className="w-full">
-              <div className="border-b border-slate-800 mb-">
-                <TabsList className="flex gap-1 overflow-x-auto pb-px scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent bg-transparent h-auto p-0">
+              <div className="sticky top-0 z-40 mb-3 rounded-xl border border-slate-800/70 bg-[#071120]/95 backdrop-blur-xl px-2 py-1.5">
+                <TabsList className="flex flex-wrap items-center gap-1.5 bg-transparent h-auto p-0">
                   <TabsTrigger value="product-info" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
                     <Info className="h-4 w-4" />
                     Info
@@ -3272,7 +3322,7 @@ useEffect(() => {
 
 
 
-   {/* ✅ Multiple Brands Selector - ADD PAGE */}
+   {/*   Multiple Brands Selector - ADD PAGE */}
 <div>
   <div className="flex items-center justify-between mb-2">
     {/* Left: Label + Required */}
@@ -3322,7 +3372,7 @@ useEffect(() => {
     selectedCategories={formData.categoryIds}
     availableCategories={dropdownsData.categories}
     onChange={(categoryIds) => {
-      console.log('📝 Categories changed:', categoryIds);
+      console.log(' Categories changed:', categoryIds);
       setFormData(prev => ({
         ...prev,
         categoryIds
@@ -3357,16 +3407,16 @@ useEffect(() => {
   <div className="flex items-start gap-3 bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-3">
     <Package className="h-5 w-5 text-violet-400 mt-0.5 flex-shrink-0" />
     <div className="text-sm">
-      <span className="font-semibold text-violet-300">Variable Product selected — </span>
-      <span className="text-slate-300">Price and stock are managed per variant. Go to the <strong className="text-violet-300">Variants</strong> tab to define options (Color, Size…) and generate variants.</span>
+      <span className="font-semibold text-violet-300">Variable Product selected  </span>
+      <span className="text-slate-300">Price and stock are managed per variant. Go to the <strong className="text-violet-300">Variants</strong> tab to define options (Color, Size ) and generate variants.</span>
       {productVariants.length > 0 && (
-        <span className="ml-2 text-emerald-400 font-medium">✓ {productVariants.length} variant{productVariants.length !== 1 ? 's' : ''} added</span>
+        <span className="ml-2 text-emerald-400 font-medium">  {productVariants.length} variant{productVariants.length !== 1 ? 's' : ''} added</span>
       )}
     </div>
   </div>
 )}
 
-{/* ✅ UPDATED Product Type Row with Edit Button */}
+{/*   UPDATED Product Type Row with Edit Button */}
 <div className="grid md:grid-cols-2 gap-4">
   <div>
     <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -3387,7 +3437,7 @@ useEffect(() => {
           <option value="variable">Variable Product</option>
         </select>
 
-{/* ✅ Edit Button with Linked Count INSIDE */}
+{/*   Edit Button with Linked Count INSIDE */}
 {formData.productType === "grouped" && (
   <button
     type="button"
@@ -3466,12 +3516,12 @@ useEffect(() => {
     </div>
   </div>
 
-  {/* ✅ Publishing Section - PERFECTLY SYNCED */}
+  {/*   Publishing Section - PERFECTLY SYNCED */}
   <div className="space-y-4">
     <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">Publishing</h3>
 
     <div className="space-y-3">
-      {/* ✅ 3 Checkboxes in 3 Columns - SAME HEIGHT */}
+      {/*   3 Checkboxes in 3 Columns - SAME HEIGHT */}
       <div className="grid md:grid-cols-3 gap-4">
         {/* Column 1 - Published */}
         <label className="flex items-center gap-2 w-full px-3 py-3 bg-slate-800/50 border border-slate-700 rounded-xl cursor-pointer hover:border-violet-500 transition-all">
@@ -3512,7 +3562,7 @@ useEffect(() => {
         </label>
       </div>
 
-      {/* ✅ Show on Homepage + Display Order - FIXED HEIGHT */}
+      {/*   Show on Homepage + Display Order - FIXED HEIGHT */}
       <div className="grid md:grid-cols-2 gap-4 hidden">
         {/* Column 1 - Show on Homepage checkbox */}
         <label className="flex items-center gap-2 w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl cursor-pointer hover:border-violet-500 transition-all">
@@ -3545,7 +3595,7 @@ useEffect(() => {
             </>
           ) : (
             /* Placeholder to maintain height when unchecked */
-            <span className="text-sm text-slate-500 italic">Enable "Show on home page" to set order</span>
+            <span className="text-sm text-slate-500 italic">Enable &quot;Show on home page&quot; to set order</span>
           )}
         </div>
 
@@ -3603,15 +3653,32 @@ useEffect(() => {
   <div className="space-y-4">
     <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">Mark as New</h3>
 
-    <label className="flex items-center gap-2">
+    <label className="flex items-center gap-2 cursor-pointer">
       <input
         type="checkbox"
         name="markAsNew"
         checked={formData.markAsNew}
-        onChange={handleChange}
+        onChange={(e) => {
+          const checked = e.target.checked;
+          const now = new Date();
+          const fifteenDaysLater = new Date();
+          fifteenDaysLater.setDate(now.getDate() + 15);
+
+          const formatDate = (date: Date) => {
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+          };
+
+          setFormData(prev => ({
+            ...prev,
+            markAsNew: checked,
+            markAsNewStartDate: checked ? formatDate(now) : prev.markAsNewStartDate,
+            markAsNewEndDate: checked ? formatDate(fifteenDaysLater) : prev.markAsNewEndDate
+          }));
+        }}
         className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
       />
-      <span className="text-sm text-slate-300">Mark as new product</span>
+      <span className="text-sm text-slate-300 hover:text-white transition-colors">Mark as new product</span>
     </label>
 
     {formData.markAsNew && (
@@ -3668,13 +3735,13 @@ useEffect(() => {
     ))}
   </div>
 </div>
-  {/* ===== ✅ UPDATED RECURRING PRODUCT SECTION WITH GROUPED VALIDATION ===== */}
+  {/* =====   UPDATED RECURRING PRODUCT SECTION WITH GROUPED VALIDATION ===== */}
   <div className="space-y-4 mt-6">
     <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">
       Subscription / Recurring
     </h3>
 
-    {/* ✅ DISABLED FOR GROUPED PRODUCTS */}
+    {/*   DISABLED FOR GROUPED PRODUCTS */}
     <label className={`flex items-center gap-3 ${
       formData.productType === 'grouped' 
         ? 'cursor-not-allowed opacity-50' 
@@ -3698,7 +3765,7 @@ useEffect(() => {
       </span>
     </label>
 
-    {/* ⚠️ WARNING BANNER FOR GROUPED PRODUCTS */}
+    {/*   š ï¸ WARNING BANNER FOR GROUPED PRODUCTS */}
     {formData.productType === 'grouped' && (
       <div className="flex items-center gap-3 text-xs text-amber-400 bg-amber-900/20 px-4 py-3 rounded border border-amber-800/50">
         <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -3710,7 +3777,7 @@ useEffect(() => {
       </div>
     )}
 
-    {/* ✅ ONLY SHOW IF ENABLED AND NOT GROUPED */}
+    {/*   ONLY SHOW IF ENABLED AND NOT GROUPED */}
     {formData.isRecurring && formData.productType !== 'grouped' && (
       <div className="p-4 bg-slate-800/40 border border-slate-700 rounded-lg space-y-4 transition-all duration-300">
         {/* Billing Cycle */}
@@ -3738,7 +3805,6 @@ useEffect(() => {
               <option value="days">Days</option>
               <option value="weeks">Weeks</option>
               <option value="months">Months</option>
-              <option value="years">Years</option>
             </select>
           </div>
           <div>
@@ -3779,7 +3845,7 @@ useEffect(() => {
               name="allowedSubscriptionFrequencies"
               value={formData.allowedSubscriptionFrequencies}
               onChange={handleChange}
-              placeholder="weekly,monthly,yearly"
+             placeholder="daily,weekly,monthly"
               className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
             <p className="text-xs text-slate-500 mt-1">Comma-separated</p>
@@ -3886,10 +3952,10 @@ useEffect(() => {
           handleChange(e);
 
           if (checked) {
-            // ✅ Open modal when enabled
+            //   Open modal when enabled
             setShowPharmacyModal(true);
           } else {
-            // ✅ Reset pharmacy questions when disabled
+            //   Reset pharmacy questions when disabled
             setPharmacyQuestions([]);
             setShowPharmacyModal(false);
           }
@@ -3986,7 +4052,7 @@ useEffect(() => {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Product Cost (£)</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Product Cost (  £)</label>
         <input
           type="number"
           name="cost"
@@ -4000,7 +4066,7 @@ useEffect(() => {
       </div>
     </div>
 
-{/* ⭐⭐⭐ PROFESSIONAL PRICING BREAKDOWN - SAME AS EDIT PAGE ⭐⭐⭐ */}
+{/*   ­  ­  ­ PROFESSIONAL PRICING BREAKDOWN - SAME AS EDIT PAGE   ­  ­  ­ */}
 {(() => {
   const parsePrice = (value: any): number => {
     if (!value) return 0;
@@ -4015,7 +4081,7 @@ useEffect(() => {
   let bundleBeforeDiscount = 0;
   let finalBundlePrice = mainPrice;
 
-  // ✅ EARLY RETURN - Only show for GROUPED products
+  //   EARLY RETURN - Only show for GROUPED products
   if (!isGrouped || mainPrice <= 0) return null;
 
   if (selectedGroupedProducts.length > 0) {
@@ -4024,7 +4090,7 @@ useEffect(() => {
       return total + parsePrice(product?.price || 0);
     }, 0);
 
-    // ✅ DISCOUNT ONLY ON BUNDLE ITEMS (NOT MAIN PRODUCT)
+    //   DISCOUNT ONLY ON BUNDLE ITEMS (NOT MAIN PRODUCT)
     if (formData.groupBundleDiscountType === 'Percentage') {
       const discountPercent = parsePrice(formData.groupBundleDiscountPercentage);
       bundleDiscount = (bundleItemsTotal * discountPercent) / 100;
@@ -4047,7 +4113,7 @@ useEffect(() => {
   {/* Header */}
   <div className="flex justify-between items-center">
     <h4 className="text-sm font-semibold text-white">
-      💰 Pricing Breakdown
+      Pricing Breakdown
     </h4>
     <button
       type="button"
@@ -4055,7 +4121,7 @@ useEffect(() => {
       className="relative px-2.5 py-1 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 hover:border-violet-500/50 rounded-lg text-xs font-medium text-violet-300 transition-all group cursor-pointer"
     >
       <span className="flex items-center gap-1">
-        📦 Bundle
+        ¦ Bundle
         <svg 
           className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" 
           fill="none" 
@@ -4074,7 +4140,7 @@ useEffect(() => {
     </button>
   </div>
 
-  {/* ✅ 1. MAIN PRODUCT - TOP (FIRST) */}
+  {/*   1. MAIN PRODUCT - TOP (FIRST) */}
   <div className="space-y-1 text-sm pb-2 border-b border-dashed border-slate-700">
     <div className="flex justify-between text-slate-300">
       <span className="text-emerald-400 font-medium">
@@ -4085,12 +4151,12 @@ useEffect(() => {
       </span>
       <span className="text-white flex items-center gap-1">
         <span className="text-green-400 font-bold text-sm">+</span>
-        £{mainPrice.toFixed(2)}
+          £{mainPrice.toFixed(2)}
       </span>
     </div>
   </div>
 
-  {/* ✅ 2. BUNDLE ITEMS SECTION */}
+  {/*   2. BUNDLE ITEMS SECTION */}
   {selectedGroupedProducts.length > 0 ? (
     <>
       <div className="space-y-1 text-sm">
@@ -4102,7 +4168,7 @@ useEffect(() => {
           return (
             <div key={id} className="flex justify-between text-slate-300">
               <span className="truncate">{i + 1}. {p.name}</span>
-              <span className="text-white shrink-0 ml-2">£{parsePrice(p.price).toFixed(2)}</span>
+              <span className="text-white shrink-0 ml-2">  £{parsePrice(p.price).toFixed(2)}</span>
             </div>
           );
         })}
@@ -4110,7 +4176,7 @@ useEffect(() => {
         <div className="flex justify-between pt-2 mt-2 border-t border-dashed border-slate-700">
           <span className="text-slate-400 font-medium">Bundle Items Subtotal</span>
           <span className="text-cyan-400 font-medium">
-            £{bundleItemsTotal.toFixed(2)}
+              £{bundleItemsTotal.toFixed(2)}
           </span>
         </div>
       </div>
@@ -4122,7 +4188,7 @@ useEffect(() => {
             Discount ({formData.groupBundleDiscountType})
           </span>
           <span className="text-red-400 font-medium">
-            −£{bundleDiscount.toFixed(2)}
+              ˆ’  £{bundleDiscount.toFixed(2)}
           </span>
         </div>
       )}
@@ -4130,24 +4196,24 @@ useEffect(() => {
   ) : (
     <div className="text-center py-4 text-slate-400 text-sm border border-dashed border-slate-700 rounded-lg">
       <p className="mb-1">No bundle items selected</p>
-      <p className="text-xs text-slate-500">Click the "📦 Bundle" button above to add products</p>
+      <p className="text-xs text-slate-500">Click the Bundle button above to add products</p>
     </div>
   )}
 
-  {/* ✅ 3. FINAL BUNDLE PRICE */}
+  {/*   3. FINAL BUNDLE PRICE */}
   <div className="flex justify-between items-center pt-3 border-t border-slate-700">
     <span className="text-base font-semibold text-white">
       Final Bundle Price
     </span>
     <span className="text-xl font-bold text-green-400">
-      £{finalBundlePrice.toFixed(2)}
+        £{finalBundlePrice.toFixed(2)}
     </span>
   </div>
 
-  {/* ✅ 4. SAVINGS MESSAGE */}
+  {/*   4. SAVINGS MESSAGE */}
   {bundleDiscount > 0 && (
     <div className="text-center text-xs text-green-400 bg-green-500/10 border border-green-500/20 rounded-md py-1.5">
-      🎉 You Save £{bundleDiscount.toFixed(2)} (
+      ðŸŽ‰ You Save   £{bundleDiscount.toFixed(2)} (
       {((bundleDiscount / bundleItemsTotal) * 100).toFixed(1)}% off)
     </div>
   )}
@@ -4189,213 +4255,14 @@ useEffect(() => {
 
 
 {/* ====================================================================== */}
-{/* ✅ VAT / TAX SETTINGS - ADD PRODUCT PAGE WITH PROPER DROPDOWN */}
+{/*   VAT / TAX SETTINGS - ADD PRODUCT PAGE WITH PROPER DROPDOWN */}
 {/* ====================================================================== */}
 
-<div className="space-y-4">
-  <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">
-    VAT / Tax Settings
-  </h3>
+<VatRateSelector
+  formData={formData}
+  setFormData={setFormData}
 
-{/* VAT Exempt Toggle */}
-<label className="flex items-center gap-3 cursor-pointer">
-  <input
-    type="checkbox"
-    name="vatExempt"
-    checked={formData.vatExempt}
-    onChange={(e) => {
-      const isExempt = e.target.checked;
-      setFormData(prev => ({
-        ...prev,
-        vatExempt: isExempt,
-        vatRateId: isExempt ? '' : prev.vatRateId  // Clear rate if exempt
-      }));
-    }}
-    className="w-4 h-4 rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-  />
-  <div>
-    <span className="text-sm font-medium text-slate-300">
-      VAT Exempt (Zero Rated)
-    </span>
-    <p className="text-xs text-slate-400">
-      Check this box if product is VAT exempt or zero-rated
-    </p>
-  </div>
-</label>
-
-  {/* VAT Rate Selector - Show when NOT exempt */}
-  {!formData.vatExempt && (
-    <div className="relative">
-      {/* Label with Required Indicator */}
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <label className="block text-sm font-medium text-slate-300">
-          VAT Rate
-          <span className="text-red-400 ml-1">*</span>
-          <span className="text-xs text-slate-500 ml-2">(Required when product is taxable)</span>
-        </label>
-        
-        {/* Selected Rate Preview */}
-        {formData.vatRateId && (
-          <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-            Selected: {dropdownsData.vatRates.find(v => v.id === formData.vatRateId)?.name || ''}
-          </span>
-        )}
-      </div>
-
-      {/* Search Input - Always shows current selection */}
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="Search or select VAT rate..."
-          value={
-            formData.vatRateId
-              ? (() => {
-                  const selected = dropdownsData.vatRates.find((v: any) => v.id === formData.vatRateId);
-                  return selected ? `${selected.name} (${selected.rate}%)` : '';
-                })()
-              : vatSearch || ''
-          }
-          onChange={(e) => {
-            setVatSearch(e.target.value);
-            if (!showVatDropdown) {
-              setShowVatDropdown(true);
-            }
-            // Clear selection when user starts typing
-            if (formData.vatRateId) {
-              setFormData(prev => ({ ...prev, vatRateId: '' }));
-            }
-          }}
-          onFocus={() => {
-            setShowVatDropdown(true);
-          }}
-          className="w-full px-3 py-2.5 pr-10 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-        />
-        
-        {/* Dropdown Icon */}
-        <svg 
-          className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform duration-200 ${showVatDropdown ? 'rotate-180' : ''}`}
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-
-      {/* Dropdown List */}
-      {showVatDropdown && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => {
-              setShowVatDropdown(false);
-              setVatSearch('');
-            }} 
-          />
-          
-          {/* Dropdown Menu */}
-          <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
-            {/* Search Input inside dropdown */}
-            <div className="sticky top-0 p-2 bg-slate-800 border-b border-slate-700">
-              <input
-                type="text"
-                placeholder="Search VAT rates..."
-                value={vatSearch}
-                onChange={(e) => setVatSearch(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            
-            {/* Options */}
-            <div className="py-1">
-              {dropdownsData.vatRates.length === 0 ? (
-                <div className="px-4 py-3 text-center text-sm text-slate-400">
-                  No VAT rates available
-                </div>
-              ) : (
-                filteredVATRates.map((vat) => (
-                  <button
-                    key={vat.id}
-                    type="button"
-                    className={`w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center justify-between group hover:bg-slate-700 ${
-                      formData.vatRateId === vat.id 
-                        ? 'bg-violet-500/20 text-violet-400' 
-                        : 'text-slate-300 hover:text-white'
-                    }`}
-                    onClick={() => {
-                      setFormData(prev => ({
-                        ...prev,
-                        vatRateId: vat.id,
-                        vatExempt: false // Ensure not exempt when rate selected
-                      }));
-                      setVatSearch('');
-                      setShowVatDropdown(false);
-                      toast.success(`VAT rate set to ${vat.name} (${vat.rate}%)`);
-                    }}
-                  >
-                    <div className="flex flex-col items-start">
-                      <span className="font-medium">{vat.name}</span>
-                      <span className="text-xs text-slate-400">{vat.rate}%</span>
-                    </div>
-                    {formData.vatRateId === vat.id && (
-                      <svg className="w-4 h-4 text-violet-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Validation Message */}
-      {!formData.vatRateId && !formData.vatExempt && (
-        <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          Please select a VAT rate
-        </p>
-      )}
-
-      {/* Info Box for 0% Rate */}
-      {formData.vatRateId && (
-        (() => {
-          const selectedVat = dropdownsData.vatRates.find(v => v.id === formData.vatRateId);
-          if (selectedVat?.rate === 0) {
-            return (
-              <div className="mt-2 flex items-start gap-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <Info className="w-3 h-3 text-blue-400 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-blue-300">
-                  You've selected a 0% VAT rate. The product will be taxable at 0%.
-                </p>
-              </div>
-            );
-          }
-          return null;
-        })()
-      )}
-    </div>
-  )}
-
-  {/* Info when VAT Exempt */}
-  {formData.vatExempt && (
-    <div className="flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-      <svg className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-      </svg>
-      <div>
-        <p className="text-sm font-medium text-green-400">VAT Exempt (Zero Rated)</p>
-        <p className="text-xs text-green-400/80">No VAT will be charged on this product</p>
-      </div>
-    </div>
-  )}
-</div>
+/>
 
 </TabsContent>
 
@@ -4415,7 +4282,7 @@ useEffect(() => {
         onChange={handleChange}
         className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
       >
-        <option value="dont-track">Don't track inventory</option>
+        <option value="dont-track">Don&apos;t track inventory</option>
         <option value="track">Track inventory</option>
         <option value="track-by-attributes">Track inventory by product attributes</option>
       </select>
@@ -4481,11 +4348,11 @@ useEffect(() => {
             </p>
           </div>
 
-          {/* ✅ PLACEHOLDER DIV - Keep grid balanced */}
+          {/*   PLACEHOLDER DIV - Keep grid balanced */}
           <div></div>
         </div>
 
-        {/* ✅ ADMIN NOTIFICATION SECTION - CONDITIONAL */}
+        {/*   ADMIN NOTIFICATION SECTION - CONDITIONAL */}
         <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -4512,7 +4379,7 @@ useEffect(() => {
             </div>
           </label>
 
-          {/* ✅ Conditional Threshold Input */}
+          {/*   Conditional Threshold Input */}
           {formData.notifyAdminForQuantityBelow && (
             <div className="ml-6 pt-2 border-t border-slate-700">
               <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -4534,7 +4401,7 @@ useEffect(() => {
           )}
         </div>
 
-        {/* ✅ BACKORDER SECTION */}
+        {/*   BACKORDER SECTION */}
         <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -4608,7 +4475,7 @@ useEffect(() => {
           }}
           className="text-violet-500 bg-slate-800/50 border-slate-700 focus:ring-violet-500"
         />
-        <span className="text-sm text-slate-300">Don't display stock information</span>
+        <span className="text-sm text-slate-300">Don&apos;t display stock information</span>
       </label>
       {!formData.displayStockAvailability && !formData.displayStockQuantity && (
         <div className="flex items-center gap-2 ml-4">
@@ -4688,7 +4555,7 @@ useEffect(() => {
         onChange={handleChange}
         className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500"
       />
-      <span className="text-sm text-slate-300">Allow "Notify me when available"</span>
+      <span className="text-sm text-slate-300">Allow &quot;Notify me when available&quot;</span>
     </label>
   </div>
 </div>
@@ -4933,7 +4800,7 @@ useEffect(() => {
 
     
 
-        {/* ✅ NEW DELIVERY OPTIONS SECTION */}
+        {/*   NEW DELIVERY OPTIONS SECTION */}
         <div className="space-y-4 bg-slate-900/30 border border-slate-600 rounded-xl p-4 mt-4">
           <h4 className="text-sm font-semibold text-white border-b border-slate-700 pb-2 flex items-center gap-2">
             <Truck className="w-4 h-4 text-violet-400" />
@@ -4951,7 +4818,7 @@ useEffect(() => {
                 className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
               />
               <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                ⚡ Enable Same-Day Delivery
+                  š¡ Enable Same-Day Delivery
               </span>
             </label>
             
@@ -4972,7 +4839,7 @@ useEffect(() => {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">
-                    Delivery Charge (£)
+                    Delivery Charge (  £)
                   </label>
                   <input
                     type="number"
@@ -5001,7 +4868,7 @@ useEffect(() => {
                 className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
               />
               <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                🚀 Enable Next-Day Delivery
+                Enable Next-Day Delivery
               </span>
             </label>
 
@@ -5019,11 +4886,11 @@ useEffect(() => {
         className="rounded bg-slate-800/50 border-slate-700 text-violet-500"
       />
       <span className="text-sm text-slate-300">
-        🎁 Next-Day Delivery Free
+        Next-Day Delivery Free
       </span>
     </label>
 
-    {/* 🔥 CUTOFF TIME */}
+    {/* CUTOFF TIME */}
     <div className="ml-6 mt-2">
       <label className="block text-md text-slate-400 mb-1">
         Cutoff Time <span className="text-red-400">*</span>
@@ -5055,31 +4922,9 @@ useEffect(() => {
       className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
     />
     <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-      📦 Enable Standard Delivery
+       Enable Standard Delivery
     </span>
   </label>
-
-  {/* ✅ Conditional Field */}
-  {formData.standardDeliveryEnabled && (
-    <div className="transition-all duration-200 ease-in-out">
-      <label className="block text-sm font-medium text-slate-300 mb-2">
-        Delivery Date
-      </label>
-
-      <select
-        name="deliveryDateId"
-        value={formData.deliveryDateId || ""}
-        onChange={handleChange}
-        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-      >
-        <option value="">Select Delivery Time</option>
-        <option value="1">1-2 days</option>
-        <option value="2">3-5 days</option>
-        <option value="3">1 week</option>
-        <option value="4">2 weeks</option>
-      </select>
-    </div>
-  )}
 </div>
 
           <div className="flex items-start gap-2 text-xs text-blue-400 bg-blue-900/20 px-3 py-2 rounded border border-blue-800/50 mt-2">
@@ -5124,7 +4969,7 @@ useEffect(() => {
           className="w-full px-3 py-2 bg-slate-900/80 border border-violet-600/50 rounded-md text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all"
         />
         <p className="text-xs text-slate-400 mt-2">
-          Ye name customer ko product title ke saath dikhega → "
+          Ye name customer ko product title ke saath dikhega   †’ "
           <span className="text-violet-400 font-medium">
             {formData.name} {formData.packSize && `- ${formData.packSize}`}
           </span>"
@@ -5187,11 +5032,11 @@ useEffect(() => {
 
       {/* Info Box */}
       <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-4">
-        <h4 className="font-semibold text-sm text-violet-400 mb-2">💡 Tips</h4>
+        <h4 className="font-semibold text-sm text-violet-400 mb-2">ðŸ’¡ Tips</h4>
         <ul className="text-sm text-slate-300 space-y-1">
-          <li>• Click on any input to show dropdown with multiple checkboxes</li>
-          <li>• Use Brand and Category filters to narrow down products</li>
-          <li>• Select products that complement or enhance the main product</li>
+          <li>   Click on any input to show dropdown with multiple checkboxes</li>
+          <li>   Use Brand and Category filters to narrow down products</li>
+          <li>   Select products that complement or enhance the main product</li>
         </ul>
       </div>
 </TabsContent>
@@ -5217,14 +5062,14 @@ useEffect(() => {
                     <div className="flex items-center gap-2 mb-2">
                       <Package className="h-4 w-4 text-violet-400" />
                       <span className="text-sm font-semibold text-violet-300">Variation Attributes</span>
-                      <span className="text-xs text-slate-400">— used to generate variants in the Variants tab</span>
+                      <span className="text-xs text-slate-400">   used to generate variants in the Variants tab</span>
                     </div>
                     <div className="space-y-2">
                       {productAttributes.filter(a => a.isVariation).map((attr, idx) => (
                         <div key={attr.id} className="flex items-center gap-2 bg-slate-900/50 rounded-lg px-3 py-2">
                           <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
-                          <span className="text-sm font-medium text-white w-24 truncate">{attr.name || <span className="text-slate-500 italic">unnamed</span>}</span>
-                          <span className="text-slate-600">→</span>
+                          <span className="text-sm font-medium text-white w-60 truncate">{attr.name || <span className="text-slate-500 italic">unnamed</span>}</span>
+                          <span className="text-slate-600"> </span>
                           <span className="text-sm text-slate-300 flex-1 truncate">{attr.value || <span className="text-slate-500 italic">no values</span>}</span>
                           <span className="text-xs bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded-full">{attr.displayType || 'buttons'}</span>
                         </div>
@@ -5246,7 +5091,7 @@ useEffect(() => {
                       </button>
                       <button type="button" onClick={() => addProductAttribute(true)}
                         className="px-3 py-1.5 text-xs bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 border border-violet-500/40 rounded-lg transition-colors">
-                        + Variation Attribute (Color, Size…)
+                        + Variation Attribute (Color, Size  €¦)
                       </button>
                     </div>
                   </div>
@@ -5290,10 +5135,10 @@ useEffect(() => {
                               {/* Display type (only for variation) */}
                               {attr.isVariation && (
                                 <div>
-                                  <label className="block text-xs font-medium text-slate-400 mb-1">Display As</label>
+                                  <label className="block  text-xs font-medium text-slate-400 mb-1">Display As</label>
                                   <select value={attr.displayType || 'buttons'}
                                     onChange={(e) => updateProductAttribute(attr.id, 'displayType', e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                                    className="w-full  px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent">
                                     <option value="buttons">Buttons</option>
                                     <option value="dropdown">Dropdown</option>
                                     <option value="swatch">Color Swatch</option>
@@ -5311,7 +5156,7 @@ useEffect(() => {
                                     : 'bg-slate-800 text-slate-400 border border-slate-600 hover:bg-slate-700'
                                 }`}>
                                 <span className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${attr.isVariation ? 'bg-violet-400 border-violet-400' : 'border-slate-500'}`} />
-                                {attr.isVariation ? '✓ Used for variations' : 'Used for variations'}
+                                {attr.isVariation ? 'Used for variations' : 'Used for variations'}
                               </button>
                               {attr.isVariation && (
                                 <span className="text-xs text-slate-500 italic">Goes to Variants tab</span>
@@ -5373,14 +5218,14 @@ useEffect(() => {
           {varOptions.length === 0 ? (
             <div className="border border-dashed border-slate-600 rounded-lg p-4 text-center">
               <p className="text-sm text-slate-400 mb-2">No variation attributes defined yet.</p>
-              <p className="text-xs text-slate-500">Go to <strong className="text-violet-300">Attributes</strong> tab → Add Attribute → toggle <strong className="text-violet-300">Used for variations</strong></p>
+              <p className="text-xs text-slate-500">Go to <strong className="text-violet-300">Attributes</strong> tab   †’ Add Attribute   †’ toggle <strong className="text-violet-300">Used for variations</strong></p>
             </div>
           ) : (
             <div className="space-y-2">
               {varOptions.map((opt) => (
                 <div key={opt.id} className="flex items-center gap-3 bg-slate-900/50 rounded-lg px-3 py-2.5">
-                  <span className="text-sm font-semibold text-white w-24 flex-shrink-0">{opt.name}</span>
-                  <span className="text-slate-600 flex-shrink-0">→</span>
+                  <span className="text-sm font-semibold text-white w-60 flex-shrink-0">{opt.name}</span>
+                  <span className="text-slate-600 flex-shrink-0"> </span>
                   <div className="flex flex-wrap gap-1 flex-1">
                     {opt.values.map((v: string, i: number) => (
                       <span key={i} className="px-2 py-0.5 text-xs bg-violet-500/20 text-violet-300 rounded-full font-medium">{v}</span>
@@ -5415,10 +5260,10 @@ useEffect(() => {
     <div className="flex items-start gap-2">
       <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
       <ul className="text-xs text-slate-400 space-y-1">
-        <li>• <strong className="text-white">Step 1:</strong> Go to <strong className="text-violet-300">Attributes</strong> tab → Add attribute (e.g., Color) → enable <strong className="text-violet-300">Used for variations</strong></li>
-        <li>• <strong className="text-white">Step 2:</strong> Come back here → click <strong className="text-white">Generate All Variants</strong></li>
-        <li>• <strong className="text-white">Step 3:</strong> Set price, stock, SKU per variant (SKU auto-generates if left blank)</li>
-        <li>• Variant images upload after product is first saved</li>
+        <li>   <strong className="text-white">Step 1:</strong> Go to <strong className="text-violet-300">Attributes</strong> tab   Add attribute (e.g., Color)   †’ enable <strong className="text-violet-300">Used for variations</strong></li>
+        <li>   <strong className="text-white">Step 2:</strong> Come back here   click <strong className="text-white">Generate All Variants</strong></li>
+        <li>   <strong className="text-white">Step 3:</strong> Set price, stock, SKU per variant (SKU auto-generates if left blank)</li>
+        <li>   Variant images upload after product is first saved</li>
       </ul>
     </div>
   </div>
@@ -5489,7 +5334,7 @@ useEffect(() => {
         <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
           Recommended
         </span>
-        50–60 characters for best SEO
+        50-60 characters for best SEO
       </p>
     </div>
 
@@ -5532,7 +5377,7 @@ useEffect(() => {
         <span className="px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
           Recommended
         </span>
-        150–160 characters for Google snippets
+        150    -160 characters for Google snippets
       </p>
     </div>
 
@@ -5601,10 +5446,10 @@ useEffect(() => {
       </h4>
 
       <ul className="text-xs text-slate-300 space-y-1.5">
-        <li>• Use descriptive, keyword-rich titles</li>
-        <li>• Keep meta titles under 60 characters</li>
-        <li>• Keep meta descriptions under 160 characters</li>
-        <li>• Use hyphens in URL slugs (e.g., wireless-headphones)</li>
+        <li>   Use descriptive, keyword-rich titles</li>
+        <li>   Keep meta titles under 60 characters</li>
+        <li>   Keep meta descriptions under 160 characters</li>
+        <li>   Use hyphens in URL slugs (e.g., wireless-headphones)</li>
       </ul>
     </div>
 
@@ -5619,7 +5464,7 @@ useEffect(() => {
       <div>
         <h3 className="text-lg font-semibold text-white">Product Images  <span className="text-red-500">*</span></h3>
         <p className="text-sm text-red-500">
-          Upload and manage product images. Supported: JPG, PNG, WebP • Max 300KB To 500KB • Up to 10 images
+          Upload and manage product images. Supported: JPG, PNG, WebP    Max 300KB To 500KB    Up to 10 images
         </p>
       </div>
     </div>
@@ -5663,7 +5508,7 @@ useEffect(() => {
     )}
 
     {!formData.name.trim() && (
-      <p className="text-xs text-amber-400">⚠️ Product name is required for image upload</p>
+      <p className="text-xs text-amber-400">  š ï¸ Product name is required for image upload</p>
     )}
 
     {/* Image Grid */}
@@ -5884,13 +5729,13 @@ useEffect(() => {
           </div>
         </div>
       </div>
-{/* ✅ GROUPED PRODUCT MODAL - ADD PAGE */}
+{/*   GROUPED PRODUCT MODAL - ADD PAGE */}
 <GroupedProductModal
   isOpen={isGroupedModalOpen}
   onClose={() => setIsGroupedModalOpen(false)}
-  selectedGroupedProducts={selectedGroupedProducts || []} // ✅ Correct (with 's')
+  selectedGroupedProducts={selectedGroupedProducts || []} //   Correct (with 's')
   automaticallyAddProducts={formData.automaticallyAddProducts || false}
-  mainProductPrice={parseFloat(String(formData.price || 0))} // ✅ SAFE
+  mainProductPrice={parseFloat(String(formData.price || 0))} //   SAFE
   mainProductName={formData.name || 'Main Product'}
   bundleDiscountType={formData.groupBundleDiscountType || 'None'}
   bundleDiscountPercentage={formData.groupBundleDiscountPercentage || 0}
@@ -5944,22 +5789,20 @@ useEffect(() => {
 
 {/* UNSAVED CHANGES MODAL */}
 <UnsavedChangesModal
+
   isOpen={showUnsavedModal}
   missingFields={missingFields}
   changedFieldsList={getChangedFieldsList()}
   changedFieldsCount={getChangedFieldsList().length}
   isSubmitting={isSubmitting}
+  isEditMode={false}      
   onSaveDraft={handleModalSaveDraft}
-  onUpdate={handleModalCreateProduct}  // ✅ FIXED: Use create function
+  onUpdate={handleModalCreateProduct}  //   FIXED: Use create function
   onDiscard={handleModalDiscard}
   onCancel={handleModalCancel}
   canSaveDraft={checkDraftRequirements().isValid}
   canUpdate={missingFields.length === 0}
 />
-
-
-
-
     </div>
   );
 }

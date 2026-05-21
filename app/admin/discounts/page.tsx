@@ -1,10 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, X, } from "lucide-react";
-
-
+import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, X, ExternalLink, FolderTree, Clock3, } from "lucide-react";
 import { useToast } from "@/app/admin/_components/CustomToast";
-
 import {
   Discount,
   DiscountLimitationType,
@@ -19,14 +16,9 @@ import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { useDebounce } from "../_hooks/useDebounce";
 import { getImageUrl } from "../_utils/formatUtils";
 import ImagePreviewModal from "../_components/ImagePreviewModal";
-
-
-
-type AnyProductResponse =
-  | Product[]
-  | { items: Product[] }
-  | { data: Product[] }
-  | { data: { items: Product[] } };
+import { getBackendMessage} from "@/app/admin/_utils/errorUtils";
+import { getSelectStyles } from "../_utils/styles";
+import { useTheme } from "@/app/admin/_context/theme-provider";
 
 const extractProducts = (res: any): Product[] => {
   if (Array.isArray(res)) return res;
@@ -155,103 +147,12 @@ const processCategoryData = (categories: any[]): SelectOption[] => {
   return categories.map((cat) => ({ value: cat.id, label: cat.name }));
 };
 
-// ========== REACT-SELECT STYLES ==========
-const customSelectStyles = {
-  control: (provided: any, state: any) => ({
-    ...provided,
-    backgroundColor: "rgba(15, 23, 42, 0.5)",
-    border: state.isFocused
-      ? "1px solid rgb(139, 92, 246)"
-      : "1px solid rgb(71, 85, 105)",
-    borderRadius: "12px",
-    minHeight: "48px",
-    boxShadow: state.isFocused ? "0 0 0 2px rgba(139, 92, 246, 0.2)" : "none",
-    "&:hover": { borderColor: "rgb(139, 92, 246)" },
-  }),
-  menu: (provided: any) => ({
-    ...provided,
-    backgroundColor: "rgb(15, 23, 42)",
-    border: "1px solid rgb(71, 85, 105)",
-    borderRadius: "12px",
-    zIndex: 9999,
-    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
-  }),
-  menuList: (provided: any) => ({
-    ...provided,
-    maxHeight: "200px",
-    padding: "4px",
-  }),
-  option: (provided: any, state: any) => ({
-    ...provided,
-    backgroundColor: state.isSelected
-      ? "rgb(139, 92, 246)"
-      : state.isFocused
-      ? "rgba(139, 92, 246, 0.1)"
-      : "transparent",
-    color: "white",
-    borderRadius: "8px",
-    margin: "2px 0",
-    padding: "8px 12px",
-    "&:hover": {
-      backgroundColor: state.isSelected
-        ? "rgb(139, 92, 246)"
-        : "rgba(139, 92, 246, 0.2)",
-    },
-  }),
-  multiValue: (provided: any) => ({
-    ...provided,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
-    borderRadius: "6px",
-    border: "1px solid rgba(139, 92, 246, 0.3)",
-  }),
-  multiValueLabel: (provided: any) => ({
-    ...provided,
-    color: "rgb(196, 181, 253)",
-    fontSize: "14px",
-    fontWeight: "500",
-  }),
-  multiValueRemove: (provided: any) => ({
-    ...provided,
-    color: "rgb(196, 181, 253)",
-    borderRadius: "0 6px 6px 0",
-    "&:hover": { backgroundColor: "rgb(239, 68, 68)", color: "white" },
-  }),
-  placeholder: (provided: any) => ({
-    ...provided,
-    color: "rgb(148, 163, 184)",
-    fontSize: "14px",
-  }),
-  singleValue: (provided: any) => ({ ...provided, color: "white" }),
-  input: (provided: any) => ({ ...provided, color: "white" }),
-  indicatorSeparator: (provided: any) => ({
-    ...provided,
-    backgroundColor: "rgb(71, 85, 105)",
-  }),
-  dropdownIndicator: (provided: any) => ({
-    ...provided,
-    color: "rgb(148, 163, 184)",
-    "&:hover": { color: "white" },
-  }),
-  clearIndicator: (provided: any) => ({
-    ...provided,
-    color: "rgb(148, 163, 184)",
-    "&:hover": { color: "rgb(239, 68, 68)" },
-  }),
-  noOptionsMessage: (provided: any) => ({
-    ...provided,
-    color: "rgb(148, 163, 184)",
-    fontSize: "14px",
-  }),
-  loadingMessage: (provided: any) => ({
-    ...provided,
-    color: "rgb(148, 163, 184)",
-    fontSize: "14px",
-  }),
-};
 
 // ========== MAIN COMPONENT ==========
 export default function DiscountsPage() {
   const toast = useToast();
+  const { theme } = useTheme();
+  const customSelectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
 
   // State
   const [discounts, setDiscounts] = useState<Discount[]>([]);
@@ -271,6 +172,7 @@ export default function DiscountsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [assignedItemsPopup, setAssignedItemsPopup] = useState<string | null>(null); // discount id
   const popupRef = useRef<HTMLDivElement>(null);
+  const [expiryFilter, setExpiryFilter] = useState<string>("all");
   const [usageHistoryModal, setUsageHistoryModal] = useState(false);
   const [selectedDiscountHistory, setSelectedDiscountHistory] = useState<Discount | null>(null);
   const [usageHistory, setUsageHistory] = useState<DiscountUsageHistory[]>([]);
@@ -280,8 +182,8 @@ export default function DiscountsPage() {
   const [dateRangeFilter, setDateRangeFilter] = useState({ startDate: "", endDate: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-const [deletedFilter, setDeletedFilter] = useState<"notDeleted" | "deleted">("notDeleted");
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [deletedFilter, setDeletedFilter] = useState<"notDeleted" | "deleted">("notDeleted");
 const [statusConfirm, setStatusConfirm] = useState<Discount | null>(null);
 const [restoreConfirm, setRestoreConfirm] = useState<Discount | null>(null);
 const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -291,6 +193,8 @@ const debouncedSearch = useDebounce(searchTerm, 400);
 const [allSelectedProducts, setAllSelectedProducts] = useState<Product[]>([]);
 const [productsLoading, setProductsLoading] = useState(false);
 const [categoriesLoading, setCategoriesLoading] = useState(false);
+const [desktopFile, setDesktopFile] = useState<File | null>(null);
+const [mobileFile, setMobileFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -327,12 +231,13 @@ useEffect(() => {
 
 const fetchAssignedProducts = async (ids: string[]) => {
   try {
-    const res = await Promise.all(
+    const results = await Promise.allSettled(
       ids.map(id => productsService.getById(id))
     );
 
-    const data: Product[] = res
-      .map(r => r?.data?.data)
+    const data: Product[] = results
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+      .map(r => r.value?.data?.data)
       .filter((p): p is Product => Boolean(p));
 
     return data;
@@ -350,43 +255,83 @@ const productOptions = useMemo(() => {
 
 
 
+
 const fetchProducts = async () => {
   try {
     setProductsLoading(true);
 
     const params: any = {
-      pageSize: 10
+      pageSize: 100,
+      isPublished: true,
     };
 
-    // ✅ search
-    if (productSearchTerm?.trim()) {
-      params.searchTerm = productSearchTerm.trim();
+    // ===============================
+    // ASSIGNED TO CATEGORIES
+    // ===============================
+    if (formData.discountType === "AssignedToCategories") {
+      // jo category selected hai wahi force karo
+      const selectedCategoryId = formData.assignedCategoryIds?.[0];
+
+      if (selectedCategoryId) {
+        params.categoryId = selectedCategoryId;
+      }
+
+      // optional search inside selected category only
+      if (productSearchTerm?.trim()) {
+        params.searchTerm = productSearchTerm.trim();
+      }
+
+      // optional brand filter
+      if (productBrandFilter) {
+        params.brandId = productBrandFilter;
+      }
     }
 
-    // ✅ category (CRITICAL)
-    if (productCategoryFilter) {
-      params.categoryId = productCategoryFilter;
+    // ===============================
+    // ASSIGNED TO PRODUCTS
+    // ===============================
+    if (formData.discountType === "AssignedToProducts") {
+      // category filter
+      if (productCategoryFilter) {
+        params.categoryId = productCategoryFilter;
+      }
+
+      // brand filter
+      if (productBrandFilter) {
+        params.brandId = productBrandFilter;
+      }
+
+      // search filter
+      if (productSearchTerm?.trim()) {
+        params.searchTerm = productSearchTerm.trim();
+      }
     }
 
-    // ✅ brand (CRITICAL)
-    if (productBrandFilter) {
-      params.brandId = productBrandFilter;
-    }
-
-    console.log("🔥 API PARAMS:", params); // debug
+    console.log("🔥 API PARAMS:", params);
 
     const res = await productsService.getAll(params);
 
     const productsArray = extractProducts(res?.data);
 
     setProducts(productsArray);
-
   } catch (err) {
-    console.error(err);
+    console.error("❌ Failed to fetch products:", err);
   } finally {
     setProductsLoading(false);
   }
 };
+useEffect(() => {
+  if (showModal) {
+    fetchProducts();
+  }
+}, [
+  showModal,
+  formData.discountType,
+  formData.assignedCategoryIds,
+  productCategoryFilter,
+  productBrandFilter,
+  productSearchTerm
+]);
 useEffect(() => {
   fetchDiscounts();
   fetchDropdownData();
@@ -467,7 +412,7 @@ const handleStatusToggle = async () => {
     await fetchDiscounts();
 
   } catch (error: any) {
-    toast.error(error?.response?.data?.message || "Failed to update status");
+    toast.error(getBackendMessage(error));
   } finally {
     setIsUpdatingStatus(false);
     setStatusConfirm(null);
@@ -488,7 +433,7 @@ const handleRestore = async () => {
     toast.success("Discount restored successfully");
     await fetchDiscounts();
   } catch (error: any) {
-    toast.error(error?.response?.data?.message || "Failed to restore discount");
+    toast.error(getBackendMessage(error));
   } finally {
     setIsRestoring(false);
     setRestoreConfirm(null);
@@ -545,38 +490,67 @@ const brandOptions: SelectOption[] = useMemo(() => {
 const getProductDiscount = (product: any) => {
   if (!product?.assignedDiscounts?.length) return null;
 
-  // active discount निकाल
+  const now = new Date();
+
   const active = product.assignedDiscounts.find((d: any) => {
-    const now = new Date();
-    return (
-      d.isActive &&
-      new Date(d.startDate) <= now &&
-      new Date(d.endDate) >= now
-    );
+    if (!d.isActive) return false;
+    if (new Date(d.startDate) > now) return false;
+    if (new Date(d.endDate) < now) return false;
+
+    // category discount + specific products selected
+    if (d.discountType === "AssignedToCategories") {
+      const ids = (d.assignedProductIds || "")
+        .split(",")
+        .map((x: string) => x.trim())
+        .filter(Boolean);
+
+      if (ids.length > 0) {
+        return ids.includes(product.id); // only selected products
+      }
+    }
+
+    return true;
   });
 
-  return active || product.assignedDiscounts[0];
+  return active || null;
 };
 // Handle submit
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+  if(formData.discountType==="AssignedToProducts"){
+    if(formData.assignedProductIds.length===0){
+      toast.error("Please select at least one product");
+      return;
+    }
+  } 
 
-  // ✅ Admin Comment Validation
-  if (!formData.discountPercentage ) {
+  if (formData.adminComment && formData.adminComment.length > 50) {
+  toast.error("Admin comment must be 50 characters or less");
+  return;
+}   
+
+  if (!formData.discountPercentage) {
     toast.error("Discount percentage is required");
     return;
   }
-  if (formData.adminComment.length > 500) {
-    toast.error("Admin comment must be 500 characters or less");
+
+
+if (!editingDiscount) {
+  if (!desktopFile || !mobileFile) {
+    toast.error("Desktop and Mobile banner images are required");
     return;
   }
-// 🔥 NEW: Validation for AssignedToCategories
-  if (formData.discountType === "AssignedToCategories") {
-    if (formData.assignedProductIds.length === 0) {
-      toast.error("At least one product must be selected from the category");
-      return;
-    }
+} else {
+  if (
+    (!desktopFile && !formData.desktopBannerImageUrl) ||
+    (!mobileFile && !formData.mobileBannerImageUrl)
+  ) {
+    toast.error("Desktop and Mobile banner images are required");
+    return;
   }
+}
+
+
   try {
     const payload = {
       ...formData,
@@ -590,27 +564,38 @@ const handleSubmit = async (e: React.FormEvent) => {
       await discountsService.update(editingDiscount.id, payload);
       toast.success("Discount updated successfully!");
     } else {
-      await discountsService.create(payload);
+      const res = await discountsService.create(payload);
+
+      const discountId = res?.data?.data?.id;
+
+      if (!discountId) {
+        toast.error("Failed to get discount ID");
+        return;
+      }
+
+      // 🔥 upload after create
+if (!editingDiscount && desktopFile) {
+  await handleUploadBannerImage(discountId, desktopFile, "desktop");
+}
+
+if (!editingDiscount && mobileFile) {
+  await handleUploadBannerImage(discountId, mobileFile, "mobile");
+}
+
       toast.success("Discount created successfully!");
     }
 
     await fetchDiscounts();
     setShowModal(false);
     resetForm();
+
   } catch (error: any) {
-    console.error("Error saving discount:", error);
-    toast.error(error?.response?.data?.message || "Failed to save discount");
+    console.error(error);
+    toast.error("Failed to save discount");
   }
 };
-
-
-
-// In main page, find handleEdit function (around line 300-320)
 const handleEdit = (discount: Discount) => {
-  console.log("✏️ Editing discount:", discount);
-  console.log("📦 Assigned Product IDs:", discount.assignedProductIds);
-  
-  setEditingDiscount(discount);
+setEditingDiscount(discount);
   setFormData({
     name: discount.name,
     isActive: discount.isActive,
@@ -678,7 +663,11 @@ const handleEdit = (discount: Discount) => {
       assignedManufacturerIds: [],
       desktopBannerImageUrl: null,
       mobileBannerImageUrl: null,
+      
+      
     });
+    setDesktopFile(null);
+setMobileFile(null);
     setEditingDiscount(null);
     setProductCategoryFilter("");
     setProductBrandFilter("");
@@ -692,19 +681,17 @@ const handleUploadBannerImage = async (
   try {
     const res = await discountsService.uploadBannerImage(discountId, file, type);
 
-    const json = res.data as {
-      success: boolean;
-      data: string;
-    };
+    const json = res?.data as { success?: boolean; data?: string };
 
-    if (json.success) {
+    if (json?.success && json?.data) {
       setFormData((prev) => ({
         ...prev,
         [type === "desktop"
           ? "desktopBannerImageUrl"
           : "mobileBannerImageUrl"]: json.data,
       }));
-      fetchDiscounts();
+
+      fetchDiscounts(); // only once
     }
   } catch (err) {
     console.error(err);
@@ -717,12 +704,9 @@ const handleDeleteBannerImage = async (
 ) => {
   try {
     const res = await discountsService.deleteBannerImage(discountId, type);
+const json = res?.data as { success?: boolean };
 
-    const json = res.data as {
-      success: boolean;
-    };
-
-    if (json.success) {
+if (json?.success){
       setFormData((prev) => ({
         ...prev,
         [type === "desktop"
@@ -788,12 +772,43 @@ useEffect(() => {
   }
 }, [discounts]);
 
-const getAssignedCategories = useCallback((discount: Discount) => {
-  const ids = typeof discount.assignedCategoryIds === "string"
-    ? discount.assignedCategoryIds.split(",").map(s => s.trim()).filter(Boolean)
-    : (discount.assignedCategoryIds as unknown as string[]) || [];
-  return categories.filter(c => ids.includes(c.id));
-}, [categories]);
+const getAssignedCategories = useCallback(
+  (discount: Discount) => {
+
+    const ids =
+      typeof discount.assignedCategoryIds === "string"
+        ? discount.assignedCategoryIds
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : (discount.assignedCategoryIds as string[]) || [];
+
+    // flatten all levels
+    const flattenCategories = (cats: Category[]): Category[] => {
+      let result: Category[] = [];
+
+      cats.forEach((cat) => {
+        result.push(cat);
+
+        if (cat.subCategories?.length) {
+          result = result.concat(
+            flattenCategories(cat.subCategories)
+          );
+        }
+      });
+
+      return result;
+    };
+
+    const allCategories =
+      flattenCategories(categories);
+
+    return allCategories.filter((c) =>
+      ids.includes(c.id)
+    );
+  },
+  [categories]
+);
 
 const handleViewUsageHistory = async (discount: Discount) => {
   setSelectedDiscountHistory(discount);
@@ -815,11 +830,13 @@ const clearFilters = () => {
   setTypeFilter("all");
   setDeletedFilter("notDeleted"); // ✅ reset deleted filter
   setSearchTerm("");
+  setExpiryFilter("all");
   setCurrentPage(1);
 };
 
 const hasActiveFilters =
   activeFilter !== "all" ||
+  expiryFilter !== "all" ||
   typeFilter !== "all" ||
   deletedFilter !== "notDeleted" ||   // ✅ ADD THIS
   searchTerm.trim() !== "";
@@ -896,11 +913,30 @@ const filteredDiscounts = discounts.filter((discount) => {
     activeFilter === "all" ||
     (activeFilter === "active" && discount.isActive) ||
     (activeFilter === "inactive" && !discount.isActive);
+    const matchesExpiry =
+  expiryFilter === "all" ||
+  (expiryFilter === "expiring" &&
+    (() => {
+      const end = new Date(discount.endDate);
+      const now = new Date();
+
+      const diffDays = Math.ceil(
+        (end.getTime() - now.getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+
+      return diffDays <= 7 && diffDays > 0;
+    })());
 
   const matchesType =
     typeFilter === "all" || discount.discountType === typeFilter;
 
-  return matchesSearch && matchesActive && matchesType;
+ return (
+  matchesSearch &&
+  matchesActive &&
+  matchesType &&
+  matchesExpiry
+);
 });
 
 
@@ -987,80 +1023,300 @@ const filteredDiscounts = discounts.filter((discount) => {
 </div>
 
 
-{/* Stats Cards */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+
+
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
 
   {/* Total */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+  <button
+    title="Show all discounts and clear every active filter"
+    onClick={() => {
+      setActiveFilter("all");
+      setTypeFilter("all");
+      setDeletedFilter("notDeleted");
+      setExpiryFilter("all");
+      setSearchTerm("");
+    }}
+    className={`
+      bg-slate-900/40
+      border
+      rounded-lg
+      p-2.5
+      text-left
+      transition-all
+      hover:bg-slate-800/60
+      hover:border-violet-500/40
+      active:scale-[0.98]
+
+      ${
+        activeFilter === "all" &&
+        typeFilter === "all" &&
+        expiryFilter === "all"
+          ? "border-violet-500 bg-violet-500/10"
+          : "border-slate-800"
+      }
+    `}
+  >
     <div className="flex items-center gap-2">
       <div className="w-8 h-8 bg-violet-500/10 rounded-md flex items-center justify-center">
         <Percent className="h-4 w-4 text-violet-400" />
       </div>
+
       <div>
-        <p className="text-[11px] text-slate-500">Total</p>
+        <p className="text-[11px] text-slate-500">
+          Total
+        </p>
+
         <p className="text-lg font-semibold text-white">
           {discounts.length}
         </p>
       </div>
     </div>
-  </div>
+  </button>
 
   {/* Active */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+  <button
+    title="Show only active discounts"
+    onClick={() => {
+      setActiveFilter("active");
+      setExpiryFilter("all");
+    }}
+    className={`
+      bg-slate-900/40
+      border
+      rounded-lg
+      p-2.5
+      text-left
+      transition-all
+      hover:bg-slate-800/60
+      hover:border-green-500/40
+      active:scale-[0.98]
+
+      ${
+        activeFilter === "active"
+          ? "border-green-500 bg-green-500/10"
+          : "border-slate-800"
+      }
+    `}
+  >
     <div className="flex items-center gap-2">
       <div className="w-8 h-8 bg-green-500/10 rounded-md flex items-center justify-center">
         <Gift className="h-4 w-4 text-green-400" />
       </div>
+
       <div>
-        <p className="text-[11px] text-slate-500">Active</p>
+        <p className="text-[11px] text-slate-500">
+          Active
+        </p>
+
         <p className="text-lg font-semibold text-white">
           {discounts.filter((d) => d.isActive).length}
         </p>
       </div>
     </div>
-  </div>
+  </button>
 
-  {/* Product */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+  {/* Products */}
+  <button
+    title="Show discounts assigned to products"
+    onClick={() => {
+      setTypeFilter("AssignedToProducts");
+      setExpiryFilter("all");
+    }}
+    className={`
+      bg-slate-900/40
+      border
+      rounded-lg
+      p-2.5
+      text-left
+      transition-all
+      hover:bg-slate-800/60
+      hover:border-cyan-500/40
+      active:scale-[0.98]
+
+      ${
+        typeFilter === "AssignedToProducts"
+          ? "border-cyan-500 bg-cyan-500/10"
+          : "border-slate-800"
+      }
+    `}
+  >
     <div className="flex items-center gap-2">
       <div className="w-8 h-8 bg-cyan-500/10 rounded-md flex items-center justify-center">
         <Target className="h-4 w-4 text-cyan-400" />
       </div>
+
       <div>
-        <p className="text-[11px] text-slate-500">Products</p>
+        <p className="text-[11px] text-slate-500">
+          Products
+        </p>
+
         <p className="text-lg font-semibold text-white">
-          {discounts.filter((d) => d.discountType === "AssignedToProducts").length}
+          {
+            discounts.filter(
+              (d) =>
+                d.discountType ===
+                "AssignedToProducts"
+            ).length
+          }
         </p>
       </div>
     </div>
-  </div>
+  </button>
+
+  {/* Categories */}
+  <button
+    title="Show discounts assigned to categories"
+    onClick={() => {
+      setTypeFilter("AssignedToCategories");
+      setExpiryFilter("all");
+    }}
+    className={`
+      bg-slate-900/40
+      border
+      rounded-lg
+      p-2.5
+      text-left
+      transition-all
+      hover:bg-slate-800/60
+      hover:border-emerald-500/40
+      active:scale-[0.98]
+
+      ${
+        typeFilter === "AssignedToCategories"
+          ? "border-emerald-500 bg-emerald-500/10"
+          : "border-slate-800"
+      }
+    `}
+  >
+    <div className="flex items-center gap-2">
+      <div className="w-8 h-8 bg-emerald-500/10 rounded-md flex items-center justify-center">
+        <FolderTree className="h-4 w-4 text-emerald-400" />
+      </div>
+
+      <div>
+        <p className="text-[11px] text-slate-500">
+          Categories
+        </p>
+
+        <p className="text-lg font-semibold text-white">
+          {
+            discounts.filter(
+              (d) =>
+                d.discountType ===
+                "AssignedToCategories"
+            ).length
+          }
+        </p>
+      </div>
+    </div>
+  </button>
 
   {/* Expiring */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+  <button
+    title="Show discounts expiring within 7 days"
+    onClick={() => {
+      setExpiryFilter("expiring");
+      setActiveFilter("all");
+    }}
+    className={`
+      bg-slate-900/40
+      border
+      rounded-lg
+      p-2.5
+      text-left
+      transition-all
+      hover:bg-slate-800/60
+      hover:border-orange-500/40
+      active:scale-[0.98]
+
+      ${
+        expiryFilter === "expiring"
+          ? "border-orange-500 bg-orange-500/10"
+          : "border-slate-800"
+      }
+    `}
+  >
     <div className="flex items-center gap-2">
       <div className="w-8 h-8 bg-orange-500/10 rounded-md flex items-center justify-center">
         <Calendar className="h-4 w-4 text-orange-400" />
       </div>
+
       <div>
-        <p className="text-[11px] text-slate-500">Expiring</p>
+        <p className="text-[11px] text-slate-500">
+          Expiring
+        </p>
+
         <p className="text-lg font-semibold text-white">
           {
             discounts.filter((d) => {
               const end = new Date(d.endDate);
               const now = new Date();
+
               const diffDays = Math.ceil(
-                (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+                (end.getTime() - now.getTime()) /
+                  (1000 * 60 * 60 * 24)
               );
-              return diffDays <= 7 && diffDays > 0;
+
+              return (
+                diffDays <= 7 &&
+                diffDays > 0
+              );
             }).length
           }
         </p>
       </div>
     </div>
-  </div>
+  </button>
+
+  {/* Expired */}
+  <button
+    title="Show expired discounts"
+    onClick={() => {
+      setExpiryFilter("expired");
+      setActiveFilter("all");
+    }}
+    className={`
+      bg-slate-900/40
+      border
+      rounded-lg
+      p-2.5
+      text-left
+      transition-all
+      hover:bg-slate-800/60
+      hover:border-red-500/40
+      active:scale-[0.98]
+
+      ${
+        expiryFilter === "expired"
+          ? "border-red-500 bg-red-500/10"
+          : "border-slate-800"
+      }
+    `}
+  >
+    <div className="flex items-center gap-2">
+      <div className="w-8 h-8 bg-red-500/10 rounded-md flex items-center justify-center">
+        <Clock3 className="h-4 w-4 text-red-400" />
+      </div>
+
+      <div>
+        <p className="text-[11px] text-slate-500">
+          Expired
+        </p>
+
+        <p className="text-lg font-semibold text-white">
+          {
+            discounts.filter((d) => {
+              const end = new Date(d.endDate);
+              return end < new Date();
+            }).length
+          }
+        </p>
+      </div>
+    </div>
+  </button>
 
 </div>
-
 
 {/* Items Per Page */}
 <div className="bg-slate-900/40 border border-slate-800 rounded-lg px-3 py-2">
@@ -1073,7 +1329,7 @@ const filteredDiscounts = discounts.filter((discount) => {
       <select
         value={itemsPerPage}
         onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-        className="px-2 py-1 bg-slate-800/60 border border-slate-700 rounded-md text-white text-[11px]"
+        className="px-2 py-1 bg-slate-800/90 border border-slate-700 rounded-md text-white text-[11px]"
       >
         <option value={25}>25</option>
         <option value={50}>50</option>
@@ -1124,7 +1380,7 @@ const filteredDiscounts = discounts.filter((discount) => {
       <select
         value={activeFilter}
         onChange={(e) => setActiveFilter(e.target.value)}
-        className={`px-3 py-2 bg-slate-800/70 border rounded-lg text-white text-xs ${
+        className={`px-3 py-2 bg-slate-800 border rounded-lg text-white text-xs ${
           activeFilter !== "all"
             ? "border-blue-500 bg-blue-500/10"
             : "border-slate-600"
@@ -1138,7 +1394,7 @@ const filteredDiscounts = discounts.filter((discount) => {
       <select
         value={typeFilter}
         onChange={(e) => setTypeFilter(e.target.value)}
-        className={`px-3 py-2 bg-slate-800/70 border rounded-lg text-white text-xs ${
+        className={`px-3 py-2 bg-slate-800 border rounded-lg text-white text-xs ${
           typeFilter !== "all"
             ? "border-blue-500 bg-blue-500/10"
             : "border-slate-600"
@@ -1156,9 +1412,22 @@ const filteredDiscounts = discounts.filter((discount) => {
         onChange={(e) => setDeletedFilter(e.target.value as any)}
         className="px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-xs"
       >
-        <option value="notDeleted">Active</option>
-        <option value="deleted">Deleted</option>
+        <option value="notDeleted">Live Discounts</option>
+        <option value="deleted">Deleted Discounts</option>
       </select>
+      <select
+  value={expiryFilter}
+  onChange={(e) => setExpiryFilter(e.target.value)}
+  className={`px-3 py-2 bg-slate-800 border rounded-lg text-white text-xs ${
+    expiryFilter !== "all"
+      ? "border-orange-500 bg-orange-500/10"
+      : "border-slate-600"
+  }`}
+>
+  <option value="all">All Expiry</option>
+  <option value="expiring">Expiring Soon</option>
+  <option value="expired">Expired</option>
+</select>
 
       {hasActiveFilters && (
         <button
@@ -1225,36 +1494,74 @@ const filteredDiscounts = discounts.filter((discount) => {
                 {/* NAME */}
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
-                    <div
-  className="w-8 h-8 rounded-md overflow-hidden border border-slate-600 cursor-pointer"
-  onClick={() => setImageModal(discount)}
->
-  {discount.desktopBannerImageUrl ? (
-    <img
-      src={getImageUrl(discount.desktopBannerImageUrl)}
-      className="w-full h-full object-cover"
-      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-    />
-  ) : discount.mobileBannerImageUrl ? (
-    <img
-      src={getImageUrl(discount.mobileBannerImageUrl)}
-      className="w-full h-full object-cover"
-      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-pink-500 text-xs">
-      {getDiscountTypeIcon(discount.discountType)}
-    </div>
-  )}
+<div className="flex items-center gap-2">
+  {/* Thumbnail */}
+  <div
+    className="w-8 h-8 rounded-md overflow-hidden border border-slate-600 cursor-pointer hover:border-violet-400 transition-all"
+    onClick={() => setImageModal(discount)}
+    title="View Banner"
+  >
+    {discount.desktopBannerImageUrl ? (
+      <img
+        src={getImageUrl(discount.desktopBannerImageUrl)}
+        className="w-full h-full object-cover"
+        onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+      />
+    ) : discount.mobileBannerImageUrl ? (
+      <img
+        src={getImageUrl(discount.mobileBannerImageUrl)}
+        className="w-full h-full object-cover"
+        onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-pink-500 text-xs text-white">
+        {getDiscountTypeIcon(discount.discountType)}
+      </div>
+    )}
+  </div>
+
+  {/* View on Store */}
+
+{!discount.isDeleted && (
+  <a
+    href={`/offers/${discount.slug}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    title="View Offer on Store"
+    className="
+      w-8 h-8 rounded-md
+      border border-emerald-500/30
+      bg-emerald-500/10
+      text-emerald-400
+      hover:bg-emerald-500/20
+      hover:text-emerald-300
+      transition-all
+      flex items-center justify-center
+    "
+  >
+    <ExternalLink className="w-3.5 h-3.5" />
+  </a>
+)}
 </div>
 
                     <div className="min-w-0">
-                      <p
-                        className="text-white text-xs font-medium truncate cursor-pointer hover:text-violet-400"
-                        onClick={() => setViewingDiscount(discount)}
-                      >
-                        {discount.name}
-                      </p>
+               <p
+  className={`
+    text-white text-xs font-medium truncate
+    ${
+      discount.isDeleted
+        ? "cursor-not-allowed opacity-60"
+        : "cursor-pointer hover:text-violet-400"
+    }
+  `}
+  onClick={() => {
+    if (!discount.isDeleted) {
+      setViewingDiscount(discount);
+    }
+  }}
+>
+  {discount.name}
+</p>
 
                       {discount.couponCode && (
                         <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded mt-0.5 inline-block">
@@ -1266,132 +1573,134 @@ const filteredDiscounts = discounts.filter((discount) => {
                 </td>
 
                 {/* TYPE (FULL LOGIC SAME) */}
-                <td className="py-2.5 px-3 text-center">
-                  {(() => {
-                    const isProducts = discount.discountType === "AssignedToProducts";
-                    const isCategories = discount.discountType === "AssignedToCategories";
-                    const assignedProducts = isProducts ? getAssignedProducts(discount) : [];
-                    const assignedCats = isCategories ? getAssignedCategories(discount) : [];
-                    const count = isProducts ? assignedProducts.length : assignedCats.length;
-                    const isClickable = count > 0;
-                    const isOpen = assignedItemsPopup === discount.id;
+<td className="py-2.5 px-3 text-center">
+  {(() => {
+    const isCategories =
+      discount.discountType === "AssignedToCategories";
 
-                    return (
-                      <div className="relative inline-block">
-                        <button
-                          onClick={() => isClickable && setAssignedItemsPopup(isOpen ? null : discount.id)}
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium ${
-                            isProducts
-                              ? "bg-blue-500/10 text-blue-400"
-                              : isCategories
-                              ? "bg-green-500/10 text-green-400"
-                              : "bg-slate-500/10 text-slate-400"
-                          }`}
-                        >
-                          {getDiscountTypeLabel(discount.discountType)}
-                          {count > 0 && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-[10px]">
-                              {count}
-                            </span>
-                          )}
-                        </button>
+    const isProducts =
+      discount.discountType === "AssignedToProducts";
 
-                        {/* POPUP SAME */}
-                      {isOpen && (
-  <div
-    ref={popupRef}
-    className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl shadow-black/50 w-64 max-h-72 overflow-hidden"
-  >
-    {/* HEADER */}
-    <div className="px-3 py-2 border-b border-slate-700 flex items-center justify-between">
-      <span className="text-xs font-semibold text-slate-300">
-        {isProducts ? "Assigned Products" : "Assigned Categories"} ({count})
-      </span>
-      <button
-        onClick={() => setAssignedItemsPopup(null)}
-        className="text-slate-500 hover:text-white text-xs"
-      >
-        ✕
-      </button>
-    </div>
+    const isOrderTotal =
+      discount.discountType === "AssignedToOrderTotal";
 
-    {/* LIST */}
-    <div className="overflow-y-auto max-h-56 p-1.5 space-y-0.5">
+    const isShipping =
+      discount.discountType === "AssignedToShipping";
 
-      {/* PRODUCTS */}
-      {isProducts &&
-        assignedProducts.map((p) => {
-  const imgUrl = p.images?.[0]?.imageUrl;
-  const discount = getProductDiscount(p); // ✅ ADD THIS
+    const assignedCats = isCategories
+      ? getAssignedCategories(discount)
+      : [];
 
-  return (
-            <div
-              key={p.id}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-700/60 transition"
-            >
-              {imgUrl ? (
-                <img
-                  src={
-                    imgUrl.startsWith("http")
-                      ? imgUrl
-                      : `${process.env.NEXT_PUBLIC_API_URL}${imgUrl}`
-                  }
-                  alt=""
-                  className="w-6 h-6 rounded object-cover flex-shrink-0"
-                   onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                />
-              ) : (
-                <div className="w-6 h-6 rounded bg-slate-700 flex items-center justify-center">
-                  <Package className="w-3 h-3 text-slate-400" />
-                </div>
-              )}
-<div className="flex flex-col flex-1">
-  <span className="text-xs text-slate-200 truncate">
-    {p.name}
-  </span>
+    const assignedProducts = isProducts
+      ? getAssignedProducts(discount)
+      : [];
 
-  {discount && (
-    <span className="text-[10px] text-green-400">
-      {discount.usePercentage
-        ? `${discount.discountPercentage}% OFF`
-        : `£${discount.discountAmount} OFF`}
-    </span>
-  )}
-</div>
-            </div>
-          );
-        })}
-
-      {/* CATEGORIES */}
-      {isCategories &&
-        assignedCats.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-700/60 transition"
-          >
-            <div className="w-6 h-6 rounded bg-green-500/20 flex items-center justify-center">
-              <span className="text-[10px]">📁</span>
-            </div>
-
-            <span className="text-xs text-slate-200 truncate flex-1">
-              {c.name}
-            </span>
+    // CATEGORY DISCOUNT
+    if (isCategories) {
+      return (
+        <div className="space-y-1">
+          <div className="flex flex-wrap justify-center gap-1 max-w-[240px] mx-auto">
+            {assignedCats.map((cat) => (
+              <span
+                key={cat.id}
+               title={`Category Name : ${cat.name}`}
+                className="
+                  px-2 py-0.5
+                  rounded-md
+                  bg-emerald-500/10
+                  border border-emerald-500/20
+                  text-emerald-300
+                  text-[10px]
+                  truncate
+                  max-w-[180px]
+                "
+                >
+             Assigned to Categories
+              </span>
+            ))}
           </div>
-        ))}
-
-      {/* EMPTY STATE */}
-      {count === 0 && (
-        <div className="text-center py-4 text-xs text-slate-500">
-          No items found
         </div>
-      )}
-    </div>
-  </div>
-)}
-                      </div>
-                    );
-                  })()}
-                </td>
+      );
+    }
+
+    // PRODUCT DISCOUNT
+    if (isProducts) {
+      return (
+        <div className="space-y-1">
+          <div
+            title="Discount on Products"
+            className="
+              inline-flex items-center gap-1
+              px-2 py-1 rounded-md
+              bg-blue-500/10
+              border border-blue-500/20
+              text-blue-300 text-[10px]
+            "
+          >
+         Assigned to Products
+          </div>
+        </div>
+      );
+    }
+
+    // ORDER TOTAL DISCOUNT
+    if (isOrderTotal) {
+      return (
+        <div
+          title="Discount on Order Total"
+          className="
+            inline-flex items-center gap-1
+            px-2 py-1 rounded-md
+            bg-violet-500/10
+            border border-violet-500/20
+            text-violet-300
+            text-[10px]
+            font-medium
+          "
+        >
+         Assigned to Order Total
+        </div>
+      );
+    }
+
+    // SHIPPING DISCOUNT
+    if (isShipping) {
+      return (
+        <div
+          title="Discount on Shipping"
+          className="
+            inline-flex items-center gap-1
+            px-2 py-1 rounded-md
+            bg-amber-500/10
+            border border-amber-500/20
+            text-amber-300
+            text-[10px]
+            font-medium
+          "
+        >
+        Assign to   Shipping
+        </div>
+      );
+    }
+
+    // OTHER TYPES
+    return (
+      <div
+        title={getDiscountTypeLabel(discount.discountType)}
+        className="
+          inline-flex items-center gap-1
+          px-2 py-1 rounded-md
+          bg-slate-500/10
+          text-slate-400
+          text-[10px]
+          font-medium
+        "
+      >
+        {getDiscountTypeLabel(discount.discountType)}
+      </div>
+    );
+  })()}
+</td>
 
                 {/* VALUE */}
                 <td className="py-2.5 px-3 text-center text-xs">
@@ -1407,16 +1716,54 @@ const filteredDiscounts = discounts.filter((discount) => {
                 </td>
 
                 {/* STATUS (UNCHANGED LOGIC) */}
-                <td className="py-2.5 px-3 text-center text-xs">
-                  {(() => {
-                    const status = getDiscountStatus(discount);
-                    return (
-                      <span className="px-2 py-1 rounded-md text-[10px] bg-slate-700 text-slate-300">
-                        {status.label}
-                      </span>
-                    );
-                  })()}
-                </td>
+             <td className="py-2.5 px-3 text-center text-xs">
+  {(() => {
+    const status = getDiscountStatus(discount);
+
+    const statusStyles: Record<string, string> = {
+      green:
+        "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30",
+
+      red:
+        "bg-red-500/15 text-red-300 border border-red-500/30",
+
+      orange:
+        "bg-amber-500/15 text-amber-300 border border-amber-500/30",
+
+      gray:
+        "bg-slate-500/15 text-slate-300 border border-slate-500/30",
+    };
+
+    const statusTitles: Record<string, string> = {
+      green: "Discount is currently active",
+      red: "Discount has been manually disabled",
+      orange: "Discount is scheduled for future activation",
+      gray: "Discount validity period has expired",
+    };
+
+    return (
+      <span
+        title={statusTitles[status.color]}
+        className={`
+          inline-flex items-center justify-center
+          min-w-[82px]
+          px-2.5 py-1
+          rounded-full
+          text-[10px]
+          font-semibold
+          tracking-wide
+          shadow-sm
+          backdrop-blur-sm
+          transition-all duration-200
+          hover:scale-105
+          ${statusStyles[status.color]}
+        `}
+      >
+        {status.label}
+      </span>
+    );
+  })()}
+</td>
 
                 {/* ✅ VALIDITY WITH TOOLTIP */}
                 <td
@@ -1454,54 +1801,68 @@ const filteredDiscounts = discounts.filter((discount) => {
                 </td>
 
                 {/* ✅ ACTIONS (UNCHANGED) */}
-                <td className="py-2.5 px-3">
-                  <div className="flex items-center justify-center gap-1">
+<td className="py-2.5 px-3">
+  <div className="flex items-center justify-center gap-1">
 
-                    <button
-                      onClick={() => setViewingDiscount(discount)}
-                      className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </button>
+    {/* LIVE DISCOUNTS */}
+    {!discount.isDeleted && (
+      <>
+        <button
+          onClick={() => setViewingDiscount(discount)}
+          className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </button>
 
-                    <button
-                      onClick={() => handleViewUsageHistory(discount)}
-                      className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded"
-                    >
-                      <History className="h-3.5 w-3.5" />
-                    </button>
+        <button
+          onClick={() => handleViewUsageHistory(discount)}
+          className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded"
+        >
+          <History className="h-3.5 w-3.5" />
+        </button>
 
-                    {deletedFilter === "notDeleted" && (
-                      <>
-                        <button
-                          onClick={() => handleEdit(discount)}
-                          className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 rounded"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
+        <button
+          onClick={() => handleEdit(discount)}
+          className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 rounded"
+        >
+          <Edit className="h-3.5 w-3.5" />
+        </button>
 
-                        <button
-                          onClick={() =>
-                            setDeleteConfirm({ id: discount.id, name: discount.name })
-                          }
-                          className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
+        <button
+          onClick={() =>
+            setDeleteConfirm({
+              id: discount.id,
+              name: discount.name,
+            })
+          }
+          className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </>
+    )}
 
-                    {deletedFilter === "deleted" && (
-                      <button
-                        onClick={() => setRestoreConfirm(discount)}
-                        className="p-1.5 text-green-400 hover:bg-green-500/10 rounded"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+    {/* DELETED DISCOUNTS */}
+    {discount.isDeleted && (
+      <>
+        <button
+          onClick={() => handleViewUsageHistory(discount)}
+          className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded"
+        >
+          <History className="h-3.5 w-3.5" />
+        </button>
 
-                  </div>
-                </td>
+        <button
+          onClick={() => setRestoreConfirm(discount)}
+          className="p-1.5 text-green-400 hover:bg-green-500/10 rounded"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      </>
+    )}
+
+  </div>
+</td>
 
               </tr>
             );
@@ -1593,8 +1954,7 @@ const filteredDiscounts = discounts.filter((discount) => {
       />
 
 <DiscountModals
-  
-  key={`${showModal}-${editingDiscount?.id}-${formData.assignedProductIds.join(',')}`}
+  key={`${showModal}-${editingDiscount?.id}`}
   discounts={discounts}
   getProductDiscount={getProductDiscount}
   showModal={showModal}
@@ -1613,21 +1973,24 @@ const filteredDiscounts = discounts.filter((discount) => {
   categories={categories}
   categoryOptions={categoryOptions}
   brandOptions={brandOptions}
-filteredProductOptions={[
-  ...productOptions,
-  ...allSelectedProducts.map(p => ({
-    value: p.id,
-    label: p.name
-  }))
-]}
-
-categoryFilteredProductOptions={[
-  ...productOptions,
-  ...allSelectedProducts.map(p => ({
-    value: p.id,
-    label: p.name
-  }))
-]}
+  filteredProductOptions={[
+    ...productOptions,
+    ...allSelectedProducts
+      .filter(p => !productOptions.some(opt => opt.value === p.id))
+      .map(p => ({
+        value: p.id,
+        label: p.name
+      }))
+  ]}
+  categoryFilteredProductOptions={[
+    ...productOptions,
+    ...allSelectedProducts
+      .filter(p => !productOptions.some(opt => opt.value === p.id))
+      .map(p => ({
+        value: p.id,
+        label: p.name
+      }))
+  ]}
   productCategoryFilter={productCategoryFilter}
   setProductCategoryFilter={setProductCategoryFilter}
   productBrandFilter={productBrandFilter}
@@ -1650,6 +2013,12 @@ categoryFilteredProductOptions={[
   handleViewUsageHistory={handleViewUsageHistory}
   handleUploadBannerImage={handleUploadBannerImage}
   handleDeleteBannerImage={handleDeleteBannerImage}
+
+  // 🔥 ADD THIS (MOST IMPORTANT)
+  desktopFile={desktopFile}
+  mobileFile={mobileFile}
+  setDesktopFile={setDesktopFile}
+  setMobileFile={setMobileFile}
 />
       <ConfirmDialog
   isOpen={!!statusConfirm}

@@ -509,7 +509,7 @@ useEffect(() => {
     <ProductCard
       key={item.variantForCard?.id ?? item.productData.id}
       product={item.productData}
-      vatRates={vatRates}
+
       variantForCard={item.variantForCard}
       cardSlug={item.cardSlug}
     />

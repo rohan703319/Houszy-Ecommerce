@@ -8,6 +8,7 @@ import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { ProductDescriptionEditor } from "../_components/SelfHostedEditor";
 import { Banner, bannersService, BannerStats } from "@/lib/services";
 import { extractFilename, formatDate, getImageUrl } from "../_utils/formatUtils";
+import { getBackendMessage } from "@/app/admin/_utils/errorUtils";
 
 export default function ManageBanners() {
   const toast = useToast();
@@ -44,7 +45,7 @@ const handleRestore = async (id: string) => {
     toast.success("Banner restored successfully!");
     fetchBanners();
   } catch (error: any) {
-    toast.error(error?.response?.data?.message || "Restore failed");
+    toast.error(getBackendMessage(error));
   }
 };
 
@@ -161,7 +162,7 @@ const bannersData: Banner[] = Array.isArray(rawData)
     setBanners(bannersData);
     calculateStats(bannersData);
   } catch (error) {
-    toast.error("Failed to fetch banners");
+    toast.error(getBackendMessage(error));
   } finally {
     setLoading(false);
   }
@@ -170,23 +171,6 @@ useEffect(() => {
   fetchBanners();
 }, [statusFilter, bannerTypeFilter, deletedFilter]);
 
-const handleStatusToggle = async (banner: Banner) => {
-  try {
-    const payload = {
-      ...banner,
-      id: banner.id,
-      isActive: !banner.isActive,
-    };
-
-    await bannersService.update(banner.id, payload);
-
-    toast.success("Status updated");
-    await fetchBanners();
-
-  } catch (error: any) {
-    toast.error(error.message);
-  }
-};
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -377,7 +361,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 }
       } catch (uploadErr: any) {
         console.error("Error uploading image:", uploadErr);
-        toast.error(uploadErr?.response?.data?.message || "Failed to upload desktop image");
+        toast.error(getBackendMessage(uploadErr));
         return;
       }
     }
@@ -414,7 +398,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 }
       } catch (uploadErr: any) {
         console.error("Error uploading mobile image:", uploadErr);
-        toast.error(uploadErr?.response?.data?.message || "Failed to upload mobile image");
+        toast.error(getBackendMessage(uploadErr));
         return;
       }
     }
@@ -487,7 +471,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     resetForm();
   } catch (error: any) {
     console.error("Error:", error);
-    toast.error(error?.response?.data?.message || "Failed to save banner");
+    toast.error(getBackendMessage(error));
   }
 };
 
@@ -531,11 +515,11 @@ const handleSubmit = async (e: React.FormEvent) => {
         toast.success("Banner deleted successfully! 🗑️");
         await fetchBanners();
       } else {
-        toast.error(response.error || "Failed to delete banner");
+        toast.error(getBackendMessage(response));
       }
     } catch (error: any) {
       console.error("Error deleting banner:", error);
-      toast.error(error?.response?.data?.message || "Failed to delete banner");
+      toast.error(getBackendMessage(error));
     } finally {
       setIsDeleting(false);
       setDeleteConfirm(null);
@@ -660,8 +644,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     <h1 className="text-xl font-semibold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
       Banner Management
     </h1>
-    <p className="text-[11px] text-slate-500">
-      {banners.length} banners
+    <p className="text-[12px] text-slate-500">
+    Manage promotional banners for your store. 
     </p>
   </div>
 
@@ -755,7 +739,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       <select
         value={itemsPerPage}
         onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-        className="px-2 py-1 bg-slate-800/60 border border-slate-700 rounded-md text-white text-[11px]"
+        className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-white text-[11px]"
       >
         <option value={25}>25</option>
         <option value={50}>50</option>
@@ -801,7 +785,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     <select
       value={statusFilter}
       onChange={(e) => setStatusFilter(e.target.value)}
-      className={`p-2 text-[11px] rounded-md border bg-slate-800/60 ${
+      className={`p-2 text-[11px] rounded-md border bg-slate-800 ${
         statusFilter !== "all"
           ? "border-blue-500 ring-1 ring-blue-500/40 text-white"
           : "border-slate-700 text-slate-300"
@@ -816,7 +800,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     <select
       value={bannerTypeFilter}
       onChange={(e) => setBannerTypeFilter(e.target.value)}
-      className={`p-2 text-[11px] rounded-md border bg-slate-800/60 ${
+      className={`p-2 text-[11px] rounded-md border bg-slate-800 ${
         bannerTypeFilter !== "all"
           ? "border-violet-500 ring-1 ring-violet-500/40 text-white"
           : "border-slate-700 text-slate-300"
@@ -835,7 +819,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     <select
       value={deletedFilter}
       onChange={(e) => setDeletedFilter(e.target.value)}
-      className={`p-2 text-[11px] rounded-md border bg-slate-800/60 ${
+      className={`p-2 text-[11px] rounded-md border bg-slate-800 ${
         deletedFilter !== "notDeleted"
           ? "border-red-500 ring-1 ring-red-500/40 text-white"
           : "border-slate-700 text-slate-300"
@@ -945,14 +929,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                       }}
                     />
 
-                    {banner.link && (
-                      <div className="flex items-center gap-1">
-                        <ExternalLink className="h-3 w-3 text-slate-500" />
-                        <span className="text-[10px] text-slate-500 truncate">
-                          {banner.link}
-                        </span>
-                      </div>
-                    )}
+                   {banner.link && (
+  <a
+    href={banner.link}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center gap-1 group cursor-pointer"
+  >
+    <ExternalLink className="h-3 w-3 text-slate-500 group-hover:text-violet-400 transition-colors" />
+    
+    <span className="text-[10px] text-slate-500 truncate group-hover:text-violet-400 group-hover:underline transition-all">
+      {banner.link}
+    </span>
+  </a>
+)}
                   </div>
                 </div>
               </td>
@@ -1141,7 +1131,9 @@ const handleSubmit = async (e: React.FormEvent) => {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 
+border border-violet-500/20 rounded-3xl max-w-4xl w-full h-[90vh] 
+flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
             <div className="p-2 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
               <div className="flex items-center justify-between">
                 <div>
@@ -1165,8 +1157,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-2 space-y-2 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               {/* Basic Information */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center text-sm">1</span>
@@ -1321,6 +1314,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </div>
                 </div>
               </div>
+
 
               {/* Banner Image Section */}
               <div className="bg-slate-800/30 p-6 rounded-2xl border border-slate-700/50">
@@ -1601,8 +1595,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </label>
                 </div>
               </div>
+              </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
+              <div className="shrink-0 bg-slate-900 border-t border-slate-700/50 px-4 py-3 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -1631,34 +1626,59 @@ const handleSubmit = async (e: React.FormEvent) => {
   <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
       <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-              Banner Details
-            </h2>
-            <p className="text-slate-300 text-xs mt-1 font-medium">ID: {viewingBanner.id}</p>
-          </div>
-          <button
-            onClick={() => setViewingBanner(null)}
-            className="p-2 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-all"
-          >
-            ✕
-          </button>
-        </div>
+        <div className="flex items-start justify-between gap-4">
+
+  {/* LEFT CONTENT */}
+  <div className="flex flex-col gap-1">
+
+    {/* Heading */}
+    <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+      Banner Details
+    </h2>
+
+    {/* Title + Link */}
+    <div className="flex items-center gap-2 flex-wrap">
+      <p className="text-base font-semibold text-white">
+        {viewingBanner.title || 'Untitled'}
+      </p>
+
+      {viewingBanner.link && (
+        <a
+          href={viewingBanner.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-violet-400 hover:text-violet-300 text-sm transition-all hover:underline"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          <span className="truncate max-w-[200px]">
+            Open Link
+          </span>
+        </a>
+      )}
+    </div>
+
+  </div>
+
+  {/* CLOSE BUTTON */}
+  <button
+    onClick={() => setViewingBanner(null)}
+    className="flex items-center justify-center w-9 h-9 rounded-lg 
+               bg-slate-800/60 border border-slate-700
+               text-slate-400 hover:text-white 
+               hover:bg-red-500/20 hover:border-red-500/50
+               transition-all"
+  >
+    ✕
+  </button>
+
+</div>
       </div>
       
       <div className="p-4 overflow-y-auto max-h-[calc(90vh-180px)]">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           {/* Left Column - Basic Information */}
-          <div className="space-y-4">
-            {/* Title */}
-            <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-sm text-slate-300 font-semibold whitespace-nowrap pt-1">Title:</span>
-                <p className="text-base font-bold text-white text-right flex-1">{viewingBanner.title || 'Untitled'}</p>
-              </div>
-            </div>
-
+          <div className="space-y-2">
+      
             {/* Banner Type, Status & Display Order */}
             <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-3">
               <div className="flex items-center justify-between">
@@ -1691,87 +1711,66 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </div>
 
-            {/* Description */}
-            <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-              <p className="text-sm text-slate-300 font-semibold mb-2">Description:</p>
-              <div
-                className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{
-                  __html: viewingBanner.description || "No description",
-                }}
-              />
-            </div>
-
-            {/* Link URL */}
-            {viewingBanner.link && (
-              <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-                <p className="text-sm text-slate-300 font-semibold mb-2">Link URL:</p>
-                <a
-                  href={viewingBanner.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1 break-all font-medium"
-                >
-                  {viewingBanner.link}
-                  <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                </a>
-              </div>
-            )}
+       
 
             {/* Banner Image */}
-<div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-4">
+<div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-  {/* DESKTOP IMAGE */}
-  {viewingBanner.imageUrl && (
-    <div>
-      <p className="text-xs text-cyan-400 mb-2 font-semibold">Desktop Image</p>
+    {/* DESKTOP IMAGE */}
+    {viewingBanner.imageUrl && (
+      <div>
+        <p className="text-xs text-cyan-400 mb-2 font-semibold">Desktop Image</p>
 
-      <div
-        className="rounded-lg overflow-hidden border-2 border-violet-500/20 cursor-pointer hover:border-violet-500"
-        onClick={() => setSelectedImageUrl(getImageUrl(viewingBanner.imageUrl))}
-      >
-        <img
-          src={getImageUrl(viewingBanner.imageUrl)}
-          alt="Desktop Banner"
-          className="w-full h-auto object-cover"
-          onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-        />
+        <div
+          className="rounded-lg overflow-hidden border-2 border-violet-500/20 cursor-pointer hover:border-violet-500"
+          onClick={() => setSelectedImageUrl(getImageUrl(viewingBanner.imageUrl))}
+        >
+          <img
+            src={getImageUrl(viewingBanner.imageUrl)}
+            alt="Desktop Banner"
+            className="w-full h-48 object-cover"
+          />
+        </div>
+
+        <p className="text-[10px] text-slate-400 mt-1 break-all">
+          {viewingBanner.imageUrl}
+        </p>
       </div>
+    )}
 
-      <p className="text-[10px] text-slate-400 mt-1 break-all">
-        {viewingBanner.imageUrl}
-      </p>
-    </div>
-  )}
+    {/* MOBILE IMAGE */}
+    {viewingBanner.mobileImageUrl && (
+      <div>
+        <p className="text-xs text-pink-400 mb-2 font-semibold">Mobile Image</p>
 
-  {/* MOBILE IMAGE */}
-  {viewingBanner.mobileImageUrl && (
-    <div>
-      <p className="text-xs text-pink-400 mb-2 font-semibold">Mobile Image</p>
+        <div
+          className="rounded-lg overflow-hidden border-2 border-pink-500/20 cursor-pointer hover:border-pink-500"
+          onClick={() =>
+  setSelectedImageUrl(
+    getImageUrl(viewingBanner.mobileImageUrl ?? undefined)
+  )
+}
+        >
+          <img
+            src={getImageUrl(viewingBanner.mobileImageUrl)}
+            alt="Mobile Banner"
+            className="w-full h-48 object-contain bg-black"
+          />
+        </div>
 
-      <div
-        className="rounded-lg overflow-hidden border-2 border-pink-500/20 cursor-pointer hover:border-pink-500"
-        onClick={() => setSelectedImageUrl(getImageUrl(viewingBanner.mobileImageUrl || undefined))}
-      >
-        <img
-          src={getImageUrl(viewingBanner.mobileImageUrl)}
-          alt="Mobile Banner"
-      className="w-full h-60 object-contain bg-black"
-          onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-        />
+        <p className="text-[10px] text-slate-400 mt-1 break-all">
+          {viewingBanner.mobileImageUrl}
+        </p>
       </div>
+    )}
 
-      <p className="text-[10px] text-slate-400 mt-1 break-all">
-        {viewingBanner.mobileImageUrl}
-      </p>
-    </div>
-  )}
-
+  </div>
 </div>
           </div>
 
           {/* Right Column - Offer Details + Schedule */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* Offer Details - LARGER */}
             {(viewingBanner.offerCode || viewingBanner.discountPercentage || viewingBanner.offerText || viewingBanner.buttonText) && (
               <div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
@@ -1813,6 +1812,17 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             )}
 
+
+     {/* Description */}
+            <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+              <p className="text-sm text-slate-300 font-semibold mb-2">Description:</p>
+              <div
+                className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{
+                  __html: viewingBanner.description || "No description",
+                }}
+              />
+            </div>
             {/* Schedule & Activity - LARGER */}
             <div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
               <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
@@ -1874,6 +1884,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
               </div>
             </div>
+
+            
           </div>
         </div>
       </div>

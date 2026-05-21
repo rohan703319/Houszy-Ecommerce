@@ -15,9 +15,10 @@ import {
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { apiClient } from "@/lib/api";
+import { scrollCls } from "../_utils/styles";
 
 // ── Section Types ────────────────────────────────────────────────────────────
-type SectionType = "intro" | "steps" | "bullets" | "checklist" | "address" | "cta" | "support";
+type SectionType = "intro" | "heading" | "steps" | "bullets" | "checklist" | "address" | "cta" | "support";
 
 interface IntroSection    { type: "intro";     content: string; }
 interface StepsSection    { type: "steps";     heading: string; steps: { title: string; description: string; }[]; }
@@ -26,17 +27,32 @@ interface ChecklistSection{ type: "checklist"; heading: string; items: { title: 
 interface AddressSection  { type: "address";   heading: string; lines: string[]; hours: string[]; }
 interface CtaSection      { type: "cta";       heading: string; content: string; buttonText?: string; buttonLink?: string; }
 interface SupportSection  { type: "support";   heading: string; content: string; phone?: string; email?: string; hours?: string; }
+interface HeadingSection {
+  type: "heading";
+  text: string;
+  level: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+  bold?: boolean;
+  italic?: boolean;
+  strike?: boolean;
+}
 
-type PageSection = IntroSection | StepsSection | BulletsSection | ChecklistSection | AddressSection | CtaSection | SupportSection;
+type PageSection = IntroSection | HeadingSection | StepsSection | BulletsSection | ChecklistSection | AddressSection | CtaSection | SupportSection;
 
 const SECTION_META: Record<SectionType, { label: string; icon: React.ReactNode; color: string; desc: string }> = {
   intro:     { label: "Introduction", icon: <AlignLeft size={13}/>,      color: "violet", desc: "Opening paragraph" },
+    heading: {
+  label: "Heading",
+  icon: <AlignLeft size={13} />,
+  color: "violet",
+  desc: "H1 to H6 heading block",
+},
   steps:     { label: "Steps",        icon: <Hash size={13}/>,           color: "cyan",   desc: "Numbered how-it-works" },
   bullets:   { label: "Bullet List",  icon: <List size={13}/>,           color: "emerald",desc: "Simple list (pricing etc.)" },
   checklist: { label: "Checklist",    icon: <ListChecks size={13}/>,     color: "blue",   desc: "Items with descriptions" },
   address:   { label: "Address",      icon: <Building2 size={13}/>,      color: "orange", desc: "Store address + hours" },
   cta:       { label: "Call to Action",icon: <Megaphone size={13}/>,     color: "pink",   desc: "Button / CTA block" },
   support:   { label: "Support",      icon: <HeadphonesIcon size={13}/>, color: "amber",  desc: "Phone, email, hours" },
+
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -58,6 +74,15 @@ function createEmptySection(type: SectionType): PageSection {
     case "address":   return { type: "address", heading: "Our Store", lines: [], hours: [] };
     case "cta":       return { type: "cta", heading: "", content: "", buttonText: "", buttonLink: "" };
     case "support":   return { type: "support", heading: "Need Help?", content: "", phone: "", email: "", hours: "" };
+    case "heading":
+  return {
+    type: "heading",
+    text: "",
+    level: "h2",
+    bold: true,
+    italic: false,
+    strike: false,
+  };
   }
 }
 
@@ -135,11 +160,25 @@ const smInputCls = "w-full bg-slate-900/60 border border-slate-700 rounded-md px
 function SectionEditor({
   section, idx, total,
   onUpdate, onRemove, onMove,
+  onAutoScroll,
+  onDragStart,
+  onDragEnd,
+  onDrop,
+  onDragOver,
+  isDragging,
+  isCurrentDragging
 }: {
   section: PageSection; idx: number; total: number;
   onUpdate: (s: PageSection) => void;
+  onAutoScroll: (e: React.DragEvent) => void;
   onRemove: () => void;
   onMove: (dir: 1 | -1) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+isCurrentDragging: boolean;
+  onDrop: () => void;
+  onDragOver: (e: React.DragEvent) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const meta = SECTION_META[section.type];
@@ -147,37 +186,129 @@ function SectionEditor({
 
   const upd = (patch: Partial<any>) => onUpdate({ ...section, ...patch } as PageSection);
 
-  return (
-    <div className="border border-slate-700 rounded-xl overflow-hidden bg-slate-800/30">
-      {/* Card Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-800/60">
-        <GripVertical size={14} className="text-slate-600 flex-shrink-0" />
-        <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${colorCls}`}>
-          {meta.icon} {meta.label}
-        </span>
-        <span className="text-slate-500 text-xs truncate flex-1">
-          {section.type === "intro" ? (section as IntroSection).content?.slice(0, 60) || "Empty"
-            : (section as any).heading || meta.desc}
-        </span>
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <button onClick={() => onMove(-1)} disabled={idx === 0} className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition">
-            <ChevronUp size={13}/>
-          </button>
-          <button onClick={() => onMove(1)} disabled={idx === total - 1} className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition">
-            <ChevronDown size={13}/>
-          </button>
-          <button onClick={() => setExpanded(e => !e)} className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition">
-            {expanded ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}
-          </button>
-          <button onClick={onRemove} className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition">
-            <X size={13}/>
-          </button>
-        </div>
+return (
+  <div
+onDragOver={(e) => {
+  onDragOver(e);
+  onAutoScroll(e);
+}}
+    onDrop={onDrop}
+    className={`
+      border rounded-xl overflow-hidden
+      transition-opacity duration-200
+      ${
+        isCurrentDragging
+          ? "border-violet-500 opacity-35"
+          : "border-slate-700 bg-slate-800/30"
+      }
+      ${
+        isDragging
+          ? "hover:border-violet-500/40"
+          : ""
+      }
+    `}
+  >
+    {/* Card Header */}
+<div className="flex items-center gap-2 px-3 py-2.5 bg-slate-800/60">
+  <div
+  className={`
+    w-5 h-5
+    rounded-full
+    text-[10px]
+    font-bold
+    flex items-center justify-center
+    flex-shrink-0
+    transition-all duration-200
+    ${
+      isCurrentDragging
+        ? "bg-violet-500 text-white shadow-lg shadow-violet-500/30"
+        : "bg-slate-700 text-slate-300"
+    }
+  `}
+>
+    {idx + 1}
+  </div>
+      {/* Drag Handle */}
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = "move";
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        className="
+          cursor-grab
+          active:cursor-grabbing
+          text-slate-600
+          hover:text-slate-300
+          transition
+          flex-shrink-0
+        "
+      >
+        <GripVertical size={14} />
       </div>
 
-      {/* Card Body */}
-      {expanded && (
-        <div className="px-4 py-3 space-y-3">
+      {/* Section Badge */}
+      <span
+        className={`
+          flex items-center gap-1.5
+          px-2 py-0.5
+          rounded-full
+          text-xs font-semibold
+          border
+          ${colorCls}
+        `}
+      >
+        {meta.icon} {meta.label}
+      </span>
+
+      {/* Section Label */}
+      <span className="text-slate-500 text-xs truncate flex-1">
+        {section.type === "intro"
+          ? (section as IntroSection).content?.slice(0, 60) || "Empty"
+          : section.type === "heading"
+          ? (section as HeadingSection).text || "Heading"
+          : (section as any).heading || meta.desc}
+      </span>
+
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        
+        <button
+          onClick={() => onMove(-1)}
+          disabled={idx === 0}
+          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition"
+        >
+          <ChevronUp size={13} />
+        </button>
+
+        <button
+          onClick={() => onMove(1)}
+          disabled={idx === total - 1}
+          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition"
+        >
+          <ChevronDown size={13} />
+        </button>
+
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition"
+        >
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </button>
+
+        <button
+          onClick={onRemove}
+          className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition"
+        >
+          <X size={13} />
+        </button>
+      </div>
+    </div>
+
+    {/* Card Body */}
+    {expanded && (
+      <div className="px-4 py-3 space-y-3">
           {/* INTRO */}
           {section.type === "intro" && (
             <div>
@@ -188,7 +319,78 @@ function SectionEditor({
                 className={inputCls + " resize-none"} />
             </div>
           )}
+{section.type === "heading" && (() => {
+  const s = section as HeadingSection;
 
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end gap-3 flex-wrap">
+        
+        {/* Heading Text */}
+        <div className="flex-1 min-w-[260px]">
+          <label className={labelCls}>Heading Text</label>
+
+          <input
+            value={s.text}
+            onChange={(e) => upd({ text: e.target.value })}
+            placeholder="Enter heading..."
+            className={inputCls}
+          />
+        </div>
+
+        {/* Heading Level */}
+        <div className="w-28">
+          <label className={labelCls}>Level</label>
+
+          <select
+            value={s.level}
+            onChange={(e) => upd({ level: e.target.value })}
+            className={inputCls}
+          >
+            <option value="h1">H1</option>
+            <option value="h2">H2</option>
+            <option value="h3">H3</option>
+            <option value="h4">H4</option>
+            <option value="h5">H5</option>
+            <option value="h6">H6</option>
+          </select>
+        </div>
+
+        {/* Bold */}
+        <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={s.bold}
+            onChange={(e) => upd({ bold: e.target.checked })}
+          />
+          Bold
+        </label>
+
+        {/* Italic */}
+        <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={s.italic}
+            onChange={(e) => upd({ italic: e.target.checked })}
+          />
+          Italic
+        </label>
+
+        {/* Strike */}
+        <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={(s as any).strike || false}
+            onChange={(e) =>
+              upd({ strike: e.target.checked } as any)
+            }
+          />
+          Strike
+        </label>
+      </div>
+    </div>
+  );
+})()}
           {/* STEPS */}
           {section.type === "steps" && (() => {
             const s = section as StepsSection;
@@ -432,39 +634,116 @@ function SectionEditor({
 }
 
 // ── Add Section Picker ───────────────────────────────────────────────────────
-function AddSectionPicker({ onAdd }: { onAdd: (t: SectionType) => void }) {
+function AddSectionPicker({
+  onAdd,
+}: {
+  onAdd: (t: SectionType) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
+
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+
+    return () => {
+      document.removeEventListener("mousedown", handler);
+    };
   }, []);
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 w-full border-2 border-dashed border-slate-700 hover:border-violet-500/50 rounded-xl py-3 px-4 text-sm text-slate-500 hover:text-violet-400 transition">
-        <Plus size={15}/> Add Section
+      
+      {/* Trigger */}
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="
+          flex items-center gap-2
+          rounded-lg
+          border border-violet-500/30
+          bg-violet-500/10
+          hover:bg-violet-500/20
+          px-3 py-2
+          text-sm font-medium
+          text-violet-300
+          transition
+        "
+      >
+        <Plus size={15} />
+        Add Section
+        <ChevronDown
+          size={14}
+          className={`transition ${open ? "rotate-180" : ""}`}
+        />
       </button>
+
+      {/* Dropdown */}
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-10 bg-slate-900 border border-slate-700 rounded-xl shadow-xl overflow-hidden">
-          <p className="text-xs text-slate-500 px-3 pt-2.5 pb-1.5 font-medium">Choose section type</p>
-          {(Object.entries(SECTION_META) as [SectionType, typeof SECTION_META[SectionType]][]).map(([type, meta]) => (
-            <button key={type} onClick={() => { onAdd(type); setOpen(false); }}
-              className="flex items-center gap-3 w-full px-3 py-2 hover:bg-slate-800 transition text-left">
-              <span className={`flex items-center justify-center w-6 h-6 rounded-md border ${COLOR_MAP[meta.color]}`}>
-                {meta.icon}
-              </span>
-              <div>
-                <p className="text-xs font-semibold text-slate-300">{meta.label}</p>
-                <p className="text-xs text-slate-600">{meta.desc}</p>
-              </div>
-            </button>
-          ))}
+        <div className="
+          absolute right-0 top-full mt-2
+          w-72
+          bg-slate-900
+          border border-slate-700
+          rounded-xl
+          shadow-2xl
+          overflow-hidden
+          z-50
+        ">
+          
+          <div className="px-3 py-2 border-b border-slate-800">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              Choose Section Type
+            </p>
+          </div>
+
+          <div className="max-h-[320px] overflow-y-auto py-1">
+            {(Object.entries(SECTION_META) as [
+              SectionType,
+              typeof SECTION_META[SectionType]
+            ][]).map(([type, meta]) => (
+              <button
+                key={type}
+                onClick={() => {
+                  onAdd(type);
+                  setOpen(false);
+                }}
+                className="
+                  flex items-start gap-3
+                  w-full
+                  px-3 py-3
+                  text-left
+                  hover:bg-slate-800
+                  transition
+                "
+              >
+                <span
+                  className={`
+                    flex items-center justify-center
+                    w-8 h-8
+                    rounded-lg border flex-shrink-0
+                    ${COLOR_MAP[meta.color]}
+                  `}
+                >
+                  {meta.icon}
+                </span>
+
+                <div>
+                  <p className="text-sm font-medium text-slate-200">
+                    {meta.label}
+                  </p>
+
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {meta.desc}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -483,6 +762,9 @@ export default function DeliveryStripPage() {
   const [form,         setForm]         = useState<FormState>({ ...EMPTY });
   const [deleteTarget, setDeleteTarget] = useState<DeliveryStripItem | null>(null);
  const [toggleTarget, setToggleTarget] = useState<DeliveryStripItem | null>(null);
+ const [dragIndex, setDragIndex] = useState<number | null>(null);
+ const [isDragging, setIsDragging] = useState(false);
+ const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const fetchItems = async () => {
     try {
       setLoading(true);
@@ -581,7 +863,22 @@ const handleToggle = async () => {
   const remPoint = (i: number) => setForm(f => ({ ...f, infoPoints: f.infoPoints.filter((_, j) => j !== i) }));
 
   // Section helpers
-  const addSection    = (type: SectionType) => setForm(f => ({ ...f, sections: [...f.sections, createEmptySection(type)] }));
+const addSection = (type: SectionType) => {
+  setForm((f) => ({
+    ...f,
+    sections: [...f.sections, createEmptySection(type)],
+  }));
+
+  // smooth auto scroll bottom
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      scrollContainerRef.current?.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 80);
+  });
+};
   const updateSection = (i: number, s: PageSection) => setForm(f => { const arr = [...f.sections]; arr[i] = s; return { ...f, sections: arr }; });
   const removeSection = (i: number) => setForm(f => ({ ...f, sections: f.sections.filter((_, j) => j !== i) }));
   const moveSection   = (i: number, dir: 1 | -1) => setForm(f => {
@@ -590,7 +887,54 @@ const handleToggle = async () => {
     [arr[i], arr[j]] = [arr[j], arr[i]];
     return { ...f, sections: arr };
   });
+  const handleDropSection = (dropIndex: number) => {
+  if (dragIndex === null || dragIndex === dropIndex) return;
 
+  setForm((f) => {
+    const updated = [...f.sections];
+
+    const draggedItem = updated[dragIndex];
+
+    updated.splice(dragIndex, 1);
+
+    updated.splice(dropIndex, 0, draggedItem);
+
+    return {
+      ...f,
+      sections: updated,
+    };
+  });
+
+  setDragIndex(null);
+};
+
+const handleDragEnd = () => {
+  setDragIndex(null);
+  setIsDragging(false);
+};
+const handleAutoScroll = (e: React.DragEvent) => {
+  const container = scrollContainerRef.current;
+
+  if (!container) return;
+
+  const rect = container.getBoundingClientRect();
+
+  const scrollMargin = 100;
+  const scrollSpeed = 20;
+
+  // Mouse Y position
+  const y = e.clientY;
+
+  // Scroll Down
+  if (y > rect.bottom - scrollMargin) {
+    container.scrollTop += scrollSpeed;
+  }
+
+  // Scroll Up
+  else if (y < rect.top + scrollMargin) {
+    container.scrollTop -= scrollSpeed;
+  }
+};
   const handleTitleChange = (val: string) =>
     setForm(f => ({
       ...f, title: val,
@@ -718,15 +1062,15 @@ const handleToggle = async () => {
                         <Trash2 size={15}/>
                       </button>
                       <a
-  href={`/delivery/${item.slug}`}
-  target="_blank"
-  rel="noopener noreferrer"
-  title="View Page"
-  className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-500 hover:text-green-400 transition"
->
-  <ExternalLink size={15} />
-</a>
-                    </div>
+                        href={`/delivery/${item.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View Page"
+                        className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-500 hover:text-green-400 transition"
+                        >
+                        <ExternalLink size={15} />
+                      </a>
+                  </div>
                   </td>
                 </tr>
               ))}
@@ -755,21 +1099,38 @@ const handleToggle = async () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-slate-800 px-6 gap-1 flex-shrink-0">
-              {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={`py-3 px-4 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? "border-violet-500 text-violet-400"
-                      : "border-transparent text-slate-500 hover:text-slate-300"
-                  }`}>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+<div className="flex items-center justify-between border-b border-slate-800 px-6 flex-shrink-0">
+  
+  {/* Tabs */}
+  <div className="flex gap-1">
+    {TABS.map(tab => (
+      <button
+        key={tab.id}
+        onClick={() => setActiveTab(tab.id)}
+        className={`py-3 px-4 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+          activeTab === tab.id
+            ? "border-violet-500 text-violet-400"
+            : "border-transparent text-slate-500 hover:text-slate-300"
+        }`}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+
+  {/* Add Section Button */}
+  {activeTab === "rich" && (
+    <div className="relative group">
+      <AddSectionPicker onAdd={addSection} />
+    </div>
+  )}
+</div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div
+  ref={scrollContainerRef}
+className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
+>
 
               {/* TAB 1: Strip Bar */}
               {activeTab === "strip" && (
@@ -942,18 +1303,29 @@ const handleToggle = async () => {
                       <p className="text-xs mt-1 text-slate-600">Click "Add Section" below to build the page.</p>
                     </div>
                   )}
+                  
                   {form.sections.map((section, i) => (
                     <SectionEditor
                       key={i}
                       section={section}
                       idx={i}
                       total={form.sections.length}
+                      onAutoScroll={handleAutoScroll}
+                      isDragging={isDragging}
+                      isCurrentDragging={dragIndex === i}
+                      onDragEnd={handleDragEnd}
                       onUpdate={s => updateSection(i, s)}
                       onRemove={() => removeSection(i)}
                       onMove={dir => moveSection(i, dir)}
+                      onDragStart={() => {
+  setDragIndex(i);
+  setIsDragging(true);
+}}
+  onDrop={() => handleDropSection(i)}
+  onDragOver={(e) => e.preventDefault()}
                     />
                   ))}
-                  <AddSectionPicker onAdd={addSection} />
+             
                 </div>
               )}
             </div>

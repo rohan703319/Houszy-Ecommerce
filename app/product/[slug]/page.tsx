@@ -36,14 +36,13 @@ interface Product {
    crossSellProductIds: string; // ✅ ADD THIS
 }
 
-export const dynamic = "force-dynamic";
 
 async function getProduct(slug: string) {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/Products/by-slug/${slug}`,
       {
-       cache: "no-store",
+        cache: 'no-store',
       }
     );
 

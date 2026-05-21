@@ -48,45 +48,47 @@ interface ToastProviderProps {
 
 // ========== STYLES ==========
 const TOAST_TYPES = {
-  success: { 
-    bg: 'bg-gradient-to-br from-green-50 via-green-100 to-green-200 dark:from-green-900/90 dark:via-green-800/90 dark:to-green-900/90',
-    border: 'border-green-400/50 dark:border-green-500/50',
-    text: 'text-green-900 dark:text-green-50',
-    icon: 'text-green-600 dark:text-green-400',
-    progress: 'bg-gradient-to-r from-green-500 to-green-600',
-    iconComponent: CheckCircle
+  success: {
+    bg: "bg-gradient-to-br from-green-50 via-green-100 to-green-200 dark:bg-none dark:bg-[#16281d]",
+    border: "border-green-300/70 dark:border-green-700/40",
+    text: "text-green-900 dark:text-green-100",
+    icon: "text-green-600 dark:text-green-400",
+    progress: "bg-gradient-to-r from-green-500 to-green-600 dark:bg-none dark:bg-green-400",
+    iconComponent: CheckCircle,
   },
-  error: {
-    bg: 'bg-gradient-to-br from-red-50 via-red-100 to-red-200 dark:from-red-900/90 dark:via-red-800/90 dark:to-red-900/90',
-    border: 'border-red-400/50 dark:border-red-500/50',
-    text: 'text-red-900 dark:text-red-50',
-    icon: 'text-red-600 dark:text-red-400',
-    progress: 'bg-gradient-to-r from-red-500 to-red-600',
-    iconComponent: XCircle
-  },
-  info: { 
-    bg: 'bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:from-blue-900/90 dark:via-blue-800/90 dark:to-blue-900/90',
-    border: 'border-blue-400/50 dark:border-blue-500/50',
-    text: 'text-blue-900 dark:text-blue-50',
-    icon: 'text-blue-600 dark:text-blue-400',
-    progress: 'bg-gradient-to-r from-blue-500 to-blue-600',
-    iconComponent: Info
-  },
-  warning: { 
-    bg: 'bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200 dark:from-amber-900/90 dark:via-amber-800/90 dark:to-amber-900/90',
-    border: 'border-amber-400/50 dark:border-amber-500/50',
-    text: 'text-amber-900 dark:text-amber-50',
-    icon: 'text-amber-600 dark:text-amber-400',
-    progress: 'bg-gradient-to-r from-amber-500 to-amber-600',
-    iconComponent: AlertTriangle
-  }
-};
 
+  error: {
+    bg: "bg-gradient-to-br from-red-50 via-red-100 to-red-200 dark:bg-none dark:bg-[#2a1616]",
+    border: "border-red-300/70 dark:border-red-700/40",
+    text: "text-red-900 dark:text-red-100",
+    icon: "text-red-600 dark:text-red-400",
+    progress: "bg-gradient-to-r from-red-500 to-red-600 dark:bg-none dark:bg-red-400",
+    iconComponent: XCircle,
+  },
+
+  info: {
+    bg: "bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 dark:bg-none dark:bg-[#152330]",
+    border: "border-blue-300/70 dark:border-blue-700/40",
+    text: "text-blue-900 dark:text-blue-100",
+    icon: "text-blue-600 dark:text-blue-400",
+    progress: "bg-gradient-to-r from-blue-500 to-blue-600 dark:bg-none dark:bg-blue-400",
+    iconComponent: Info,
+  },
+
+  warning: {
+    bg: "bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200 dark:bg-none dark:bg-[#2d2415]",
+    border: "border-amber-300/70 dark:border-amber-700/40",
+    text: "text-amber-900 dark:text-amber-100",
+    icon: "text-amber-600 dark:text-amber-400",
+    progress: "bg-gradient-to-r from-amber-500 to-amber-600 dark:bg-none dark:bg-amber-400",
+    iconComponent: AlertTriangle,
+  },
+};
 const ToastContext = createContext<ToastContextType | null>(null);
 
 // ========== TOAST COMPONENT (IMPROVED) ==========
-const Toast: React.FC<ToastProps> = ({ 
-  id, message, type = 'info', autoClose = 5000, onClose, 
+const Toast: React.FC<ToastProps> = ({
+  id, message, type = 'info', autoClose = 5000, onClose,
   pauseOnHover = true, draggable = true, hideProgressBar = false, closeButton = true,
   index = 0
 }) => {
@@ -113,9 +115,9 @@ const Toast: React.FC<ToastProps> = ({
     const timer = requestAnimationFrame(() => {
       if (isMountedRef.current) setIsVisible(true);
     });
-    
+
     if (autoClose > 0) startAnimation();
-    
+
     return () => {
       isMountedRef.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -127,11 +129,11 @@ const Toast: React.FC<ToastProps> = ({
   const startAnimation = () => {
     animationStartRef.current = Date.now();
     totalPausedRef.current = 0;
-    
+
     if (progressRef.current) {
       progressRef.current.style.width = '100%';
       progressRef.current.style.transition = 'none';
-      
+
       requestAnimationFrame(() => {
         if (progressRef.current && isMountedRef.current) {
           progressRef.current.style.transition = `width ${autoClose}ms linear`;
@@ -139,7 +141,7 @@ const Toast: React.FC<ToastProps> = ({
         }
       });
     }
-    
+
     timeoutRef.current = setTimeout(handleClose, autoClose);
   };
 
@@ -148,12 +150,12 @@ const Toast: React.FC<ToastProps> = ({
     if (!pauseOnHover || isPaused || !isMountedRef.current) return;
     setIsPaused(true);
     pauseStartRef.current = Date.now();
-    
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
+
     if (progressRef.current) {
       const comp = window.getComputedStyle(progressRef.current);
       const width = parseFloat(comp.width);
@@ -168,17 +170,17 @@ const Toast: React.FC<ToastProps> = ({
   const handleMouseLeave = () => {
     if (!pauseOnHover || !isPaused || !isMountedRef.current) return;
     setIsPaused(false);
-    
+
     const pauseDuration = Date.now() - pauseStartRef.current;
     totalPausedRef.current += pauseDuration;
     const elapsed = Date.now() - animationStartRef.current - totalPausedRef.current;
     const remaining = Math.max(0, autoClose - elapsed);
-    
+
     if (remaining <= 0) {
       handleClose();
       return;
     }
-    
+
     if (progressRef.current) {
       requestAnimationFrame(() => {
         if (progressRef.current && isMountedRef.current) {
@@ -187,7 +189,7 @@ const Toast: React.FC<ToastProps> = ({
         }
       });
     }
-    
+
     timeoutRef.current = setTimeout(handleClose, remaining);
   };
 
@@ -244,34 +246,40 @@ const Toast: React.FC<ToastProps> = ({
       aria-live="polite"
       aria-atomic="true"
       className={`
-        relative w-[400px] max-w-full rounded-xl border shadow-xl
-        overflow-hidden backdrop-blur-lg
+        relative w-[92vw] sm:w-[400px] max-w-full rounded-xl border shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-black/40
+        overflow-hidden backdrop-blur-xl
         ${style.bg} ${style.border}
         ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-2 opacity-0 scale-95'}
-        ${isDragging ? 'shadow-2xl scale-105 z-50 cursor-grabbing' : 'cursor-grab hover:shadow-2xl'}
-        ${isPaused ? 'ring-2 ring-blue-500/50' : ''}
+        ${isDragging ? 'shadow-2xl scale-105 z-50 cursor-grabbing' : 'cursor-grab hover:shadow-xl dark:hover:shadow-black/50'}
+        ${isPaused ? 'ring-1 ring-white/10' : ''}
         transition-all duration-300 ease-out
       `}
       style={{
         transform: `translateX(${dragOffset}px) rotate(${rotation}deg)`,
-        opacity: Math.max(0.6, 1 - Math.abs(dragOffset) / 400),
-        zIndex: isDragging ? 1000 : 999 - index,
+        opacity: Math.max(0.4, 1 - Math.abs(dragOffset) / 300),
+        zIndex: isDragging ? 99999 : 9999 - index,
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
     >
-      <div className="flex items-start gap-3 p-4">
+      <div className="flex items-start gap-2.5 sm:gap-3 p-3.5 sm:p-4">
         <div className={`flex-shrink-0 mt-0.5 ${style.icon}`}>
           <IconComponent size={24} strokeWidth={2.5} />
         </div>
-        <div className={`flex-1 text-sm font-medium ${style.text} leading-relaxed min-w-0`}>
-          {typeof message === 'string' ? (
-            <p className="whitespace-pre-wrap break-words">{message}</p>
-          ) : (
-            <div className="break-words">{message}</div>
-          )}
-        </div>
+  <div
+  className={`flex-1 text-sm font-medium ${style.text} leading-relaxed min-w-0 max-w-[85%]`}
+>
+  {typeof message === "string" ? (
+    <p className="whitespace-pre-wrap break-words">
+      {message}
+    </p>
+  ) : (
+    <div className="break-words">
+      {message}
+    </div>
+  )}
+</div>
         {closeButton && (
           <button
             onClick={(e) => {
@@ -281,7 +289,7 @@ const Toast: React.FC<ToastProps> = ({
             className={`
               flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center 
               transition-all ${style.text}
-              hover:bg-black/10 dark:hover:bg-white/10 active:scale-95
+              hover:bg-black/5 dark:hover:bg-white/5 active:scale-95
               opacity-60 hover:opacity-100
             `}
             aria-label="Close notification"
@@ -293,7 +301,7 @@ const Toast: React.FC<ToastProps> = ({
 
       {/* Progress Bar */}
       {!hideProgressBar && autoClose > 0 && (
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-black/5 dark:bg-white/5 overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-full h-1 bg-black/5 dark:bg-white/10 overflow-hidden">
           <div
             ref={progressRef}
             className={`h-full ${style.progress} transition-opacity`}
@@ -308,8 +316,8 @@ const Toast: React.FC<ToastProps> = ({
       {/* Pause Indicator */}
       {isPaused && (
         <div className="absolute top-3 right-12 flex gap-1">
-          <div className="w-1 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-          <div className="w-1 h-3 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.15s' }}></div>
+          <div className="w-1 h-3 bg-white/60 rounded-full animate-pulse"></div>
+          <div className="w-1 h-3 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '0.15s' }}></div>
         </div>
       )}
     </div>
@@ -347,7 +355,7 @@ const ToastContainerByPosition: React.FC<{
   if (limitedToasts.length === 0) return null;
 
   return (
-    <div className={`fixed pointer-events-none flex flex-col gap-3 z-[9999] ${getPositionClasses()}`}>
+    <div className={`fixed pointer-events-none flex flex-col gap-2.5 sm:gap-3 z-[9999] ${getPositionClasses()}`}>
       {limitedToasts.map((toast, index) => (
         <div
           key={toast.id}
@@ -409,7 +417,7 @@ const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   };
 
   const dismissAll = () => setToasts([]);
-  
+
   const isActive = (id: string) => toasts.some(toast => toast.id === id);
 
   const toast = {

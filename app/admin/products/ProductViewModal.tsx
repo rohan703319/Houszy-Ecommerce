@@ -28,7 +28,7 @@ import {
 import { API_BASE_URL } from '@/lib/api-config';
 import productsService, { Product } from '../../../lib/services/products';
 import MediaViewerModal, { MediaItem } from './MediaViewerModal';
-import { formatDate } from '../_utils/formatUtils';
+import { formatDate, getImageUrl } from '../_utils/formatUtils';
 
 // ==========================================
 // HELPER COMPONENTS
@@ -228,15 +228,14 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
     const startIndex = variantsWithImages.findIndex(v => v.id === clickedVariant.id);
 
     // Create media items from all variants with images
-    const mediaItems: MediaItem[] = variantsWithImages.map((variant) => ({
-      type: 'image',
-      url: variant.imageUrl!,
-      title: variant.name,
-      description: `${product.name} - ${variant.name} (${variant.sku})`,
-      isMain: variant.isDefault,
-    }));
-
-    // Set media with proper start index
+const mediaItems: MediaItem[] = variantsWithImages.map((variant) => ({
+  type: 'image',
+url: getImageUrl(variant.imageUrl || undefined),
+  title: variant.name,
+  description: `${product.name} - ${variant.name} (${variant.sku})`,
+  isMain: variant.isDefault,
+}));
+ // Set media with proper start index
     setMediaToView(mediaItems);
     setMediaViewerOpen(true);
   };
@@ -290,7 +289,7 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
               <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg">
                 {product.images && product.images.length > 0 ? (
                   <img
-                    src={product.images[0].imageUrl}
+                    src={getImageUrl(product.images[0].imageUrl)}
                     alt={product.name}
                     className="w-8 h-8 object-cover rounded-md"
                   />
@@ -410,13 +409,12 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                     <InfoField
                       label="Display Order"
                       value={product.displayOrder?.toString() || '1'}
-                      icon={<FileText className="w-3.5 h-3.5" />}
+                      icon={<FileText className="w-3.5 h-3.5 text-slate-400" />}
                     />
-                    <InfoField label="Slug" value={product.slug} />
-<InfoField label="Status" value={product.status} />
-
-
-{/* <InfoField label="SEO URL" value={product.searchEngineFriendlyPageName} /> */}
+                    <InfoField label="Slug" value={product.slug} icon={<Globe className="w-3.5 h-3.5 text-slate-400" />} />
+                    <InfoField label="Status" value={product.status} icon={<AlertCircle className="w-3.5 h-3.5 text-slate-400" />} />
+                    {product.gender && <InfoField label="Gender" value={product.gender} />}
+                    {product.tags && <InfoField label="Tags" value={product.tags} icon={<Tag className="w-3.5 h-3.5 text-slate-400" />} />}
                   </div>
 
           
@@ -473,38 +471,39 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                     <ToggleField label="Visible" value={product.visibleIndividually} />
                     <ToggleField label="Homepage" value={product.showOnHomepage} />
                     <ToggleField label="Mark as New" value={product.markAsNew} />
-                    
                   </div>
 
-                  {/* IDs */}
-                  <div className="grid grid-cols-2 gap-3">
+                  {/* IDs & Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                     {product.gtin && (
-                      <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                      <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700 col-span-1">
                         <p className="text-xs text-slate-400 font-bold mb-1">GTIN</p>
-                        <p className="text-sm text-white font-bold font-mono">{product.gtin}</p>
+                        <p className="text-sm text-white font-bold font-mono truncate">{product.gtin}</p>
                       </div>
                     )}
-
                     {product.manufacturerPartNumber && (
-                      <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                      <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700 col-span-1">
                         <p className="text-xs text-slate-400 font-bold mb-1">MPN</p>
-                        <p className="text-sm text-white font-bold font-mono">{product.manufacturerPartNumber}</p>
+                        <p className="text-sm text-white font-bold font-mono truncate">{product.manufacturerPartNumber}</p>
                       </div>
                     )}
+                    
+                    <InfoField label="Rating" value={product.averageRating || 'N/A'} icon={<Star className="w-3.5 h-3.5 text-yellow-400" />} />
+                    <InfoField label="Reviews" value={product.reviewCount || '0'} icon={<FileText className="w-3.5 h-3.5 text-blue-400" />} />
+                    <InfoField label="Views" value={product.viewCount || '0'} icon={<Eye className="w-3.5 h-3.5 text-cyan-400" />} />
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-  <InfoField label="Rating" value={product.averageRating} />
-  <InfoField label="Reviews" value={product.reviewCount} />
-  <InfoField label="Views" value={product.viewCount} />
-</div>
- <h1 className=' p-2 text-white '>Timleine</h1>
-                  <div className="grid grid-cols-4 gap-3 pt-1 ">
-  <InfoField label="Created By" value={product.createdBy}  />
-  <InfoField label="Created At" value={formatDate(product.createdAt)} />
-  <InfoField label="Update By" value={product.updatedBy} />
-  <InfoField label="Update At" value={formatDate(product.updatedAt)} />
-
-</div>
+                  {/* Timeline */}
+                  <div className="mt-6 mb-2 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-slate-400" />
+                    <h3 className="text-xs text-slate-400 font-bold uppercase tracking-wider">Timeline</h3>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <InfoField label="Created By" value={product.createdBy || 'System'} />
+                    <InfoField label="Created At" value={formatDate(product.createdAt)} />
+                    <InfoField label="Updated By" value={product.updatedBy || 'System'} />
+                    <InfoField label="Updated At" value={formatDate(product.updatedAt)} />
+                    {product.publishedAt && <InfoField label="Published At" value={formatDate(product.publishedAt)} />}
+                  </div>
 
                   {/* Admin Comment */}
                   {product.adminComment && (
@@ -550,14 +549,38 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <ToggleField label="Disable Buy Button" value={product.disableBuyButton} />
                     <ToggleField label="Disable Wishlist" value={product.disableWishlistButton} />
                     <ToggleField label="Call For Price" value={product.callForPrice} />
                     <ToggleField label="Customer Enters Price" value={product.customerEntersPrice} />
                     <InfoField label="Loyalty Points" value={product.loyaltyPointsEarnable?.toString()} />
-<InfoField label="Subscription Discount" value={`${product.subscriptionDiscountPercentage}%`} />
-<InfoField label="Loyalty Message" value={product.loyaltyPointsMessage} />
+                    <InfoField label="Subscription Discount" value={`${product.subscriptionDiscountPercentage || 0}%`} />
+                    <InfoField label="Loyalty Message" value={product.loyaltyPointsMessage} />
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <InfoField label="Available Start" value={product.availableStartDate ? formatDate(product.availableStartDate) : 'N/A'} />
+                    <InfoField label="Available End" value={product.availableEndDate ? formatDate(product.availableEndDate) : 'N/A'} />
+                    <InfoField label="Mark New Start" value={product.markAsNewStartDate ? formatDate(product.markAsNewStartDate) : 'N/A'} />
+                    <InfoField label="Mark New End" value={product.markAsNewEndDate ? formatDate(product.markAsNewEndDate) : 'N/A'} />
+                  </div>
+
+                  {/* VAT & Baseprice */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <ToggleField label="VAT Exempt" value={product.vatExempt} />
+                    <InfoField label="VAT Rate" value={product.vatRateName ? `${product.vatRateName} (${product.vatRate}%)` : '0'} />
+                
+                  </div>
+
+                  {/* Recurring & Rental */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <ToggleField label="Is Recurring" value={product.isRecurring} />
+                    {product.isRecurring && (
+                      <InfoField label="Recurring Cycle" value={`${product.recurringCycleLength} ${product.recurringCyclePeriod} (Total: ${product.recurringTotalCycles})`} />
+                    )}
+                 
                   </div>
                 </div>
 
@@ -611,6 +634,8 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                     <ToggleField label="Notify Admin" value={product.notifyAdminForQuantityBelow} />
                     <ToggleField label="Allow Backorder" value={product.allowBackorder} />
                     <ToggleField label="Not Returnable" value={product.notReturnable} />
+                    <ToggleField label="Display Availability" value={product.displayStockAvailability} />
+                    <ToggleField label="Display Quantity" value={product.displayStockQuantity} />
                   </div>
 
                   {/* Cart Limits */}
@@ -664,15 +689,21 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
 </div>
 
                   {/* Basic Shipping Toggles */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
                     <ToggleField label="Requires Shipping" value={product.requiresShipping} />
                     <ToggleField label="Ship Separately" value={product.shipSeparately} />
                     <ToggleField label="Free Shipping" value={product.isFreeShipping} />
+                    <ToggleField label="Same Day Delivery" value={product.sameDayDeliveryEnabled} />
+                    <ToggleField label="Next Day Delivery" value={product.nextDayDeliveryEnabled} />
+                    <ToggleField label="Next Day Free" value={product.nextDayDeliveryFree} />
+                    <ToggleField label="Standard Delivery" value={product.standardDeliveryEnabled} />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <InfoField label="Dispatch Days" value={product.estimatedDispatchDays?.toString()} />
-<ToggleField label="Ship Separately" value={product.shipSeparately} />
-<ToggleField label="Same Day Delivery" value={product.sameDayDeliveryEnabled} />
-<ToggleField label="Next Day Delivery" value={product.nextDayDeliveryEnabled} />
-<ToggleField label="Standard Delivery" value={product.standardDeliveryEnabled} />
+                    {product.deliveryDateId && <InfoField label="Delivery Date ID" value={product.deliveryDateId} />}
+                    {product.dispatchTimeNote && <InfoField label="Dispatch Note" value={product.dispatchTimeNote} />}
+           
                   </div>
 
                   {/* ✅ NEW: DELIVERY OPTIONS SECTION */}
@@ -742,10 +773,20 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                             )}
                           </div>
                           <p className="text-xs font-bold text-slate-400">🚀 Next-Day</p>
+
                         </div>
-                        {(product as any).nextDayDeliveryEnabled && (
-                          <p className="text-xs text-blue-400 mt-2">Available</p>
-                        )}
+                   {(product as any).nextDayDeliveryEnabled && (
+  <div className="text-xs text-blue-400 mt-2">
+    <span>Available</span>
+
+    {product.nextDayDeliveryCutoffTime && (
+      <InfoField
+        label="Next Day Cutoff"
+        value={product.nextDayDeliveryCutoffTime}
+      />
+    )}
+  </div>
+)}
                         {!(product as any).nextDayDeliveryEnabled && (
                           <p className="text-xs text-slate-500 mt-2">Not available</p>
                         )}
@@ -772,6 +813,7 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                           <p className="text-xs font-bold text-slate-400">📦 Standard</p>
                         </div>
                         {(product as any).standardDeliveryEnabled && (
+                          
                           <p className="text-xs text-cyan-400 mt-2">Available</p>
                         )}
                         {!(product as any).standardDeliveryEnabled && (
@@ -808,8 +850,8 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                             onClick={() => viewProductImages(idx)}
                           >
                             <img
-                              src={img.imageUrl?.startsWith('http') ? img.imageUrl : `${API_BASE_URL.replace('/api', '')}${img.imageUrl || ''}`}
-                              alt={img.altText || 'Product'}
+                              src={getImageUrl(img.imageUrl)}
+                                alt={img.altText || 'Product'}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                               onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                             />
@@ -885,7 +927,7 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                               title="Click to view all variant images"
                             >
                               <img
-                                src={variant.imageUrl?.startsWith('http') ? variant.imageUrl : `${API_BASE_URL.replace('/api', '')}${variant.imageUrl?.replace('\\\\', '/') || ''}`}
+                             src={getImageUrl(variant.imageUrl)}
                                 alt={variant.name}
                                 className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                                  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
@@ -1084,11 +1126,11 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center overflow-hidden flex-shrink-0">
                                 {rp.image ? (
-                                  <img src={rp.image} alt={rp.name}  onError={(e) => (e.currentTarget.src = "/placeholder.png")} className="w-full h-full object-cover" />
+                                  <img src={getImageUrl(rp.image)} alt={rp.name}  onError={(e) => (e.currentTarget.src = "/placeholder.png")} className="w-full h-full object-cover" />
                                 ) : (
                                   <Package className="w-6 h-6 text-white" />
                                 )}
-                              </div>
+                              </div>    
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-white truncate">{rp.name}</p>
                                 <p className="text-xs text-slate-400 font-mono font-bold">{rp.sku}</p>
@@ -1116,7 +1158,7 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden flex-shrink-0">
                                 {cp.image ? (
-                                  <img src={cp.image} alt={cp.name} className="w-full h-full object-cover" />
+                                  <img src={getImageUrl(cp.image)} alt={cp.name} className="w-full h-full object-cover" />
                                 ) : (
                                   <Package className="w-6 h-6 text-white" />
                                 )}
@@ -1154,11 +1196,7 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
   <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 bg-slate-900">
     {p.images?.[0]?.imageUrl ? (
       <img
-        src={
-          p.images[0].imageUrl.startsWith("http")
-            ? p.images[0].imageUrl
-            : `${API_BASE_URL.replace('/api','')}${p.images[0].imageUrl}`
-        }
+        src={getImageUrl(p.images?.[0]?.imageUrl)}
         className="w-full h-full object-cover"
         onError={(e) => (e.currentTarget.src = "/placeholder.png")}
       />
@@ -1240,11 +1278,7 @@ const [crossSellProducts, setCrossSellProducts] = useState<any[]>([]);
   <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 bg-slate-900">
     {p.images?.[0]?.imageUrl ? (
       <img
-        src={
-          p.images[0].imageUrl.startsWith("http")
-            ? p.images[0].imageUrl
-            : `${API_BASE_URL.replace('/api','')}${p.images[0].imageUrl}`
-        }
+      src={getImageUrl(p.images?.[0]?.imageUrl)}
         className="w-full h-full object-cover"
         onError={(e) => (e.currentTarget.src = "/placeholder.png")}
       />

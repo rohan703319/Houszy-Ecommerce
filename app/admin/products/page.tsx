@@ -5,17 +5,16 @@ import Link from "next/link";
 import * as XLSX from "xlsx";
 import Select from "react-select";
 import {
-  Plus, Package, Edit, Trash2, Eye, Search, Filter, FilterX,
-  TrendingUp, AlertCircle, X, CheckCircle, XCircle, ChevronLeft,
-  ChevronRight, ChevronsLeft, ChevronsRight, Send, FolderTree,
-  Award, ShoppingCart, Star, Tag, ExternalLink, ChevronDown, ChevronUp,
-  Percent,
+  Plus, Package, Edit, Trash2, Eye, Search,  FilterX,
+   AlertCircle, X, CheckCircle, XCircle, ChevronLeft,
+  ChevronRight, ChevronsLeft, ChevronsRight, Send, 
+  Tag, ExternalLink, ChevronDown, ChevronUp,
   FileSpreadsheet,
   Upload,
   Download,
-  Boxes,
   Database,
-  EyeOff
+  EyeOff,
+  Pill
 } from "lucide-react";
 
 type ToggleProduct = {
@@ -40,7 +39,10 @@ import { RelatedProduct, Product, productsService, productHelpers } from "@/lib/
 import ProductExcelImportModal from "./ProductExcelImportModal";
 import { useDebounce } from "../_hooks/useDebounce";
 import { formatDate, getProductImage } from "../_utils/formatUtils";
-import ImportWooCommerceModal from "./ImportWooCommerceModal";
+
+import { vatratesService } from "@/lib/services/vatrates";
+import { scrollCls, getSelectStyles } from "../_utils/styles";
+import { useTheme } from "@/app/admin/_context/theme-provider";
 
 // ✅ INTERFACES
 interface FormattedProduct {
@@ -67,6 +69,9 @@ interface FormattedProduct {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  variantsCount: number;
+    // ✅ ADD THIS
+  isPharmaProduct: boolean;
   
   // Inventory System
   trackQuantity: boolean;
@@ -115,85 +120,12 @@ interface SelectOption {
 }
 
 
-
-// ✅ REACT-SELECT CUSTOM STYLES
-const customSelectStyles = {
-  control: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
-    borderColor: state.selectProps.value && state.selectProps.value.value !== 'all' 
-      ? '#3b82f6' 
-      : '#475569',
-    borderWidth: state.selectProps.value && state.selectProps.value.value !== 'all' ? '2px' : '1px',
-    borderRadius: '0.75rem',
-    padding: '0.15rem',
-    boxShadow: state.isFocused ? '0 0 0 2px rgba(139, 92, 246, 0.5)' : 'none',
-    '&:hover': {
-      borderColor: '#8b5cf6',
-    },
-    minHeight: '42px',
-    cursor: 'pointer',
-  }),
-  menu: (base: any) => ({
-    ...base,
-    backgroundColor: '#1e293b',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
-    borderRadius: '0.75rem',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
-    overflow: 'hidden',
-    zIndex: 9999,
-  }),
-  menuList: (base: any) => ({
-    ...base,
-    padding: 0,
-    maxHeight: '300px',
-  }),
-  option: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: state.isSelected
-      ? 'rgba(139, 92, 246, 0.2)'
-      : state.isFocused
-      ? '#334155'
-      : 'transparent',
-    color: state.isSelected ? '#a78bfa' : '#ffffff',
-    padding: '0.625rem 1rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    '&:active': {
-      backgroundColor: 'rgba(139, 92, 246, 0.3)',
-    },
-  }),
-  singleValue: (base: any) => ({
-    ...base,
-    color: '#ffffff',
-    fontSize: '0.875rem',
-  }),
-  input: (base: any) => ({
-    ...base,
-    color: '#ffffff',
-    fontSize: '0.875rem',
-  }),
-  placeholder: (base: any) => ({
-    ...base,
-    color: '#94a3b8',
-    fontSize: '0.875rem',
-  }),
-  dropdownIndicator: (base: any) => ({
-    ...base,
-    color: '#94a3b8',
-    '&:hover': {
-      color: '#a78bfa',
-    },
-  }),
-  indicatorSeparator: () => ({
-    display: 'none',
-  }),
-};
-
 // ✅ MAIN COMPONENT
 export default function ProductsPage() {
   const toast = useToast();
   const router = useRouter();
+  const { theme } = useTheme();
+  const selectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
 
   // STATE MANAGEMENT
   const [products, setProducts] = useState<FormattedProduct[]>([]);
@@ -203,7 +135,6 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [showImportMenu, setShowImportMenu] = useState(false);
   const ALLOWED_SORT_FIELDS = ['name', 'price', 'createdAt'];
   
   // API Pagination state
@@ -215,12 +146,13 @@ export default function ProductsPage() {
   const [hasNext, setHasNext] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   // Add these near your other state declarations (around line where you have searchTerm)
 const [searchInput, setSearchInput] = useState("");
 const debouncedSearchTerm = useDebounce(searchInput, 500); // 500ms delay
   // Export menu state
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
+
 
 const [bulkAction, setBulkAction] = useState<null | {
   type: "activate" | "deactivate" | "publish" | "unpublish" | "delete" | "restore";
@@ -238,7 +170,7 @@ const [bulkAction, setBulkAction] = useState<null | {
   const [deliveryFilter, setDeliveryFilter] = useState<SelectOption>({ value: "all", label: "All Delivery" });
   const [markAsNewFilter, setMarkAsNewFilter] = useState<SelectOption>({ value: "all", label: "Mark as New: All" });
   const [notReturnableFilter, setNotReturnableFilter] = useState<SelectOption>({ value: "all", label: "Returnable: All" });
-  const [inventoryFilter, setInventoryFilter] = useState<SelectOption>({ value: "all", label: "Inventory: All" });
+  // const [inventoryFilter, setInventoryFilter] = useState<SelectOption>({ value: "all", label: "Inventory: All" });
   const [recurringFilter, setRecurringFilter] = useState<SelectOption>({ value: "all", label: "Subscription: All" });
   const [vatFilter, setVatFilter] = useState<SelectOption>({ value: "all", label: "VAT: All" });
   
@@ -279,8 +211,8 @@ const statusOptions: SelectOption[] = [
 
 const pharmaOptions: SelectOption[] = [
   { value: "all", label: "All Products" },
-  { value: "yes", label: "Pharma Only" },
-  { value: "no", label: "Non-Pharma Only" },
+  { value: "yes", label: "Pharma " },
+  { value: "no", label: "Others" },
 ];
   const visibilityOptions: SelectOption[] = [
     { value: "all", label: "All Visibility" },
@@ -289,9 +221,9 @@ const pharmaOptions: SelectOption[] = [
   ];
 
   const deliveryOptions: SelectOption[] = [
-    { value: "all", label: "All Delivery" },
-    { value: "nextDay", label: "Next Day" },
-    { value: "standard", label: "Standard" },
+    { value: "all", label: "All Delivery Method" },
+    { value: "nextDay", label: "Next Day Delivery" },
+    { value: "standard", label: "Standard Delivery" },
   ];
 
   const markAsNewOptions: SelectOption[] = [
@@ -306,11 +238,11 @@ const pharmaOptions: SelectOption[] = [
     { value: "no", label: "Returnable" },
   ];
 
-  const inventoryOptions: SelectOption[] = [
-    { value: "all", label: "Inventory: All" },
-    { value: "track", label: "Track Inventory" },
-    { value: "dont-track", label: "Don't Track" },
-  ];
+  // const inventoryOptions: SelectOption[] = [
+  //   { value: "all", label: "Inventory: All" },
+  //   { value: "track", label: "Track Inventory" },
+  //   { value: "dont-track", label: "Don't Track" },
+  // ];
 
   const subscriptionOptions: SelectOption[] = [
     { value: "all", label: "Subscription: All" },
@@ -318,11 +250,9 @@ const pharmaOptions: SelectOption[] = [
     { value: "no", label: "One-time" },
   ];
 
-  const vatOptions: SelectOption[] = [
-    { value: "all", label: "VAT: All" },
-    { value: "yes", label: "VAT Exempt" },
-    { value: "no", label: "VAT Applicable" },
-  ];
+const [vatOptions, setVatOptions] = useState<SelectOption[]>([
+ { value:"all", label:"VAT: All" }
+]);
 
 
 const deletedOptions = [
@@ -333,11 +263,11 @@ const deletedOptions = [
 ];
 
  const [deletedFilter, setDeletedFilter] = useState({
-  value: "active",
-  label: "Active Only",
+  value: "all",
+  label: "All Records",
 });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showWooModal, setShowWooModal] = useState(false);
+
 
   const [selectedDeleteProduct, setSelectedDeleteProduct] = useState<ToggleProduct | null>(null);
   const [selectedToggleProduct, setSelectedToggleProduct] = useState<ToggleProduct | null>(null);
@@ -359,7 +289,39 @@ const handleSelectProduct = (productId: string) => {
   );
 };
 
+const fetchVATRates = async () => {
+  try {
+    
 
+    const response = await vatratesService.getAll();
+
+    if (response?.data?.success) {
+      const list = response.data.data || [];
+
+      setVatOptions([
+        { value: "all", label: "All VAT Rates" },
+
+        ...list.map((v: any) => ({
+          value: v.id,
+          label: `${v.name} (${v.rate}%)`,
+        })),
+      ]);
+    } else {
+      setVatOptions([
+        { value: "all", label: "All VAT Rates" },
+      ]);
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to load VAT rates");
+
+    setVatOptions([
+      { value: "all", label: "All VAT Rates" },
+    ]);
+  } finally {
+   
+  }
+};
 
 const handleSort = (field: string) => {
   if (!ALLOWED_SORT_FIELDS.includes(field)) return;
@@ -376,9 +338,7 @@ useEffect(() => {
     setSearchLoading(true);
   }
 }, [searchInput]);
-useEffect(() => {
-  fetchProducts();
-}, [sortBy, sortDirection]);
+
 const handleSelectAll = () => {
   if (selectedProducts.length === products.length) {
     setSelectedProducts([]);
@@ -458,6 +418,11 @@ const [pharmaFilter, setPharmaFilter] = useState<SelectOption>({
 });
 
 
+useEffect(()=>{
+ fetchVATRates();
+ fetchCategories();
+ fetchBrands();
+},[])
 // ✅ FETCH PRODUCTS WITH PAGINATION AND FILTERS
 const fetchProducts = async () => {
   // setLoading(true);
@@ -490,9 +455,9 @@ if (deletedFilter.value === "inactive") {
   params.isActive = false;
 }
 
-    if (debouncedSearchTerm.trim() !== "") {
-      params.searchTerm = debouncedSearchTerm.trim();
-    }
+if (debouncedSearchTerm.trim()) {
+  params.searchTerm = debouncedSearchTerm.trim();
+}
 
     if (selectedCategory.value !== "all") {
   params.categoryId = selectedCategory.value;
@@ -530,19 +495,19 @@ if (selectedType.value !== "all") {
       params.notReturnable = notReturnableFilter.value === "yes";
     }
 
-    if (inventoryFilter.value !== "all") {
-      if (inventoryFilter.value === "track") params.manageInventoryMethod = "track";
-      else if (inventoryFilter.value === "dont-track") params.manageInventoryMethod = "donttrack";
-    }
+    // if (inventoryFilter.value !== "all") {
+    //   if (inventoryFilter.value === "track") params.manageInventoryMethod = "track";
+    //   else if (inventoryFilter.value === "dont-track") params.manageInventoryMethod = "donttrack";
+    // }
 
     if (recurringFilter.value !== "all") {
       params.isRecurring = recurringFilter.value === "yes";
     }
 
-    if (vatFilter.value !== "all") {
-      params.vatExempt = vatFilter.value === "yes";
-    }
-
+ // NEW ADD THIS
+if (vatFilter.value !== "all") {
+  params.vatRateId = vatFilter.value;
+}
     const response = await productsService.getAll(params);
 
     if (response.data?.success && response.data?.data?.items) {
@@ -556,7 +521,7 @@ if (selectedType.value !== "all") {
       const hasPrevious = apiData.page > 1;
       const hasNext = apiData.page < apiData.totalPages;
       
-      setTotalCount(stats.totalCount);
+     setTotalCount(apiData.stats?.totalProducts || 0);
       setTotalPages(apiData.totalPages);
       setCurrentPage(apiData.page);
       setHasPrevious(hasPrevious);
@@ -564,6 +529,7 @@ if (selectedType.value !== "all") {
 
       const formattedProducts: FormattedProduct[] = items.map((p: any) => {
         const primaryCategoryName = getPrimaryCategoryName(p.categories);
+        
 
         // Discount Logic
         const now = new Date();
@@ -597,6 +563,8 @@ if (selectedType.value !== "all") {
         return {
           id: p.id,
           name: p.name,
+            // ✅ ADD THIS
+        isPharmaProduct: p.isPharmaProduct === true,
           categoryName: primaryCategoryName,
           price: p.price || 0,
           stock: p.stockQuantity || 0,
@@ -610,7 +578,9 @@ if (selectedType.value !== "all") {
           image: getProductImage(p.images),
           sales: 0,
           shortDescription: p.shortDescription || "",
-          sku: p.sku || "",
+       sku: p.sku || "",
+variantsCount: Array.isArray(p.variants) ? p.variants.length : 0,
+productType: p.productType || "simple",
           createdAt: formatDate(p.createdAt),
           updatedAt: p.updatedAt ? formatDate(p.updatedAt) : "N/A",
           updatedBy: p.updatedBy || "N/A",
@@ -618,7 +588,7 @@ if (selectedType.value !== "all") {
           description: p.description || p.shortDescription || "",
           category: primaryCategoryName,
           isPublished: p.isPublished === true,
-          productType: p.productType || "simple",
+        
           brandName: p.brandName || "No Brand",
           brandId: p.brandId,
           slug: p.slug || "",
@@ -651,7 +621,7 @@ if (selectedType.value !== "all") {
 
 // ✅ ADD THIS
 setApiStats(apiData.stats);
-console.log("STATS 👉", apiData.stats);
+// console.log("STATS 👉", apiData.stats);
       setProducts(formattedProducts);
 setSelectedProducts([]);
       // Related Products Map
@@ -795,7 +765,6 @@ if (p.crossSellProductIds) {
 };
 
 
-
   // ✅ MEDIA VIEWER
   const openMediaViewer = (media: MediaItem | MediaItem[], startIndex = 0) => {
     setMediaToView(Array.isArray(media) ? media : [media]);
@@ -834,8 +803,6 @@ url: img.imageUrl?.startsWith("http")
 
 // ✅ INITIAL DATA FETCH (runs once on component mount)
 useEffect(() => {
-  fetchCategories();
-  fetchBrands();
   fetchMyTakeoverRequests();
 
   const pollInterval = setInterval(() => {
@@ -851,27 +818,29 @@ useEffect(() => {
 }, [
   currentPage,
   itemsPerPage,
-  deletedFilter,
+
+  deletedFilter.value,
   debouncedSearchTerm,
-  selectedCategory,
-  selectedBrand,
-  selectedType,
-  publishedFilter,
-  markAsNewFilter,
-  selectedHomepage,
-  deliveryFilter,
-  notReturnableFilter,
-  inventoryFilter,
-  recurringFilter,
-  vatFilter,
-  statusFilter ,// ✅ ADD THIS
-  pharmaFilter 
+
+  selectedCategory.value,
+  selectedBrand.value,
+  selectedType.value,
+
+  publishedFilter.value,
+  markAsNewFilter.value,
+  selectedHomepage.value,
+
+  deliveryFilter.value,
+  notReturnableFilter.value,
+  recurringFilter.value,
+
+  vatFilter.value,
+  statusFilter.value,
+  pharmaFilter.value,
+
+  sortBy,
+  sortDirection
 ]);
-
-
-
-
-
 
 // ✅ CLEAR FILTERS
 const clearFilters = useCallback(() => {
@@ -884,14 +853,14 @@ const clearFilters = useCallback(() => {
   setDeliveryFilter({ value: "all", label: "All Delivery" });
   setMarkAsNewFilter({ value: "all", label: "Mark as New: All" });
   setNotReturnableFilter({ value: "all", label: "Returnable: All" });
-  setInventoryFilter({ value: "all", label: "Inventory: All" });
+  // setInventoryFilter({ value: "all", label: "Inventory: All" });
   setRecurringFilter({ value: "all", label: "Subscription: All" });
   setVatFilter({ value: "all", label: "VAT: All" });
   setDeletedFilter({ value: "all", label: "All Records" });
-  setPharmaFilter({ value: "all", label: "All Products" });
-
+  setPharmaFilter({  value: "all", label: "All Products" });
+ 
   setSearchInput("");
-
+setSearchLoading(false);
   // 🔥 ADD THIS (IMPORTANT)
   setSortBy("createdAt");
   setSortDirection("desc");
@@ -911,12 +880,12 @@ const hasActiveFilters = useMemo(
     deliveryFilter.value !== "all" ||
     markAsNewFilter.value !== "all" ||
     notReturnableFilter.value !== "all" ||
-    inventoryFilter.value !== "all" ||
+    // inventoryFilter.value !== "all" ||
     recurringFilter.value !== "all" ||
     vatFilter.value !== "all" ||
-    deletedFilter.value !== "all" ||
     pharmaFilter.value !== "all" ||
     searchInput.trim() !== "" ||
+    deletedFilter.value !== "all" || // 
 
     // 🔥 ADD THIS
     sortBy !== "createdAt" ||
@@ -927,17 +896,15 @@ const hasActiveFilters = useMemo(
     selectedBrand,
     selectedHomepage,
     selectedType,
-    statusFilter,
+    statusFilter,  
     publishedFilter,
     deliveryFilter,
     markAsNewFilter,
-    notReturnableFilter,
-    inventoryFilter,
+    notReturnableFilter, 
     recurringFilter,
     vatFilter,
     deletedFilter,
     pharmaFilter,
-    searchInput,
 
     // 🔥 ADD DEPENDENCIES
     sortBy,
@@ -976,16 +943,24 @@ const hasActiveFilters = useMemo(
   }, [categories]);
 
   // ✅ FORMAT WITH TITLE
-  const formatOptionLabel = (option: SelectOption) => {
-    return (
-      <span 
-        title={option.label} 
-        className="block truncate cursor-pointer"
-      >
-        {option.label}
-      </span>
-    );
-  };
+const formatOptionLabel = (option: SelectOption) => {
+  const parts = option.label.split(" > ");
+  const depth = parts.length;
+
+  return (
+    <span
+      title={option.label}
+      className={`
+        block whitespace-normal break-words leading-tight
+        ${depth === 1 ? "text-sm" : ""}
+        ${depth === 2 ? "text-xs text-slate-200" : ""}
+        ${depth >= 3 ? "text-[11px] text-slate-400" : ""}
+      `}
+    >
+      {option.label}
+    </span>
+  );
+};
 
 const brandOptions: SelectOption[] = useMemo(() => {
   return [
@@ -996,46 +971,9 @@ const brandOptions: SelectOption[] = useMemo(() => {
     })),
   ];
 }, [brands]);
-const allDeletedSelected = useMemo(() => {
-  const selected = products.filter((p) =>
-    selectedProducts.includes(p.id)
-  );
 
-  if (selected.length === 0) return false;
 
-  return selected.every((p) => p.isDeleted === true);
-}, [selectedProducts, products]);
 
-  // CHECK IF SELECTED PRODUCTS HAVE SAME STATUS
-const selectionState = useMemo(() => {
-  const selected = products.filter((p) =>
-    selectedProducts.includes(p.id)
-  );
-
-  if (selected.length === 0) {
-    return { mixed: false, status: null, publishStatus: null };
-  }
-
-  const allActive = selected.every((p) => p.isActive);
-  const allInactive = selected.every((p) => !p.isActive);
-
-  const allPublished = selected.every((p) => p.isPublished);
-  const allUnpublished = selected.every((p) => !p.isPublished);
-
-  let status: "active" | "inactive" | null = null;
-  if (allActive) status = "active";
-  else if (allInactive) status = "inactive";
-
-  let publishStatus: "published" | "unpublished" | null = null;
-  if (allPublished) publishStatus = "published";
-  else if (allUnpublished) publishStatus = "unpublished";
-
-  const mixed =
-    !(allActive || allInactive) ||
-    !(allPublished || allUnpublished);
-
-  return { mixed, status, publishStatus };
-}, [selectedProducts, products]);
 
 const stats = useMemo(() => {
   if (!apiStats) {
@@ -1144,69 +1082,7 @@ const handleStatClick = useCallback(
     return pages;
   }, [currentPage, totalPages]);
 
-  // ✅ EXPORT FUNCTION
-const handleExport = async (exportAll: boolean = false) => {
-  try {
-    let rawProductsData: any[] = [];
-    toast.info("Preparing Excel export...");
 
-    if (exportAll) {
-      setLoading(true);
-
-      const response = await productsService.getAll({
-        page: 1,
-        pageSize: 10000,
-      });
-
-      const data = response.data as any;
-
-      if (data?.success && data?.data?.items) {
-        rawProductsData = data.data.items;
-      }
-
-      setLoading(false);
-    } else {
-      const settledResults = await Promise.allSettled(
-        products.map((product) => fetchProductForExport(product.id))
-      );
-
-      rawProductsData = settledResults
-        .filter(
-          (result): result is PromiseFulfilledResult<any> =>
-            result.status === "fulfilled" && Boolean(result.value)
-        )
-        .map((result) => result.value);
-    }
-
-    if (rawProductsData.length === 0) {
-      toast.warning("No products to export");
-      return;
-    }
-
-    const excelData = rawProductsData.map((product: any) =>
-      mapProductToFullExportRow(product)
-    );
-    /*
-        "Price (£)": product.price || 0,
-    
-
-    */
-    const timestamp = new Date().toISOString().split("T")[0];
-    const exportType = exportAll ? "all" : "current-page";
-
-    writeProductsWorkbook(
-      excelData,
-      "Products",
-      `products-${exportType}-${timestamp}.xlsx`
-    );
-
-    toast.success(`✅ ${excelData.length} product(s) exported successfully!`);
-  } catch (error) {
-    console.error("Export error:", error);
-    toast.error("Failed to export products");
-    setLoading(false);
-  }
-};
 
 const normalizeExcelValue = (value: any): string | number | boolean => {
   if (value === null || value === undefined) return "";
@@ -1527,96 +1403,26 @@ const handleExportSelected = async () => {
       {/* ================= HEADER ================= */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
             Product Management
           </h1>
-          <p className="text-sm text-slate-400">Manage your product inventory</p>
+          <p className="text-xs text-slate-400">Manage your product inventory</p>
         </div>
 
 <div className="flex flex-wrap items-center gap-2">
 
 
 
-<div className="relative">
-
-  {/* MAIN BUTTON */}
   <button
-    onClick={() => setShowImportMenu(!showImportMenu)}
-    className="flex items-center gap-2 px-4 py-2 text-sm
+    onClick={() => setShowImportModal(true)}
+    className="flex items-center gap-2 px-3 py-1.5 text-[13px]
     bg-slate-800 border border-slate-700
     hover:bg-slate-700
     text-white rounded-xl font-medium transition"
   >
     <Upload className="w-4 h-4" />
-    Import
-    <ChevronDown className="w-4 h-4 opacity-70" />
+    Import Excel
   </button>
-
-  {/* DROPDOWN */}
-  {showImportMenu && (
-    <>
-      {/* OUTSIDE CLICK */}
-      <div
-        className="fixed inset-0 z-10"
-        onClick={() => setShowImportMenu(false)}
-        title="Import products (Excel or WooCommerce)"
-      />
-
-      <div className="absolute right-0 mt-2 w-56
-        bg-slate-900 border border-slate-700
-        rounded-xl shadow-xl z-20 overflow-hidden"
-      >
-        {/* EXCEL IMPORT */}
-        <button
-          onClick={() => {
-            setShowImportModal(true);
-            setShowImportMenu(false);
-          }}
-          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
-          
-            
-        >
-          <div className="flex items-center gap-3">
-            <FileSpreadsheet className="w-4 h-4 text-green-400" />
-            <div>
-              <p className="text-sm text-white font-medium">
-                Excel Import
-              </p>
-              <p className="text-xs text-slate-400">
-               Upload Excel file (.xlsx)
-              </p>
-            </div>
-          </div>
-        </button>
-
-        <div className="border-t border-slate-700" />
-
-        {/* WOOCOMMERCE IMPORT */}
-        <button
-          onClick={() => {
-            setShowWooModal(true);
-            setShowImportMenu(false);
-          }}
-          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
-        >
-          <div className="flex items-center gap-3">
-            <Upload className="w-4 h-4 text-blue-400" />
-            <div>
-              <p className="text-sm text-white font-medium">
-                WooCommerce Import
-              </p>
-              <p className="text-xs text-slate-400">
-                Upload WooCommerce excel file (.xlsx)
-              </p>
-            </div>
-          </div>
-        </button>
-
-      </div>
-    </>
-  )}
-
-</div>
 
   {/* REQUESTS */}
   {statusCounts.Pending > 0 && (
@@ -1637,84 +1443,11 @@ const handleExportSelected = async () => {
     </button>
   )}
 
-  {/* EXPORT */}
-<div className="relative">
-  <button
-    onClick={() => setShowExportMenu(!showExportMenu)}
-    className="flex items-center gap-2 px-4 py-2 text-sm
-    bg-slate-800 border border-slate-700
-    hover:bg-slate-700
-    text-white rounded-xl font-medium transition"
-      title="Export products (current page or all)"
-  >
-    <FileSpreadsheet className="w-4 h-4" />
-    Export
-    <ChevronDown className="w-4 h-4 opacity-70" />
-  </button>
 
-  {showExportMenu && (
-    <>
-      <div
-        className="fixed inset-0 z-10"
-        onClick={() => setShowExportMenu(false)}
-      />
-
-      <div className="absolute right-0 mt-2 w-56
-        bg-slate-900 border border-slate-700
-        rounded-xl shadow-xl z-20 overflow-hidden"
-      >
-        {/* Current Page */}
-        <button
-          onClick={() => {
-            handleExport(false);
-            setShowExportMenu(false);
-          }}
-          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
-        >
-          <div className="flex items-center gap-3">
-            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-            <div>
-              <p className="text-sm text-white font-medium">
-                Current Page
-              </p>
-              <p className="text-xs text-slate-400">
-                {products.length} products
-              </p>
-            </div>
-          </div>
-        </button>
-
-        <div className="border-t border-slate-700" />
-
-        {/* All Products */}
-        <button
-          onClick={() => {
-            handleExport(true);
-            setShowExportMenu(false);
-          }}
-          className="w-full px-4 py-3 text-left hover:bg-slate-800 transition"
-        >
-          <div className="flex items-center gap-3">
-            <Database className="w-4 h-4 text-emerald-400" />
-            <div>
-              <p className="text-sm text-white font-medium">
-                All Products
-              </p>
-              <p className="text-xs text-slate-400">
-                {totalCount} total
-              </p>
-            </div>
-          </div>
-        </button>
-
-      </div>
-    </>
-  )}
-</div>
 
   {/* ADD PRODUCT */}
   <Link href="/admin/products/add">
-    <button className="flex items-center gap-2 px-3 py-1.5 text-sm
+    <button className="flex items-center gap-2 px-3 py-1.5 text-[13px]
     bg-gradient-to-r from-violet-500 to-cyan-500
     text-white rounded-lg font-semibold shadow
     hover:shadow-violet-500/40 transition-all"
@@ -1729,94 +1462,112 @@ const handleExportSelected = async () => {
 
 
       {/* ================= STATS ================= */}
-      <div className="grid gap-3 md:grid-cols-5">
-        <div
-          onClick={() => handleStatClick("total")}
-          className="bg-gradient-to-br from-violet-500/10 to-purple-500/10
-          border border-violet-500/20 rounded-xl p-3
-          hover:shadow-lg hover:shadow-violet-500/10 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg">
-              <Package className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Total Products</p>
-              <p className="text-xl font-bold text-white">{stats.totalCount}</p>
-            </div>
-          </div>
-        </div>
+<div className="grid gap-2.5 md:grid-cols-5">
 
-        <div
-          onClick={() => handleStatClick("published")}
-          className="bg-gradient-to-br from-green-500/10 to-emerald-500/10
-          border border-green-500/20 rounded-xl p-3
-          hover:shadow-lg hover:shadow-green-500/10 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg">
-              <CheckCircle className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Published</p>
-              <p className="text-xl font-bold text-white">{stats.publishedCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          onClick={() => handleStatClick("lowStock")}
-          className="bg-gradient-to-br from-orange-500/10 to-amber-500/10
-          border border-orange-500/20 rounded-xl p-3
-          hover:shadow-lg hover:shadow-orange-500/10 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Low Stock</p>
-              <p className="text-xl font-bold text-white">{stats.lowStockCount}</p>
-            </div>
-          </div>
-        </div>
-
-       <div
-  onClick={() => handleStatClick("unpublished")}
-  className="bg-gradient-to-br from-slate-500/10 to-slate-600/10
-  border border-slate-500/20 rounded-xl p-3
-  hover:shadow-lg hover:shadow-slate-500/10 transition-all cursor-pointer"
->
-  <div className="flex items-center gap-3">
-    <div className="p-2 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg">
-      <EyeOff className="w-4 h-4 text-white" />
-    </div>
-    <div>
-      <p className="text-xs text-slate-400">Unpublished</p>
-      <p className="text-xl font-bold text-white">{stats.unpublishedCount}</p>
+  {/* TOTAL */}
+  <div
+    onClick={() => handleStatClick("total")}
+    className={`rounded-xl p-2.5 cursor-pointer transition-all border ${
+      !hasActiveFilters
+        ? "bg-gradient-to-br from-violet-500/20 to-purple-500/20 border-violet-400 shadow-lg shadow-violet-500/20 ring-2 ring-violet-500/50"
+        : "bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-500/20 hover:shadow-lg hover:shadow-violet-500/10"
+    }`}
+  >
+    <div className="flex items-center gap-2.5">
+      <div className="p-1.5 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg">
+        <Package className="w-4 h-4 text-white" />
+      </div>
+      <div>
+        <p className="text-xs text-slate-400">Total Products</p>
+        <p className="text-lg font-bold text-white">{stats.totalCount}</p>
+      </div>
     </div>
   </div>
-</div>
-        <div
-          onClick={() => handleStatClick("outOfStock")}
-          className="bg-gradient-to-br from-red-500/10 to-rose-500/10
-          border border-red-500/20 rounded-xl p-3
-          hover:shadow-lg hover:shadow-red-500/10 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-red-500 to-rose-500 rounded-lg">
-              <XCircle className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Out of Stock</p>
-              <p className="text-xl font-bold text-white">{stats.outOfStockCount}</p>
-            </div>
-          </div>
-        </div>
+
+  {/* PUBLISHED */}
+  <div
+    onClick={() => handleStatClick("published")}
+    className={`rounded-xl p-2.5 cursor-pointer transition-all border ${
+      publishedFilter.value === "published"
+        ? "bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400 shadow-lg shadow-green-500/20 ring-2 ring-green-500/50"
+        : "bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20 hover:shadow-lg hover:shadow-green-500/10"
+    }`}
+  >
+    <div className="flex items-center gap-2.5">
+      <div className="p-1.5 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg">
+        <CheckCircle className="w-4 h-4 text-white" />
       </div>
+      <div>
+        <p className="text-xs text-slate-400">Published</p>
+        <p className="text-lg font-bold text-white">{stats.publishedCount}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* LOW STOCK */}
+  <div
+    onClick={() => handleStatClick("lowStock")}
+    className={`rounded-xl p-2.5 cursor-pointer transition-all border ${
+      statusFilter.value === "LowStock"
+        ? "bg-gradient-to-br from-orange-500/20 to-amber-500/20 border-orange-400 shadow-lg shadow-orange-500/20 ring-2 ring-orange-500/50"
+        : "bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20 hover:shadow-lg hover:shadow-orange-500/10"
+    }`}
+  >
+    <div className="flex items-center gap-2.5">
+      <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg">
+        <AlertCircle className="w-4 h-4 text-white" />
+      </div>
+      <div>
+        <p className="text-xs text-slate-400">Low Stock</p>
+        <p className="text-lg font-bold text-white">{stats.lowStockCount}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* UNPUBLISHED */}
+  <div
+    onClick={() => handleStatClick("unpublished")}
+    className={`rounded-xl p-2.5 cursor-pointer transition-all border ${
+      publishedFilter.value === "unpublished"
+        ? "bg-gradient-to-br from-slate-400/20 to-slate-500/20 border-slate-300 shadow-lg shadow-slate-500/20 ring-2 ring-slate-400/50"
+        : "bg-gradient-to-br from-slate-500/10 to-slate-600/10 border-slate-500/20 hover:shadow-lg hover:shadow-slate-500/10"
+    }`}
+  >
+    <div className="flex items-center gap-2.5">
+      <div className="p-1.5 bg-gradient-to-br from-slate-500 to-slate-600 rounded-lg">
+        <EyeOff className="w-4 h-4 text-white" />
+      </div>
+      <div>
+        <p className="text-xs text-slate-400">Unpublished</p>
+        <p className="text-lg font-bold text-white">{stats.unpublishedCount}</p>
+      </div>
+    </div>
+  </div>
+
+  {/* OUT OF STOCK */}
+  <div
+    onClick={() => handleStatClick("outOfStock")}
+    className={`rounded-xl p-2.5 cursor-pointer transition-all border ${
+      statusFilter.value === "OutOfStock"
+        ? "bg-gradient-to-br from-red-500/20 to-rose-500/20 border-red-400 shadow-lg shadow-red-500/20 ring-2 ring-red-500/50"
+        : "bg-gradient-to-br from-red-500/10 to-rose-500/10 border-red-500/20 hover:shadow-lg hover:shadow-red-500/10"
+    }`}
+  >
+    <div className="flex items-center gap-2.5">
+      <div className="p-1.5 bg-gradient-to-br from-red-500 to-rose-500 rounded-lg">
+        <XCircle className="w-4 h-4 text-white" />
+      </div>
+      <div>
+        <p className="text-xs text-slate-400">Out of Stock</p>
+        <p className="text-lg font-bold text-white">{stats.outOfStockCount}</p>
+      </div>
+    </div>
+  </div>
+
+</div>
 
       {/* ================= ITEMS PER PAGE + RESULTS COUNT ================= */}
-<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl px-3 py-2">
+<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl px-2.5 py-1.5">
   <div className="flex items-center justify-between gap-3 relative">
 
     {/* LEFT SIDE */}
@@ -1834,6 +1585,8 @@ const handleExportSelected = async () => {
         <option value={50}>50</option>
         <option value={75}>75</option>
         <option value={100}>100</option>
+        <option value={500}>500</option>
+        <option value={1000}>1000</option>
       </select>
 
       <span className="text-xs text-slate-400">entries</span>
@@ -1861,10 +1614,14 @@ const handleExportSelected = async () => {
               publishedFilter.value !== "all",
               deliveryFilter.value !== "all",
               markAsNewFilter.value !== "all",
-              notReturnableFilter.value !== "all",
-              inventoryFilter.value !== "all",
+              notReturnableFilter.value !== "all",          
               recurringFilter.value !== "all",
               vatFilter.value !== "all",
+              pharmaFilter.value !== "all",
+              searchInput.trim() !== "",
+              deletedFilter.value !== "all",
+              sortBy !== "createdAt",
+              sortDirection !== "desc",
             ].filter(Boolean).length} active filter
             {[
               selectedCategory.value !== "all",
@@ -1875,10 +1632,14 @@ const handleExportSelected = async () => {
               publishedFilter.value !== "all",
               deliveryFilter.value !== "all",
               markAsNewFilter.value !== "all",
-              notReturnableFilter.value !== "all",
-              inventoryFilter.value !== "all",
+              notReturnableFilter.value !== "all",         
               recurringFilter.value !== "all",
               vatFilter.value !== "all",
+              pharmaFilter.value !== "all",
+              searchInput.trim() !== "",
+              deletedFilter.value !== "all",
+              sortBy !== "createdAt",
+              sortDirection !== "desc",
             ].filter(Boolean).length !== 1 && "s"}
           </span>
         )}
@@ -1890,8 +1651,8 @@ const handleExportSelected = async () => {
 </div>
 
       {/* ✅ FILTERS SECTION - ROW 1 */}
-      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-1.5">
-        <div className="flex items-center gap-1.5">
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-1">
+        <div className="flex items-center gap-1">
    <div className="relative flex-1 min-w-[180px] max-w-[300px]">
      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10" />
 
@@ -1900,7 +1661,7 @@ const handleExportSelected = async () => {
     placeholder="Search products by name or Sku..."
     value={searchInput}
     onChange={(e) => setSearchInput(e.target.value)}
-    className="w-full pl-8 pr-9 py-2 bg-slate-800/50 border border-slate-700 rounded-xl placeholder:text-xs text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+    className="w-full pl-8 pr-9 py-1.5 bg-slate-800/50 border border-slate-700 rounded-xl placeholder:text-xs text-white text-[13px] placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
   />
 
   {/* RIGHT ICON */}
@@ -1923,11 +1684,12 @@ const handleExportSelected = async () => {
           <div className="flex-1 min-w-[120px] ">
             <Select
               value={selectedCategory}
-              onChange={(option) => setSelectedCategory(option as SelectOption)}
+              onChange={(option) => setSelectedCategory((option as SelectOption) || { value: "all", label: "All Categories" })}
               options={categoryOptions}
-              styles={customSelectStyles}
+              styles={selectStyles}
               placeholder="All Categories"
               isSearchable
+              isClearable={selectedCategory.value !== "all"}
               formatOptionLabel={formatOptionLabel}
               menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               menuPosition="fixed"
@@ -1937,11 +1699,12 @@ const handleExportSelected = async () => {
           <div className="flex-1 max-w-[150px]">
             <Select
               value={selectedBrand}
-              onChange={(option) => setSelectedBrand(option as SelectOption)}
+              onChange={(option) => setSelectedBrand((option as SelectOption) || { value: "all", label: "All Brands" })}
               options={brandOptions}
-              styles={customSelectStyles}
+              styles={selectStyles}
               placeholder="All Brands"
               isSearchable
+              isClearable={selectedBrand.value !== "all"}
               menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               menuPosition="fixed"
             />
@@ -2064,7 +1827,7 @@ const handleExportSelected = async () => {
         {/* ✅ ROW 2 - COLLAPSIBLE FILTERS */}
         {showMoreFilters && (
           <div className="mt-1 pt-1 border-t border-slate-700">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-8 gap-1.5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-7 gap-1.5">
               <select
                 value={statusFilter.value}
                 onChange={(e) => {
@@ -2141,7 +1904,7 @@ const handleExportSelected = async () => {
                 ))}
               </select>
 
-              <select
+              {/* <select
                 value={inventoryFilter.value}
                 onChange={(e) => {
                   const option = inventoryOptions.find(opt => opt.value === e.target.value);
@@ -2158,7 +1921,7 @@ const handleExportSelected = async () => {
                     {opt.label}
                   </option>
                 ))}
-              </select>
+              </select> */}
 
               <select
                 value={recurringFilter.value}
@@ -2178,25 +1941,30 @@ const handleExportSelected = async () => {
                   </option>
                 ))}
               </select>
+<select
+  value={vatFilter.value}
+  onChange={(e) => {
+    const option = vatOptions.find(
+      (opt) => opt.value === e.target.value
+    );
 
-              <select
-                value={vatFilter.value}
-                onChange={(e) => {
-                  const option = vatOptions.find(opt => opt.value === e.target.value);
-                  if (option) setVatFilter(option);
-                }}
-                className={`w-full px-3 py-2.5 bg-slate-800/90 border rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all ${
-                  vatFilter.value !== "all"
-                    ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50"
-                    : "border-slate-600"
-                }`}
-              >
-                {vatOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+    if (option) setVatFilter(option);
+  }}
+  className={`w-full px-3 py-2.5 bg-slate-800/90 border rounded-xl text-white text-xs ${
+    vatFilter.value !== "all"
+      ? "border-blue-500"
+      : "border-slate-600"
+  }`}
+>
+  {vatOptions.map((opt) => (
+    <option
+      key={opt.value}
+      value={opt.value}
+    >
+      {opt.label}
+    </option>
+  ))}
+</select>
 <select
   value={pharmaFilter.value}
   onChange={(e) => {
@@ -2232,7 +2000,12 @@ const handleExportSelected = async () => {
   )}
 
   {/* TABLE (always render) */}
-  <div className={`overflow-auto max-h-[65vh] ${filterLoading ? "opacity-40" : ""}`}>
+  <div   className={`
+    overflow-auto
+   max-h-[70vh]
+  ${scrollCls}
+  ${filterLoading ? "opacity-40" : ""}
+`}>
     
     {products.length === 0 && !filterLoading ? (
       <div className="text-center py-12">
@@ -2240,43 +2013,43 @@ const handleExportSelected = async () => {
         <p className="text-slate-400">No products found</p>
       </div>
     ) : (
-    <table className="w-full table-fixed text-sm">
-    
+    <table className="w-full table-fixed text-[12px]">
     <thead className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800">
-      <tr>
-        <th className="text-left py-2 px-3 text-slate-400 w-[260px]">
+      <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <th className="text-left py-2 px-2 w-[360px]">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={selectedProducts.length === products.length && products.length > 0}
               onChange={handleSelectAll}
-              className="accent-violet-500"
+              className="h-4 w-4 accent-violet-500"
             />
-          <span className="text-purple-500" onClick={() => handleSort('name')}>
-  Name {sortBy === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}
+          <span className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 cursor-pointer select-none" onClick={() => handleSort('name')} title="Sort by name">
+  Product Name {sortBy === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}
 </span>
           </div>
         </th>
 
-        <th className="text-center py-2 px-3 text-slate-400 w-[110px]">SKU</th>
-        <th className="text-center py-2 px-3 text-red-400 w-[80px]" onClick={() => handleSort('price')}>
+        <th className="text-center py-2 px-2 w-[60px]">SKU</th>
+        <th className="text-center py-2 px-2 text-red-400 w-[80px] cursor-pointer hover:text-red-300 select-none" onClick={() => handleSort('price')} title="Sort by price">
           Price {sortBy === 'price' ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'}
         </th>
-        <th className="text-center py-2 px-3 text-slate-400 w-[70px]">Status</th>
-        <th className="text-center py-1 px-3 text-slate-400 w-[180px]">Stock Status</th>
-        <th className="text-center py-2 px-3 text-slate-400 w-[210px]">Visibility</th>
+        <th className="text-center py-2 px-2 w-[70px]">Status</th>
+        <th className="text-center py-2 px-2 w-[160px]">Stock Status</th>
+        <th className="text-center py-2 px-2 w-[90px]">Visibility</th>
         <th
   onClick={() => handleSort('createdAt')}
-  className="text-left py-2 px-3 text-blue-400 w-[160px] cursor-pointer"
+  className="text-left py-2 px-2 text-blue-400 w-[150px] cursor-pointer hover:text-blue-300 select-none"
+  title="Sort by created date"
 >
   Created At
   {sortBy === 'createdAt' ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕'}
 </th>
 
-<th className="text-left py-2 px-3 text-slate-400 w-[160px]">
+ <th className="text-left py-2 px-2 w-[150px]">
   Updated At
 </th>
-        <th className="text-center py-2 px-3 text-slate-400 w-[130px]">Actions</th>
+        <th className="text-center py-2 px-2 w-[85px]">Actions</th>
       </tr>
     </thead>
 
@@ -2312,7 +2085,7 @@ className={`border-b border-slate-800 transition-colors
 `}
                     >
                       {/* PRODUCT */}
-                      <td className="py-2 px-3">
+                      <td className="py-1.5 px-2">
                        <div className="flex items-center gap-2">
   <input
     type="checkbox"
@@ -2320,7 +2093,7 @@ className={`border-b border-slate-800 transition-colors
     onChange={() => handleSelectProduct(product.id)}
     className="accent-violet-500"
   />
-                          <div className="w-10 h-10 rounded-md cursor-zoom-in hover:scale-105 transition bg-gradient-to-br from-violet-500 to-pink-500 overflow-hidden flex-shrink-0">
+                           <div className="w-9 h-9 rounded-md cursor-zoom-in hover:scale-105 transition bg-gradient-to-br from-violet-500 to-pink-500 overflow-hidden flex-shrink-0">
                             {product.image ? (
                               <img
                               src={imageUrl}                                                          
@@ -2366,40 +2139,90 @@ onClick={async (e) => {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <p
-                              className="text-white font-medium truncate cursor-pointer hover:text-violet-400"
-                              onClick={() => fetchProductDetails(product.id)}
-                              title={product.name}
-                            >
-                              {product.name}
-                            </p>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-xs text-slate-500 truncate">
-                                {product.categoryName}
-                              </span>
-                              <span className="text-xs text-cyan-400 bg-cyan-400/10 px-1.5 py-0.5 rounded">
-                                {product.brandName}
-                              </span>
-                            </div>
+                         <p
+  className="flex items-center gap-1.5 text-white font-medium truncate cursor-pointer hover:text-violet-400"
+  onClick={() => fetchProductDetails(product.id)}
+  title={product.name}
+>
+  <span className="truncate">
+    {product.name}
+  </span>
+
+  {/* ✅ PHARMA ICON */}
+  {product.isPharmaProduct && (
+    <span
+      className="shrink-0 inline-flex items-center justify-center rounded-md bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5"
+      title="Pharma Product"
+    >
+      <Pill className="w-3 h-3 text-cyan-400" />
+    </span>
+  )}
+</p>
+   <div className="flex items-center gap-2">
+
+  {/* CATEGORY (secondary) */}
+  <span
+    className="text-[10px] text-slate-400 bg-slate-800/60 border border-slate-700 px-2 py-0.5 rounded-md truncate"
+    title={product.categoryName}
+  >
+    {product.categoryName}
+  </span>
+
+  {/* BRAND (primary) */}
+  <span
+    className="text-[11px] text-cyan-300 bg-cyan-500/20 border border-cyan-400/40 px-2 py-0.5 rounded-md font-medium"
+    title={product.brandName}
+  >
+    {product.brandName}
+  </span>
+
+</div>
                           </div>
                         </div>
                       </td>
 
                       {/* SKU */}
-                      <td className="py-2 px-3 text-center">
-                        <span className="text-xs font-mono text-slate-300 bg-slate-800/50 px-2 py-0.5 rounded">
-                          {product.sku}
-                        </span>
-                      </td>
+ <td className="py-1.5 px-2 text-center">
+  <span
+    onClick={() => {
+      // ❌ variable product में copy नहीं करना
+      if (product.productType === "variable") return;
+      navigator.clipboard.writeText(product.sku);
+      setCopiedId(product.id);
+
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 1200);
+    }}
+    className={`inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded transition ${
+      product.productType === "variable"
+        ? "text-cyan-400 bg-slate-800/30 cursor-default"
+        : "text-slate-300 bg-slate-800/50 cursor-pointer hover:bg-slate-700"
+    }`}
+    title={
+      product.productType === "variable"
+        ? "Variant product"
+        : "Click to copy"
+    }
+  >
+    {product.productType === "variable" ? (
+      <span>{product.variantsCount} Variants</span>
+    ) : copiedId === product.id ? (
+      <span className="text-emerald-400">Copied ✓</span>
+    ) : (
+      product.sku || "-"
+    )}
+  </span>
+</td>
 
                       {/* PRICE */}
-                      <td className="py-2 px-3 text-center font-semibold text-white">
+                      <td className="py-1.5 px-2 text-center font-semibold text-white">
                         £{product.price.toFixed(2)}
                       </td>
 
                       {/* Clickable Status Cell */}
                       <td
-                        className={`py-2 px-3 text-center ${
+                        className={`py-1.5 px-2 text-center ${
                           product.isDeleted ? "cursor-not-allowed opacity-50" : "cursor-pointer"
                         }`}
                         onClick={() => openToggleConfirm(product)}
@@ -2428,7 +2251,7 @@ onClick={async (e) => {
                       </td>
 
                       {/* STOCK */}
-                      <td className="py-2 px-3 text-center">
+                       <td className="py-1.5 px-2 text-center">
                         {(() => {
                           const qty = product.stockQuantity ?? 0;
                           const track = product.trackQuantity ?? true;
@@ -2464,13 +2287,13 @@ onClick={async (e) => {
                           const showAdminAlert =
                             notifyEnabled && notifyBelow > 0 && qty <= notifyBelow;
 
-                          const tooltip = `
-Tracking: ${track ? "Enabled" : "Disabled"}
-Low Threshold: ${lowThreshold || "-"}
-Notify Below: ${notifyBelow || "-"}
-Admin Alert: ${notifyEnabled ? "Enabled" : "Disabled"}
-Backorder: ${allowBackorder ? "Allowed" : "No"}
-                          `.trim();
+                                const tooltip = [
+                                `Tracking: ${track ? "Enabled" : "Disabled"}`,
+                                `Low Threshold: ${lowThreshold || "-"}`,
+                                `Notify Below: ${notifyBelow || "-"}`,
+                                `Admin Alert: ${notifyEnabled ? "Enabled" : "Disabled"}`,
+                                `Backorder: ${allowBackorder ? "Allowed" : "No"}`
+                                ].join("\n");
 
                           return (
                             <div className="flex flex-col items-center gap-1">
@@ -2501,42 +2324,47 @@ Backorder: ${allowBackorder ? "Allowed" : "No"}
 
                     
                       {/* VISIBILITY */}
-                      <td className="py-1 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1 flex-wrap">
-                          <span
-                            title={
-                              product.isPublished
-                                ? "Product visible to customers"
-                                : "Product hidden from customers"
-                            }
-                            className={`px-2 py-0.5 rounded-md text-[12px] font-semibold ${
-                              product.isPublished
-                                ? "bg-emerald-500/15 text-emerald-400"
-                                : "bg-slate-600/20 text-slate-400"
-                            }`}
-                          >
-                            {product.isPublished ? "Published" : "Unpublished"}
-                          </span>
+                    <td className="py-1.5 px-2 text-center">
+  <div className="flex flex-col items-center gap-1">
 
-                          <span
-                            title={
-                              product.showOnHomepage
-                                ? "Featured on homepage"
-                                : "Not featured on homepage"
-                            }
-                            className={`px-2 py-0.5 rounded-md text-[12px] font-medium ${
-                              product.showOnHomepage
-                                ? "bg-violet-500/15 text-violet-400"
-                                : "bg-slate-600/20 text-slate-400"
-                            }`}
-                          >
-                            {product.showOnHomepage ? "★ Featured" : "Standard"}
-                          </span>
-                        </div>
-                      </td>
+    <span
+      title={
+        product.isPublished
+          ? "Product visible to customers"
+          : "Product hidden from customers"
+      }
+      className={`min-w-[92px] px-2 py-0.5 rounded-md text-[11px] font-semibold leading-5 ${
+        product.isPublished
+          ? "bg-emerald-500/15 text-emerald-400"
+          : "bg-slate-600/20 text-slate-400"
+      }`}
+    >
+      {product.isPublished
+        ? "Published"
+        : "Unpublished"}
+    </span>
 
-<td
-  className="py-2 px-3 text-xs text-slate-300 cursor-help"
+    <span
+      title={
+        product.showOnHomepage
+          ? "Featured on homepage"
+          : "Not featured on homepage"
+      }
+      className={`min-w-[92px] px-2 py-0.5 rounded-md text-[11px] font-medium leading-5 ${
+        product.showOnHomepage
+          ? "bg-violet-500/15 text-violet-400"
+          : "bg-slate-600/20 text-slate-400"
+      }`}
+    >
+      {product.showOnHomepage
+        ? "★ Featured"
+        : "Standard"}
+    </span>
+
+  </div>
+</td>
+ <td
+   className="py-1.5 px-2 text-xs text-slate-300 cursor-help"
   title={`Created At: ${product.createdAt || "N/A"}
 Created By: ${product.createdBy || "N/A"}`}
 >
@@ -2547,8 +2375,8 @@ Created By: ${product.createdBy || "N/A"}`}
     </span>
   </div>
 </td>
-<td
-  className="py-2 px-3 text-xs text-slate-300 cursor-help"
+ <td
+   className="py-1.5 px-2 text-xs text-slate-300 cursor-help"
   title={`Updated At: ${product.updatedAt || "N/A"}
 Updated By: ${product.updatedBy || "N/A"}`}
 >
@@ -2561,33 +2389,33 @@ Updated By: ${product.updatedBy || "N/A"}`}
 </td>
 
                       {/* ACTIONS */}
-                      <td className="py-2 px-3">
-                    <div className="flex items-center justify-center gap-1">
+                      <td className="py-1.5 px-2">
+                    <div className="flex items-center justify-center gap-0.5">
 
   {/* VIEW */}
   {!isDeleted && (
-    <Link href={`/products/${product.slug}`} target="_blank">
-      <button className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-md">
-        <ExternalLink className="h-4 w-4" />
+    <Link href={`/product/${product.slug}`} target="_blank">
+      <button className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-md">
+        <ExternalLink className="h-3.5 w-3.5" />
       </button>
     </Link>
   )}
 
   {/* VIEW DETAILS */}
   {!isDeleted && (
-    <button
-      onClick={() => fetchProductDetails(product.id)}
-      className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded-md"
-    >
-      <Eye className="h-4 w-4" />
-    </button>
+      <button
+        onClick={() => fetchProductDetails(product.id)}
+        className="p-1 text-violet-400 hover:bg-violet-500/10 rounded-md"
+      >
+        <Eye className="h-3.5 w-3.5" />
+      </button>
   )}
 
   {/* EDIT */}
   {!isDeleted && (
     <Link href={`/admin/products/edit/${product.id}`}>
-      <button className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 rounded-md">
-        <Edit className="h-4 w-4" />
+      <button className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded-md">
+        <Edit className="h-3.5 w-3.5" />
       </button>
     </Link>
   )}
@@ -2601,18 +2429,18 @@ Updated By: ${product.updatedBy || "N/A"}`}
       isDeleted: product.isDeleted,
     })
   }
-  className={`p-1.5 rounded-md transition-all ${
+  className={`p-1 rounded-md transition-all ${
     product.isDeleted
       ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 ring-1 ring-emerald-500/30' // ✅ FIXED
       : 'text-red-400 hover:bg-red-500/10'
   }`}
 >
   {isBusy ? (
-    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+    <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
   ) : product.isDeleted ? (
-    <CheckCircle className="h-4 w-4 shadow shadow-emerald-500/20" />
+    <CheckCircle className="h-3.5 w-3.5 shadow shadow-emerald-500/20" />
   ) : (
-    <Trash2 className="h-4 w-4" />
+    <Trash2 className="h-3.5 w-3.5" />
   )}
 </button>
 
@@ -2622,15 +2450,15 @@ Updated By: ${product.updatedBy || "N/A"}`}
                   );
                 })}
               </tbody>
-            </table>
+    </table>
     )}
 
   </div>
 </div>
       {/* PAGINATION */}
       {totalPages > 1 && (
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
             <div className="text-sm text-slate-400">
               Page {currentPage} of {totalPages}
             </div>
@@ -2685,7 +2513,7 @@ Updated By: ${product.updatedBy || "N/A"}`}
               </button>
             </div>
 
-            <div className="text-sm text-slate-400">Total {totalCount} items</div>
+            <div className="text-sm text-slate-400">Total {stats.totalCount} items</div>
           </div>
         </div>
       )}
@@ -2932,7 +2760,7 @@ Updated By: ${product.updatedBy || "N/A"}`}
         await Promise.all(items.map(p => productsService.restore(p.id)));
       }
 
-      toast.success(`${items.length} product(s) ${type}d successfully`);
+      toast.success(`${items.length} product ${type} successfully`);
       setSelectedProducts([]);
       fetchProducts();
 
@@ -3024,10 +2852,7 @@ Updated By: ${product.updatedBy || "N/A"}`}
             : "bg-gradient-to-r from-emerald-600 to-green-600"
         }
       />
-      <ImportWooCommerceModal
-  open={showWooModal}
-  onClose={() => setShowWooModal(false)}
-/>
+
     </div>
   );
 }

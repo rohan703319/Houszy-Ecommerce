@@ -40,13 +40,14 @@ import {
   CheckCircle,
   Ban,
   Loader2,
+  PackageX,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import { Customer, CustomerQueryParams, customersService, CustomerStats } from "@/lib/services/customers";
 import ConfirmDialog from "../_components/ConfirmDialog";
 import { useDebounce } from "../_hooks/useDebounce";
-import { formatDate, getOrderProductImage } from "../_utils/formatUtils";
+import { formatDate, getImageUrl, getOrderProductImage } from "../_utils/formatUtils";
 
 type CustomerTier = "all" | "gold" | "silver" | "bronze";
 
@@ -734,168 +735,188 @@ const modalTier = selectedCustomer
       </div>
 
       {/* BODY */}
-      <div className="overflow-y-auto p-4 space-y-5">
+     <div className="overflow-y-auto p-4 space-y-5">
 
-        {selectedOrderCustomer.orders.map((order) => {
-          const MAX_ITEMS = 3;
-          const isExpanded = expandedOrderId === order.id;
-          const visibleItems = isExpanded
-            ? order.items
-            : order.items?.slice(0, MAX_ITEMS);
+  {selectedOrderCustomer.orders.length === 0 ? (
+    // 🔥 EMPTY STATE
+    <div className="flex flex-col items-center justify-center py-16 text-center">
 
-          return (
-            <div key={order.id} className="border border-slate-700 rounded-xl overflow-hidden">
-
-              {/* ORDER HEADER */}
-              <div className="p-3 flex justify-between items-center bg-gradient-to-r from-slate-800/60 to-slate-900">
-                <div>
-                  <p className="text-white font-semibold">{order.orderNumber}</p>
-                  <p className="text-xs text-slate-400">
-                    {formatDate(order.orderDate)}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-cyan-400 font-bold">
-                    {formatCurrency(order.totalAmount)}
-                  </p>
-
-                  <span className={`px-2 py-0.5 text-xs rounded border ${getStatusColor(order.status)}`}>
-                    {order.statusName || order.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* DETAILS */}
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-8">
-
-                {/* ITEMS */}
-                <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
-                  <h4 className="text-sm font-semibold text-white mb-3">Items</h4>
-
-                  <div className="space-y-2">
-                    {visibleItems?.map((item) => (
-                      <div key={item.id} className="flex gap-3 items-center">
-
-                        <img
-                          src={getOrderProductImage(item.productImageUrl)}
-                          className="w-11 h-11 rounded-md object-cover border border-slate-700"
-                        />
-
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white truncate">
-                            {item.productName}
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            {item.variantName || " "}
-                          </p>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="text-xs text-slate-300">x{item.quantity}</p>
-                          <p className="text-xs text-cyan-400">
-                            {formatCurrency(item.totalPrice)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* SHOW MORE */}
-                  {order.items?.length > MAX_ITEMS && (
-                    <button
-                      onClick={() =>
-                        setExpandedOrderId(isExpanded ? null : order.id)
-                      }
-                      className="text-xs text-violet-400 hover:text-violet-300 mt-2"
-                    >
-                      {isExpanded
-                        ? "Show less"
-                        : `+${order.items.length - MAX_ITEMS} more items`}
-                    </button>
-                  )}
-                </div>
-
-                {/* PAYMENT */}
-                <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
-                  <h4 className="text-sm font-semibold text-white mb-3">Payment</h4>
-
-                  <div className="space-y-1 text-white text-sm">
-                    <p>Method: <span className="text-white">{order.payment?.paymentMethod}</span></p>
-                    <p>Status: <span className={getPaymentColor(order.paymentStatus)}>{order.paymentStatus}</span></p>
-                    <p>Paid: <span className="text-green-400">{formatCurrency(order.totalPaidAmount)}</span></p>
-
-                    {order.payment?.transactionId && (
-                      <p className="text-xs text-slate-400">
-                        TXN: {order.payment.transactionId}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* SHIPPING */}
-                <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
-                  <h4 className="text-sm font-semibold text-white mb-3">Shipping</h4>
-
-                  <p className="text-sm text-slate-300">
-                    {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-                  </p>
-
-                  <p className="text-xs text-slate-400">
-                    {order.shippingAddress.addressLine1}
-                  </p>
-
-                  <p className="text-xs text-slate-400">
-                    {order.shippingAddress.city}, {order.shippingAddress.country}
-                  </p>
-
-                  <p className="text-xs text-slate-500">
-                    {order.shippingAddress.phoneNumber}
-                  </p>
-                </div>
-
-                {/* SUMMARY */}
-                <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
-                  <h4 className="text-sm font-semibold text-white mb-3">Summary</h4>
-
-                  <div className="text-sm text-white space-y-1">
-                    <p>Subtotal: {formatCurrency(order.subtotalAmount)}</p>
-                    <p>Tax: {formatCurrency(order.taxAmount)}</p>
-                    <p>Shipping: {formatCurrency(order.shippingAmount)}</p>
-
-                    {order.discountAmount > 0 && (
-                      <p className="text-red-400">
-                        Discount: -{formatCurrency(order.discountAmount)}
-                      </p>
-                    )}
-
-                    <p className="text-cyan-400 font-semibold">
-                      Total: {formatCurrency(order.totalAmount)}
-                    </p>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* PENDING SHIPMENT */}
-              {order.unshippedItems?.length > 0 && (
-                <div className="p-4 border-t border-slate-700">
-                  <h4 className="text-sm text-orange-400 mb-2">
-                    Pending Shipment
-                  </h4>
-
-                  {order.unshippedItems.map((item) => (
-                    <p key={item.orderItemId} className="text-xs text-slate-400">
-                      {item.productName} ({item.unshippedQuantity})
-                    </p>
-                  ))}
-                </div>
-              )}
-
-            </div>
-          );
-        })}
+      <div className="w-16 h-16 flex items-center justify-center rounded-full bg-slate-800 border border-slate-700 mb-4">
+        <PackageX className="h-8 w-8 text-slate-500" />
       </div>
+
+      <h3 className="text-white text-lg font-semibold">
+        No Orders Found
+      </h3>
+
+      <p className="text-slate-400 text-sm mt-1">
+        This customer has not placed any orders yet.
+      </p>
+
+    </div>
+  ) : (
+
+    selectedOrderCustomer.orders.map((order) => {
+      const MAX_ITEMS = 3;
+      const isExpanded = expandedOrderId === order.id;
+      const visibleItems = isExpanded
+        ? order.items
+        : order.items?.slice(0, MAX_ITEMS);
+
+      return (
+        <div key={order.id} className="border border-slate-700 rounded-xl overflow-hidden">
+
+          {/* ORDER HEADER */}
+          <div className="p-3 flex justify-between items-center bg-gradient-to-r from-slate-800/60 to-slate-900">
+            <div>
+              <p className="text-white font-semibold">{order.orderNumber}</p>
+              <p className="text-xs text-slate-400">
+                {formatDate(order.orderDate)}
+              </p>
+            </div>
+
+            <div className="text-right">
+              <p className="text-cyan-400 font-bold">
+                {formatCurrency(order.totalAmount)}
+              </p>
+
+              <span className={`px-2 py-0.5 text-xs rounded border ${getStatusColor(order.status)}`}>
+                {order.statusName || order.status}
+              </span>
+            </div>
+          </div>
+
+          {/* DETAILS */}
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            {/* ITEMS */}
+            <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
+              <h4 className="text-sm font-semibold text-white mb-3">Items</h4>
+
+              <div className="space-y-2">
+                {visibleItems?.map((item) => (
+                  <div key={item.id} className="flex gap-3 items-center">
+
+                    <img
+                      src={getImageUrl(item.productImageUrl)}
+                      className="w-11 h-11 rounded-md object-cover border border-slate-700"
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">
+                        {item.productName}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {item.variantName || " "}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-xs text-slate-300">x{item.quantity}</p>
+                      <p className="text-xs text-cyan-400">
+                        {formatCurrency(item.totalPrice)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {order.items?.length > MAX_ITEMS && (
+                <button
+                  onClick={() =>
+                    setExpandedOrderId(isExpanded ? null : order.id)
+                  }
+                  className="text-xs text-violet-400 hover:text-violet-300 mt-2"
+                >
+                  {isExpanded
+                    ? "Show less"
+                    : `+${order.items.length - MAX_ITEMS} more items`}
+                </button>
+              )}
+            </div>
+
+            {/* PAYMENT */}
+            <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
+              <h4 className="text-sm font-semibold text-white mb-3">Payment</h4>
+
+              <div className="space-y-1 text-white text-sm">
+                <p>Method: <span className="text-white">{order.payment?.paymentMethod}</span></p>
+                <p>Status: <span className={getPaymentColor(order.paymentStatus)}>{order.paymentStatus}</span></p>
+                <p>Paid: <span className="text-green-400">{formatCurrency(order.totalPaidAmount)}</span></p>
+
+                {order.payment?.transactionId && (
+                  <p className="text-xs text-slate-400">
+                    TXN: {order.payment.transactionId}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* SHIPPING */}
+            <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
+              <h4 className="text-sm font-semibold text-white mb-3">Shipping</h4>
+
+              <p className="text-sm text-slate-300">
+                {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+              </p>
+
+              <p className="text-xs text-slate-400">
+                {order.shippingAddress.addressLine1}
+              </p>
+
+              <p className="text-xs text-slate-400">
+                {order.shippingAddress.city}, {order.shippingAddress.country}
+              </p>
+
+              <p className="text-xs text-slate-500">
+                {order.shippingAddress.phoneNumber}
+              </p>
+            </div>
+
+            {/* SUMMARY */}
+            <div className="bg-slate-800/30 p-3 rounded-xl border border-slate-700">
+              <h4 className="text-sm font-semibold text-white mb-3">Summary</h4>
+
+              <div className="text-sm text-white space-y-1">
+                <p>Subtotal: {formatCurrency(order.subtotalAmount)}</p>
+                <p>Tax: {formatCurrency(order.taxAmount)}</p>
+                <p>Shipping: {formatCurrency(order.shippingAmount)}</p>
+
+                {order.discountAmount > 0 && (
+                  <p className="text-red-400">
+                    Discount: -{formatCurrency(order.discountAmount)}
+                  </p>
+                )}
+
+                <p className="text-cyan-400 font-semibold">
+                  Total: {formatCurrency(order.totalAmount)}
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          {order.unshippedItems?.length > 0 && (
+            <div className="p-4 border-t border-slate-700">
+              <h4 className="text-sm text-orange-400 mb-2">
+                Pending Shipment
+              </h4>
+
+              {order.unshippedItems.map((item) => (
+                <p key={item.orderItemId} className="text-xs text-slate-400">
+                  {item.productName} ({item.unshippedQuantity})
+                </p>
+              ))}
+            </div>
+          )}
+
+        </div>
+      );
+    })
+
+  )}
+
+</div>
     </div>
   </div>
 )}

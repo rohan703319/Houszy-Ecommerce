@@ -91,10 +91,14 @@ return (
     const discountBadge = getDiscountBadge(product);
 
     const oldPriceValue =
-      defaultVariant?.oldPrice ?? product.oldPrice;
+      defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
+      product.compareAtPrice ?? product.oldPrice;
+
+    const effectiveDisplayType =
+      defaultVariant?.displayDiscountType ?? product.displayDiscountType;
 
     const oldPriceData =
-      product.displayDiscountType === "OldPrice"
+      effectiveDisplayType === "OldPrice"
         ? getOldPriceDiscount(
             basePrice,
             oldPriceValue,

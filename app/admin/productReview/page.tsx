@@ -29,6 +29,7 @@ import {
   RefreshCw,
   ImageIcon,
   Video,
+  CloudCog,
 } from "lucide-react";
 import ExcelImportModal from "./ExcelImportModal";
 import { Upload } from "lucide-react";
@@ -204,6 +205,7 @@ const fetchReviews = useCallback(async () => {
 }
 
   const res = await productReviewsService.getAll(filters);
+  console.log("ressssssssssssss",res);
 
 if (res.data?.success) {
   const paged = res.data.data;
@@ -1263,23 +1265,15 @@ const isPlayableVideoUrl = (url: string) => {
 
   <div className="min-w-0">
     {/* Product Name */}
-    <p className="text-blue-400 hover:text-blue-300 text-xs truncate"
-     onClick={() => { 
-    setProductFilter(review.productId); 
-    setCurrentPage(1); 
-  }}>
-      {review.productName ||
-        products.find(p => p.productId === review.productId)?.productName ||
-        "—"}
-    </p>
-       {/* <a
-  href={`/products/${review.productSku}`}
+
+       <a
+  href={`/product/${review.productSlug}`}
   target="_blank"
   rel="noopener noreferrer"
   className="text-blue-400 hover:text-blue-300 text-xs truncate block"
 >
   {review.productName}
-</a> */}
+</a>
 
     {/* ✅ SKU (NEW) */}
     {review.productSku && (

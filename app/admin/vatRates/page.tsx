@@ -43,7 +43,7 @@ export default function VATRatesPage() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-const [statusFilter, setStatusFilter] = useState("enabled");
+const [statusFilter, setStatusFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("All Countries");
   const [viewingRate, setViewingRate] = useState<VATRate | null>(null);
   const [editingRate, setEditingRate] = useState<VATRate | null>(null);
@@ -80,49 +80,9 @@ const ConfirmationModal = ({
       setLoading(false);
     }
   };
-const toggleSelectAll = () => {
-  if (paginatedRates.every(r => selectedRates.includes(r.id))) {
-    setSelectedRates([]);
-  } else {
-    setSelectedRates(paginatedRates.map(r => r.id));
-  }
-};
 
-const toggleSelectOne = (id: string) => {
-  setSelectedRates(prev =>
-    prev.includes(id)
-      ? prev.filter(x => x !== id)
-      : [...prev, id]
-  );
-};
 
-const handleExportSelected = () => {
-  const selectedData = vatRates.filter(r =>
-    selectedRates.includes(r.id)
-  );
 
-  if (selectedData.length === 0) {
-    toast.warning("No VAT rates selected");
-    return;
-  }
-
-  const excelData = selectedData.map((rate, i) => ({
-    "S.No": i + 1,
-    Name: rate.name,
-    Country: rate.country,
-    Rate: rate.rate,
-    Status: rate.isActive ? "Active" : "Inactive",
-    Default: rate.isDefault ? "Yes" : "No",
-  }));
-
-  const ws = XLSX.utils.json_to_sheet(excelData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Selected VAT");
-
-  XLSX.writeFile(wb, "Selected_VAT_Rates.xlsx");
-
-  toast.success(`Exported ${selectedData.length} VAT rates`);
-};
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[80] flex items-center justify-center p-4">
       <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/30 rounded-2xl max-w-md w-full shadow-2xl">
@@ -285,7 +245,8 @@ const handleExportSelected = () => {
   }
 
   const excelData = selectedData.map((rate, i) => ({
-    "S.No": i + 1,
+ 
+       Id : rate.id,
     Name: rate.name,
     Country: rate.country,
     Rate: rate.rate,
@@ -579,6 +540,7 @@ const handleExport = async (exportAll: boolean = false) => {
     }
 
     const excelData = ratesToExport.map((rate) => ({
+      Id : rate.id,
       Name: rate.name,
       Description: rate.description,
       "Rate (%)": rate.rate,
@@ -624,15 +586,15 @@ const handleExport = async (exportAll: boolean = false) => {
   }
 };
 
-  const hasActiveFilters =
+const hasActiveFilters =
   searchTerm ||
-  statusFilter !== "All Status" ||
+  statusFilter !== "all" ||
   deletedFilter !== "notDeleted" ||
   countryFilter !== "All Countries";
 
 const clearFilters = () => {
   setSearchTerm("");
-  setStatusFilter("All Status");
+  setStatusFilter("all");
   setDeletedFilter("notDeleted");
   setCountryFilter("All Countries");
   setCurrentPage(1);
@@ -855,25 +817,32 @@ const clearFilters = () => {
       />
     </div>
 
-    {/* Status Filter */}
+   
+{/* Status Filter */}
 <select
   value={statusFilter}
   onChange={(e) => {
     setStatusFilter(e.target.value);
     setCurrentPage(1);
   }}
-  className={`p-2 bg-gray-800/90 border rounded-md text-white text-[11px] focus:outline-none transition-all
+  className={`h-10 min-w-[140px] px-2 pr-8 bg-slate-800 border rounded-lg text-xs text-white
+  focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all appearance-none cursor-pointer
   ${
     statusFilter !== "all"
       ? "border-violet-500 bg-violet-500/10"
-      : "border-slate-700 focus:ring-1 focus:ring-violet-500"
+      : "border-slate-700 hover:border-slate-600"
   }`}
 >
-  <option value="all">All Status</option>
-  <option value="enabled">Enabled</option>
-  <option value="disabled">Disabled</option>
+  <option value="all" className="bg-slate-900 text-white">
+    All Status
+  </option>
+  <option value="enabled" className="bg-slate-900 text-white">
+    Enabled
+  </option>
+  <option value="disabled" className="bg-slate-900 text-white">
+    Disabled
+  </option>
 </select>
-
 
 {/* Deleted Filter */}
 <select
@@ -882,7 +851,7 @@ const clearFilters = () => {
     setDeletedFilter(e.target.value as any);
     setCurrentPage(1);
   }}
-  className={`p-2 bg-slate-800/60 border rounded-md text-white text-[11px] focus:outline-none transition-all
+  className={`p-2 bg-slate-800/90 border rounded-md text-white text-[11px] focus:outline-none transition-all
   ${
     deletedFilter !== "notDeleted"
       ? "border-red-500 bg-red-500/10"
@@ -901,7 +870,7 @@ const clearFilters = () => {
     setCountryFilter(e.target.value);
     setCurrentPage(1);
   }}
-  className={`p-2 bg-slate-800/60 border rounded-md text-white text-[11px] focus:outline-none transition-all
+  className={`p-2 bg-slate-800/90 border rounded-md text-white text-[11px] focus:outline-none transition-all
   ${
     countryFilter !== "All Countries"
       ? "border-cyan-500 bg-cyan-500/10"

@@ -136,7 +136,7 @@ export default function LoyaltyPointsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearchTerm, tierFilter, sortBy, sortDirection, toast]);
+  }, [currentPage, pageSize, debouncedSearchTerm, tierFilter, sortBy, sortDirection]);
 
   useEffect(() => {
     fetchUsers();
@@ -611,7 +611,7 @@ export default function LoyaltyPointsPage() {
               setTierFilter(e.target.value as TierLevel);
               setCurrentPage(1);
             }}
-            className="px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
           >
             <option value="all">All Tiers</option>
             <option value="Gold">Gold</option>
@@ -637,7 +637,7 @@ export default function LoyaltyPointsPage() {
               setPageSize(Number(e.target.value));
               setCurrentPage(1);
             }}
-            className="px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
           >
             <option value="10">10</option>
             <option value="25">25</option>

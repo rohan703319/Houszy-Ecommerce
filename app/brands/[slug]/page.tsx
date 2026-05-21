@@ -1,5 +1,5 @@
 // app/brands/[slug]/page.tsx
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 import BrandsClient from "./BrandsClient";
 
@@ -130,7 +130,7 @@ async function getProductsByBrand(
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`,
-    { cache: "no-store" }
+    { next: { revalidate: 3600 } }
   );
 
   return res.json();

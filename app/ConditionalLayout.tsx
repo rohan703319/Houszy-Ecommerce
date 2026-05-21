@@ -48,7 +48,7 @@ export default function ConditionalLayout({
 />
 
     {/* main will push footer to bottom */}
-    <main className="flex-1 pt-[108px] md:pt-[152px]">
+    <main className="flex-1 pt-[102px] md:pt-[110px]">
       {children}
     </main>
 

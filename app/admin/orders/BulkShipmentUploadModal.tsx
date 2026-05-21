@@ -74,6 +74,8 @@ const downloadTemplate = () => {
 
   XLSX.writeFile(workbook, "bulk_shipment_template.xlsx");
 };
+
+
 useEffect(() => {
   if (isOpen) {
     resetState();

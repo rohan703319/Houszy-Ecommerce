@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://testapi.knowledgemarkg.com';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.direct-care.co.uk';
 
 export const API_ENDPOINTS = {
   // Auth
@@ -7,6 +7,10 @@ export const API_ENDPOINTS = {
   contact: '/api/Contact',
   refreshToken: '/api/Auth/refresh-token',
   changePassword: '/api/Auth/change-password',
+  exportOrdersTravelbook: '/api/Orders/export-travelbook',
+  exportProcessingForShipment: '/api/Orders/export-processing-for-shipment',
+  bulkShipFromExcel: '/api/Orders/bulk-ship-from-excel',
+
 
 
   // Categories
@@ -29,6 +33,9 @@ export const API_ENDPOINTS = {
   products: '/api/Products',
   inventoryBulkUpdate: "/api/Products/inventory/bulk-update",
   inventoryBulkUpload: "/api/Products/inventory/bulk-upload",
+  inventorySampleExcel: "/api/Products/inventory/sample-excel",
+  bulkUpdateTemplate: "/api/Products/bulk-update-template",
+  bulkUpdateExcel: "/api/Products/bulk-update-excel",
   PharmacyQuestions: '/api/pharmacy-questions',
 
   deliveryStrip: "/api/DeliveryStrip",
@@ -47,6 +54,8 @@ export const API_ENDPOINTS = {
 
   // Orders
   orders: '/api/Orders',
+  exportOrders: '/api/Orders/export',
+  bulkUpdateOrdersExcel: '/api/Orders/bulk-update-excel',
   orderCancellationrequests: '/api/Orders/cancellation-requests',
   AddressLookup: '/api/address-lookup',
 
@@ -60,7 +69,11 @@ export const API_ENDPOINTS = {
 
   // Customers
   customers: '/api/customers',
-  GoogleMerchantCenter:'/api/GoogleMerchant',
+  GoogleMerchantCenter: '/api/GoogleMerchant',
+
+  // Staff
+  staff: '/api/Staff',
+  staffRoles: '/api/Staff/roles',
 
   // Discounts
   discounts: '/api/Discounts',
@@ -106,9 +119,9 @@ export const API_ENDPOINTS = {
     clear: '/api/ActivityLogs/clear',
   },
   dashboard: {
-  stats: '/api/Dashboard/stats',
-  overview: '/api/Dashboard/overview',
-},
+    stats: '/api/Dashboard/stats',
+    overview: '/api/Dashboard/overview',
+  },
 
   // Loyalty Config
   loyaltyConfig: '/api/admin/loyalty-config',

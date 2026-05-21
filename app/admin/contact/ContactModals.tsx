@@ -65,13 +65,13 @@ function ModalShell({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-2 backdrop-blur-md">
       <div
         className="absolute inset-0"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative z-10 flex min-h-full w-full items-center justify-center py-6">
+      <div className="relative z-10 flex min-h-full w-full items-center justify-center py-2">
         {children}
       </div>
     </div>
@@ -231,7 +231,7 @@ export default function ContactModals({
         }}
       >
         {replyingContact && (
-          <div className="mx-auto flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 shadow-2xl shadow-violet-950/40">
+          <div className="mx-auto flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 shadow-2xl shadow-violet-950/40">
             <div className="border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10 px-6 py-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -256,8 +256,8 @@ export default function ContactModals({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-6 custom-scrollbar">
-              <div className="space-y-5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 custom-scrollbar">
+              <div className="space-y-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <p className="text-sm font-medium text-white">
                   {replyingContact.name}
@@ -265,17 +265,17 @@ export default function ContactModals({
                 <p className="mt-1 break-all text-xs text-slate-400">
                   {replyingContact.email} | {replyingContact.subject || "No subject"}
                 </p>
-                <p className="mt-3 line-clamp-4 whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">
+                <p className="mt-2 line-clamp-4 whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">
                   {replyingContact.message}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-200">
-                  Reply <span className="text-rose-300">*</span>
+                  Reply <span className="text-rose-400">*</span>
                 </label>
                 <textarea
-                  rows={5}
+                  rows={4}
                   value={replyForm.reply}
                   onChange={(event) =>
                     setReplyForm((previous) => ({
@@ -293,7 +293,7 @@ export default function ContactModals({
                   Internal notes
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={replyForm.internalNotes}
                   onChange={(event) =>
                     setReplyForm((previous) => ({

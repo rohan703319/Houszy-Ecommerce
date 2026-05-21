@@ -909,7 +909,7 @@ const PharmacyWarning = () => {
 
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-slate-500 mb-2">
                 New Status <span className="text-red-500">*</span>
               </label>
               {/* ✅ Conditionally show only valid statuses based on delivery method */}
@@ -948,12 +948,12 @@ if (
   });
 }}
 
-                  className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                  className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                   required
                 >
                   <option value={order.status}>Select new status</option>
                   {availableStatuses.map((status) => (
-                    <option className='bg-gray-800/80 text-white' key={status} value={status}>
+                    <option className='bg-gray-800 text-white' key={status} value={status}>
                       {getStatusDisplayInfo(status).label}
                     </option>
                   ))}

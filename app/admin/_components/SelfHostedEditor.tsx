@@ -2,7 +2,8 @@
 'use client';
 
 import { extractFileName, deleteEditorImage, uploadEditorImage } from '@/lib/services/editorService';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import { useTheme } from '@/app/admin/_context/theme-provider';
 
 interface SelfHostedTinyMCEProps {
   value: string;
@@ -31,12 +32,14 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
   maxLength = Infinity,
   showCharCount = true
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const editorRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
   const isUpdatingRef = useRef(false);
   const lastNotificationTimeRef = useRef<number>(0);
   const contentFromEditorRef = useRef<string>('');
-  const [isLoaded, setIsLoaded] = useState(false);
+ 
   const [isMounted, setIsMounted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [charCount, setCharCount] = useState(0);
@@ -222,7 +225,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
       const script = document.createElement('script');
       script.src = '/tinymce/tinymce.min.js';
       script.onload = () => {
-        setIsLoaded(true);
+    
         setTimeout(() => {
           initializeEditor();
         }, 100);
@@ -255,8 +258,8 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
         
         toolbar: 'undo redo | formatselect | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image deleteimage | removeformat code',
         
-        skin: 'oxide-dark',
-        content_css: 'dark',
+        skin: isDark ? 'oxide-dark' : 'oxide',
+        content_css: isDark ? 'dark' : 'default',
 
         // Paste settings - preserve formatting exactly as copied
         paste_as_text: false,
@@ -266,156 +269,196 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
         paste_tab_spaces: 4,
         smart_paste: true,
         
-        content_style: `
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px; 
-            line-height: 1.6;
-            color: #f1f5f9 !important;
-            background-color: #0f172a !important;
-            margin: 0;
-            padding: 12px 14px !important;
-            min-height: ${height - 100}px;
-            box-sizing: border-box;
-          }
-          
-          body:empty::before {
-            content: "${placeholder}";
-            color: #ffffff;
-            opacity: 0.6;
-          }
-          
-          * {
-            color: #f1f5f9 !important;
-          }
-          
-          p {
-            margin: 0 0 0.8em 0;
-            line-height: 1.6;
-            color: #e2e8f0 !important;
-            min-height: 1.4em;
-          }
-          
-          p:first-child {
-            margin-top: 0;
-          }
-          
-          p:last-child {
-            margin-bottom: 0;
-          }
-          
-          h1, h2, h3, h4, h5, h6 { 
-            color: #f8fafc !important; 
-            margin: 1em 0 0.5em 0;
-            font-weight: 600;
-            line-height: 1.4;
-          }
-          
-          strong, b {
-            color: #f8fafc !important;
-            font-weight: 600;
-          }
-          
-          em, i {
-            color: #e2e8f0 !important;
-            font-style: italic;
-          }
-          
-          u {
-            color: #e2e8f0 !important;
-            text-decoration: underline;
-          }
-          
-          a { 
-            color: #a855f7 !important; 
-            text-decoration: underline;
-          }
-          
-          a:hover {
-            color: #c084fc !important;
-          }
-          
-          ul, ol {
-            color: #e2e8f0 !important;
-            padding-left: 1.5em;
-            margin: 0.6em 0;
-          }
-          
-          li {
-            color: #e2e8f0 !important;
-            margin: 0.3em 0;
-            line-height: 1.6;
-          }
-          
-          table { 
-            border-collapse: collapse; 
-            width: 100%; 
-            margin: 0.8em 0;
-            background-color: #1e293b !important;
-            border: 1px solid #475569;
-          }
-          
-          th, td { 
-            border: 1px solid #475569; 
-            padding: 6px 10px;
-            text-align: left; 
-            color: #e2e8f0 !important;
-          }
-          
-          th { 
-            background-color: #334155 !important; 
-            font-weight: 600;
-            color: #f1f5f9 !important;
-          }
-          
-          code { 
-            background-color: #374151 !important; 
-            color: #fbbf24 !important; 
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-family: 'SF Mono', Monaco, Consolas, monospace;
-          }
-          
-          pre {
-            background-color: #111827 !important;
-            color: #f3f4f6 !important;
-            padding: 12px;
-            border-radius: 8px;
-            overflow-x: auto;
-            border: 1px solid #374151;
-          }
-          
-          blockquote {
-            border-left: 4px solid #8b5cf6;
-            margin: 0.8em 0;
-            padding: 0.4em 0.8em;
-            color: #cbd5e1 !important;
-            background-color: #334155 !important;
-            border-radius: 0 8px 8px 0;
-          }
-          
-          hr {
-            border: none;
-            border-top: 2px solid #475569;
-            margin: 1.2em 0;
-          }
-          
-          img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            cursor: pointer;
-          }
-          
-          img:hover {
-            opacity: 0.8;
-            box-shadow: 0 0 0 2px #a855f7;
-          }
-          
-          img[data-mce-selected] {
-            box-shadow: 0 0 0 3px #a855f7 !important;
-          }
-        `,
+content_style: `
+  html,
+  body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.75) rgba(51, 65, 85, 0.22);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
+    background-color: ${isDark ? '#0f172a' : '#ffffff'} !important;
+    margin: 0;
+    padding: 12px 14px !important;
+    min-height: ${height - 100}px;
+    box-sizing: border-box;
+  }
+
+  /* =========================
+     Premium Compact Scrollbar
+  ========================= */
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(51, 65, 85, 0.22);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      rgba(100, 116, 139, 0.82) 0%,
+      rgba(71, 85, 105, 0.92) 100%
+    );
+
+    border-radius: 9999px;
+
+    border: 1px solid rgba(15, 23, 42, 0.45);
+
+    transition:
+      background 0.2s ease,
+      opacity 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      rgba(148, 163, 184, 0.95) 0%,
+      rgba(100, 116, 139, 1) 100%
+    );
+
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 0 6px rgba(0,0,0,0.2);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(
+      180deg,
+      rgba(168, 85, 247, 0.9) 0%,
+      rgba(139, 92, 246, 0.95) 100%
+    );
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  body:empty::before {
+    content: "${placeholder}";
+    color: ${isDark ? '#ffffff' : '#94a3b8'};
+    opacity: 0.6;
+  }
+
+  * {
+    color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
+  }
+
+  p {
+    margin: 0 0 0.8em 0;
+    line-height: 1.6;
+    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+    min-height: 1.4em;
+  }
+
+  p:first-child { margin-top: 0; }
+  p:last-child { margin-bottom: 0; }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
+    margin: 1em 0 0.5em 0;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  strong, b { color: ${isDark ? '#f8fafc' : '#0f172a'} !important; font-weight: 600; }
+  em, i { color: ${isDark ? '#e2e8f0' : '#334155'} !important; font-style: italic; }
+  u { color: ${isDark ? '#e2e8f0' : '#334155'} !important; text-decoration: underline; }
+  a { color: #a855f7 !important; text-decoration: underline; }
+  a:hover { color: #c084fc !important; }
+
+  ul, ol {
+    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+    padding-left: 1.5em;
+    margin: 0.6em 0;
+  }
+
+  li {
+    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+    margin: 0.3em 0;
+    line-height: 1.6;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.8em 0;
+    background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
+    border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
+  }
+
+  th, td {
+    border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
+    padding: 6px 10px;
+    text-align: left;
+    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+  }
+
+  th {
+    background-color: ${isDark ? '#334155' : '#e2e8f0'} !important;
+    font-weight: 600;
+    color: ${isDark ? '#f1f5f9' : '#0f172a'} !important;
+  }
+
+  code {
+    background-color: ${isDark ? '#374151' : '#f1f5f9'} !important;
+    color: ${isDark ? '#fbbf24' : '#7c3aed'} !important;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+  }
+
+  pre {
+    background-color: ${isDark ? '#111827' : '#f8fafc'} !important;
+    color: ${isDark ? '#f3f4f6' : '#1e293b'} !important;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid ${isDark ? '#374151' : '#e2e8f0'};
+  }
+
+  blockquote {
+    border-left: 4px solid #8b5cf6;
+    margin: 0.8em 0;
+    padding: 0.4em 0.8em;
+    color: ${isDark ? '#cbd5e1' : '#475569'} !important;
+    background-color: ${isDark ? '#334155' : '#f1f5f9'} !important;
+    border-radius: 0 8px 8px 0;
+  }
+
+  hr {
+    border: none;
+    border-top: 2px solid ${isDark ? '#475569' : '#e2e8f0'};
+    margin: 1.2em 0;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  img:hover {
+    opacity: 0.8;
+    box-shadow: 0 0 0 2px #a855f7;
+  }
+
+  img[data-mce-selected] {
+    box-shadow: 0 0 0 3px #a855f7 !important;
+  }
+`,
         
         branding: false,
         promotion: false,
@@ -498,7 +541,26 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
           // ✅ BLOCK TYPING when limit reached
           editor.on('keydown', (e: any) => {
             const allowedKeys = [8, 46, 37, 38, 39, 40, 35, 36, 33, 34]; // Backspace, Delete, Arrows, Home, End, PgUp, PgDn
+            // ✅ CTRL + SHIFT + V = NORMAL PASTE
+if (
+  e.ctrlKey &&
+  !e.shiftKey &&
+  e.key.toLowerCase() === 'v'
+) {
+  e.preventDefault();
 
+  navigator.clipboard.readText()
+    .then((text) => {
+
+      // preserve line breaks
+      const formattedText = text
+        .replace(/\n/g, '<br>');
+
+      editor.insertContent(formattedText);
+    });
+
+  return;
+}
             if (allowedKeys.includes(e.keyCode) || e.ctrlKey || e.metaKey) {
               return;
             }
@@ -838,7 +900,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
     setTimeout(() => {
       isUpdatingRef.current = false;
     }, 100);
-  }, [value, isReady, maxLength]);
+}, [value, isReady, maxLength]);
 
   if (!isMounted) {
     return (
@@ -951,7 +1013,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
   );
 };
 
-export const ProductDescriptionEditor = ({ 
+export const ProductDescriptionEditor = memo(({
   label, 
   value, 
   onChange, 
@@ -1000,4 +1062,4 @@ export const ProductDescriptionEditor = ({
       )}
     </div>
   );
-};
+});

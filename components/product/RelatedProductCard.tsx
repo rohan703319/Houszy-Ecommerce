@@ -7,8 +7,7 @@ import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import QuantitySelector from "@/components/shared/QuantitySelector";
 import { Star, BadgePercent,ChevronLeft, ChevronRight, AwardIcon, Heart } from "lucide-react";
-import { useVatRates } from "@/app/hooks/useVatRates";
-import { getVatRate } from "@/app/lib/vatHelpers";
+
 import { useWishlist } from "@/context/WishlistContext";
 import {
   getDiscountBadge,
@@ -94,10 +93,11 @@ const discountBadge = getDiscountBadge(product);
 const finalPrice = getDiscountedPrice(product, basePrice);
 // 🔥 NEW: oldPrice fallback logic
 const oldPriceValue =
-  defaultVariant?.oldPrice ?? product.oldPrice;
+  defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
+  product.compareAtPrice ?? product.oldPrice;
 
 const oldPriceData =
-  product.displayDiscountType === "OldPrice"
+  (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
     ? getOldPriceDiscount(
         basePrice,
         oldPriceValue,
@@ -134,8 +134,8 @@ const getLoyaltyPoints = () => {
 };
 
   // VAT Rate / Exempt Logic
-  const vatRates = useVatRates(); // 👈 yaha dalna
-const vatRate = getVatRate(vatRates, (product as any).vatRateId, product.vatExempt);
+  // Use vatRate directly from API response
+  const vatRate: number | null = (product as any).vatRate ?? null;
 const [showPharmaModal, setShowPharmaModal] = useState(false);
 const [pendingAction, setPendingAction] = useState<"cart" | null>(null);
 
@@ -327,7 +327,7 @@ systemDiscountAmount:
       {/* Offer badge — smaller */}
       {product.displayDiscountType === "System" &&
  discountBadge && (
-        <div className="absolute top-1 right-2 z-20">
+        <div className="absolute top-1 left-2 z-20">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
             <div className="flex flex-col items-center leading-none">
               {discountBadge.type === "percent" ? (
@@ -342,7 +342,7 @@ systemDiscountAmount:
       )}
       {/* 🔥 OLD PRICE BADGE */}
 {!discountBadge && !hasActiveCoupon && oldPriceData && (
-  <div className="absolute top-1 right-2 z-20">
+  <div className="absolute top-1 left-2 z-20">
     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
       <div className="flex flex-col items-center leading-none">
         <span className="text-[10px] sm:text-xs font-extrabold">
@@ -357,7 +357,7 @@ systemDiscountAmount:
 )}
       {/* Coupon badge — smaller */}
   {!discountBadge && hasActiveCoupon && (
-  <div className="absolute top-1 md:top-2 right-1 md:right-2 z-20">
+  <div className="absolute top-1 md:top-2 left-1 md:left-2 z-20">
     <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
       <div className="flex flex-col items-center text-center">
@@ -379,7 +379,7 @@ systemDiscountAmount:
   </div>
 )}
       {/* VAT Relief — bottom left on image */}
-      {product.vatExempt && (
+      {(product.vatExempt || (product as any).vatRate === 0) && (
         <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
           <BadgePercent className="h-2.5 w-2.5" />
           VAT Relief
@@ -401,7 +401,7 @@ systemDiscountAmount:
       ${(
   product.displayDiscountType !== "None" ||
   hasActiveCoupon
-) ? "top-12" : "top-2"}
+) ? "top-2" : "top-2"}
       ${
         inWishlist
           ? "bg-red-50 border-red-200"
@@ -493,7 +493,7 @@ systemDiscountAmount:
     £{oldPriceData.oldPrice.toFixed(2)}
   </span>
 )}
-        {!product.vatExempt && vatRate !== null && (
+        {vatRate !== null && vatRate > 0 && !product.vatExempt && (
           <span className="text-[10px] font-semibold text-green-700 bg-green-100 px-1 py-0.5 rounded whitespace-nowrap">
             {vatRate}% VAT
           </span>

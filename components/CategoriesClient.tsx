@@ -8,6 +8,8 @@ interface Category {
   name: string;
   slug: string;
   imageUrl: string;
+  parentCategoryId?: string | null;
+  parentCategoryName?: string | null;
 }
 
 export default function CategoriesClient({
@@ -20,10 +22,42 @@ export default function CategoriesClient({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("az");
 
+  // Create a map to quickly look up categories by ID for building parent names
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, Category>();
+    categories.forEach((cat) => map.set(cat.id, cat));
+    return map;
+  }, [categories]);
+
+  // Helper to construct the breadcrumb path of parent categories
+  const getCategoryPath = (cat: Category): string => {
+    const path: string[] = [];
+    let current: Category | undefined = cat;
+    const visited = new Set<string>();
+
+    if (current.parentCategoryId) {
+      let parentId = current.parentCategoryId;
+      while (parentId && !visited.has(parentId)) {
+        visited.add(parentId);
+        const parent = categoryMap.get(parentId);
+        if (parent) {
+          path.unshift(parent.name);
+          parentId = parent.parentCategoryId || "";
+        } else {
+          break;
+        }
+      }
+    }
+
+    return path.join(" > ");
+  };
+
   const filteredCategories = useMemo(() => {
-    let filtered = categories.filter((c) =>
-      c.name.toLowerCase().includes(search.toLowerCase())
-    );
+    let filtered = categories.filter((c) => {
+      const nameMatch = c.name.toLowerCase().includes(search.toLowerCase());
+      const pathMatch = getCategoryPath(c).toLowerCase().includes(search.toLowerCase());
+      return nameMatch || pathMatch;
+    });
 
     if (sort === "az") {
       filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
@@ -32,7 +66,7 @@ export default function CategoriesClient({
     }
 
     return filtered;
-  }, [categories, search, sort]);
+  }, [categories, search, sort, categoryMap]);
 const totalCount = categories.length;
 const filteredCount = filteredCategories.length;
   return (
@@ -125,14 +159,26 @@ const filteredCount = filteredCategories.length;
               <div className="relative w-[120px] h-[120px] md:w-[140px] md:h-[140px] flex items-center justify-center mb-5">
                 <img
                   src={
-                    category.imageUrl?.startsWith("http")
+                    !category.imageUrl
+                      ? "/placeholder.png"
+                      : category.imageUrl.startsWith("http")
                       ? category.imageUrl
                       : `${baseUrl}${category.imageUrl}`
                   }
                   alt={category.name}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "/placeholder.png";
+                  }}
                   className="w-auto h-full object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
+
+              {/* Parent path */}
+              {/* {getCategoryPath(category) && (
+                <span className="relative text-[10.5px] uppercase font-bold tracking-wider text-gray-400 text-center mb-1.5 line-clamp-1 px-2 group-hover:text-[#445D41]/75 transition">
+                  {getCategoryPath(category)}
+                </span>
+              )} */}
 
               {/* Name */}
               <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#445D41] transition">

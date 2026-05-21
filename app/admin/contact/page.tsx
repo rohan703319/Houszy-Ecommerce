@@ -10,7 +10,7 @@ import {
   Loader2,
   Mail,
   MessageCircleReply,
-  Phone,
+
   RefreshCw,
   Search,
   Trash2,
@@ -355,7 +355,7 @@ export default function ContactPage() {
               type="search"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search name, email, phone, subject, order number..."
+              placeholder="Search name, email,  subject, order number..."
               className="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
             />
             {searchTerm !== debouncedSearch && (

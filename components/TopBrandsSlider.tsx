@@ -81,35 +81,35 @@ export default function TopBrandsSlider({
       >
         {brands.map((brand: Brand) => (
           <SwiperSlide key={brand.id}>
-          <Link href={`/brands/${brand.slug}`}>
+            <Link href={`/brands/${brand.slug}`}>
 
-<Card
-  className="group w-full h-[130px] md:h-[150px] lg:h-[170px]
+              <Card
+                className="group w-full h-[130px] md:h-[150px] lg:h-[170px]
              bg-white rounded-xl border border-gray-200
              flex items-center justify-center
              transition-all duration-300
              hover:shadow-md hover:-translate-y-1"
->
-  <CardContent className="p-0 flex items-center justify-center w-full h-full">
+              >
+                <CardContent className="p-0 flex items-center justify-center w-full h-full">
 
-    <div className="w-full h-full flex items-center justify-center px-2">
-      <img
-        src={
-          brand.logoUrl
-            ? brand.logoUrl.startsWith("http")
-              ? brand.logoUrl
-              : `${baseUrl}${brand.logoUrl}`
-            : "/placeholder.jpg"
-        }
-        alt={brand.name}
-        className="max-h-[75%] w-auto object-contain
+                  <div className="w-full h-full flex items-center justify-center px-2">
+                    <img
+                      src={
+                        brand.logoUrl
+                          ? brand.logoUrl.startsWith("http")
+                            ? brand.logoUrl
+                            : `${baseUrl}${brand.logoUrl}`
+                          : "/placeholder.jpg"
+                      }
+                      alt={brand.name}
+                      className="max-h-[75%] w-auto object-contain
                    transition-transform duration-300
                    md:group-hover:scale-105"
-      />
-    </div>
+                    />
+                  </div>
 
-  </CardContent>
-</Card>
+                </CardContent>
+              </Card>
 
 
             </Link>

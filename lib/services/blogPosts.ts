@@ -30,6 +30,8 @@ export interface BlogPost {
   limitedToStores?: boolean;
   
   blogCategoryId?: string | null;
+  categoryIds?: string[]; // ✅ Added for multi-category
+  categories?: any[]; // ✅ Added for detailed category info
   blogCategoryName?: string;
   
   authorId?: string | null;

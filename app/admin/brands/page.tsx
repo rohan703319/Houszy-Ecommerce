@@ -176,7 +176,7 @@ const handleStatusUpdate = async () => {
 
   useEffect(() => {
     fetchBrands();
-  }, [publishedFilter, activeFilter, deletedFilter]); // ✅ Re-fetch when filters change
+  }, [publishedFilter, activeFilter, deletedFilter,homepageFilter]); // ✅ Re-fetch when filters change
 
   
   // ✅ MODIFIED fetchBrands with API parameters
@@ -201,6 +201,13 @@ const handleStatusUpdate = async () => {
       }
 
       const response = await brandsService.getAll({ params });
+      // ✅ SHOW BACKEND/API ERROR
+if (response.error) {
+  toast.error(response.error);
+  setBrands([]);
+  return;
+}
+
 const brandsData = response.data?.data?.items || [];
 const statsData = response.data?.data?.stats;
 
@@ -394,55 +401,123 @@ const goToPage = useCallback((page: number) => {
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
 
   {/* Total */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+  <button
+    type="button"
+    onClick={clearFilters}
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      publishedFilter === "all" &&
+      activeFilter === "all" &&
+      deletedFilter === "all" &&
+      homepageFilter === "all" &&
+      searchTerm.trim() === ""
+        ? "bg-slate-800/70 border-violet-500/50 ring-2 ring-violet-500/40 shadow-lg shadow-violet-500/10"
+        : "bg-slate-900/40 border-slate-800 hover:bg-slate-800/50"
+    }`}
+  >
     <p className="text-[11px] text-slate-500">Total</p>
-    <p className="text-lg font-semibold text-white">{stats.totalBrands}</p>
-  </div>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalBrands}
+    </p>
+  </button>
 
   {/* Published */}
-  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5">
+  <button
+    type="button"
+    onClick={() =>
+      setPublishedFilter(
+        publishedFilter === "true" ? "all" : "true"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      publishedFilter === "true"
+        ? "bg-green-500/20 border-green-400 ring-2 ring-green-500/40 shadow-lg shadow-green-500/10"
+        : "bg-green-500/10 border-green-500/20 hover:bg-green-500/15"
+    }`}
+  >
     <p className="text-[11px] text-green-400">Published</p>
-    <p className="text-lg font-semibold text-white">{stats.totalPublished}</p>
-  </div>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalPublished}
+    </p>
+  </button>
 
   {/* Unpublished */}
-  <div className="bg-slate-500/10 border border-slate-500/20 rounded-lg p-2.5">
+  <button
+    type="button"
+    onClick={() =>
+      setPublishedFilter(
+        publishedFilter === "false" ? "all" : "false"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      publishedFilter === "false"
+        ? "bg-slate-400/20 border-slate-300 ring-2 ring-slate-400/40 shadow-lg shadow-slate-500/10"
+        : "bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/15"
+    }`}
+  >
     <p className="text-[11px] text-slate-400">Unpublished</p>
-    <p className="text-lg font-semibold text-white">{stats.totalUnpublished}</p>
-  </div>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalUnpublished}
+    </p>
+  </button>
 
   {/* Active */}
   <button
     type="button"
-    onClick={() => {
-      if (activeFilter === 'all') setActiveFilter('true');
-      else if (activeFilter === 'true') setActiveFilter('false');
-      else setActiveFilter('all');
-    }}
-    className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5 text-left"
+    onClick={() =>
+      setActiveFilter(
+        activeFilter === "true" ? "all" : "true"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      activeFilter === "true"
+        ? "bg-emerald-500/20 border-emerald-400 ring-2 ring-emerald-500/40 shadow-lg shadow-emerald-500/10"
+        : "bg-green-500/10 border-green-500/20 hover:bg-green-500/15"
+    }`}
   >
     <p className="text-[11px] text-green-400">Active</p>
-    <p className="text-lg font-semibold text-white">{stats.totalActive}</p>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalActive}
+    </p>
   </button>
 
   {/* Inactive */}
-  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+  <button
+    type="button"
+    onClick={() =>
+      setActiveFilter(
+        activeFilter === "false" ? "all" : "false"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      activeFilter === "false"
+        ? "bg-red-500/20 border-red-400 ring-2 ring-red-500/40 shadow-lg shadow-red-500/10"
+        : "bg-red-500/10 border-red-500/20 hover:bg-red-500/15"
+    }`}
+  >
     <p className="text-[11px] text-red-400">Inactive</p>
-    <p className="text-lg font-semibold text-white">{stats.totalInactive}</p>
-  </div>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalInactive}
+    </p>
+  </button>
 
   {/* Homepage */}
   <button
     type="button"
-    onClick={() => {
-      if (homepageFilter === 'all') setHomepageFilter('true');
-      else if (homepageFilter === 'true') setHomepageFilter('false');
-      else setHomepageFilter('all');
-    }}
-    className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-2.5 text-left"
+    onClick={() =>
+      setHomepageFilter(
+        homepageFilter === "true" ? "all" : "true"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      homepageFilter === "true"
+        ? "bg-cyan-500/20 border-cyan-400 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-500/10"
+        : "bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/15"
+    }`}
   >
     <p className="text-[11px] text-cyan-400">Homepage</p>
-    <p className="text-lg font-semibold text-white">{stats.totalShowOnHomepage}</p>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalShowOnHomepage}
+    </p>
   </button>
 
 </div>

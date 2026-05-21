@@ -138,7 +138,12 @@ export default async function BlogCategoryPage({
 
   // Filter posts by category
   let filtered = allPosts.filter(
-    (p: any) => p.blogCategoryId === category.id
+    (p: any) => {
+      if (p.categories && Array.isArray(p.categories)) {
+        return p.categories.some((c: any) => c.categoryId === category.id);
+      }
+      return p.blogCategoryId === category.id;
+    }
   );
 
   // Respect publish dates

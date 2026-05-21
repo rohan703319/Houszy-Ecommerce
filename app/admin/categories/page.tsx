@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import CategoryModal from "./CategoryModal";
 import { categoryFaqsService, Faq } from "@/lib/services/categoryFaqs";
 import { extractFilename, formatDate, getImageUrl } from "../_utils/formatUtils";
+import React from "react";
 
 export default function CategoriesPage() {
   const toast = useToast();
@@ -28,27 +29,7 @@ export default function CategoriesPage() {
 const [pendingFaqs, setPendingFaqs] = useState<Faq[]>([]);
   const [homepageFilter, setHomepageFilter] = useState<'all' | 'yes' | 'no'>('all');
 const [deletedFilter, setDeletedFilter] = useState<'all' | 'deleted' | 'notDeleted'>('all');
-const handleRestore = async (category: Category) => {
-  setIsRestoring(true);
 
-  try {
-    const response = await categoriesService.restore(category.id);
-
-    if (!response.error) {
-      toast.success("Category restored successfully! 🎉");
-      await fetchCategories();
-    } else {
-      toast.error(response.error || "Failed to restore category");
-    }
-  } catch (error: any) {
-    toast.error(
-      error?.response?.data?.message || "Restore failed"
-    );
-  } finally {
-    setIsRestoring(false);
-    setRestoreConfirm(null);
-  }
-};
   
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedParentId, setSelectedParentId] = useState<string>("");
@@ -105,11 +86,19 @@ const toggleCategoryExpansion = (categoryId: string) => {
     } else {
       newSet.add(categoryId);
 
-      // 🔥 ADD THIS (key logic)
+      const expandChildren = (cats: any[]) => {
+        cats.forEach(cat => {
+          if (cat.subCategories?.length) {
+            newSet.add(cat.id);
+            expandChildren(cat.subCategories);
+          }
+        });
+      };
+
       const category = findCategoryById(categoryId, categories);
-      if (category) {
-        const parents = getParentChain(category, categories);
-        parents.forEach(p => newSet.add(p.id));
+
+      if (category?.subCategories?.length) {
+        expandChildren(category.subCategories);
       }
     }
 
@@ -117,7 +106,73 @@ const toggleCategoryExpansion = (categoryId: string) => {
   });
 };
 
+const handleRestore = async (category: Category) => {
+  setIsRestoring(true);
 
+  try {
+    const response = await categoriesService.restore(category.id);
+
+    if (!response.error) {
+      toast.success("Category restored successfully! 🎉");
+      await fetchCategories();
+    } else {
+      toast.error(response.error || "Failed to restore category");
+    }
+  } catch (error: any) {
+    toast.error(
+      error?.response?.data?.message || "Restore failed"
+    );
+  } finally {
+    setIsRestoring(false);
+    setRestoreConfirm(null);
+  }
+};
+const getCategoryHierarchyArray = (
+  category: Category,
+  allCategories: Category[]
+): string[] => {
+  const hierarchy: string[] = [];
+
+  const findParent = (
+    parentId?: string
+  ): Category | undefined => {
+    if (!parentId) return undefined;
+
+    const searchRecursive = (
+      cats: Category[]
+    ): Category | undefined => {
+      for (const cat of cats) {
+        if (cat.id === parentId) {
+          return cat;
+        }
+
+        if (cat.subCategories?.length) {
+          const found = searchRecursive(
+            cat.subCategories
+          );
+
+          if (found) return found;
+        }
+      }
+
+      return undefined;
+    };
+
+    return searchRecursive(allCategories);
+  };
+
+  let current: Category | undefined = category;
+
+  while (current) {
+    hierarchy.unshift(current.name);
+
+    current = findParent(
+      current.parentCategoryId
+    );
+  }
+
+  return hierarchy;
+};
 
 // Add this NEW helper function after getCategoryLevel
 const getMaxDepthOfSubtree = (category: Category, allCategories: Category[]): number => {
@@ -136,7 +191,7 @@ const getMaxDepthOfSubtree = (category: Category, allCategories: Category[]): nu
 
 useEffect(() => {
   fetchCategories();
-}, [statusFilter, homepageFilter, levelFilter, debouncedSearch, deletedFilter]);
+}, [statusFilter, homepageFilter, deletedFilter]);
 
 
 
@@ -176,10 +231,6 @@ const fetchCategories = async () => {
 
  
 
-    // Level
-    if (levelFilter !== "all") {
-      params.level = Number(levelFilter.replace("level", ""));
-    }
 
     // API CALL
     const response = await categoriesService.getAll({ params });
@@ -287,7 +338,7 @@ const fetchCategories = async () => {
       if (currentCategoryId && cat.id === currentCategoryId) return;
       if (currentCategoryId && isDescendantOf(cat, currentCategoryId, categories)) return;
       
-      if (level < 2) {
+      if (level < 3) {
         availableParents.push({ ...cat, level } as any);
       }
       
@@ -319,8 +370,8 @@ const fetchCategories = async () => {
     
     const parentLevel = getCategoryLevel(parent, categories);
     
-    if (parentLevel >= 2) {
-      toast.error('🚫 Maximum 3 levels allowed! Cannot create subcategory here.');
+    if (parentLevel >= 3) {
+      toast.error('🚫 Maximum 4 levels allowed! Cannot create subcategory here.');
       return;
     }
     
@@ -340,6 +391,48 @@ const fetchCategories = async () => {
     });
     setShowModal(true);
   };
+const getCategoryLevelCounts = (
+  categories: Category[]
+) => {
+  const counts = {
+    level1: 0,
+    level2: 0,
+    level3: 0,
+    level4: 0,
+  };
+
+  const traverse = (
+    cats: Category[],
+    level: number
+  ) => {
+    cats.forEach((cat) => {
+      if (level === 1) counts.level1++;
+      if (level === 2) counts.level2++;
+      if (level === 3) counts.level3++;
+      if (level === 4) counts.level4++;
+
+      if (cat.subCategories?.length) {
+        traverse(cat.subCategories, level + 1);
+      }
+    });
+  };
+
+  traverse(categories, 1);
+
+  return {
+    ...counts,
+    total:
+      counts.level1 +
+      counts.level2 +
+      counts.level3 +
+      counts.level4,
+  };
+};
+
+const levelCounts = useMemo(
+  () => getCategoryLevelCounts(categories),
+  [categories]
+);
 // Calculate homepage categories count
 useEffect(() => {
   const categoriesOnHomepage = categories.filter(cat => cat.showOnHomepage);
@@ -627,9 +720,9 @@ const handleEdit = (category: Category) => {
   setImageFile(null);
   setImagePreview(null);
   
-  // ✅ Show warning if editing Level 3 category
-  if (currentLevel === 2) {
-    toast.info('ℹ️ Editing Level 3 category - Cannot change parent to create Level 4');
+  // ✅ Show warning if editing Level 4 category
+  if (currentLevel === 3) {
+    toast.info('ℹ️ Editing Level 4 category - Cannot change parent to create Level 5');
   }
   
   setShowModal(true);
@@ -731,7 +824,7 @@ const CategoryRow: React.FC<CategoryRowProps> = ({
   const totalSubCategories = getTotalSubCategories(category);
   const levelLabel = `L${level + 1}`;
 
-  const MAX_LEVEL = 2;
+  const MAX_LEVEL = 3;
   const canAddSubcategory = level < MAX_LEVEL;
 
   return (
@@ -946,12 +1039,46 @@ const findMatchingNodes = useCallback((categories: Category[], search: string): 
 
   // ✅ Smart search in hierarchy
 
-
-// NEW – pass the 5th argument
 const filteredCategories = useMemo(() => {
-  return findMatchingNodes(categories, debouncedSearch);
-}, [categories, debouncedSearch, findMatchingNodes]);
+  let result = findMatchingNodes(
+    categories,
+    debouncedSearch
+  );
 
+  // LEVEL FILTER
+  if (levelFilter !== "all") {
+    const targetLevel =
+      Number(levelFilter.replace("level", ""));
+
+    const matched: Category[] = [];
+
+    const traverse = (cats: Category[]) => {
+      cats.forEach(cat => {
+        const level =
+          getCategoryLevel(cat, categories) + 1;
+
+        if (level === targetLevel) {
+          matched.push(cat);
+        }
+
+        if (cat.subCategories?.length) {
+          traverse(cat.subCategories);
+        }
+      });
+    };
+
+    traverse(result);
+
+    result = matched;
+  }
+
+  return result;
+}, [
+  categories,
+  debouncedSearch,
+  levelFilter,
+  findMatchingNodes,
+]);
 const getParentChain = useCallback((category: Category, all: Category[]) => {
   const chain: Category[] = [];
   let current = category;
@@ -972,25 +1099,28 @@ const getParentChain = useCallback((category: Category, all: Category[]) => {
 const flattenedData = useMemo(() => {
   const flattened: Array<Category & { level: number }> = [];
 
-  const addRecursive = (category: Category, level: number) => {
-    flattened.push({ ...category, level });
+const addRecursive = (category: Category, level: number) => {
+  flattened.push({ ...category, level });
 
-    if (
-      expandedCategories.has(category.id) &&
-      category.subCategories?.length
-    ) {
-      category.subCategories.forEach(child =>
-        addRecursive(child, level + 1)
-      );
-    }
-  };
-
-  if (searchTerm.trim()) {
-    return filteredCategories.map(cat => ({
-      ...cat,
-      level: getCategoryLevel(cat, categories)
-    }));
+  if (
+    expandedCategories.has(category.id) &&
+    category.subCategories?.length
+  ) {
+    category.subCategories.forEach(child =>
+      addRecursive(child, level + 1)
+    );
   }
+};
+
+if (
+  searchTerm.trim() ||
+  levelFilter !== "all"
+) {
+  return filteredCategories.map(cat => ({
+    ...cat,
+    level: getCategoryLevel(cat, categories)
+  }));
+}
 
   categories.forEach(cat => addRecursive(cat, 0));
 
@@ -1177,50 +1307,87 @@ useEffect(() => {
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
 
   {/* Total Categories */}
-  <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
-    <p className="text-[11px] text-slate-500">Total Categories</p>
-    <p className="text-lg font-semibold text-white">{stats.totalCategories}</p>
-  </div>
+<button
+  type="button"
+  onClick={clearFilters}
+  className={`w-full text-left rounded-lg p-2.5 border transition-all ${
+    statusFilter === "all" &&
+    homepageFilter === "all" &&
+    levelFilter === "all" &&
+    deletedFilter === "all" &&
+    searchTerm === ""
+      ? "bg-slate-800/70 border-violet-500/50 ring-2 ring-violet-500/40"
+      : "bg-slate-900/40 border-slate-800 hover:bg-slate-800/50"
+  }`}
+>
+  <p className="text-[11px] text-slate-500">
+    Total Categories
+  </p>
+
+  <p className="text-lg font-semibold text-white">
+    {stats.totalCategories}
+  </p>
+</button>
 
   {/* Active */}
   <button
     type="button"
-    onClick={() => {
-      if (statusFilter === 'all') setStatusFilter('active');
-      else if (statusFilter === 'active') setStatusFilter('inactive');
-      else setStatusFilter('all');
-    }}
-    className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5 text-left"
+    onClick={() =>
+      setStatusFilter(
+        statusFilter === "active" ? "all" : "active"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      statusFilter === "active"
+        ? "bg-green-500/20 border-green-400 ring-2 ring-green-500/40 shadow-lg shadow-green-500/10"
+        : "bg-green-500/10 border-green-500/20 hover:bg-green-500/15"
+    }`}
   >
     <p className="text-[11px] text-green-400">Active</p>
-    <p className="text-lg font-semibold text-white">{stats.totalActive}</p>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalActive}
+    </p>
   </button>
 
   {/* Inactive */}
-  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+  <button
+    type="button"
+    onClick={() =>
+      setStatusFilter(
+        statusFilter === "inactive" ? "all" : "inactive"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      statusFilter === "inactive"
+        ? "bg-red-500/20 border-red-400 ring-2 ring-red-500/40 shadow-lg shadow-red-500/10"
+        : "bg-red-500/10 border-red-500/20 hover:bg-red-500/15"
+    }`}
+  >
     <p className="text-[11px] text-red-400">Inactive</p>
-    <p className="text-lg font-semibold text-white">{stats.totalInactive}</p>
-  </div>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalInactive}
+    </p>
+  </button>
 
   {/* Homepage */}
   <button
     type="button"
-    onClick={() => {
-      if (homepageFilter === 'all') setHomepageFilter('yes');
-      else if (homepageFilter === 'yes') setHomepageFilter('no');
-      else setHomepageFilter('all');
-    }}
-    className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-2.5 text-left"
+    onClick={() =>
+      setHomepageFilter(
+        homepageFilter === "yes" ? "all" : "yes"
+      )
+    }
+    className={`rounded-lg p-2.5 text-left border transition-all ${
+      homepageFilter === "yes"
+        ? "bg-cyan-500/20 border-cyan-400 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-500/10"
+        : "bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/15"
+    }`}
   >
     <p className="text-[11px] text-cyan-400">Homepage</p>
-    <p className="text-lg font-semibold text-white">{stats.totalShowOnHomepage}</p>
+    <p className="text-lg font-semibold text-white">
+      {stats.totalShowOnHomepage}
+    </p>
   </button>
-
-  {/* Products */}
-  {/* <div className="bg-pink-500/10 border border-pink-500/20 rounded-lg p-2.5">
-    <p className="text-[11px] text-pink-400">Products</p>
-    <p className="text-lg font-semibold text-white">{stats.totalProducts}</p>
-  </div> */}
 
 </div>
 
@@ -1263,10 +1430,25 @@ useEffect(() => {
           : "border-slate-700"
       }`}
     >
-<option value="all">All Category Levels</option>
-<option value="level1">Main Category</option>
-<option value="level2">Sub Category</option>
-<option value="level3">Child Category</option>
+<option value="all">
+  All Category Levels ({levelCounts.total})
+</option>
+
+<option value="level1">
+  Main Category ({levelCounts.level1})
+</option>
+
+<option value="level2">
+  Sub Category ({levelCounts.level2})
+</option>
+
+<option value="level3">
+  Child Category ({levelCounts.level3})
+</option>
+
+<option value="level4">
+  Level 4 Category ({levelCounts.level4})
+</option>
     </select>
 
     {/* Deleted */}
@@ -1524,7 +1706,33 @@ useEffect(() => {
                   <h2 className="text-xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent truncate">
                     {viewingCategory.name}
                   </h2>
-                  <p className="text-slate-400 text-xs mt-0.5">View category information</p>
+<p className="text-xs mt-0.5 flex flex-wrap items-center">
+  {getCategoryHierarchyArray(viewingCategory, categories).map(
+    (item, index, arr) => {
+      const isLast = index === arr.length - 1;
+
+      return (
+        <React.Fragment key={index}>
+          <span
+            className={
+              isLast
+                ? "text-cyan-400 font-medium"
+                : "text-slate-400"
+            }
+          >
+            {item}
+          </span>
+
+          {!isLast && (
+            <span className="mx-1 text-slate-500">
+              {">".repeat(index + 1)}
+            </span>
+          )}
+        </React.Fragment>
+      );
+    }
+  )}
+</p>
                 </div>
 
                 {/* Close Button */}

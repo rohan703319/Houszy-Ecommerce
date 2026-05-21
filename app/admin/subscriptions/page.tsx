@@ -29,8 +29,9 @@
   import { useToast } from "@/app/admin/_components/CustomToast";
   import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
   import { subscriptionsService, Subscription } from "@/lib/services/subscriptions";
-  import { API_BASE_URL } from "@/lib/api";
-import { formatDate } from "../_utils/formatUtils";
+
+import { formatDate, getImageUrl } from "../_utils/formatUtils";
+import ImagePreviewModal from "../_components/ImagePreviewModal";
 
   // ✅ Product interface
   interface Product {
@@ -47,8 +48,8 @@ import { formatDate } from "../_utils/formatUtils";
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
-    const [loadingProducts, setLoadingProducts] = useState(false);
 
+const [previewImage, setPreviewImage] = useState<string | null>(null);
     // Filters
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -105,15 +106,7 @@ import { formatDate } from "../_utils/formatUtils";
       const product = products.find(p => p.id === productFilter);
       return product?.name || "Unknown Product";
     };
-  const getImageUrl = (url?: string) => {
-    if (!url) return "";
 
-    // already full URL
-    if (url.startsWith("http")) return url;
-
-    // add API base url
-    return `${API_BASE_URL}${url}`;
-  };
     // Fetch Subscriptions
     const fetchSubscriptions = async () => {
       setLoadingSubscriptions(true);
@@ -329,13 +322,7 @@ import { formatDate } from "../_utils/formatUtils";
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentData = filteredSubscriptions.slice(startIndex, endIndex);
-
-    const goToPage = (page: number) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-    const goToFirstPage = () => setCurrentPage(1);
-    const goToLastPage = () => setCurrentPage(totalPages);
-    const goToPreviousPage = () => setCurrentPage((prev) => Math.max(1, prev - 1));
-    const goToNextPage = () => setCurrentPage((prev) => Math.min(totalPages, prev + 1));
-
+    
     const handleItemsPerPageChange = (newItemsPerPage: number) => {
       setItemsPerPage(newItemsPerPage);
       setCurrentPage(1);
@@ -418,7 +405,7 @@ import { formatDate } from "../_utils/formatUtils";
 
     return (
   <div className="">
-    <div className="mx-auto space-y-3 p-2">
+    <div className="space-y-2">
 
     {/* ================= HEADER ================= */}
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -470,14 +457,14 @@ import { formatDate } from "../_utils/formatUtils";
     </div>
 
     {/* ================= ITEMS PER PAGE ================= */}
-    <div className="bg-slate-900/40 border border-slate-800 rounded-xl px-3 py-2.5">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <span>Show</span>
           <select
             value={itemsPerPage}
             onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-            className="px-2 py-1 bg-slate-800/60 border border-slate-700 rounded-md text-white text-xs"
+            className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-white text-xs"
           >
             <option value={25}>25</option>
             <option value={50}>50</option>
@@ -496,99 +483,120 @@ import { formatDate } from "../_utils/formatUtils";
     </div>
 
     {/* ================= FILTERS ================= */}
-    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-3 space-y-2">
+<div className="bg-slate-900 border border-slate-800 rounded-xl p-2">
+  <div className="flex flex-col xl:flex-row gap-2 xl:items-center">
 
-      <div className="flex flex-col lg:flex-row gap-2">
+    {/* LEFT FILTERS */}
+    <div className="flex flex-col lg:flex-row gap-2 flex-1 min-w-0">
 
-        <div className="flex flex-wrap gap-2 flex-1">
+      {/* STATUS */}
+      <select
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value)}
+        className="h-10 px-3 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white min-w-[145px]"
+      >
+        <option value="all">All Status</option>
+        <option value="active">Active</option>
+        <option value="paused">Paused</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
 
-          {/* STATUS */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-800/70 border border-slate-700 rounded-lg text-xs text-white"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+      {/* FREQUENCY */}
+      <select
+        value={frequencyFilter}
+        onChange={(e) => setFrequencyFilter(e.target.value)}
+        className="h-10 px-3 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white min-w-[170px]"
+      >
+        <option value="all">All Frequencies</option>
+        <option value="Weekly">Weekly</option>
+        <option value="Monthly">Monthly</option>
+      </select>
 
-          {/* FREQUENCY */}
-          <select
-            value={frequencyFilter}
-            onChange={(e) => setFrequencyFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-800/70 border border-slate-700 rounded-lg text-xs text-white"
-          >
-            <option value="all">All Frequencies</option>
-            <option value="Weekly">Weekly</option>
-            {/* <option value="BiWeekly">Bi-Weekly</option> */}
-            <option value="Monthly">Monthly</option>
-            {/* <option value="BiMonthly">Bi-Monthly</option>
-            <option value="Quarterly">Quarterly</option> */}
-          </select>
+      {/* PRODUCT */}
+      <div
+        className="relative flex-1 min-w-[240px]"
+        ref={productDropdownRef}
+      >
+        <input
+          type="text"
+          value={
+            showProductDropdown
+              ? productSearchTerm
+              : getSelectedProductTitle()
+          }
+          onChange={(e) => {
+  const value = e.target.value;
+  setProductSearchTerm(value);
+  setShowProductDropdown(true);
 
-          {/* PRODUCT DROPDOWN (UNCHANGED LOGIC) */}
-          <div className="relative lg:min-w-[260px]" ref={productDropdownRef}>
-            <input
-              type="text"
-              value={showProductDropdown ? productSearchTerm : getSelectedProductTitle()}
-              onChange={(e) => {
-                setProductSearchTerm(e.target.value);
-                if (!showProductDropdown) setShowProductDropdown(true);
-              }}
-              onFocus={() => {
-                setShowProductDropdown(true);
-                setProductSearchTerm("");
-              }}
-              placeholder="Search products..."
-              className="w-full px-3 py-2 pl-9 pr-9 bg-slate-800/60 border border-slate-700 rounded-lg text-xs text-white"
-            />
+  const matched = products.find(
+    (p) =>
+      p.name.toLowerCase().includes(value.toLowerCase()) ||
+      p.sku.toLowerCase().includes(value.toLowerCase())
+  );
 
-            <ShoppingBag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+  setProductFilter(matched ? matched.id : "all");
+}}
+          onFocus={() => {
+            setShowProductDropdown(true);
+            setProductSearchTerm("");
+          }}
+          placeholder="All Products"
+          className="w-full h-10 px-3 pl-9 pr-8 bg-slate-800/60 border border-slate-700 rounded-lg text-xs text-white"
+        />
 
-            {showProductDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg max-h-56 overflow-y-auto z-50">
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => {
-                      setProductFilter(product.id);
-                      setShowProductDropdown(false);
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-slate-700 text-xs"
-                  >
-                    {product.name}
-                  </button>
-                ))}
-              </div>
-            )}
+        <ShoppingBag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+
+        {showProductDropdown && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg max-h-56 overflow-y-auto z-50 shadow-xl">
+            {filteredProducts.map((product) => (
+              <button
+                key={product.id}
+                onClick={() => {
+                  setProductFilter(product.id);
+                  setShowProductDropdown(false);
+                }}
+                className="w-full px-3 py-2 text-white text-left hover:bg-slate-700 text-xs"
+              >
+                {product.name}
+                {product.sku && (
+                  <span className="text-xs text-slate-400">
+                    {" "}({product.sku})
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-
-        </div>
-
-        {/* SEARCH */}
-        <div className="relative lg:w-72">
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search subscriptions..."
-            className="w-full px-3 py-2 pl-9 bg-slate-800/60 border border-slate-700 rounded-lg text-xs text-white"
-          />
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        </div>
-
-        {/* CLEAR */}
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="px-2.5 py-1 bg-red-500/10 border border-red-500/40 text-red-400 rounded-md text-xs"
-          >
-            Clear
-          </button>
         )}
       </div>
     </div>
+
+    {/* RIGHT SIDE */}
+    <div className="flex gap-2 w-full xl:w-auto">
+
+      {/* SEARCH */}
+      <div className="relative flex-1 xl:w-72">
+        <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search subscriptions..."
+          className="w-full h-10 px-3 pl-9 bg-slate-800/60 border border-slate-700 rounded-lg text-xs text-white"
+        />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      </div>
+
+      {/* CLEAR */}
+      {hasActiveFilters && (
+        <button
+          onClick={clearFilters}
+          className="h-10 px-3 bg-red-500/10 border border-red-500/40 text-red-400 rounded-lg text-xs hover:bg-red-500/20 transition-all"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  </div>
+</div>
 
     {/* ================= TABLE ================= */}
     <div className="bg-slate-800/30 border border-slate-700/40 rounded-xl overflow-hidden">
@@ -611,33 +619,79 @@ import { formatDate } from "../_utils/formatUtils";
             {currentData.map((subscription) => (
               <tr key={subscription.id} className="hover:bg-slate-800/40">
 
-                <td className="py-2.5 px-3">
-                  <div className="flex gap-2">
-                    <div className="w-10 h-10 bg-slate-700 rounded-md overflow-hidden flex items-center justify-center">
-                      {subscription.productImageUrl ? (
-                        <img src={getImageUrl(subscription.productImageUrl)} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.src = "/placeholder.png")}/>
-                      ) : (
-                        <ShoppingBag className="h-4 w-4 text-slate-500" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-white text-xs font-medium truncate">{subscription.productName}</p>
-                      <p className="text-[12px] text-sky-400">SKU: {subscription.productSku}</p>
-                      <p className="text-[12px] text-slate-200">Qty: {subscription.quantity}</p>
-                      {subscription.variantName && (
-                        <p className="text-[10px] text-violet-400">{subscription.variantName}</p>
-                      )}
-                    </div>
-                  </div>
-                </td>
+   <td className="py-2.5 px-3">
+  <div className="flex gap-2">
+    
+    {/* IMAGE */}
+<div
+        onClick={() =>
+          subscription.productImageUrl &&
+          setPreviewImage(subscription.productImageUrl)
+        }
+        className="w-14 h-14 bg-slate-700 rounded-md overflow-hidden flex items-center justify-center flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-violet-500/50 transition-all"
+      >
+        {subscription.productImageUrl ? (
+          <img
+            src={getImageUrl(subscription.productImageUrl)}
+            alt="Product"
+            className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
+            onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+          />
+        ) : (
+          <ShoppingBag className="h-4 w-4 text-slate-500" />
+        )}
+      </div>
 
-                <td className="py-2.5 px-3 text-sm">
-                  <p className="text-white">{subscription.shippingFullName}</p>
-                  <p className="text-[12px] text-slate-500">
-                    {subscription.shippingCity}, {subscription.shippingState}
-                  </p>
-                </td>
+    {/* INFO */}
+    <div className="min-w-0">
+      <p className="text-white text-xs font-medium truncate">
+        {subscription.productName}
+      </p>
 
+      {/* SKU + Qty Inline */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <p className="text-[12px] text-sky-400 truncate">
+          SKU: {subscription.productSku}
+        </p>
+
+        <span className="px-1.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-semibold leading-none">
+          Qty {subscription.quantity}
+        </span>
+      </div>
+
+      {/* Variant */}
+      {subscription.variantName && (
+        <p className="text-[10px] text-violet-400 truncate">
+          {subscription.variantName}
+        </p>
+      )}
+    </div>
+
+  </div>
+</td>
+
+            <td className="py-2.5 px-3">
+  <div className="space-y-0.5 min-w-0">
+
+    {/* Customer Name */}
+    <p className="text-sm font-medium text-white truncate">
+      {subscription.shippingFullName}
+    </p>
+
+    {/* City / State */}
+    <p className="text-[12px] text-slate-400 truncate">
+      {subscription.shippingCity}, {subscription.shippingState}
+    </p>
+
+    {/* Full Address */}
+    {subscription.shippingFullAddress && (
+      <p className="text-[11px] text-slate-500 leading-snug line-clamp-2 max-w-[240px]">
+        {subscription.shippingFullAddress}
+      </p>
+    )}
+
+  </div>
+</td>
                 <td className="py-2.5 px-3 text-center text-white text-xs">
                   {subscription.frequencyDisplay}
                 </td>
@@ -1085,6 +1139,11 @@ import { formatDate } from "../_utils/formatUtils";
               </div>
             </div>
           )}
+            {/* Preview Modal */}
+      <ImagePreviewModal
+        imageUrl={previewImage}
+        onClose={() => setPreviewImage(null)}
+      />
         </div>
     
     );

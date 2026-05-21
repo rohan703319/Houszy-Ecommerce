@@ -142,8 +142,9 @@ const fetchProducts = async () => {
     const isSearchMode = debouncedSearch.length >= 3;
 
     const params: any = {
-      // ✅ DEFAULT (ALWAYS APPLY)
+      // ✅ ALWAYS APPLY
       productType: "Simple",
+      isPublished: true,
 
       // ✅ OPTIONAL FILTERS
       brandId: selectedBrand !== "all" ? selectedBrand : undefined,

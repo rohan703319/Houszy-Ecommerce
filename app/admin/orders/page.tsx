@@ -40,6 +40,10 @@ import {
   XCircle,
   Upload,
   BellRing,
+  Trash2,
+  Loader2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   orderService,
@@ -65,19 +69,10 @@ import {
   CancellationDecisionModal,
 } from './CancellationRequestManager';
 
-import BulkShipmentUploadModal from './BulkShipmentUploadModal';
-import ImportWooCommerceOrdersModal from './ImportWooCommerceOrdersModal';
-
-import { formatNumber, getOrderProductImage } from '../_utils/formatUtils';
+import { formatNumber, getImageUrl, getOrderProductImage } from '../_utils/formatUtils';
 import { useDebounce } from '../_hooks/useDebounce';
 import ImagePreviewModal from '../_components/ImagePreviewModal';
-
-const card = `
-bg-slate-900/40 border rounded-lg p-2
-hover:shadow-lg transition-all text-left
-`;
-
-
+import { scrollCls } from '../_utils/styles';
 
 // ✅ Get Available Actions based on Order Status (matching backend rules)
 const getAvailableActions = (order: Order) => {
@@ -173,7 +168,7 @@ const allSameStatus =
 
 const selectedStatus = selectedOrderObjects[0]?.status;
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false); 
+
   const [actionMenuOrder, setActionMenuOrder] = useState<string | null>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -192,8 +187,16 @@ const [cancellationDecisionState, setCancellationDecisionState] = useState<{
 const [cancellationAdminNotes, setCancellationAdminNotes] = useState("");
 const [cancellationActionLoading, setCancellationActionLoading] = useState(false);
 
-const [shipmentModalOpen, setShipmentModalOpen] = useState(false);
-const [importWooCommerceModalOpen, setImportWooCommerceModalOpen] = useState(false);
+
+
+
+// Hard-delete confirmation modal state. Only the order id + number are needed; admin must
+// type the number back into the input to enable the destructive button.
+const [hardDeleteTarget, setHardDeleteTarget] = useState<Order | null>(null);
+const [hardDeleteTyped, setHardDeleteTyped] = useState("");
+const [hardDeleteLoading, setHardDeleteLoading] = useState(false);
+const [hardDeleteError, setHardDeleteError] = useState("");
+const [hardDeleteCopied, setHardDeleteCopied] = useState(false);
   // ✅ Order Actions Modal
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -485,107 +488,6 @@ const handleBulkExport = () => {
   setSelectedOrders([]);
 };
 
-  // Export functionality
-const handleExport = async (exportAll: boolean = false) => {
-  try {
-    let ordersToExport: Order[] = [];
-
-    if (exportAll) {
-      setLoading(true);
-      const response = await orderService.getAllOrders({
-        page: 1,
-        pageSize: 10000,
-      });
-      ordersToExport = response?.data?.items || [];
-      setLoading(false);
-    } else {
-      ordersToExport = orders;
-    }
-
-    if (ordersToExport.length === 0) {
-      toast.warning("No orders to export");
-      return;
-    }
-
-const data = ordersToExport.map((order) => ({
-  // 🔹 BASIC
-  "Order Number": order.orderNumber,
-  "Order Date": formatDate(order.orderDate),
-  "Status": order.status,
-
-  // 🔹 CUSTOMER
-  "Customer Name": order.customerName,
-  "Email": order.customerEmail,
-  "Phone": order.customerPhone,
-  "Guest Order": order.isGuestOrder ? "Yes" : "No",
-
-  // 🔹 AMOUNTS
-  "Subtotal": order.subtotalAmount,
-  "Tax": order.taxAmount,
-  "Shipping": order.shippingAmount,
-  "Discount": order.discountAmount,
-  "Total Amount": order.totalAmount,
-  "Currency": order.currency,
-
-  // 🔹 DELIVERY
-  "Delivery Method": order.deliveryMethod,
-  "Shipping Method": order.shippingMethodName,
-
-  // 🔹 PAYMENT (FULL)
-  "Payment Method": order.paymentMethod,
-  "Payment Status": order.paymentStatus,
-  "Transaction Id": order.payments?.[0]?.transactionId || "",
-  "Paid Amount": order.totalPaidAmount,
-
-  // 🔹 ADDRESS (FULL)
-  "Billing Address": `${order.billingAddress?.firstName} ${order.billingAddress?.lastName}, ${order.billingAddress?.addressLine1}, ${order.billingAddress?.city}, ${order.billingAddress?.state}, ${order.billingAddress?.country}, ${order.billingAddress?.postalCode}`,
-
-  "Shipping Address": `${order.shippingAddress?.firstName} ${order.shippingAddress?.lastName}, ${order.shippingAddress?.addressLine1}, ${order.shippingAddress?.city}, ${order.shippingAddress?.state}, ${order.shippingAddress?.country}, ${order.shippingAddress?.postalCode}`,
-
-  // 🔥 MOST IMPORTANT → ITEMS (FULL DETAILS)
-  "Products": order.orderItems
-    ?.map(
-      (item) =>
-        `${item.productName} | SKU: ${item.productSku} | Qty: ${item.quantity} | Price: ${item.unitPrice}`
-    )
-    .join("\n"),
-
-  // 🔹 SHIPMENTS
-  "Tracking Numbers": order.shipments
-    ?.map((s) => s.trackingNumber)
-    .join(", "),
-
-  "Carriers": order.shipments
-    ?.map((s) => s.carrier)
-    .join(", "),
-
-  // 🔹 EXTRA
-  "Notes": order.notes || "",
-}));
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
-
-    const exportType = exportAll ? "all" : "filtered";
-
-    XLSX.writeFile(
-      workbook,
-      `orders_${exportType}_${new Date().toISOString().split("T")[0]}.xlsx`
-    );
-
-    toast.success(
-      `📥 ${ordersToExport.length} order${
-        ordersToExport.length > 1 ? "s" : ""
-      } exported successfully!`
-    );
-  } catch (error) {
-    console.error("Export error:", error);
-    toast.error("Failed to export orders");
-    setLoading(false);
-  }
-};
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -790,6 +692,46 @@ const pendingCancellationRequestMap = useMemo(() => {
     setCurrentPage(1);
   };
 
+  // Hard-delete is destructive — opens a confirmation modal that requires the admin to
+  // re-type the order number before the delete API is called. Only orders whose payment is
+  // still Pending get the delete button rendered, so this is the second guardrail.
+  const openHardDeleteModal = (order: Order) => {
+    setHardDeleteTarget(order);
+    setHardDeleteTyped("");
+    setHardDeleteError("");
+    setHardDeleteCopied(false);
+  };
+
+  const closeHardDeleteModal = () => {
+    if (hardDeleteLoading) return; // don't allow closing mid-request
+    setHardDeleteTarget(null);
+    setHardDeleteTyped("");
+    setHardDeleteError("");
+    setHardDeleteCopied(false);
+  };
+
+  const confirmHardDelete = async () => {
+    if (!hardDeleteTarget) return;
+    if (hardDeleteTyped.trim() !== hardDeleteTarget.orderNumber) {
+      setHardDeleteError("Order number doesn't match. Type it exactly as shown.");
+      return;
+    }
+    setHardDeleteLoading(true);
+    setHardDeleteError("");
+    try {
+      const res = await orderService.hardDeleteOrder(hardDeleteTarget.id, hardDeleteTarget.orderNumber);
+      setHardDeleteTarget(null);
+      setHardDeleteTyped("");
+      await fetchOrders();
+      // Use a simple alert for the success summary — matches existing patterns in this page.
+      alert(res?.message || `Order ${hardDeleteTarget.orderNumber} deleted.`);
+    } catch (err: any) {
+      setHardDeleteError(err?.message || "Failed to delete order");
+    } finally {
+      setHardDeleteLoading(false);
+    }
+  };
+
 if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -838,7 +780,7 @@ if (initialLoading) {
   </button>
 )}
 
-    <button
+    {/* <button
       onClick={() => setImportWooCommerceModalOpen(true)}
       className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 
       text-white rounded-lg hover:shadow-lg hover:shadow-cyan-500/30 
@@ -846,83 +788,9 @@ if (initialLoading) {
     >
       <FileSpreadsheet className="w-4 h-4" />
       Import WooCommerce
-    </button>
+    </button> */}
 
-    {/* Upload Shipments */}
-      <button
-      onClick={() => setShipmentModalOpen(true)}
-        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 
-        text-white rounded-lg hover:shadow-lg hover:shadow-purple-500/30 
-        transition-all flex items-center gap-2 text-sm font-medium"
-    >
-      <Upload className="w-4 h-4" />
-      Upload Shipments
-    </button>
 
-    {/* Export Dropdown */}
-    <div className="relative">
-      <button
-        onClick={() => setShowExportMenu(!showExportMenu)}
-        className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 
-        text-white rounded-lg hover:shadow-lg hover:shadow-green-500/30 
-        transition-all flex items-center gap-2 text-sm font-medium"
-      >
-        <FileSpreadsheet className="w-4 h-4" />
-        Export Data
-        <ChevronDown className="w-3 h-3" />
-      </button>
-
-      {showExportMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setShowExportMenu(false)}
-          />
-
-          <div className="absolute right-0 mt-2 w-60 bg-slate-800 
-          border border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden">
-
-            <button
-              onClick={() => {
-                handleExport(false);
-                setShowExportMenu(false);
-              }}
-              disabled={orders.length === 0}
-              className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 
-              transition-all flex items-center gap-3 disabled:opacity-50 
-              border-b border-slate-700"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-green-400" />
-              <div>
-                <p className="text-sm font-medium">Export Current Page</p>
-                <p className="text-xs text-slate-400">
-                  {orders.length} orders
-                </p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                handleExport(true);
-                setShowExportMenu(false);
-              }}
-              disabled={totalCount === 0}
-              className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 
-              transition-all flex items-center gap-3 disabled:opacity-50"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-cyan-400" />
-              <div>
-                <p className="text-sm font-medium">Export All Orders</p>
-                <p className="text-xs text-slate-400">
-                  {totalCount} total orders
-                </p>
-              </div>
-            </button>
-
-          </div>
-        </>
-      )}
-    </div>
   </div>
 
   </div>
@@ -1012,9 +880,8 @@ if (initialLoading) {
 )}
 </div>
 
-<div className="grid gap-3 md:grid-cols-5">
+<div className="grid gap-3 md:grid-cols-6">
 
-  {/* CARD */}
   {[
     {
       label1: "Total Orders",
@@ -1022,44 +889,65 @@ if (initialLoading) {
       color1: "text-violet-400",
       action1: () => handleQuickFilter(""),
 
-      label2: "Pending",
-      value2: stats?.totalPending,
-      color2: "text-cyan-400",
-      action2: () => handleQuickFilter("Pending"),
+      label2: "Total Revenue",
+      value2: `£${Number(
+        stats?.totalRevenue || 0
+      ).toFixed(2)}`,
+      color2: "text-amber-400",
+      action2: () => {},
     },
+
     {
-      label1: "Processing",
-      value1: stats?.totalProcessing,
-      color1: "text-pink-400",
-      action1: () => handleQuickFilter("Processing"),
+      label1: "Pending",
+      value1: stats?.totalPending,
+      color1: "text-cyan-400",
+      action1: () => handleQuickFilter("Pending"),
 
       label2: "Confirmed",
       value2: stats?.totalConfirmed,
       color2: "text-blue-400",
       action2: () => handleQuickFilter("Confirmed"),
     },
-    {
-      label1: "Shipped",
-      value1: stats?.totalShipped,
-      color1: "text-indigo-400",
-      action1: () => handleQuickFilter("Shipped"),
 
-      label2: "Partial",
-      value2: stats?.totalPartiallyShipped,
-      color2: "text-yellow-400",
-      action2: () => handleQuickFilter("PartiallyShipped"),
-    },
     {
-      label1: "Delivered",
-      value1: stats?.totalDelivered,
-      color1: "text-green-400",
-      action1: () => handleQuickFilter("Delivered"),
+      label1: "Processing",
+      value1: stats?.totalProcessing,
+      color1: "text-pink-400",
+      action1: () => handleQuickFilter("Processing"),
+
+      label2: "Shipped",
+      value2: stats?.totalShipped,
+      color2: "text-indigo-400",
+      action2: () => handleQuickFilter("Shipped"),
+    },
+
+    {
+      label1: "Partial",
+      value1: stats?.totalPartiallyShipped,
+      color1: "text-yellow-400",
+      action1: () =>
+        handleQuickFilter(
+          "PartiallyShipped"
+        ),
+
+      label2: "Delivered",
+      value2: stats?.totalDelivered,
+      color2: "text-green-400",
+      action2: () => handleQuickFilter("Delivered"),
+    },
+
+    {
+      label1: "Collected",
+      value1: stats?.totalCollected,
+      color1: "text-emerald-400",
+      action1: () => handleQuickFilter("Collected"),
 
       label2: "Returned",
       value2: stats?.totalReturned,
       color2: "text-orange-400",
       action2: () => handleQuickFilter("Returned"),
     },
+
     {
       label1: "Cancelled",
       value1: stats?.totalCancelled,
@@ -1068,33 +956,53 @@ if (initialLoading) {
 
       label2: "Refunded",
       value2: stats?.totalRefunded,
-      color2: "text-pink-400",
+      color2: "text-rose-400",
       action2: () => handleQuickFilter("Refunded"),
     },
   ].map((card, i) => (
     <div
       key={i}
-      className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 hover:shadow-md transition"
+      className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 hover:border-slate-500 hover:shadow-md transition"
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
 
-        {/* LEFT */}
-        <button onClick={card.action1} className="text-left group">
-          <p className="text-[12px] text-slate-400 group-hover:text-white truncate">
+        <button
+          onClick={card.action1}
+          className="text-left group"
+        >
+          <p className="text-[11px] text-slate-400 group-hover:text-white truncate">
             {card.label1}
           </p>
-          <p className={`text-sm font-semibold ${card.color1}`}>
-            {formatNumber(card.value1 ?? 0)}
+
+          <p
+            className={`text-sm font-semibold mt-0.5 ${card.color1}`}
+          >
+            {typeof card.value1 ===
+            "number"
+              ? formatNumber(
+                  card.value1
+                )
+              : card.value1}
           </p>
         </button>
 
-        {/* RIGHT */}
-        <button onClick={card.action2} className="text-right group">
-          <p className="text-[12px] text-slate-400 group-hover:text-white truncate">
+        <button
+          onClick={card.action2}
+          className="text-right group"
+        >
+          <p className="text-[11px] text-slate-400 group-hover:text-white truncate">
             {card.label2}
           </p>
-          <p className={`text-sm font-semibold ${card.color2}`}>
-            {formatNumber(card.value2 ?? 0)}
+
+          <p
+            className={`text-sm font-semibold mt-0.5 ${card.color2}`}
+          >
+            {typeof card.value2 ===
+            "number"
+              ? formatNumber(
+                  card.value2
+                )
+              : card.value2}
           </p>
         </button>
 
@@ -1104,68 +1012,6 @@ if (initialLoading) {
 
 </div>
 
-      {/* Items Per Page */}
-   <div className="bg-slate-900/50 border border-slate-800 rounded-lg px-2 py-2">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs">
-    
-    {/* LEFT SIDE */}
-    <div className="flex flex-wrap items-center gap-2">
-      
-      {/* Show Entries */}
-      <div className="flex items-center gap-2">
-        <span className="text-slate-400">Show</span>
-        <select
-          value={itemsPerPage}
-          onChange={(e) =>
-            handleItemsPerPageChange(Number(e.target.value))
-          }
-          className="px-2 py-1 bg-slate-800/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-        >
-          <option value={25}>25</option>
-          <option value={50}>50</option>
-          <option value={75}>75</option>
-          <option value={100}>100</option>
-        </select>
-        <span className="text-slate-400">entries</span>
-      </div>
-
-      {/* Showing Info */}
-      <div className="text-slate-400">
-        Showing{" "}
-        <span className="text-white font-semibold">
-          {orders.length}
-        </span>{" "}
-        of{" "}
-        <span className="text-white font-semibold">
-          {totalCount}
-        </span>
-      </div>
-
-      {/* Selected Count */}
-      {selectedOrders.length > 0 && (
-        <span className="text-blue-400 font-medium">
-          ({selectedOrders.length} selected)
-        </span>
-      )}
-    </div>
-
-    {/* RIGHT SIDE */}
-    <div className="flex items-center gap-2 text-slate-400">
-      
-      {/* Page Info */}
-      <span>
-        Page{" "}
-        <span className="text-white font-semibold">
-          {currentPage}
-        </span>{" "}
-        of{" "}
-        <span className="text-white font-semibold">
-          {totalPages}
-        </span>
-      </span>
-    </div>
-  </div>
-</div>
 {/* FILTERS */}
 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-2 space-y-3">
 
@@ -1216,7 +1062,7 @@ if (initialLoading) {
       className={`px-2 py-2 rounded-lg text-sm text-white border bg-gray-800 min-w-[100px]
         ${filters.isGuestOrder !== "" ? "border-violet-500 bg-violet-500/10" : "border-slate-700"}`}
     >
-      <option value="">User Type</option>
+      <option value="">Customer Type</option>
       <option value="false">Registered</option>
       <option value="true">Guest</option>
     </select>
@@ -1380,40 +1226,116 @@ if (initialLoading) {
             </div>
 
             {/* QUICK BUTTONS */}
-            <div className="flex gap-2 pt-2 border-t border-slate-700">
-              <button
-                onClick={() => {
-                  const today = new Date();
-                  const weekAgo = new Date(today);
-                  weekAgo.setDate(today.getDate() - 7);
-                  setFilters(prev => ({
-                    ...prev,
-                    fromDate: weekAgo.toISOString().split("T")[0],
-                    toDate: today.toISOString().split("T")[0]
-                  }));
-                  setShowDatePicker(false);
-                }}
-                className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-violet-400 rounded-lg text-xs font-medium"
-              >
-                Last 7 Days
-              </button>
-              <button
-                onClick={() => {
-                  const today = new Date();
-                  const monthAgo = new Date(today);
-                  monthAgo.setMonth(today.getMonth() - 1);
-                  setFilters(prev => ({
-                    ...prev,
-                    fromDate: monthAgo.toISOString().split("T")[0],
-                    toDate: today.toISOString().split("T")[0]
-                  }));
-                  setShowDatePicker(false);
-                }}
-                className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-xs font-medium"
-              >
-                Last 30 Days
-              </button>
-            </div>
+      <div className="grid grid-cols-5 gap-2 pt-2 border-t border-slate-700">
+
+  {/* 1 Day */}
+  <button
+    onClick={() => {
+      const today = new Date();
+
+      setFilters(prev => ({
+        ...prev,
+        fromDate: today.toISOString().split("T")[0],
+        toDate: today.toISOString().split("T")[0]
+      }));
+
+      setShowDatePicker(false);
+    }}
+    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-emerald-400 rounded-lg text-xs font-semibold"
+    title="Today"
+  >
+    1D
+  </button>
+
+  {/* 1 Week */}
+  <button
+    onClick={() => {
+      const today = new Date();
+      const date = new Date(today);
+
+      date.setDate(today.getDate() - 7);
+
+      setFilters(prev => ({
+        ...prev,
+        fromDate: date.toISOString().split("T")[0],
+        toDate: today.toISOString().split("T")[0]
+      }));
+
+      setShowDatePicker(false);
+    }}
+    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-xs font-semibold"
+    title="Last 1 Week"
+  >
+    1W
+  </button>
+
+  {/* 2 Week */}
+  <button
+    onClick={() => {
+      const today = new Date();
+      const date = new Date(today);
+
+      date.setDate(today.getDate() - 14);
+
+      setFilters(prev => ({
+        ...prev,
+        fromDate: date.toISOString().split("T")[0],
+        toDate: today.toISOString().split("T")[0]
+      }));
+
+      setShowDatePicker(false);
+    }}
+    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-violet-400 rounded-lg text-xs font-semibold"
+    title="Last 2 Weeks"
+  >
+    2W
+  </button>
+
+  {/* 3 Week */}
+  <button
+    onClick={() => {
+      const today = new Date();
+      const date = new Date(today);
+
+      date.setDate(today.getDate() - 21);
+
+      setFilters(prev => ({
+        ...prev,
+        fromDate: date.toISOString().split("T")[0],
+        toDate: today.toISOString().split("T")[0]
+      }));
+
+      setShowDatePicker(false);
+    }}
+    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-amber-400 rounded-lg text-xs font-semibold"
+    title="Last 3 Weeks"
+  >
+    3W
+  </button>
+
+  {/* 4 Week */}
+  <button
+    onClick={() => {
+      const today = new Date();
+      const date = new Date(today);
+
+      date.setDate(today.getDate() - 28);
+
+      setFilters(prev => ({
+        ...prev,
+        fromDate: date.toISOString().split("T")[0],
+        toDate: today.toISOString().split("T")[0]
+      }));
+
+      setShowDatePicker(false);
+    }}
+    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-pink-400 rounded-lg text-xs font-semibold"
+    title="Last 4 Weeks"
+  >
+    4W
+  </button>
+
+</div>
           </div>
         </>
       )}
@@ -1450,7 +1372,7 @@ if (initialLoading) {
             <p className="text-slate-400 text-sm">No orders found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto max-h-[70vh]">
+     <div className={`overflow-x-auto max-h-[70vh] ${scrollCls}`}>
 <table className="w-full">
 <thead className="sticky top-0 bg-slate-800/85 backdrop-blur-sm z-50">
 <tr className="border-b border-slate-700">
@@ -1538,16 +1460,24 @@ title="Select order"
 <td className="py-2 px-2">
   <div className="flex items-center justify-center gap-2.5">
 
-    {/* IMAGE */}
-    <img
-      src={getOrderProductImage(order.orderItems[0]?.productImageUrl)}
-      alt={order.orderItems[0]?.productName}
-      className="w-12 h-12 rounded-md object-cover border border-slate-700 flex-shrink-0 cursor-pointer hover:scale-105 transition"
-      onClick={() =>
-        setPreviewImage(order.orderItems[0]?.productImageUrl || null)
-      }
-      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-    />
+{/* IMAGE */}
+{order.orderItems?.length > 0 ? (
+  <img
+    src={getImageUrl(order.orderItems[0]?.productImageUrl)}
+    alt={order.orderItems[0]?.productName}
+    className="w-12 h-12 rounded-md object-cover border border-slate-700 flex-shrink-0 cursor-pointer hover:scale-105 transition"
+    onClick={() =>
+      setPreviewImage(order.orderItems[0]?.productImageUrl || null)
+    }
+    onError={(e) => {
+      e.currentTarget.src = "/placeholder.png";
+    }}
+  />
+) : (
+  <div className="w-12 h-12 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+    No Image
+  </div>
+)}
 
     {/* CONTENT */}
     <div className="flex flex-col min-w-0 flex-1 gap-[2px]">
@@ -1590,16 +1520,14 @@ title="Select order"
       </p>
 
       {/* MORE ITEMS */}
-      {order.orderItems.length > 1 && (
-        <button
-          onClick={() =>
-            setShowProducts(showProducts === order.id ? null : order.id)
-          }
-          className="text-[10px] text-cyan-400 hover:text-cyan-300 leading-none w-fit"
-        >
-          +{order.orderItems.length - 1} more
-        </button>
-      )}
+{order.orderItems.length > 2 && (
+  <a
+    href={`/admin/orders/${order.id}`}
+    className="text-[10px] text-cyan-400 hover:text-cyan-300 leading-none w-fit"
+  >
+    +{order.orderItems.length - 2} more
+  </a>
+)}
 
     </div>
   </div>
@@ -1644,162 +1572,231 @@ title="Select order"
   </div>
 </td>
 
-{/* AMOUNT */}
-<td
-className="py-3 px-3 text-green-400 font-semibold text-sm"
-title={`Total amount ${formatCurrency(order.totalAmount, order.currency)}`}
->
-{formatCurrency(order.totalAmount, order.currency)}
-</td>
+              {/* AMOUNT */}
+              <td
+              className="py-3 px-3 text-green-400 font-semibold text-sm"
+              title={`Total amount ${formatCurrency(order.totalAmount, order.currency)}`}
+              >
+              {formatCurrency(order.totalAmount, order.currency)}
+              </td>
 
-{/* STATUS */}
-<td className="py-3 px-3 text-center">
-<div className="flex flex-col items-center gap-1">
+              {/* STATUS */}
+              <td className="py-2 px-2 text-center">
+              <div className="flex flex-col items-center gap-1">
 
-<span
-className={`px-2 py-1 rounded-lg text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color}`}
-title={`Order status: ${statusInfo.label}`}
->
-{statusInfo.label}
-</span>
+              <span
+              className={`px-2 py-1 rounded-lg text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color}`}
+              title={`Order status: ${statusInfo.label}`}
+              >
+              {statusInfo.label}
+              </span>
 
-{order.pharmacyVerificationStatus && (
-<span
-className={`text-[10px] px-1.5 py-0.5 rounded ${
-order.pharmacyVerificationStatus === "Approved"
-? "bg-green-500/10 text-green-400"
-: order.pharmacyVerificationStatus === "Pending"
-? "bg-yellow-500/10 text-yellow-400"
-: "bg-red-500/10 text-red-400"
-}`}
-title={`Pharmacy verification: ${order.pharmacyVerificationStatus}`}
->
-{order.pharmacyVerificationStatus}
-</span>
-)}
+              {order.pharmacyVerificationStatus && (
+              <span
+              className={`text-[10px] px-1.5 py-0.5 rounded ${
+              order.pharmacyVerificationStatus === "Approved"
+              ? "bg-green-500/10 text-green-400"
+              : order.pharmacyVerificationStatus === "Pending"
+              ? "bg-yellow-500/10 text-yellow-400"
+              : "bg-red-500/10 text-red-400"
+              }`}
+              title={`Pharmacy verification: ${order.pharmacyVerificationStatus}`}
+              >
+              {order.pharmacyVerificationStatus}
+              </span>
+              )}
 
-{order.status === "CancellationRequested" && pendingCancellationRequest && (
-  <div className="mt-1">
-    <CancellationActionButtons
-      compact
-      onApprove={() => openCancellationDecision(order, "approve")}
-      onReject={() => openCancellationDecision(order, "reject")}
-    />
-  </div>
-)}
+              {order.status === "CancellationRequested" && pendingCancellationRequest && (
+              <div className="mt-1">
+                <CancellationActionButtons
+                  compact
+                  onApprove={() => openCancellationDecision(order, "approve")}
+                  onReject={() => openCancellationDecision(order, "reject")}
+                />
+              </div>
+              )}
 
-</div>
-</td>
+              </div>
+              </td>
 
-{/* PAYMENT */}
-<td className="py-3 px-3 text-center">
-<div className="flex flex-col items-center gap-1">
+                {/* PAYMENT */}
+                <td className="py-3 px-3 text-center">
+                <div className="flex flex-col items-center gap-1">
 
-<span
-className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium ${methodInfo.bgColor} ${methodInfo.color}`}
-title={`Payment method: ${methodInfo.label}`}
->
-{methodInfo.icon === "card" ? (
-<CreditCard className="h-3 w-3" />
-) : (
-<PoundSterling className="h-3 w-3" />
-)}
-{methodInfo.label}
-</span>
+                <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium ${methodInfo.bgColor} ${methodInfo.color}`}
+                title={`Payment method: ${methodInfo.label}`}
+                >
+                {methodInfo.icon === "card" ? (
+                <CreditCard className="h-3 w-3" />
+                ) : (
+                <PoundSterling className="h-3 w-3" />
+                )}
+                {methodInfo.label}
+                </span>
 
-{paymentInfo && (
-<span
-className={`text-[10px] px-1.5 py-0.5 rounded ${paymentInfo.bgColor} ${paymentInfo.color}`}
-title={`Payment status: ${paymentInfo.label}`}
->
-{paymentInfo.label}
-</span>
-)}
+                {paymentInfo && (
+                <span
+                className={`text-[10px] px-1.5 py-0.5 rounded ${paymentInfo.bgColor} ${paymentInfo.color}`}
+                title={`Payment status: ${paymentInfo.label}`}
+                >
+                {paymentInfo.label}
+                </span>
+                )}
 
-</div>
-</td>
+                </div>
+                </td>
 
-{/* ACTIONS */}
-<td className="py-3 px-3 relative">
-<div className="flex items-center justify-center gap-1.5">
+                {/* ACTIONS */}
+                <td className="py-3 px-3 relative">
+                <div className="flex items-center justify-center gap-1.5">
 
-<button
-onClick={() => router.push(`/admin/orders/${order.id}`)}
-className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20 rounded-lg transition-all"
-title="Manage order"
->
-<Edit className="h-4 w-4" />
-</button>
+                <button
+                onClick={() => router.push(`/admin/orders/${order.id}`)}
+                className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20 rounded-lg transition-all"
+                title="Manage order"
+                >
+                <Edit className="h-4 w-4" />
+                </button>
+
+                {/* Hard-delete is shown ONLY when the payment is still Pending. Mirrors the
+                    server-side rule so admins don't see a button that would always 409. */}
+                {order.paymentStatus === 'Pending' && (
+                  <button
+                    onClick={() => openHardDeleteModal(order)}
+                    className="p-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg transition-all"
+                    title="Permanently delete (only for unpaid orders)"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+
+                </div>
 
 
-</div>
-
-
-</td>
-</tr>
-);
-})}
+                </td>
+                </tr>
+                );
+                })}
 </tbody>
 </table>
           </div>
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs text-slate-400">
-              Page {currentPage} of {totalPages}
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={goToFirstPage}
-                disabled={currentPage === 1}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                <ChevronsLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              {getPageNumbers().map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-2.5 py-1.5 text-xs rounded-lg transition-all ${
-                    currentPage === page
-                      ? 'bg-violet-500 text-white font-semibold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              <button
-                onClick={goToLastPage}
-                disabled={currentPage === totalPages}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
-              >
-                <ChevronsRight className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="text-xs text-slate-400">Total: {totalCount} orders</div>
-          </div>
+
+{/* Combined Pagination + Items Per Page */}
+<div className="bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2">
+  <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 text-xs">
+
+    {/* LEFT SECTION */}
+    <div className="flex flex-wrap items-center gap-3">
+
+      {/* Show Entries */}
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400">Show</span>
+        <select
+          value={itemsPerPage}
+          onChange={(e) =>
+            handleItemsPerPageChange(Number(e.target.value))
+          }
+          className="px-2 py-1 bg-slate-800/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+        >
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+          <option value={75}>75</option>
+          <option value={100}>100</option>
+          <option value={500}>500</option>
+          <option value={1000}>1000</option>
+        </select>
+      </div>
+
+      {/* Showing Info */}
+      <div className="text-slate-400">
+        Showing{" "}
+        <span className="text-white font-semibold">
+          {orders.length}
+        </span>{" "}
+        of{" "}
+        <span className="text-white font-semibold">
+          {totalCount}
+        </span>
+      </div>
+
+      {/* Selected */}
+      {selectedOrders.length > 0 && (
+        <div className="text-blue-400 font-medium">
+          {selectedOrders.length} selected
         </div>
       )}
 
+      {/* Page Info */}
+      <div className="text-slate-400">
+        Page{" "}
+        <span className="text-white font-semibold">
+          {currentPage}
+        </span>{" "}
+        /{" "}
+        <span className="text-white font-semibold">
+          {totalPages}
+        </span>
+      </div>
+    </div>
+
+    {/* RIGHT SECTION */}
+    {totalPages > 1 && (
+      <div className="flex items-center gap-1">
+
+        <button
+          onClick={goToFirstPage}
+          disabled={currentPage === 1}
+          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition disabled:opacity-50"
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </button>
+
+        <button
+          onClick={goToPreviousPage}
+          disabled={currentPage === 1}
+          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition disabled:opacity-50"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {getPageNumbers().map((page) => (
+          <button
+            key={page}
+            onClick={() => handlePageChange(page)}
+            className={`px-2.5 py-1.5 rounded-lg transition ${
+              currentPage === page
+                ? "bg-violet-500 text-white font-semibold"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        <button
+          onClick={goToNextPage}
+          disabled={currentPage === totalPages}
+          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition disabled:opacity-50"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+
+        <button
+          onClick={goToLastPage}
+          disabled={currentPage === totalPages}
+          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition disabled:opacity-50"
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </button>
+
+      </div>
+    )}
+  </div>
+</div>
 <CancellationDecisionModal
   state={cancellationDecisionState}
   notes={cancellationAdminNotes}
@@ -1809,26 +1806,9 @@ title="Manage order"
   onConfirm={handleCancellationDecision}
 />
 
-{importWooCommerceModalOpen && (
-  <ImportWooCommerceOrdersModal
-    open={true}
-    onClose={() => setImportWooCommerceModalOpen(false)}
-    onSuccess={() => {
-      fetchOrders();
-    }}
-  />
-)}
 
-{shipmentModalOpen && (
-  <BulkShipmentUploadModal
-    isOpen={true}
-    onClose={() => setShipmentModalOpen(false)}
-    onSuccess={() => {
-      fetchOrders();
-      setShipmentModalOpen(false);
-    }}
-  />
-)}
+
+
 
 {/* ✅ Order Actions Modal */}
 {modalState.isOpen && modalState.order && (
@@ -1839,6 +1819,88 @@ title="Manage order"
     action={modalState.action}
     onSuccess={handleActionSuccess}
   />
+)}
+
+{/* Hard-delete confirmation modal — admin must type the order number to enable the button. */}
+{hardDeleteTarget && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="w-full max-w-md rounded-xl border border-red-500/40 bg-slate-900 shadow-2xl">
+      <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2.5">
+        <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-red-500/15 border border-red-500/30">
+          <Trash2 className="h-4 w-4 text-red-400" />
+        </div>
+        <div>
+          <p className="text-base font-semibold text-white">Permanently delete order</p>
+          <p className="text-xs text-slate-400">This cannot be undone.</p>
+        </div>
+      </div>
+      <div className="px-5 py-4 space-y-3">
+        <div className="text-sm text-slate-300">
+          You're about to permanently delete order
+          <span className="inline-flex items-center gap-1 mx-1">
+            <span className="font-mono font-semibold text-red-300">{hardDeleteTarget.orderNumber}</span>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(hardDeleteTarget.orderNumber);
+                  setHardDeleteCopied(true);
+                  setTimeout(() => setHardDeleteCopied(false), 1500);
+                } catch { /* clipboard API failure — silent, admin can still type manually */ }
+              }}
+              title="Copy order number"
+              className="inline-flex items-center justify-center h-5 w-5 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
+            >
+              {hardDeleteCopied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+            </button>
+          </span>
+          along with its items, payment records, invoice, and history. Stock will be restored automatically.
+        </div>
+        <div className="text-xs text-slate-400 bg-slate-800/60 border border-slate-700/60 rounded-lg p-3 space-y-1">
+          <div><span className="text-slate-500">Customer:</span> {hardDeleteTarget.customerEmail || '—'}</div>
+          <div><span className="text-slate-500">Total:</span> £{Number(hardDeleteTarget.totalAmount || 0).toFixed(2)}</div>
+          <div><span className="text-slate-500">Payment status:</span> {hardDeleteTarget.paymentStatus || 'Pending'}</div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            Type <span className="font-mono text-red-300">{hardDeleteTarget.orderNumber}</span> to confirm
+          </label>
+          <input
+            type="text"
+            value={hardDeleteTyped}
+            onChange={(e) => { setHardDeleteTyped(e.target.value); setHardDeleteError(""); }}
+            disabled={hardDeleteLoading}
+            placeholder={hardDeleteTarget.orderNumber}
+            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+            autoFocus
+          />
+          {hardDeleteError && (
+            <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5" /> {hardDeleteError}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="px-5 py-4 border-t border-slate-800 flex items-center justify-end gap-2">
+        <button
+          onClick={closeHardDeleteModal}
+          disabled={hardDeleteLoading}
+          className="px-4 py-2 text-sm rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-all disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirmHardDelete}
+          disabled={hardDeleteLoading || hardDeleteTyped.trim() !== hardDeleteTarget.orderNumber}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          {hardDeleteLoading
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> Deleting…</>
+            : <><Trash2 className="h-4 w-4" /> Delete permanently</>}
+        </button>
+      </div>
+    </div>
+  </div>
 )}
 
 {/* ✅ Bulk Status Modal */}

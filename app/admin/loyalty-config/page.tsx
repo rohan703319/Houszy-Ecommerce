@@ -8,10 +8,8 @@ import {
   Award,
   Coins,
   Gift,
-  Star,
- 
+  Star, 
   Percent,
- 
   ShoppingBag,
   Users,
   Crown,
@@ -20,8 +18,7 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
-  Edit,
- 
+  Edit, 
   RefreshCw,
   ChevronDown,
   ChevronUp,
@@ -44,8 +41,48 @@ export default function LoyaltyConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'edit' | 'create' | null>(null);
   const [showExamples, setShowExamples] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const getBackendMessage = (error: any): string | undefined => {
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (Array.isArray(error?.response?.data?.errors) ? error?.response?.data?.errors?.[0] : undefined) ||
+      error?.data?.message ||
+      error?.message
+    );
+  };
+
+  const buildDefaultConfig = (): LoyaltyConfig => ({
+    id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : '',
+    pointsPerPound: 0,
+    minimumOrderAmountForPoints: 0,
+    includeShippingInPoints: true,
+    includeTaxInPoints: true,
+    redemptionRate: 0,
+    minimumRedemptionPoints: 0,
+    maxPointsPerRedemption: 0,
+    maxRedemptionPercentOfOrder: 0,
+    roundDownRedemptionValue: true,
+    pointsExpiryMonths: 0,
+    enableExpiry: true,
+    expiryWarningDays: 0,
+    firstOrderBonusPoints: 0,
+    firstOrderBonusEnabled: true,
+    reviewBonusPoints: 0,
+    reviewBonusEnabled: true,
+    maxReviewBonusPerProduct: 0,
+    referralBonusPoints: 0,
+    referralBonusEnabled: true,
+    silverTierThreshold: 0,
+    goldTierThreshold: 0,
+    tierSystemEnabled: true,
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+    updatedBy: localStorage.getItem('userEmail') || 'admin',
+  });
 
   // VALIDATION FUNCTION
   const validateConfig = (cfg: LoyaltyConfig): boolean => {
@@ -95,7 +132,7 @@ export default function LoyaltyConfigPage() {
       }
     } catch (error: any) {
       console.error('Error fetching config:', error);
-      toast.error('Failed to load loyalty configuration');
+      toast.error(getBackendMessage(error) || 'Failed to load loyalty configuration');
     } finally {
       setLoading(false);
     }
@@ -110,8 +147,17 @@ export default function LoyaltyConfigPage() {
     if (config) {
       setEditedConfig(JSON.parse(JSON.stringify(config)));
       setErrors({});
+      setModalMode('edit');
       setIsModalOpen(true);
     }
+  };
+
+  // HANDLE CREATE
+  const handleCreate = () => {
+    setEditedConfig(buildDefaultConfig());
+    setErrors({});
+    setModalMode('create');
+    setIsModalOpen(true);
   };
 
   // HANDLE SAVE WITH VALIDATION
@@ -127,27 +173,30 @@ export default function LoyaltyConfigPage() {
       setSaving(true);
       const userEmail = localStorage.getItem('userEmail') || 'admin';
 
-      const response = await loyaltyConfigService.update({
+      const response = modalMode === 'create'
+        ? await loyaltyConfigService.create({
+            ...editedConfig,
+            updatedBy: userEmail,
+            updatedAt: new Date().toISOString(),
+          })
+        : await loyaltyConfigService.update({
         ...editedConfig,
         updatedBy: userEmail,
         updatedAt: new Date().toISOString(),
       });
 
       if (response.data?.success) {
-        toast.success('Loyalty configuration updated successfully!');
-        setConfig({
-  ...editedConfig,
-  ...(response.data.data || {})
-});
+        toast.success(response.data?.message || 'Operation successful');
+        setConfig(response.data.data || editedConfig);
         setIsModalOpen(false);
         setEditedConfig(null);
         setErrors({});
       } else {
-     toast.error(response.data?.message || 'Failed to update configuration');
+     toast.error(response.data?.message || (modalMode === 'create' ? 'Failed to create configuration' : 'Failed to update configuration'));
       }
     } catch (error: any) {
       console.error('Error updating config:', error);
-      toast.error('Failed to update configuration');
+      toast.error(getBackendMessage(error) || (modalMode === 'create' ? 'Failed to create configuration' : 'Failed to update configuration'));
     } finally {
       setSaving(false);
     }
@@ -209,13 +258,23 @@ export default function LoyaltyConfigPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleEdit}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-violet-500/50 transition-all"
-        >
-          <Edit className="h-4 w-4" />
-          Edit Configuration
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleEdit}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-violet-500/50 transition-all"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Configuration
+          </button>
+
+          <button
+            onClick={handleCreate}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-emerald-500/40 transition-all"
+          >
+            <Save className="h-4 w-4" />
+            Create Configuration
+          </button>
+        </div>
       </div>
 
       {/* STATUS CARD */}
@@ -600,7 +659,9 @@ export default function LoyaltyConfigPage() {
                     <Settings className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">Edit Loyalty Configuration</h2>
+                    <h2 className="text-xl font-bold text-white">
+                      {modalMode === 'create' ? 'Create Loyalty Configuration' : 'Edit Loyalty Configuration'}
+                    </h2>
                     <p className="text-xs text-slate-400">Configure rewards, tiers, and bonuses</p>
                   </div>
                 </div>
@@ -608,6 +669,7 @@ export default function LoyaltyConfigPage() {
                   onClick={() => {
                     setIsModalOpen(false);
                     setEditedConfig(null);
+                    setModalMode(null);
                     setErrors({});
                   }}
                   className="p-2 text-slate-400 hover:text-white hover:bg-red-500/20 border border-transparent hover:border-red-500/50 rounded-lg transition-all"
@@ -1303,6 +1365,7 @@ export default function LoyaltyConfigPage() {
                   onClick={() => {
                     setIsModalOpen(false);
                     setEditedConfig(null);
+                    setModalMode(null);
                     setErrors({});
                   }}
                   disabled={saving}
@@ -1324,15 +1387,17 @@ export default function LoyaltyConfigPage() {
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      Save Configuration
+                      {modalMode === 'create' ? 'Create Configuration' : 'Save Configuration'}
                     </>
                   )}
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -85,6 +85,13 @@ export const loyaltyConfigService = {
     apiClient.get<LoyaltyConfigApiResponse>(API_ENDPOINTS.loyaltyConfig, config),
 
   /**
+   * Create loyalty configuration
+   * POST /api/admin/loyalty-config
+   */
+  create: (data: UpdateLoyaltyConfigDto, config: any = {}) =>
+    apiClient.post<LoyaltyConfigApiResponse>(API_ENDPOINTS.loyaltyConfig, data, config),
+
+  /**
    * Update loyalty configuration
    * PUT /api/admin/loyalty-config
    */

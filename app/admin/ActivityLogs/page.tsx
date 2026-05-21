@@ -1,11 +1,10 @@
 "use client";
 import * as XLSX from "xlsx";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Select from "react-select";
 import {
   Search,
   X,
- 
   Eye,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +19,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
- 
   AlertCircle,
   Clock,
   User,
@@ -38,6 +36,8 @@ import {
 } from "lucide-react";
 
 import { useToast } from "@/app/admin/_components/CustomToast";
+import { getSelectStyles } from "@/app/admin/_utils/styles";
+import { useTheme } from "@/app/admin/_context/theme-provider";
 import {
   activityLogService,
   ActivityLog,
@@ -215,6 +215,8 @@ function ConfirmationModal({
 
 export default function ActivityLogsPage() {
   const toast = useToast();
+  const { theme } = useTheme();
+  const selectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
 
   // ✅ State Management
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -348,7 +350,7 @@ const fetchActivityLogs = useCallback(async () => {
   } finally {
     setLoading(false);
   }
-}, [currentPage, pageSize, debouncedSearchTerm, filters, sortField, sortDirection, toast]);
+}, [currentPage, pageSize, debouncedSearchTerm, filters, sortField, sortDirection]);
 
 
   useEffect(() => {
@@ -1067,94 +1069,7 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
         menuPosition="absolute"
         className="react-select-container"
         classNamePrefix="react-select"
-        styles={{
-          control: (base) => ({
-            ...base,
-            backgroundColor: filters.activityType !== "all" ? "rgba(59, 130, 246, 0.1)" : "rgba(30, 41, 59, 0.9)",
-            borderColor: filters.activityType !== "all" ? "rgb(59, 130, 246)" : "rgb(71, 85, 105)",
-            borderWidth: "1px",
-            borderRadius: "0.5rem",
-            padding: "0px 4px",
-            minHeight: "38px",
-            boxShadow: filters.activityType !== "all" ? "0 0 0 2px rgba(59, 130, 246, 0.5)" : "none",
-            cursor: "pointer",
-            "&:hover": {
-              borderColor: "rgb(139, 92, 246)",
-            },
-          }),
-          menuPortal: (base) => ({
-            ...base,
-            zIndex: 9999,
-          }),
-          menu: (base) => ({
-            ...base,
-            backgroundColor: "rgb(30, 41, 59)",
-            border: "1px solid rgb(71, 85, 105)",
-            borderRadius: "0.5rem",
-            overflow: "hidden",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
-          }),
-          menuList: (base) => ({
-            ...base,
-            padding: 0,
-            maxHeight: "300px",
-            "::-webkit-scrollbar": {
-              width: "8px",
-            },
-            "::-webkit-scrollbar-track": {
-              background: "rgb(30, 41, 59)",
-            },
-            "::-webkit-scrollbar-thumb": {
-              background: "rgb(71, 85, 105)",
-              borderRadius: "4px",
-            },
-            "::-webkit-scrollbar-thumb:hover": {
-              background: "rgb(100, 116, 139)",
-            },
-          }),
-          option: (base, state) => ({
-            ...base,
-            backgroundColor: state.isSelected
-              ? "rgb(139, 92, 246)"
-              : state.isFocused
-              ? "rgb(51, 65, 85)"
-              : "transparent",
-            color: "white",
-            cursor: "pointer",
-            fontSize: "0.75rem",
-            padding: "8px 12px",
-            "&:active": {
-              backgroundColor: "rgb(139, 92, 246)",
-            },
-          }),
-          singleValue: (base) => ({
-            ...base,
-            color: "white",
-            fontSize: "0.75rem",
-            fontWeight: "500",
-          }),
-          input: (base) => ({
-            ...base,
-            color: "white",
-            fontSize: "0.75rem",
-          }),
-          placeholder: (base) => ({
-            ...base,
-            color: "rgb(148, 163, 184)",
-            fontSize: "0.75rem",
-          }),
-          dropdownIndicator: (base) => ({
-            ...base,
-            color: "rgb(148, 163, 184)",
-            padding: "4px",
-            "&:hover": {
-              color: "white",
-            },
-          }),
-          indicatorSeparator: () => ({
-            display: "none",
-          }),
-        }}
+        styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
       />
     </div>
 
@@ -1184,94 +1099,7 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
         menuPosition="absolute"
         className="react-select-container"
         classNamePrefix="react-select"
-        styles={{
-          control: (base) => ({
-            ...base,
-            backgroundColor: filters.entityType !== "all" ? "rgba(236, 72, 153, 0.1)" : "rgba(30, 41, 59, 0.9)",
-            borderColor: filters.entityType !== "all" ? "rgb(236, 72, 153)" : "rgb(71, 85, 105)",
-            borderWidth: "1px",
-            borderRadius: "0.5rem",
-            padding: "0px 4px",
-            minHeight: "38px",
-            boxShadow: filters.entityType !== "all" ? "0 0 0 2px rgba(236, 72, 153, 0.5)" : "none",
-            cursor: "pointer",
-            "&:hover": {
-              borderColor: "rgb(139, 92, 246)",
-            },
-          }),
-          menuPortal: (base) => ({
-            ...base,
-            zIndex: 9999,
-          }),
-          menu: (base) => ({
-            ...base,
-            backgroundColor: "rgb(30, 41, 59)",
-            border: "1px solid rgb(71, 85, 105)",
-            borderRadius: "0.5rem",
-            overflow: "hidden",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
-          }),
-          menuList: (base) => ({
-            ...base,
-            padding: 0,
-            maxHeight: "300px",
-            "::-webkit-scrollbar": {
-              width: "8px",
-            },
-            "::-webkit-scrollbar-track": {
-              background: "rgb(30, 41, 59)",
-            },
-            "::-webkit-scrollbar-thumb": {
-              background: "rgb(71, 85, 105)",
-              borderRadius: "4px",
-            },
-            "::-webkit-scrollbar-thumb:hover": {
-              background: "rgb(100, 116, 139)",
-            },
-          }),
-          option: (base, state) => ({
-            ...base,
-            backgroundColor: state.isSelected
-              ? "rgb(236, 72, 153)"
-              : state.isFocused
-              ? "rgb(51, 65, 85)"
-              : "transparent",
-            color: "white",
-            cursor: "pointer",
-            fontSize: "0.75rem",
-            padding: "8px 12px",
-            "&:active": {
-              backgroundColor: "rgb(236, 72, 153)",
-            },
-          }),
-          singleValue: (base) => ({
-            ...base,
-            color: "white",
-            fontSize: "0.75rem",
-            fontWeight: "500",
-          }),
-          input: (base) => ({
-            ...base,
-            color: "white",
-            fontSize: "0.75rem",
-          }),
-          placeholder: (base) => ({
-            ...base,
-            color: "rgb(148, 163, 184)",
-            fontSize: "0.75rem",
-          }),
-          dropdownIndicator: (base) => ({
-            ...base,
-            color: "rgb(148, 163, 184)",
-            padding: "4px",
-            "&:hover": {
-              color: "white",
-            },
-          }),
-          indicatorSeparator: () => ({
-            display: "none",
-          }),
-        }}
+        styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
       />
     </div>
 
@@ -1304,94 +1132,7 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
         menuPosition="absolute"
         className="react-select-container"
         classNamePrefix="react-select"
-        styles={{
-          control: (base) => ({
-            ...base,
-            backgroundColor: filters.userName !== "all" ? "rgba(34, 211, 238, 0.1)" : "rgba(30, 41, 59, 0.9)",
-            borderColor: filters.userName !== "all" ? "rgb(34, 211, 238)" : "rgb(71, 85, 105)",
-            borderWidth: "1px",
-            borderRadius: "0.5rem",
-            padding: "0px 4px",
-            minHeight: "38px",
-            boxShadow: filters.userName !== "all" ? "0 0 0 2px rgba(34, 211, 238, 0.5)" : "none",
-            cursor: "pointer",
-            "&:hover": {
-              borderColor: "rgb(139, 92, 246)",
-            },
-          }),
-          menuPortal: (base) => ({
-            ...base,
-            zIndex: 9999,
-          }),
-          menu: (base) => ({
-            ...base,
-            backgroundColor: "rgb(30, 41, 59)",
-            border: "1px solid rgb(71, 85, 105)",
-            borderRadius: "0.5rem",
-            overflow: "hidden",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
-          }),
-          menuList: (base) => ({
-            ...base,
-            padding: 0,
-            maxHeight: "300px",
-            "::-webkit-scrollbar": {
-              width: "8px",
-            },
-            "::-webkit-scrollbar-track": {
-              background: "rgb(30, 41, 59)",
-            },
-            "::-webkit-scrollbar-thumb": {
-              background: "rgb(71, 85, 105)",
-              borderRadius: "4px",
-            },
-            "::-webkit-scrollbar-thumb:hover": {
-              background: "rgb(100, 116, 139)",
-            },
-          }),
-          option: (base, state) => ({
-            ...base,
-            backgroundColor: state.isSelected
-              ? "rgb(34, 211, 238)"
-              : state.isFocused
-              ? "rgb(51, 65, 85)"
-              : "transparent",
-            color: "white",
-            cursor: "pointer",
-            fontSize: "0.75rem",
-            padding: "8px 12px",
-            "&:active": {
-              backgroundColor: "rgb(34, 211, 238)",
-            },
-          }),
-          singleValue: (base) => ({
-            ...base,
-            color: "white",
-            fontSize: "0.75rem",
-            fontWeight: "500",
-          }),
-          input: (base) => ({
-            ...base,
-            color: "white",
-            fontSize: "0.75rem",
-          }),
-          placeholder: (base) => ({
-            ...base,
-            color: "rgb(148, 163, 184)",
-            fontSize: "0.75rem",
-          }),
-          dropdownIndicator: (base) => ({
-            ...base,
-            color: "rgb(148, 163, 184)",
-            padding: "4px",
-            "&:hover": {
-              color: "white",
-            },
-          }),
-          indicatorSeparator: () => ({
-            display: "none",
-          }),
-        }}
+        styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
       />
     </div>
 

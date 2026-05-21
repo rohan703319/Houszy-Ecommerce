@@ -1,78 +1,75 @@
 "use client";
 
 import React from "react";
-import { Truck, RotateCcw, PoundSterling, Headset } from "lucide-react";
+import Image from "next/image";
 
 const reasons = [
   {
-    icon: Truck,
-    title: "Fast & Reliable Delivery",
-    desc: "Get your order quickly with standard or next-day delivery options",
-    color: "from-[#445D41] to-[#2A3F28]",
-    shadow: "shadow-[#445D41]/30",
+    iconSrc: "/images/free-shipping.png",
+    title: "FREE SHIPPING",
+    desc: "We are happy to offer Standard Free Shipping on all our products.",
   },
   {
-    icon: RotateCcw,
-    title: "30-Day Hassle-Free Returns",
-    desc: "Shop with confidence and return within 30 days if needed.",
-    color: "from-[#445D41] to-black",
-    shadow: "shadow-[#445D41]/40",
+    iconSrc: "/images/premium-quality.png",
+    title: "PREMIUM QUALITY",
+    desc: "We are Providing premium quality products on Houszy",
   },
   {
-    icon: PoundSterling,
-    title: "Best Prices Guaranteed",
-    desc: "Competitive pricing on all health & personal care products.",
-    color: "from-[#445D41] to-[#2A3F28]",
-    shadow: "shadow-[#445D41]/30",
+    iconSrc: "/images/easy-returns.png",
+    title: "EASY RETURNS",
+    desc: "30-day returns with a hassle-free refund policy",
   },
   {
-    icon: Headset,
-    title: "Dedicated Customer Support",
-    desc: "Our team is available to assist you [Mon-Sat, 9 AM - 6 PM].",
-    color: "from-[#445D41] to-black",
-    shadow: "shadow-[#445D41]/40",
+    iconSrc: "/images/money-back.png",
+    title: "MONEY BACK GUARANTEE",
+    desc: "We are offering 30-days Money Back Guarantee",
   },
 ];
 
 export default function WhyChooseUs() {
   return (
-    <section className="pt-8 pb-12 md:pt-10 md:pb-16 bg-[#F3F4F6] border-y border-gray-200/50">
-      <div className="max-w-7xl mx-auto px-4">
+    <section className="w-full py-8 bg-white">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12">
 
-        {/* ✅ HEADING (Moved higher) */}
+        {/* Heading */}
         <div className="text-center mb-10 md:mb-14">
-          <h2 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight">
-            Why Choose <span className="text-[#445D41]">Direct Care?</span>
+          <h2 className="text-[18px] md:text-[22px] font-bold text-black -mt-[20px]">
+            Why Choose Houszy?
           </h2>
         </div>
 
-        {/* ✅ BALANCED HORIZONTAL GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {reasons.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={idx}
-                className="group relative bg-white p-5 md:p-6 rounded-2xl border border-gray-100 hover:border-white shadow-sm hover:shadow-md transition-all duration-500 overflow-hidden flex items-start gap-4"
-              >
-                {/* Icon Container - Balanced Side Aligned */}
-                <div className={`relative w-12 h-12 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center shrink-0 shadow-md ${item.shadow} transform group-hover:scale-105 transition-all duration-500`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
+        {/* Features Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
+          {reasons.map((item, idx) => (
+            <div key={idx} className="flex flex-col items-center text-center group">
 
-                {/* Content */}
-                <div className="flex-1">
-                  <h4 className="text-[15px] md:text-base font-bold text-gray-900 leading-snug group-hover:text-[#445D41] transition-colors duration-300">
-                    {item.title}
-                  </h4>
-                  <p className="text-[12px] text-gray-500 leading-relaxed mt-1.5">
-                    {item.desc}
-                  </p>
+              {/* Icon Image */}
+              <div className="w-16 h-16 md:w-18 md:h-18 relative mb-3 flex items-center justify-center">
+                {/* Fallback styling in case image doesn't exist yet */}
+                <div className="w-full h-full relative">
+                  <Image
+                    src={item.iconSrc}
+                    alt={item.title}
+                    fill
+                    className="object-contain"
+                  />
                 </div>
               </div>
-            );
-          })}
+
+              {/* Title */}
+              <h4 className="text-[13px] md:text-[15px] font-bold text-black uppercase mb-2 md:mb-3">
+                {item.title}
+              </h4>
+
+              {/* Description */}
+              <p className="text-[13px] md:text-[14px] text-gray-500 leading-relaxed max-w-[280px]">
+                {item.desc}
+              </p>
+
+            </div>
+          ))}
         </div>
+
       </div>
     </section>
   );

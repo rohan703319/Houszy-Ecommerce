@@ -26,6 +26,16 @@ export const googleMerchantService = {
       `${API_ENDPOINTS.GoogleMerchantCenter}/product/${encodeURIComponent(sku)}`
     );
   },
+
+  // ✅ NEW
+getFeedXml: async () => {
+  return apiClient.get(
+    `${API_ENDPOINTS.GoogleMerchantCenter}/feed.xml`,
+    {
+      responseType: "text",
+    }
+  );
+},
 };
 
 export type { GoogleMerchantResponse };

@@ -507,7 +507,7 @@
 //         <ProductCard
 //           key={product.id}
 //           product={product}
-//           vatRates={vatRates} cardSlug={""}        />
+  //        cardSlug={""}        />
 //       ))}
 //     </div>
 //   )}

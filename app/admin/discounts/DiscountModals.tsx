@@ -103,8 +103,12 @@ interface DiscountModalsProps {
   dateRangeFilter: { startDate: string; endDate: string };
   setDateRangeFilter: (filter: { startDate: string; endDate: string }) => void;
   handleViewUsageHistory?: (discount: Discount) => void;
-  handleUploadBannerImage?: (discountId: string, file: File, type: "desktop" | "mobile") => Promise<void>;
-  handleDeleteBannerImage?: (discountId: string, type: "desktop" | "mobile") => Promise<void>;
+desktopFile: File | null;
+mobileFile: File | null;
+setDesktopFile: (file: File | null) => void;
+setMobileFile: (file: File | null) => void;
+  handleUploadBannerImage: (discountId: string, file: File, type: "desktop" | "mobile") => Promise<void>;
+  handleDeleteBannerImage: (discountId: string, type: "desktop" | "mobile") => Promise<void>;
 }
 
 export default function DiscountModals(props: DiscountModalsProps) {
@@ -150,10 +154,11 @@ export default function DiscountModals(props: DiscountModalsProps) {
     handleViewUsageHistory,
     handleUploadBannerImage,
     handleDeleteBannerImage,
+    desktopFile,
+mobileFile,
+setDesktopFile,
+setMobileFile,
   } = props;
-
-
-  
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
@@ -161,28 +166,13 @@ export default function DiscountModals(props: DiscountModalsProps) {
   const filteredProducts = useMemo(() => {
   const seen = new Set();
 
+
   return categoryFilteredProductOptions.filter(opt => {
     if (seen.has(opt.value)) return false;
     seen.add(opt.value);
     return true;
   });
 }, [categoryFilteredProductOptions]);
-const mergedOptions = useMemo(() => {
-  const seen = new Set();
-
-  return [...products, ...selectedProducts]
-    .filter(p => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    })
-    .map(p => ({
-      value: p.id,
-      label: p.name
-    }));
-}, [products, selectedProducts]);
-
-
   useEffect(() => {
   if (editingDiscount?.assignedProductIds) {
     const ids = editingDiscount.assignedProductIds.split(",").map(id => id.trim());
@@ -206,6 +196,7 @@ const mergedOptions = useMemo(() => {
     fetchSelected();
   }
 }, [editingDiscount]);
+
 const productMap = useMemo(() => {
   const map = new Map();
 
@@ -215,133 +206,231 @@ const productMap = useMemo(() => {
 
   return map;
 }, [products, selectedProducts]);
-  const MultiValueLabel = (props: any) => {
-  const { data } = props;
 
-const product = productMap.get(data.value);
-const imageUrl = getProductImage(product?.images ?? []);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-5 h-5 rounded overflow-hidden bg-slate-700">
-        {imageUrl && (
-          <img src={imageUrl} className="w-full h-full object-cover" />
-        )}
-      </div>
-      <span className="text-white">{data.label}</span>
-    </div>
-  );
+const findCategoryById = (
+  categories: any[],
+  id: string
+): any | null => {
+  for (const category of categories) {
+
+    if (String(category.id).trim() === String(id).trim()) {
+      return category;
+    }
+
+    // 🔥 recursive children check
+    const children =
+      category.children ||
+      category.subCategories ||
+      category.subcategories ||
+      [];
+
+    if (children.length > 0) {
+      const found = findCategoryById(children, id);
+
+      if (found) return found;
+    }
+  }
+
+  return null;
 };
-const ProductOption = (props: any) => {
-  const { data, isSelected } = props;
 
-  const product = productMap.get(data.value);
-  const imageUrl = getProductImage(product?.images ?? []);
+const checkProductConflicts = React.useCallback((productIdStr: string) => {
+  const allDiscounts = (props.discounts || []) as any[];
+  const product = productMap.get(productIdStr);
+  
+  if (!product) return { hasConflict: false, uniqueConflicts: [], isAssignedToCurrentDiscount: false };
 
-  return (
-    <div
-      {...props.innerProps}
-      className="flex items-center gap-3 px-3 py-2 hover:bg-slate-700 cursor-pointer"
-    >
- {/* IMAGE */}
-  <div className="w-10 h-10 rounded-md overflow-hidden border border-slate-700 bg-slate-800 shrink-0">
-    {imageUrl ? (
-      <img src={imageUrl} className="w-full h-full object-cover" />
-    ) : (
-      <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">
-        No Img
-      </div>
-    )}
-  </div>
+  // // A. Check Backend Assigned Discounts
+  // const otherDiscounts = Array.isArray((product as any).assignedDiscounts) 
+  //   ? (product as any).assignedDiscounts.filter((d: any) => d.id !== editingDiscount?.id && d.isActive)
+  //   : [];
+  
+  // B. Check Manual Overlaps
+  const productCategoryIds = [
+    (product as any).categoryId, 
+    ...(((product as any).categories || []) as any[]).map((c: any) => c.categoryId || c.id).filter(Boolean)
+  ].map(String);
 
-  {/* LEFT SIDE (name + sku) */}
-  <div className="flex flex-col min-w-0 flex-1">
-    <span className={`text-sm font-medium truncate ${
-      isSelected ? "text-white" : "text-slate-300"
-    }`}>
-      {data.label}
-    </span>
-
-    <span className="text-[11px] text-slate-500">
-      SKU: {product?.sku ?? "N/A"}
-    </span>
-  </div>
-
-  {/* RIGHT SIDE (price + stock) 🔥 */}
-  <div className="flex flex-col items-end shrink-0">
+  const manualConflicts = allDiscounts.filter((d: any) => {
+    if (d.id === editingDiscount?.id || !d.isActive || d.isDeleted) return false;
     
-    <span className="text-xs text-cyan-400 font-semibold">
-      £{product?.price ?? "0.00"}
-    </span>
+    const now = new Date();
+    if (d.startDate && new Date(d.startDate) > now) return false;
+    if (d.endDate && new Date(d.endDate) < now) return false;
 
-    <span className={`text-[11px] font-medium ${
-      (product?.stockQuantity ?? 0) > 0
-        ? "text-green-400"
-        : "text-red-400"
-    }`}>
-      {(product?.stockQuantity ?? 0) > 0
-        ? `In Stock (${product?.stockQuantity})`
-        : "Out of Stock"}
-    </span>
+    if (d.discountType === "AssignedToProducts") {
+      return d.assignedProductIds?.split(',').map((s: string) => s.trim()).includes(productIdStr);
+    }
 
-  </div>
-    </div>
+if (d.discountType === "AssignedToCategories") {
+  const dCatIds = (d.assignedCategoryIds || '')
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+
+  if (!productCategoryIds.some(cid => dCatIds.includes(cid))) return false;
+
+  // ✅ ADD THIS LINE
+if (d.isCumulative && formData.isCumulative) return false;
+
+  const assignedIds = (d.assignedProductIds || '')
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+
+  if (assignedIds.length > 0) {
+    return assignedIds.includes(productIdStr);
+  }
+
+  return true;
+}
+    return false;
+  });
+  
+  const uniqueConflicts = [ ...manualConflicts].filter((v, i, a) => 
+    a.findIndex(t => t.id === v.id) === i
   );
-};
+  
+  const isAssignedToCurrentDiscount = !!(editingDiscount?.id && 
+    editingDiscount.assignedProductIds?.split(',').map((s: string) => s.trim()).includes(productIdStr));
+
+  return {
+    hasConflict: uniqueConflicts.length > 0,
+    uniqueConflicts,
+    isAssignedToCurrentDiscount
+  };
+}, [productMap, props.discounts, editingDiscount]);
+
+useEffect(() => {
+  if (!viewingDiscount?.assignedProductIds) return;
+
+  const ids = viewingDiscount.assignedProductIds
+    .split(",")
+    .map(id => id.trim())
+    .filter(Boolean);
+
+  const missingIds = ids.filter(id => !productMap.has(id));
+
+  if (missingIds.length === 0) return;
+
+  const fetchViewProducts = async () => {
+    try {
+      const res = await Promise.all(
+        missingIds.map(id => productsService.getById(id))
+      );
+
+      const fetched: Product[] = res
+        .map(r => r?.data?.data)
+        .filter((p): p is Product => Boolean(p));
+
+      setSelectedProducts(prev => {
+        const map = new Map(prev.map(p => [p.id, p]));
+
+        fetched.forEach(p => {
+          map.set(p.id, p);
+        });
+
+        return Array.from(map.values());
+      });
+
+    } catch (e) {
+      console.error("Failed to fetch viewing products", e);
+    }
+  };
+
+  fetchViewProducts();
+
+}, [viewingDiscount, productMap]);
+
+const mergedOptions = useMemo(() => {
+  const map = new Map();
+
+  // current filtered API products
+  products.forEach((p) => {
+    const conflicts = checkProductConflicts(p.id);
+    map.set(p.id, {
+      value: p.id,
+      label: p.name,
+     isDisabled: conflicts.hasConflict && !conflicts.isAssignedToCurrentDiscount,
+    });
+  });
+
+  // only keep selected items that user already selected
+  selectedProducts.forEach((p) => {
+    if (formData.assignedProductIds.includes(p.id)) {
+      const conflicts = checkProductConflicts(p.id);
+      map.set(p.id, {
+        value: p.id,
+        label: p.name,
+        isDisabled: conflicts.hasConflict,
+      });
+    }
+  });
+
+  return Array.from(map.values());
+}, [products, selectedProducts, formData.assignedProductIds, checkProductConflicts]);
+
+useEffect(() => {
+  const missingIds = formData.assignedProductIds.filter(
+    id => !productMap.has(id)
+  );
+
+  if (missingIds.length === 0) return;
+
+  const fetchMissing = async () => {
+    try {
+      const res = await Promise.all(
+        missingIds.map(id => productsService.getById(id))
+      );
+
+      const newProducts: Product[] = res
+        .map(r => r?.data?.data)
+        .filter((p): p is Product => Boolean(p));
+
+      setSelectedProducts(prev => {
+        const map = new Map(prev.map(p => [p.id, p]));
+        newProducts.forEach(p => map.set(p.id, p));
+        return Array.from(map.values());
+      });
+
+    } catch (e) {
+      console.error("Failed to fetch missing selected products", e);
+    }
+  };
+
+  fetchMissing();
+}, [formData.assignedProductIds, productMap]);
+// 🔥 PREVIEW (TOP OF COMPONENT)
+const desktopPreview = useMemo(() => {
+  if (!desktopFile) return null;
+  return URL.createObjectURL(desktopFile);
+}, [desktopFile]);
+
+const mobilePreview = useMemo(() => {
+  if (!mobileFile) return null;
+  return URL.createObjectURL(mobileFile);
+}, [mobileFile]);
+
+useEffect(() => {
+  return () => {
+    if (desktopPreview) URL.revokeObjectURL(desktopPreview);
+  };
+}, [desktopPreview]);
+
+useEffect(() => {
+  return () => {
+    if (mobilePreview) URL.revokeObjectURL(mobilePreview);
+  };
+}, [mobilePreview]);
 
 const stats = useMemo(() => {
-  const allDiscounts = (props.discounts || []) as any[];
-
   let conflictCount = 0;
   let availableCount = 0;
 
   filteredProducts.forEach(opt => {
-    const product = productMap.get(opt.value);
-    if (!product) return;
-
-    const productIdStr = opt.value;
-
-    const prodCatIds = [
-      (product as any).categoryId,
-      ...(((product as any).categories || []) as any[])
-        .map((c: any) => c.categoryId || c.id)
-        .filter(Boolean)
-    ].filter(Boolean);
-
-    const hasConflict =
-      allDiscounts.some((d: any) => {
-        if (d.id === editingDiscount?.id) return false;
-        if (!d.isActive || d.isDeleted) return false;
-        if (new Date(d.startDate) > new Date() || new Date(d.endDate) < new Date()) return false;
-
-        if (
-          d.discountType === "AssignedToProducts" &&
-          d.assignedProductIds?.split(',').map((s: string) => s.trim()).includes(productIdStr)
-        ) return true;
-
-        if (d.discountType === "AssignedToCategories") {
-          const dCatIds = (d.assignedCategoryIds || '')
-            .split(',')
-            .map((s: string) => s.trim())
-            .filter(Boolean);
-
-          if (!prodCatIds.some(cid => dCatIds.includes(cid))) return false;
-
-          if (d.assignedProductIds && d.assignedProductIds.trim()) {
-            return d.assignedProductIds
-              .split(',')
-              .map((s: string) => s.trim())
-              .includes(productIdStr);
-          }
-
-          return true;
-        }
-
-        return false;
-      }) ||
-      (Array.isArray((product as any).assignedDiscounts) &&
-        (product as any).assignedDiscounts.some((d: any) => d.id !== editingDiscount?.id && d.isActive));
-
-    if (hasConflict) conflictCount++;
+    const conflicts = checkProductConflicts(opt.value);
+    
+    if (conflicts.hasConflict) conflictCount++;
     else availableCount++;
   });
 
@@ -351,7 +440,7 @@ const stats = useMemo(() => {
     availableCount,
     selectedCount: formData.assignedProductIds.length
   };
-}, [filteredProducts, productMap, props.discounts, editingDiscount, formData.assignedProductIds]);
+}, [filteredProducts, checkProductConflicts, formData.assignedProductIds.length]);
 
   // ========== HELPER FUNCTIONS FOR USAGE HISTORY ==========
   const getFilteredUsageHistory = () => {
@@ -467,35 +556,55 @@ useEffect(() => {
   return (
     <>
       {/* ========== ADD/EDIT DISCOUNT MODAL ========== */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-6">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
-            {/* Header */}
-            <div className="p-2 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                    {editingDiscount ? "Edit Discount" : "Create New Discount"}
-                  </h2>
-                  <p className="text-slate-400 text-sm mt-1">
-                    {editingDiscount ? "Update discount information" : "Add a new discount to your store"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-all"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+{showModal && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-6">
+    
+    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
+      
+      {/* ================= HEADER ================= */}
+      <div className="p-4 border-b shrink-0 border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+              {editingDiscount ? "Edit Discount" : "Create New Discount"}
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">
+              {editingDiscount ? "Update discount information" : "Add a new discount to your store"}
+            </p>
+          </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-2 space-y-2 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <button
+  type="button"
+  onClick={() => {
+    setShowModal(false);
+    resetForm();
+  }}
+  className="
+    group
+    relative
+    w-10 h-10
+    flex items-center justify-center
+    rounded-xl
+    border border-slate-700/60
+    bg-slate-800/60
+    text-slate-400
+    hover:text-white
+    hover:bg-red-500/15
+    hover:border-red-500/40
+    active:scale-95
+    transition-all duration-200
+  "
+>
+  <X className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
+</button>
+        </div>
+      </div>
+
+      {/* ================= FORM ================= */}
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+
+        {/* 🔥 SCROLL AREA */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
               
               {/* SECTION 1: BASIC INFORMATION */}
               <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
@@ -553,14 +662,18 @@ useEffect(() => {
                           formData.assignedCategoryIds.length > 0 && 
                           opt.value === formData.assignedCategoryIds[0]
                         ) || null}
-                        onChange={(selectedOption) => {
-                          const categoryId = selectedOption?.value || "";
-                          setFormData({ 
-                            ...formData, 
-                            assignedCategoryIds: categoryId ? [categoryId] : [],
-                            assignedProductIds: []
-                          });
-                        }}
+                     onChange={(selectedOption) => {
+  const categoryId = selectedOption?.value || "";
+
+  setProductSearchTerm(""); // add
+  setProductBrandFilter(""); // add if needed
+
+  setFormData({
+    ...formData,
+    assignedCategoryIds: categoryId ? [categoryId] : [],
+    assignedProductIds: [],
+  });
+}}
                         placeholder="Select a category..."
                         isSearchable
                         styles={customSelectStyles}
@@ -590,81 +703,32 @@ useEffect(() => {
                         <span className="text-xs text-slate-400 ml-2">Choose which products this discount applies to</span>
                       </label>
 
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Filter by Category</label>
-                          <Select
-                            isClearable
-                            options={categoryOptions}
-                            value={categoryOptions.find(opt => opt.value === productCategoryFilter) || null}
-                            onChange={(selectedOption) => setProductCategoryFilter(selectedOption?.value || "")}
-                            placeholder="All categories..."
-                            isSearchable
-                            styles={customSelectStyles}
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Filter by Brand</label>
-                          <Select
-                          
-                            isClearable
-                            options={brandOptions}
-                            value={brandOptions.find(opt => opt.value === productBrandFilter) || null}
-                            onChange={(selectedOption) => setProductBrandFilter(selectedOption?.value || "")}
-                            placeholder="All brands..."
-                            isSearchable
-                            styles={customSelectStyles}
-                            className="react-select-container"
-                            classNamePrefix="react-select"
-                          />
-                        </div>
-                      </div>
 
-<Select
-  isMulti
-  options={mergedOptions}
-  value={mergedOptions.filter(opt =>
-    formData.assignedProductIds.includes(opt.value)
-  )}
 
-  onChange={(selectedOptions) => {
-    const ids = selectedOptions
-      ? selectedOptions.map((opt) => opt.value)
-      : [];
-    setFormData({ ...formData, assignedProductIds: ids });
-  }}
+                      {/* Select All / Clear All Controls removed from here and moved inside dropdown */}
 
-  onInputChange={(input) => {
-    setProductSearchTerm(input);
-  }}
+{/* INPUT BOX TO OPEN MODAL */}
+<div
+  onClick={() => setIsProductSelectionModalOpen(true)}
+  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-slate-400 cursor-pointer hover:border-violet-500 transition-all flex items-center justify-between"
+>
+  <span>
+    {formData.assignedProductIds.length > 0
+      ? `${formData.assignedProductIds.length} product${formData.assignedProductIds.length !== 1 ? 's' : ''} selected`
+      : 'Select products...'
+    }
+  </span>
+  <ChevronDown className="h-5 w-5" />
+</div>
 
-  inputValue={productSearchTerm}
-
-  isLoading={productsLoading} // 🔥 ADD THIS
-  loadingMessage={() => "Loading products..."} // 🔥 ADD THIS
-
-  placeholder="Search and select products..."
-  isSearchable
-  closeMenuOnSelect={false}
-  styles={customSelectStyles}
-  className="react-select-container"
-  classNamePrefix="react-select"
-
-  components={{
-    Option: ProductOption,
-    MultiValueLabel: MultiValueLabel,
-  }}
-
-  noOptionsMessage={() =>
-    productsLoading
-      ? "Loading..."
-      : productCategoryFilter || productBrandFilter
-      ? "No products match the selected filters"
-      : "No products found"
-  }
-/>
+<div className="flex items-center justify-between mt-2">
+  <p className="text-xs text-slate-400">
+    Click to view and select products
+  </p>
+  <p className="text-xs text-blue-400">
+    {mergedOptions.length} product{mergedOptions.length !== 1 ? 's' : ''} available
+  </p>
+</div>
 
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-xs text-slate-400">
@@ -686,66 +750,6 @@ useEffect(() => {
                           </button>
                         )}
                       </div>
-
-                      {/* ⚠️ CONFLICT WARNING FOR ASSIGNED-TO-PRODUCTS */}
-                      {formData.assignedProductIds.length > 0 && (() => {
-                        const allDiscounts = (props.discounts || []) as any[];
-                        const conflicted: { name: string; discountName: string; via: string }[] = [];
-
-                        formData.assignedProductIds.forEach(productId => {
-                          const product = productMap.get(productId);
-                          if (!product) return;
-                          const prodCatIds = [
-                            (product as any).categoryId,
-                            ...(((product as any).categories || []) as any[]).map((c: any) => c.categoryId || c.id).filter(Boolean)
-                          ].filter(Boolean);
-
-                          const conflicts = allDiscounts.filter((d: any) => {
-                            if (d.id === editingDiscount?.id) return false;
-                            if (!d.isActive || d.isDeleted) return false;
-                            if (new Date(d.startDate) > new Date() || new Date(d.endDate) < new Date()) return false;
-                            if (d.discountType === "AssignedToProducts" &&
-                                d.assignedProductIds?.split(',').map((s: string) => s.trim()).includes(productId)) return true;
-                            if (d.discountType === "AssignedToCategories") {
-                              const dCatIds = (d.assignedCategoryIds || '').split(',').map((s: string) => s.trim()).filter(Boolean);
-                              if (!prodCatIds.some((cid: string) => dCatIds.includes(cid))) return false;
-                              if (d.assignedProductIds && d.assignedProductIds.trim())
-                                return d.assignedProductIds.split(',').map((s: string) => s.trim()).includes(productId);
-                              return true;
-                            }
-                            return false;
-                          });
-                          const fromProduct = Array.isArray((product as any).assignedDiscounts)
-                            ? (product as any).assignedDiscounts.filter((d: any) => d.id !== editingDiscount?.id && d.isActive)
-                            : [];
-                          const all = [...conflicts, ...fromProduct].filter((v, i, a) => a.findIndex((t: any) => t.id === v.id) === i);
-
-                          if (all.length > 0) {
-                            const productName = filteredProductOptions.find((o: any) => o.value === productId)?.label || productId;
-                            const via = all[0]?.discountType === "AssignedToCategories" ? "via Category" : "Direct";
-                            conflicted.push({ name: productName, discountName: all[0]?.name || 'Unknown', via });
-                          }
-                        });
-
-                        if (conflicted.length === 0) return null;
-
-                        return (
-                          <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                            <p className="text-red-400 text-sm font-semibold flex items-center gap-2 mb-2">
-                              <AlertCircle className="h-4 w-4 shrink-0" />
-                              {conflicted.length} selected product{conflicted.length !== 1 ? 's' : ''} already {conflicted.length === 1 ? 'has' : 'have'} an active discount:
-                            </p>
-                            <div className="space-y-1 max-h-24 overflow-y-auto">
-                              {conflicted.map((item, i) => (
-                                <div key={i} className="flex items-center justify-between text-xs gap-2">
-                                  <span className="text-slate-300 truncate">{item.name.length > 35 ? item.name.slice(0, 35) + '...' : item.name}</span>
-                                  <span className="text-red-400 font-medium shrink-0">"{item.discountName}" <span className="text-slate-500">({item.via})</span></span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
                   )}
 
@@ -978,21 +982,21 @@ useEffect(() => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {formData.usePercentage ? (
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Discount Percentage *</label>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Discount Percentage <span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          
-                          value={formData.discountPercentage}
-                          onChange={(e) => setFormData({...formData, discountPercentage: parseFloat(e.target.value) || 0})}
-                          placeholder="0.00"
-                      
+                       <input
+  type="number"
+  min="0"
+  max="100"
+  step="0.01"
+  value={formData.discountPercentage}
+  onChange={(e) => {
+    const value = Math.min(100, Math.max(0, Number(e.target.value)));
+    setFormData({ ...formData, discountPercentage: value });
+  }}
                           className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pr-12"
-                        />
+
+/>
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
                       </div>
                     </div>
@@ -1209,163 +1213,189 @@ useEffect(() => {
                 )}
               </div>
 
-              {/* BANNER IMAGES — only show when editing existing discount */}
-              {editingDiscount && (
-                <div className="bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-sm">🖼</span>
-                    <span>Banner Images</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div className="bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50">
+  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+    <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-sm">🖼</span>
+    <span>Banner Images</span>
+  </h3>
 
-                    {/* Desktop Image */}
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                        <Monitor size={16} className="text-violet-400" /> Desktop Banner
-                      </label>
-                      {formData.desktopBannerImageUrl ? (
-                        <div className="relative group rounded-xl overflow-hidden border border-slate-600">
-                          <img
-                            src={`${process.env.NEXT_PUBLIC_API_URL}${formData.desktopBannerImageUrl}`}
-                            alt="Desktop Banner"
-                            className="w-full h-32 object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                            <label className="cursor-pointer p-2 bg-violet-500 rounded-lg hover:bg-violet-600 transition-all">
-                              <Upload size={16} className="text-white" />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file && handleUploadBannerImage)
-                                    handleUploadBannerImage(editingDiscount?.id, file, "desktop");
-                                }}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBannerImage && handleDeleteBannerImage(editingDiscount.id, "desktop")}
-                              className="p-2 bg-red-500 rounded-lg hover:bg-red-600 transition-all"
-                            >
-                              <Trash2 size={16} className="text-white" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-violet-500 transition-all bg-slate-900/50">
-                          <Upload size={20} className="text-slate-400 mb-1" />
-                          <span className="text-slate-400 text-xs">Click to upload desktop image</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file && handleUploadBannerImage)
-                                handleUploadBannerImage(editingDiscount.id, file, "desktop");
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    {/* Mobile Image */}
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                        <Smartphone size={16} className="text-cyan-400" /> Mobile Banner
-                      </label>
-                      {formData.mobileBannerImageUrl ? (
-                        <div className="relative group rounded-xl overflow-hidden border border-slate-600">
-                          <img
-                            src={`${process.env.NEXT_PUBLIC_API_URL}${formData.mobileBannerImageUrl}`}
-                            alt="Mobile Banner"
-                            className="w-full h-32 object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                            <label className="cursor-pointer p-2 bg-cyan-500 rounded-lg hover:bg-cyan-600 transition-all">
-                              <Upload size={16} className="text-white" />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file && handleUploadBannerImage)
-                                    handleUploadBannerImage(editingDiscount.id, file, "mobile");
-                                }}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteBannerImage && handleDeleteBannerImage(editingDiscount.id, "mobile")}
-                              className="p-2 bg-red-500 rounded-lg hover:bg-red-600 transition-all"
-                            >
-                              <Trash2 size={16} className="text-white" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-500 transition-all bg-slate-900/50">
-                          <Upload size={20} className="text-slate-400 mb-1" />
-                          <span className="text-slate-400 text-xs">Click to upload mobile image</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file && handleUploadBannerImage)
-                                handleUploadBannerImage(editingDiscount.id, file, "mobile");
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
+{/* ================= DESKTOP ================= */}
+<div>
+  <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+    <Monitor size={16} className="text-violet-400" /> Desktop Banner
+  </label>
 
-                  </div>
-                  <p className="text-slate-500 text-xs mt-3">Hover over image to see change/delete options. Recommended: Desktop 1200×400px, Mobile 600×300px</p>
-                </div>
-              )}
+  {desktopPreview ? (
+    <div className="rounded-xl overflow-hidden border border-green-500">
+      <img
+        src={desktopPreview}
+        className="w-full h-32 object-cover"
+      />
+      <p className="text-green-400 text-xs text-center mt-1">
+        ✅ {desktopFile?.name}
+      </p>
+    </div>
+) : formData.desktopBannerImageUrl ? (
+  <div className="relative rounded-xl overflow-hidden border border-slate-600 group">
+    <img
+      src={`${process.env.NEXT_PUBLIC_API_URL}${formData.desktopBannerImageUrl}`}
+      className="w-full h-32 object-cover"
+    />
 
-              {/* SUBMIT BUTTONS */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                  className="px-6 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-gradient-to-r from-violet-500 via-purple-500 to-cyan-500 text-white rounded-xl hover:shadow-xl hover:shadow-violet-500/50 transition-all font-semibold hover:scale-105"
-                >
-                  {editingDiscount ? '✓ Update Discount' : '+ Create Discount'}
-                </button>
-              </div>
-            </form>
-          </div>
+    {/* 🔥 DELETE BUTTON */}
+    {editingDiscount && (
+      <button
+        type="button"
+        onClick={() =>
+          handleDeleteBannerImage(editingDiscount.id, "desktop")
+        }
+        className="absolute top-2 right-2 bg-red-600/90 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
+      >
+        <Trash2 size={16} />
+      </button>
+    )}
+  </div>
+) : (
+    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-violet-500 transition-all bg-slate-900/50">
+      <Upload size={20} className="text-slate-400 mb-1" />
+      <span className="text-xs text-slate-400">
+        Click to upload desktop image
+      </span>
+
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          if (editingDiscount) {
+            handleUploadBannerImage(editingDiscount.id, file, "desktop");
+          } else {
+            setDesktopFile(file);
+          }
+        }}
+      />
+    </label>
+  )}
+</div>
+
+{/* ================= MOBILE ================= */}
+<div>
+  <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+    <Smartphone size={16} className="text-cyan-400" /> Mobile Banner
+  </label>
+
+  {mobilePreview ? (
+    <div className="rounded-xl overflow-hidden border border-green-500">
+      <img
+        src={mobilePreview}
+        className="w-full h-32 object-cover"
+      />
+      <p className="text-green-400 text-xs text-center mt-1">
+        ✅ {mobileFile?.name}
+      </p>
+    </div>
+) : formData.mobileBannerImageUrl ? (
+  <div className="relative rounded-xl overflow-hidden border border-slate-600 group">
+    <img
+      src={`${process.env.NEXT_PUBLIC_API_URL}${formData.mobileBannerImageUrl}`}
+      className="w-full h-32 object-cover"
+    />
+
+    {editingDiscount && (
+      <button
+        type="button"
+        onClick={() =>
+          handleDeleteBannerImage(editingDiscount.id, "mobile")
+        }
+        className="absolute top-2 right-2 bg-red-600/90 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
+      >
+        <Trash2 size={16} />
+      </button>
+    )}
+  </div>
+) : (
+    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-500 transition-all bg-slate-900/50">
+      <Upload size={20} className="text-slate-400 mb-1" />
+      <span className="text-xs text-slate-400">
+        Click to upload mobile image
+      </span>
+
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+
+          if (editingDiscount) {
+            handleUploadBannerImage(editingDiscount.id, file, "mobile");
+          } else {
+            setMobileFile(file);
+          }
+        }}
+      />
+    </label>
+  )}
+</div>
+
+  </div>
+
+  <p className="text-slate-500 text-xs mt-3">
+    Recommended: Desktop 1200×400px, Mobile 600×300px
+  </p>
+</div>
+     
+
         </div>
-      )}
+
+        {/* ================= FOOTER (FIXED) ================= */}
+        <div className="shrink-0 bg-slate-900 border-t border-slate-700/50 px-4 py-3 flex justify-end gap-3">
+          
+          <button
+            type="button"
+            onClick={() => {
+              setShowModal(false);
+              resetForm();
+            }}
+            className="px-6 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="px-6 py-3 bg-gradient-to-r from-violet-500 via-purple-500 to-cyan-500 text-white rounded-xl hover:shadow-xl hover:shadow-violet-500/50 transition-all font-semibold"
+          >
+            {editingDiscount ? "✓ Update Discount" : "+ Create Discount"}
+          </button>
+
+        </div>
+
+      </form>
+    </div>
+  </div>
+)}
 
 
 {/* ========== PRODUCT SELECTION MODAL ========== */}
 {isProductSelectionModalOpen && (
   <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden shadow-2xl">
       
       {/* Modal Header */}
-      <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+      <div className="p-3 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-bold text-white">Select Products</h3>
-            <p className="text-slate-400 text-sm mt-1">
-              Choose products from the selected category
+            <p className="text-slate-200 text-base font-semibold">
+              {formData.discountType === "AssignedToCategories" 
+                ? "Choose products from the selected category" 
+                : "Choose products to apply discount"}
             </p>
           </div>
           <button
@@ -1380,33 +1410,168 @@ useEffect(() => {
           </button>
         </div>
 
-        {/* Search Input */}
-       <div className="mt-3 relative">
-  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <div className="mt-2 space-y-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <input
+                type="search"
+                placeholder="Search products..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all text-sm"
+              />
+              {productsLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
 
-  <input
-    type="search"
-    placeholder="Search products by name..."
-    value={productSearchTerm}
-    onChange={(e) => setProductSearchTerm(e.target.value)}
-    className="w-full pl-10 pr-10 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-  />
+            {formData.discountType === "AssignedToProducts" && (
+              <div className="flex items-center gap-2">
+                <div className="w-[260px]">
+                  <Select
+                    isClearable
+                    options={categoryOptions}
+                    value={categoryOptions.find(opt => opt.value === productCategoryFilter) || null}
+                    onChange={(selectedOption) => setProductCategoryFilter(selectedOption?.value || "")}
+                    placeholder="Category..."
+                    isSearchable
+                    styles={customSelectStyles}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                  />
+                </div>
+                <div className="w-[160px]">
+                  <Select
+                    isClearable
+                    options={brandOptions}
+                    value={brandOptions.find(opt => opt.value === productBrandFilter) || null}
+                    onChange={(selectedOption) => setProductBrandFilter(selectedOption?.value || "")}
+                    placeholder="Brand..."
+                    isSearchable
+                    styles={customSelectStyles}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                  />
+                </div>
+              </div>
+            )}
 
-  {/* 🔥 LOADER INSIDE INPUT */}
-  {productsLoading && (
-    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-      <div className="h-4 w-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  )}
-</div>
+            {(productSearchTerm || productCategoryFilter || productBrandFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setProductSearchTerm("");
+                  setProductCategoryFilter("");
+                  setProductBrandFilter("");
+                }}
+                className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+                title="Clear all filters"
+              >
+                <FilterX className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-800/40 rounded-xl border border-slate-700/50">
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const availableOptions = filteredProducts.filter(opt => {
+                      const conflicts = checkProductConflicts(opt.value);
+                      return !(conflicts.hasConflict && !conflicts.isAssignedToCurrentDiscount);
+                    });
+                    const availableIds = availableOptions.map(opt => opt.value);
+                    const isAllSelected = availableIds.length > 0 && availableIds.every((id: string) => formData.assignedProductIds.includes(id));
+
+                    if (isAllSelected) {
+                      const newIds = formData.assignedProductIds.filter((id: string) => !availableIds.includes(id));
+                      setFormData({ ...formData, assignedProductIds: newIds });
+                    } else {
+                      const newIds = Array.from(new Set([...formData.assignedProductIds, ...availableIds]));
+                      setFormData({ ...formData, assignedProductIds: newIds });
+                    }
+                  }}
+                  className={(() => {
+                    const availableIds = filteredProducts.filter(opt => {
+                      const conflicts = checkProductConflicts(opt.value);
+                      return !(conflicts.hasConflict && !conflicts.isAssignedToCurrentDiscount);
+                    }).map(opt => opt.value);
+                    const isAllSelected = availableIds.length > 0 && availableIds.every((id: string) => formData.assignedProductIds.includes(id));
+                    
+                    return `w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                      isAllSelected 
+                        ? "bg-violet-500 border-violet-500 shadow-lg shadow-violet-500/20" 
+                        : "bg-slate-900 border-slate-600 group-hover:border-violet-400"
+                    }`;
+                  })()}
+                >
+                  {(() => {
+                    const availableIds = filteredProducts.filter(opt => {
+                      const conflicts = checkProductConflicts(opt.value);
+                      return !(conflicts.hasConflict && !conflicts.isAssignedToCurrentDiscount);
+                    }).map(opt => opt.value);
+                    const isAllSelected = availableIds.length > 0 && availableIds.every((id: string) => formData.assignedProductIds.includes(id));
+                    
+                    return isAllSelected && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
+                      </svg>
+                    );
+                  })()}
+                </div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider group-hover:text-violet-400 transition-colors">Select All Available</span>
+              </label>
+
+              <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
+
+              <div className="hidden lg:flex items-center gap-5 text-[11px] font-bold uppercase tracking-widest">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Total:</span>
+                  <span className="text-slate-300">{stats.total}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Discounted:</span>
+                  <span className="text-red-400">{stats.conflictCount}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Available:</span>
+                  <span className="text-green-400">{stats.availableCount}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Selected:</span>
+                  <span className="text-violet-400">{formData.assignedProductIds.length}</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const filteredIds = filteredProducts.map(opt => opt.value);
+                const newIds = formData.assignedProductIds.filter((id: string) => !filteredIds.includes(id));
+                setFormData({ ...formData, assignedProductIds: newIds });
+              }}
+              className="text-[11px] font-bold text-red-400 hover:text-red-300 transition-all uppercase tracking-wider flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/10 rounded-lg group"
+            >
+              <Trash2 className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+              Clear All From List
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Product List */}
-      <div className="p-4 overflow-y-auto max-h-[calc(80vh-240px)]">
+      <div className="p-2.5 overflow-y-auto max-h-[calc(80vh-200px)]">
         {(() => {
   
           const allDiscounts = (props.discounts || []) as any[]; // Pass discounts array from parent
-
+          
           if (filteredProducts.length === 0) {
             return (
               <div className="text-center py-12 text-slate-400">
@@ -1425,87 +1590,32 @@ useEffect(() => {
           }
 
           return (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {filteredProducts.map((productOption) => {
-                const product = productMap.get(productOption.value);
+                // 🎯 CONFLICT CHECKING LOGIC
+                const productIdStr = productOption.value;
+                const product = productMap.get(productIdStr);
                 
-                // 🎯 CHECK 1: Is this product assigned to CURRENT discount (republic sale)?
-                const isAssignedToCurrentDiscount = editingDiscount?.id && 
-                  editingDiscount.assignedProductIds?.split(',').includes(productOption.value);
-                
-                // 🎯 CHECK 2: Find ALL OTHER discounts for this product (excluding current discount)
-                const otherDiscounts = product && 
-                  Array.isArray((product as any).assignedDiscounts) ? 
-                  (product as any).assignedDiscounts.filter((d: any) => d.id !== editingDiscount?.id) : [];
-                
-                // 🎯 CHECK 3: Check for category-level discounts from other sales
-                const productCategoryIds = product
-                  ? [product.categoryId, ...(((product as any).categories || []) as any[]).map((c: any) => c.categoryId || c.id).filter(Boolean)]
-                  : [];
-
-                const categoryDiscounts = allDiscounts.filter((d: any) => {
-                  if (d.id === editingDiscount?.id) return false;
-                  if (d.discountType !== "AssignedToCategories") return false;
-                  if (!d.isActive || d.isDeleted) return false;
-                  if (new Date(d.startDate) > new Date() || new Date(d.endDate) < new Date()) return false;
-                  const dCatIds = (d.assignedCategoryIds || '').split(',').map((s: string) => s.trim()).filter(Boolean);
-                  const categoryMatches = productCategoryIds.some(cid => dCatIds.includes(cid));
-                  if (!categoryMatches) return false;
-                  // If this category discount also restricts to specific products, only flag those products
-                  if (d.assignedProductIds && d.assignedProductIds.trim()) {
-                    return d.assignedProductIds.split(',').map((s: string) => s.trim()).includes(productOption.value);
-                  }
-                  // No specific products → applies to whole category
-                  return true;
-                });
-                
-                // 🎯 CHECK 4: Check for product-specific discounts from other sales
-                const productDiscounts = allDiscounts.filter((d: any) =>
-                  d.id !== editingDiscount?.id && // Exclude current discount
-                  d.discountType === "AssignedToProducts" &&
-                  d.assignedProductIds?.split(',').includes(productOption.value) &&
-                  d.isActive &&
-                  !d.isDeleted &&
-                  new Date(d.startDate) <= new Date() &&
-                  new Date(d.endDate) >= new Date()
-                );
-                
-                // 🎯 COMBINE ALL CONFLICTING DISCOUNTS
-                const conflictingDiscounts = [
-                  ...otherDiscounts,
-                  ...categoryDiscounts,
-                  ...productDiscounts
-                ];
-                
-                // Remove duplicates by ID
-                const uniqueConflicts = conflictingDiscounts.filter((v, i, a) => 
-                  a.findIndex(t => t.id === v.id) === i
-                );
-                
-                const hasConflict = uniqueConflicts.length > 0;
-                
-                // 🎯 Check if this product is already selected in form
-                const isSelected = formData.assignedProductIds.includes(productOption.value);
-                
-                // 🎯 Disable if product has conflicting discount AND is not already selected
-                const isDisabled = hasConflict && !isSelected;
-
-                // Get the primary conflict for display (first one)
+                const { hasConflict, uniqueConflicts, isAssignedToCurrentDiscount } = checkProductConflicts(productIdStr);
                 const primaryConflict = uniqueConflicts[0];
-
-                const isChecked = isSelected;
+                
+                const isSelected = formData.assignedProductIds.includes(productIdStr);
+           const isDisabled = hasConflict && !isAssignedToCurrentDiscount;
+          const isChecked = isSelected;
                const imageUrl = getProductImage(product?.images || []);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={productOption.value}
-                    className={`relative flex items-center gap-3 p-2 rounded-xl border transition-all ${
+                    className={`relative flex items-center gap-3 p-1.5 rounded-xl border transition-all text-left w-full focus:outline-none focus:ring-2 focus:ring-violet-500/50 ${
                       isDisabled
                         ? 'bg-slate-800/30 border-slate-700/50 cursor-not-allowed opacity-60'
                         : isSelected
                         ? 'bg-violet-500/20 border-violet-500/50 cursor-pointer'
                         : 'bg-slate-800/50 border-slate-700 hover:border-violet-500/50 cursor-pointer'
                     }`}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
                       if (!isDisabled) {
                         const newIds = isSelected
                           ? formData.assignedProductIds.filter(id => id !== productOption.value)
@@ -1515,12 +1625,11 @@ useEffect(() => {
                     }}
                   >
                     <input
-                      type="checkbox"
-                      // FIXED: Using explicit boolean value
+                      type="checkbox"                    
                       checked={isChecked}
                       disabled={isDisabled}
-                      onChange={() => {}} // Handled by div click
-                      className="w-4 h-4 rounded border-slate-600 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onChange={() => {}} // Handled by button click
+                      className="w-4 h-4 rounded border-slate-600 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none"
                       readOnly
                     />
 
@@ -1580,13 +1689,13 @@ useEffect(() => {
 </div>
 
                     {/* 🎯 CASE 1: CURRENT DISCOUNT - Show for assigned products */}
-                    {isAssignedToCurrentDiscount && (
+                    {isAssignedToCurrentDiscount && editingDiscount && (
                       <div className="flex items-center gap-2">
                         <div className="px-3 py-1.5 bg-orange-500/20 border border-orange-500/40 rounded-lg">
                           <p className="text-xs font-bold text-orange-400 flex items-center gap-1.5">
-                            <Percent className="h-3.5 w-3.5" />
+                   
                             {editingDiscount.usePercentage 
-                              ? `${editingDiscount.discountPercentage}% OFF`
+                              ? `${editingDiscount.discountPercentage} % OFF`
                               : `£${editingDiscount.discountAmount} OFF`
                             }
                           </p>
@@ -1633,7 +1742,7 @@ useEffect(() => {
                         Available
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -1642,7 +1751,7 @@ useEffect(() => {
       </div>
 
       {/* Modal Footer */}
-      <div className="p-4 border-t border-slate-700/50 bg-slate-800/30">
+      <div className="p-3 border-t border-slate-700/50 bg-slate-800/30">
         {(() => {
           const allDiscounts = (props.discounts || []) as any[];
           let conflictCount = 0;
@@ -1653,24 +1762,7 @@ useEffect(() => {
           const selectedCount = formData.assignedProductIds.length;
 
           return (
-            <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 text-xs">
-  <span className="text-slate-400">
-    Total: <b className="text-white">{stats.total}</b>
-  </span>
-
-  <span className="text-red-400">
-    Already discounted: <b>{stats.conflictCount}</b>
-  </span>
-
-  <span className="text-green-400">
-    Available: <b>{stats.availableCount}</b>
-  </span>
-
-  <span className="text-violet-400">
-    Selected: <b>{stats.selectedCount}</b>
-  </span>
-</div>
+            <div className="flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => {
@@ -1692,23 +1784,35 @@ useEffect(() => {
       {/* ========== VIEW DISCOUNT DETAILS MODAL ========== */}
       {viewingDiscount && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
             <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                    Discount Details
+                  {viewingDiscount.name}
                   </h2>
                   <p className="text-slate-300 text-xs mt-1 font-medium" title={viewingDiscount.id}>
                     View discount information
                   </p>
                 </div>
-                <button
-                  onClick={() => setViewingDiscount(null)}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-all"
-                >
-                  ✕
-                </button>
+              <button
+  onClick={() => setViewingDiscount(null)}
+  className="
+    group
+    w-10 h-10
+    flex items-center justify-center
+    rounded-xl
+    border border-slate-700/60
+    bg-slate-800/50
+    text-slate-400
+    hover:text-white
+    hover:bg-red-500/15
+    hover:border-red-500/40
+    transition-all duration-200
+  "
+>
+  <X className="w-5 h-5 group-hover:scale-110 transition-transform" />
+</button>
               </div>
             </div>
 
@@ -1717,16 +1821,6 @@ useEffect(() => {
                 
                 {/* Left Column */}
                 <div className="space-y-4">
-                  {/* Discount Name */}
-                  <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="text-sm text-slate-300 font-semibold whitespace-nowrap pt-1 flex items-center gap-2">
-                        <Gift className="w-4 h-4" />
-                        Name:
-                      </span>
-                      <p className="text-base font-bold text-white text-right flex-1">{viewingDiscount.name}</p>
-                    </div>
-                  </div>
 
                   {/* Type, Status & Limitation */}
                   <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-3">
@@ -1912,28 +2006,98 @@ useEffect(() => {
                 {/* Right Column */}
                 <div className="space-y-4">
                   {/* Valid Period */}
-                  <div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
-                    <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-violet-400" />
-                      Valid Period
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-sm text-slate-300 font-semibold">Start Date:</span>
-                        <span className="text-slate-100 text-sm font-medium">
-                     
-                           {formatDate(viewingDiscount.startDate)}
-                        </span>
-                      </div>
+             {/* Valid Period */}
+<div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
 
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-sm text-slate-300 font-semibold">End Date:</span>
-                        <span className="text-slate-100 text-sm font-medium">
-                          {formatDate(viewingDiscount.endDate)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+  {(() => {
+    const now = new Date();
+
+    const start = new Date(viewingDiscount.startDate);
+    const end = new Date(viewingDiscount.endDate);
+
+    let status = "Active";
+    let statusClasses =
+      "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+
+    let dotClasses = "bg-emerald-400";
+
+    if (now < start) {
+      status = "Scheduled";
+
+      statusClasses =
+        "bg-amber-500/15 text-amber-400 border-amber-500/30";
+
+      dotClasses = "bg-amber-400";
+    }
+
+    if (now > end) {
+      status = "Expired";
+
+      statusClasses =
+        "bg-red-500/15 text-red-400 border-red-500/30";
+
+      dotClasses = "bg-red-400";
+    }
+
+    return (
+      <>
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-4">
+
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-violet-400" />
+            Valid Period
+          </h3>
+
+          {/* STATUS */}
+          <div
+            className={`
+              inline-flex items-center gap-2
+              px-3 py-1.5
+              rounded-xl
+              border
+              text-[11px]
+              font-bold
+              tracking-wide
+              ${statusClasses}
+            `}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${dotClasses}`}
+            />
+
+            {status}
+          </div>
+        </div>
+
+        {/* DATES */}
+        <div className="space-y-3">
+
+          <div className="flex items-center justify-between py-1">
+            <span className="text-sm text-slate-300 font-semibold">
+              Start Date:
+            </span>
+
+            <span className="text-slate-100 text-sm font-medium">
+              {formatDate(viewingDiscount.startDate)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between py-1">
+            <span className="text-sm text-slate-300 font-semibold">
+              End Date:
+            </span>
+
+            <span className="text-slate-100 text-sm font-medium">
+              {formatDate(viewingDiscount.endDate)}
+            </span>
+          </div>
+
+        </div>
+      </>
+    );
+  })()}
+</div>
 
                   {/* Assignments */}
                   {(viewingDiscount.assignedProductIds || viewingDiscount.assignedCategoryIds || viewingDiscount.assignedManufacturerIds) && (
@@ -1953,82 +2117,233 @@ useEffect(() => {
                               </div>
                               <p className="text-sm text-blue-400 font-bold">Discount Applied on Products:</p>
                             </div>
-                            <div className="flex flex-wrap gap-2 pl-10">
-                              {viewingDiscount.assignedProductIds.split(',').filter(id => id.trim()).map((productId, index) => {
-                                const product = productMap.get(productId.trim());
-                                return (
-                                  <span 
-                                    key={index} 
-                                    className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-semibold border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center gap-2"
-                                  >
-                                    <Package className="h-3 w-3" />
-                                    {product ? product.name : `Product ${index + 1}`}
-                                  </span>
-                                );
-                              })}
-                            </div>
+                      <div className="flex flex-col gap-2 pl-10">
+  {viewingDiscount.assignedProductIds
+    .split(",")
+    .filter((id) => id.trim())
+    .map((productId, index) => {
+      const product = productMap.get(productId.trim());
+
+      // ✅ Same image fallback logic
+      const variantImg =
+        product?.variants?.find((v: any) => v.imageUrl)?.imageUrl || "";
+
+      const productImg =
+        product?.images?.find((img: any) => img.isMain)?.imageUrl ||
+        product?.images?.[0]?.imageUrl ||
+        "";
+
+      const imgUrl = getImageUrl(variantImg || productImg);
+
+      return (
+        <div
+          key={index}
+          className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-semibold border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center gap-2"
+        >
+          {/* Index */}
+          <span className="w-5 h-5 rounded-full bg-blue-500/20 text-[10px] flex items-center justify-center text-blue-300 font-bold flex-shrink-0">
+            {index + 1}
+          </span>
+
+          {/* Image */}
+          {imgUrl ? (
+            <img
+              src={imgUrl}
+              alt={product?.name || "Product"}
+              className="w-6 h-6 rounded object-cover flex-shrink-0 border border-blue-400/20"
+              onError={(e) =>
+                (e.currentTarget.src = "/placeholder.png")
+              }
+            />
+          ) : (
+            <div className="w-6 h-6 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
+              <Package className="h-3 w-3 text-slate-400" />
+            </div>
+          )}
+
+          {/* Name */}
+          <span className="truncate">
+            {product ? product.name : `Product ${index + 1}`}
+          </span>
+        </div>
+      );
+    })}
+</div>
                           </div>
                         )}
                         
-                        {/* FOR ASSIGNED TO CATEGORIES */}
-                        {viewingDiscount.discountType === 'AssignedToCategories' && (
-                          <>
-                            {viewingDiscount.assignedCategoryIds && (
-                              <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-                                    <Target className="h-4 w-4 text-green-400" />
-                                  </div>
-                                  <p className="text-sm text-green-400 font-bold">Category Discount Applied on:</p>
-                                </div>
-                                <div className="flex flex-wrap gap-2 pl-10">
-                                  {viewingDiscount.assignedCategoryIds.split(',').filter(id => id.trim()).map((categoryId, index) => {
-                                    const category = categories.find(c => c.id === categoryId.trim());
-                                    return (
-                                      <span 
-                                        key={index} 
-                                        className="px-3 py-2 bg-green-500/10 text-green-400 rounded-lg text-xs font-semibold border border-green-500/30 hover:bg-green-500/20 transition-all flex items-center gap-2"
-                                      >
-                                        <span className="text-base">📁</span>
-                                        {category ? category.name : `Category ${index + 1}`}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                   {/* FOR ASSIGNED TO CATEGORIES */}
+{viewingDiscount.discountType === 'AssignedToCategories' && (
+  <>
+    {viewingDiscount.assignedCategoryIds && (
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+            <Target className="h-4 w-4 text-green-400" />
+          </div>
 
-                            {viewingDiscount.assignedProductIds && (
-                              <div className="mt-4 pt-4 border-t border-slate-700/50">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                                    <Package className="h-4 w-4 text-violet-400" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-violet-400 font-bold">Additional Products from Category:</p>
-                                    <p className="text-xs text-slate-400 mt-0.5">
-                                      Specific products get extra attention within this category
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2 pl-10">
-                                  {viewingDiscount.assignedProductIds.split(',').filter(id => id.trim()).map((productId, index) => {
-                                    const product = productMap.get(productId.trim());
-                                    return (
-                                      <span 
-                                        key={index} 
-                                        className="px-3 py-2 bg-violet-500/10 text-violet-400 rounded-lg text-xs font-semibold border border-violet-500/30 hover:bg-violet-500/20 transition-all flex items-center gap-2"
-                                      >
-                                        <Package className="h-3 w-3" />
-                                        {product ? product.name : `Product ${index + 1}`}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
+          <div>
+            <p className="text-sm text-green-400 font-bold">
+              Category Discount Applied on:
+            </p>
+
+            <p className="text-xs text-slate-400 mt-0.5">
+              {viewingDiscount.assignedProductIds &&
+              viewingDiscount.assignedProductIds.trim() !== ""
+                ? "This discount applies only to selected products from this category"
+                : "This discount applies to all products inside this category"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pl-10">
+          {viewingDiscount.assignedCategoryIds
+            .split(',')
+            .filter(id => id.trim())
+            .map((categoryId, index) => {
+           const category = findCategoryById(
+  categories,
+  categoryId
+);
+
+              return (
+                <span
+                  key={index}
+                  className="
+                    px-3 py-2
+                    bg-green-500/10
+                    text-green-400
+                    rounded-lg
+                    text-xs
+                    font-semibold
+                    border border-green-500/30
+                    hover:bg-green-500/20
+                    transition-all
+                    flex items-center gap-2
+                  "
+                >
+                  <span className="text-base">📁</span>
+
+                  {category
+                    ? category.name
+                    : `Category ${index + 1}`}
+                </span>
+              );
+            })}
+        </div>
+      </div>
+    )}
+
+    {/* SPECIFIC PRODUCTS */}
+    {viewingDiscount.assignedProductIds &&
+      viewingDiscount.assignedProductIds.trim() !== "" && (
+        <div className="mt-4 pt-4 border-t border-slate-700/50">
+
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+              <Package className="h-4 w-4 text-violet-400" />
+            </div>
+
+            <div>
+              <p className="text-sm text-violet-400 font-bold">
+                Selected Products:
+              </p>
+
+              <p className="text-xs text-slate-400 mt-0.5">
+                Only these products receive the category discount
+              </p>
+            </div>
+          </div>
+
+        <div className="flex flex-wrap gap-2 pl-10">
+  {viewingDiscount.assignedProductIds
+    .split(',')
+    .filter(id => id.trim())
+    .map((productId, index) => {
+      const product = productMap.get(productId.trim());
+
+      return (
+        <div
+          key={index}
+          className="
+            flex items-center gap-2
+            px-3 py-2
+            bg-violet-500/10
+            text-violet-400
+            rounded-xl
+            text-xs
+            font-semibold
+            border border-violet-500/30
+            hover:bg-violet-500/20
+            transition-all
+
+          "
+        >
+          {/* COUNT */}
+          <div
+            className="
+              w-5 h-5
+              rounded-full
+              bg-violet-500/20
+              border border-violet-500/30
+              flex items-center justify-center
+              text-[10px]
+              font-bold
+              shrink-0
+            "
+          >
+            {index + 1}
+          </div>
+
+          {/* IMAGE */}
+          <div
+            className="
+              w-8 h-8
+              rounded-lg
+              overflow-hidden
+              bg-slate-800
+              border border-violet-500/20
+              shrink-0
+            "
+          >
+          {(() => {
+  const productImage =
+    product?.mainImageUrl ||
+    product?.images?.find((i: any) => i.isMain)?.imageUrl ||
+    product?.images?.[0]?.imageUrl ||
+    product?.variants?.find((v: any) => v.imageUrl)?.imageUrl;
+
+  return productImage ? (
+    <img
+      src={productImage}
+      alt={product?.name}
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center">
+      <Package className="h-3 w-3 text-violet-400" />
+    </div>
+  );
+})()}
+          </div>
+
+          {/* NAME */}
+          <span
+            className="truncate"
+            title={product?.name}
+          >
+            {product
+              ? product.name
+              : `Product ${index + 1}`}
+          </span>
+        </div>
+      );
+    })}
+</div>
+        </div>
+      )}
+  </>
+)}
 
                         {/* FOR ORDER TOTAL / SHIPPING */}
                         {(viewingDiscount.discountType === 'AssignedToOrderTotal' || 
@@ -2150,34 +2465,74 @@ useEffect(() => {
           <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-5xl w-full max-h-[97vh] overflow-hidden shadow-2xl">
             
             {/* Compact Header - Inline */}
-            <div className="p-3 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-base">
-                    {getDiscountTypeIcon(selectedDiscountHistory.discountType)}
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white leading-tight">
-                      {selectedDiscountHistory.name}
-                    </h2>
-                    {selectedDiscountHistory.couponCode && (
-                      <span className="text-green-400 font-mono text-xs">
-                        {selectedDiscountHistory.couponCode}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setUsageHistoryModal(false);
-                    clearDateFilters();
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-all"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+     <div className="p-3 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+  <div className="flex items-start justify-between gap-3">
+
+    {/* LEFT */}
+    <div className="flex items-start gap-3 min-w-0">
+
+      {/* ICON */}
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-lg shadow-lg shadow-violet-500/20 shrink-0">
+        {getDiscountTypeIcon(selectedDiscountHistory.discountType)}
+      </div>
+
+      {/* CONTENT */}
+      <div className="min-w-0">
+
+        {/* TITLE */}
+        <h2 className="text-lg font-bold text-white leading-tight truncate">
+          {selectedDiscountHistory.name}
+        </h2>
+
+        {/* HELPER TEXT */}
+        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+          Track discount usage activity, customer redemptions,
+          and order-level analytics for this promotion.
+        </p>
+
+        {/* COUPON */}
+        {selectedDiscountHistory.couponCode && (
+          <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/20">
+            <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold">
+              Coupon
+            </span>
+
+            <span className="text-green-300 font-mono text-xs font-semibold">
+              {selectedDiscountHistory.couponCode}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* CLOSE BUTTON */}
+    <button
+      onClick={() => {
+        setUsageHistoryModal(false);
+        clearDateFilters();
+      }}
+      className="
+        group
+        relative
+        w-10 h-10
+        flex items-center justify-center
+        rounded-xl
+        border border-slate-700/60
+        bg-slate-800/60
+        text-slate-400
+        hover:text-white
+        hover:bg-red-500/15
+        hover:border-red-500/40
+        active:scale-95
+        transition-all duration-200
+        shrink-0
+      "
+    >
+      <X className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
+    </button>
+
+  </div>
+</div>
 
             {/* ✅ COMPACT DATE FILTER - INLINE */}
             <div className="p-3 border-b border-slate-800 bg-slate-900/30">

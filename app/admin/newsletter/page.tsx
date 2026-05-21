@@ -372,12 +372,12 @@ export default function NewsletterPage() {
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-semibold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
             Newsletter Management
           </h1>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-sm text-slate-400">
             Manage subscriptions
           </p>
         </div>
@@ -517,7 +517,7 @@ export default function NewsletterPage() {
             <select
               value={itemsPerPage}
               onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className="px-2 py-1 bg-slate-800/60 border border-slate-700 rounded-md text-white text-[11px]"
+              className="px-2 py-1 bg-slate-800/90 border border-slate-700 rounded-md text-white text-[11px]"
             >
               <option value={25}>25</option>
               <option value={50}>50</option>
@@ -564,7 +564,7 @@ export default function NewsletterPage() {
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className={`p-2 text-[11px] rounded-md border bg-slate-800/60 ${
+            className={`p-2 text-[11px] rounded-md border bg-slate-800/90 ${
               activeFilter !== "all"
                 ? "border-blue-500 ring-1 ring-blue-500/40 text-white"
                 : "border-slate-700 text-slate-300"
@@ -656,17 +656,22 @@ export default function NewsletterPage() {
                         </p>
                       </div>
                     </td>
-                    <td className="py-2 px-3 text-center">
-                      <span
-                        className={`px-2 py-1 rounded-md text-[10px] font-medium ${
-                          subscription.isActive
-                            ? "bg-green-500/10 text-green-400"
-                            : "bg-red-500/10 text-red-400"
-                        }`}
-                      >
-                        {subscription.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
+{/* STATUS */}
+<td className="py-2 px-3 text-center">
+  {subscription.isActive ? (
+    <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold border bg-green-500/10 border-green-500/30 text-green-400 whitespace-nowrap">
+      Active
+    </span>
+  ) : (
+    <button
+      onClick={() => setSubscribeConfirm(subscription.email)}
+      title="Click to Activate"
+      className="px-2.5 py-1 rounded-md text-[10px] font-semibold border bg-red-500/10 border-red-500/30 text-red-400 hover:bg-green-500/10 hover:border-green-500/40 hover:text-green-400 transition-all whitespace-nowrap"
+    >
+      Inactive
+    </button>
+  )}
+</td>
                     <td className="py-2 px-3 text-[11px] text-slate-300 capitalize">
                       {subscription.source}
                     </td>
@@ -677,22 +682,17 @@ export default function NewsletterPage() {
                       {formatDate(subscription.createdAt)}
                     </td>
                     <td className="py-2 px-3 text-center">
-                      {subscription.isActive ? (
-                        <button
-                          onClick={() => setUnsubscribeConfirm(subscription.email)}
-                          className="px-2 py-1 text-[10px] bg-red-500/10 border border-red-500/40 text-red-400 rounded-md hover:bg-red-500/20 transition-colors whitespace-nowrap"
-                        >
-                          Unsubscribe
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setSubscribeConfirm(subscription.email)}
-                          className="px-2 py-1 text-[10px] bg-green-500/10 border border-green-500/40 text-green-400 rounded-md hover:bg-green-500/20 transition-colors whitespace-nowrap"
-                        >
-                          Reactivate
-                        </button>
-                      )}
-                    </td>
+  {subscription.isActive ? (
+    <button
+      onClick={() => setUnsubscribeConfirm(subscription.email)}
+      className="px-2 py-1 text-[10px] font-medium bg-red-500/10 border border-red-500/40 text-red-400 rounded-md hover:bg-red-500/20 transition-colors whitespace-nowrap"
+    >
+      Unsubscribe
+    </button>
+  ) : (
+ <span className="text-white">—</span>
+  )}
+</td>
                   </tr>
                 ))}
               </tbody>

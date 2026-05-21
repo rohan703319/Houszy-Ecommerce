@@ -31,25 +31,25 @@ export async function generateMetadata({
   }
 
   return {
-  title: post.metaTitle || post.title,
-  description:
-    post.metaDescription ||
-    post.bodyOverview ||
-    "Read the full article for more details.",
-
-  alternates: {
-    canonical: `https://www.direct-care.co.uk/blog/${post.slug}`,
-  },
-
-  openGraph: {
     title: post.metaTitle || post.title,
     description:
-      post.metaDescription || post.bodyOverview,
-    url: `https://www.direct-care.co.uk/blog/${post.slug}`,
-    type: "article",
+      post.metaDescription ||
+      post.bodyOverview ||
+      "Read the full article for more details.",
 
-    images: post.featuredImageUrl
-      ? [
+    alternates: {
+      canonical: `https://www.direct-care.co.uk/blog/${post.slug}`,
+    },
+
+    openGraph: {
+      title: post.metaTitle || post.title,
+      description:
+        post.metaDescription || post.bodyOverview,
+      url: `https://www.direct-care.co.uk/blog/${post.slug}`,
+      type: "article",
+
+      images: post.featuredImageUrl
+        ? [
           {
             url: absoluteUrl(post.featuredImageUrl),
             width: 1200,
@@ -57,14 +57,14 @@ export async function generateMetadata({
             alt: post.title,
           },
         ]
-      : [],
-  },
+        : [],
+    },
 
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
 }
 
 function absoluteUrl(path: string | null | undefined): string | null {
@@ -84,9 +84,9 @@ async function fetchJSON(url: string): Promise<any> {
 }
 
 // ⭐ FIX: params is now Promise in Next.js 15
-export default async function BlogDetailPage({ 
-  params 
-}: { 
+export default async function BlogDetailPage({
+  params
+}: {
   params: Promise<{ slug: string }> // ✅ Changed to Promise
 }) {
   const { slug } = await params;
@@ -120,7 +120,6 @@ export default async function BlogDetailPage({
 
       // ❌ Only show posts from last 7 days
       // if (postDate < sevenDaysAgo) return false;
-
       return true;
     })
     .sort(
@@ -162,50 +161,50 @@ export default async function BlogDetailPage({
     post.imageUrls.forEach((img: string) => gallery.push(absoluteUrl(img)!));
 
   return (
-  <main className="bg-white py-3 lg:h-screen lg:overflow-hidden">
-    <script
-  type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html: JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      headline: post.title,
-      description: post.metaDescription || post.bodyOverview,
-      image: absoluteUrl(post.featuredImageUrl),
-      author: {
-        "@type": "Person",
-        name: post.authorName,
-      },
-      publisher: {
-        "@type": "Organization",
-        name: "Direct Care",
-      },
-      datePublished: post.publishedAt,
-      dateModified: post.updatedAt || post.publishedAt,
-      mainEntityOfPage: {
-        "@type": "WebPage",
-        "@id": `https://www.direct-care.co.uk/blog/${post.slug}`,
-      },
-    }),
-  }}
-/>
-   <div className="max-w-full mx-4 grid grid-cols-1 lg:grid-cols-3 gap-4 px-0 md:px-12 lg:h-full">
+    <main className="bg-white py-3 lg:h-screen lg:overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: post.title,
+            description: post.metaDescription || post.bodyOverview,
+            image: absoluteUrl(post.featuredImageUrl),
+            author: {
+              "@type": "Person",
+              name: post.authorName,
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Direct Care",
+            },
+            datePublished: post.publishedAt,
+            dateModified: post.updatedAt || post.publishedAt,
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `https://www.direct-care.co.uk/blog/${post.slug}`,
+            },
+          }),
+        }}
+      />
+      <div className="max-w-full mx-4 grid grid-cols-1 lg:grid-cols-3 gap-4 px-0 md:px-12 lg:h-full">
 
         {/* LEFT ARTICLE CARD */}
-      <div className="blog-scroll-container lg:col-span-2 ml-0 mr-0 md:ml-[-20px] md:mr-[-40px] lg:ml-[-55px] lg:mr-[-119px] lg:h-full lg:overflow-y-auto pr-2">
-        <div className="bg-white shadow-lg rounded-2xl p-4 md:p-8 border min-h-full">
+        <div className="blog-scroll-container lg:col-span-2 ml-0 mr-0 md:ml-[-20px] md:mr-[-40px] lg:ml-[-55px] lg:mr-[-119px] lg:h-full lg:overflow-y-auto pr-2">
+          <div className="bg-white shadow-lg rounded-2xl p-4 md:p-8 border min-h-full">
 
             {/* Breadcrumb */}
             <nav className="hidden md:flex text-xs text-gray-500 mb-2 -mt-5 items-center gap-1">
-              <Link href="/" className="hover:underline text-blue-600">Home</Link>
+              <Link href="/" className="hover:underline text-[#445D41]">Home</Link>
               <span>/</span>
-              <Link href="/blog" className="hover:underline text-blue-600">Blog</Link>
+              <Link href="/blog" className="hover:underline text-[#445D41]">Blog</Link>
               <span>/</span>
-             {post.blogCategoryName? (
+              {post.blogCategoryName ? (
                 <>
-                  <Link 
+                  <Link
                     href={`/blog/category/${post.blogCategorySlug || post.blogCategoryName?.toLowerCase()}`}
-                    className="hover:underline text-blue-600"
+                    className="hover:underline text-[#445D41]"
                   >
                     {post.blogCategoryName}
                   </Link>
@@ -225,7 +224,7 @@ export default async function BlogDetailPage({
 
             {/* Meta */}
             <div className="mt-3 flex flex-wrap items-center gap-1 sm:gap-4 text-gray-600 text-xs md:text-sm">
-           <span>✍️ {post.authorName?.trim() || "Direct Care"}</span>
+              <span>✍️ {post.authorName?.trim() || "Direct Care"}</span>
               <span>•</span>
               <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
               <span>•</span>
@@ -260,67 +259,66 @@ export default async function BlogDetailPage({
             )}
 
             {/* Featured Image */}
-           {(post.featuredImageUrl || post.thumbnailImageUrl) && (
-  <div className="mt-2 mb-2 w-full rounded-xl overflow-hidden">
-    <img
-      src={
-        (post.featuredImageUrl || post.thumbnailImageUrl)?.startsWith("http")
-          ? (post.featuredImageUrl || post.thumbnailImageUrl)
-          : `${process.env.NEXT_PUBLIC_API_URL}${post.featuredImageUrl || post.thumbnailImageUrl}`
-      }
-      alt={post.title}
-      className="w-full h-full object-contain"
-    />
-  </div>
-)}
+            {(post.featuredImageUrl || post.thumbnailImageUrl) && (
+              <div className="mt-2 mb-2 w-full rounded-xl overflow-hidden">
+                <img
+                  src={
+                    (post.featuredImageUrl || post.thumbnailImageUrl)?.startsWith("http")
+                      ? (post.featuredImageUrl || post.thumbnailImageUrl)
+                      : `${process.env.NEXT_PUBLIC_API_URL}${post.featuredImageUrl || post.thumbnailImageUrl}`
+                  }
+                  alt={post.title}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
 
             {/* Body */}
-        <article
-  dangerouslySetInnerHTML={{
-    __html: (() => {
-      let headingIndex = 0;
+            <article
+              dangerouslySetInnerHTML={{
+                __html: (() => {
+                  let headingIndex = 0;
 
-      return post.body.replace(
-        /<(h2|h3|h4)([^>]*)>(.*?)<\/\1>/gi,
-        (
-          match: string,
-          tag: string,
-          attrs: string,
-          text: string
-        ) => {
-          const cleanText = text
-            .replace(/<[^>]+>/g, "")
-            .trim();
+                  return post.body.replace(
+                    /<(h2|h3|h4)([^>]*)>(.*?)<\/\1>/gi,
+                    (
+                      match: string,
+                      tag: string,
+                      attrs: string,
+                      text: string
+                    ) => {
+                      const cleanText = text
+                        .replace(/<[^>]+>/g, "")
+                        .trim();
 
-          const id =
-            cleanText
-              .toLowerCase()
-              .replace(/[^a-z0-9\s]/g, "")
-              .replace(/\s+/g, "-") +
-            `-${headingIndex++}`;
+                      const id =
+                        cleanText
+                          .toLowerCase()
+                          .replace(/[^a-z0-9\s]/g, "")
+                          .replace(/\s+/g, "-") +
+                        `-${headingIndex++}`;
 
-         const hasExistingId = /id=["']([^"']+)["']/.test(
-  attrs
-);
+                      const hasExistingId = /id=["']([^"']+)["']/.test(
+                        attrs
+                      );
 
-return `
+                      return `
   <${tag}
     ${attrs}
-    ${
-      hasExistingId
-        ? ""
-        : `id="${id}"`
-    }
+    ${hasExistingId
+                          ? ""
+                          : `id="${id}"`
+                        }
     class="scroll-mt-28"
   >
     ${text}
   </${tag}>
 `;
-        }
-      );
-    })(),
-  }}
-  className="
+                    }
+                  );
+                })(),
+              }}
+              className="
     prose max-w-none text-[15px] leading-7
     prose-headings:text-gray-900
     prose-h2:text-2xl
@@ -335,7 +333,7 @@ return `
     prose-p:leading-7
     prose-li:text-gray-700
   "
-/>
+            />
 
             {/* Gallery */}
             {/* {gallery.length > 0 && (
@@ -383,14 +381,14 @@ return `
         </div>
 
         {/* RIGHT SIDEBAR */}
-    <aside className="lg:col-span-1 mt-10 lg:mt-0 order-last lg:order-none ml-0 mr-0 md:ml-[10px] md:mr-[10px] lg:ml-[118px] lg:mr-[-55px] self-start">
-       <div className="w-full self-start lg:sticky lg:top-28 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto pr-2">
-{/* TABLE OF CONTENTS */}
-{post.body && (
-  <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
-    <TableOfContents content={post.body} />
-  </div>
-)}
+        <aside className="lg:col-span-1 mt-10 lg:mt-0 order-last lg:order-none ml-0 mr-0 md:ml-[10px] md:mr-[10px] lg:ml-[118px] lg:mr-[-55px] self-start">
+          <div className="w-full self-start lg:sticky lg:top-28 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto pr-2">
+            {/* TABLE OF CONTENTS */}
+            {post.body && (
+              <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
+                <TableOfContents content={post.body} />
+              </div>
+            )}
             {/* RECENT ARTICLES CARD */}
             <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
               <h3 className="text-xl font-semibold mb-5">🕗 Recent Articles</h3>

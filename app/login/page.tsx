@@ -7,7 +7,6 @@ import Link from "next/link";
 import { authService } from "@/lib/services/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -86,12 +85,34 @@ export default function LoginPage() {
         {/* Left Side - Branding */}
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12">
           <div>
-            <div className="flex items-center gap-3 mb-16">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-white">EcomPanel</span>
-            </div>
+     
+
+<div className="flex items-center gap-4 mb-14">
+  <div className="relative rounded-2xl border border-slate-700/70 bg-slate-900/70 backdrop-blur-xl px-5 py-4 shadow-2xl">
+
+    <div className="flex items-center gap-5">
+      
+      {/* Logo */}
+      <div className="bg-white rounded-xl px-3 py-2 shadow-md">
+        <img
+          src="/logo/logo.png"
+          alt="Direct Care"
+          className="h-12 w-auto object-contain"
+        />
+      </div>
+
+
+      <div className="w-px h-12 bg-slate-700" />
+      {/* Brand */}
+      <div>
+          <p className="text-xs tracking-[0.35em] uppercase text-slate-400 mt-2">
+          Admin Dashboard
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
 
             <h1 className="text-5xl font-bold text-white mb-6 leading-tight">
               Welcome to the<br />
@@ -125,7 +146,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-sm text-slate-500">
-            © 2025 EcomPanel. All rights reserved.
+            © 2026 EcomPanel. All rights reserved.
           </div>
         </div>
 

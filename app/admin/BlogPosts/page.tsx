@@ -8,7 +8,7 @@ import {
   ChevronRight, TrendingUp, BookOpen, Users, BarChart2,
   CheckCircle, Clock, X,
 } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api-config";
+
 import { BlogPost, blogPostsService, BlogCategory } from "@/lib/services/blogPosts";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
@@ -324,7 +324,7 @@ export default function BlogPostsPage() {
             <div className="divide-y divide-slate-700/30">
               {pageData.map((post) => {
                 const commentCount = getAllComments(post.comments ?? []).length;
-                const thumb = getImageUrl(post.thumbnailImageUrl);
+                const thumb = getImageUrl(post.featuredImageUrl || post.thumbnailImageUrl);
                 return (
                   <div
                     key={post.id}

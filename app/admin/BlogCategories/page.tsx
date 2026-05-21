@@ -394,56 +394,69 @@ export default function BlogCategoriesPage() {
       </div>
 
       {/* ── Stats ────────────────────────────────────────────────── */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3">
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-slate-800">
-          {/* Total */}
-          <div className="flex items-center gap-3 pr-6">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        {/* Total */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-violet-500/10 rounded-md flex items-center justify-center shrink-0">
               <FolderTree className="h-4 w-4 text-violet-400" />
             </div>
             <div>
-              <p className="text-xl font-bold text-white leading-none">{stats.totalCategories}</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Total <span className="text-violet-400/70">· {stats.totalSubCategories} sub</span>
-              </p>
+              <p className="text-[11px] text-slate-500">Total</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-lg font-semibold text-white">{stats.totalCategories}</p>
+                <span className="text-[10px] text-slate-600 font-medium">· {stats.totalSubCategories} sub</span>
+              </div>
             </div>
           </div>
-          {/* Active */}
-          <div className="flex items-center gap-3 px-6">
-            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+        </div>
+
+        {/* Active */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-green-500/10 rounded-md flex items-center justify-center shrink-0">
               <CheckCircle className="h-4 w-4 text-green-400" />
             </div>
             <div>
-              <p className="text-xl font-bold text-white leading-none">{stats.activeCategories}</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Active {inactiveCount > 0
-                  ? <span className="text-amber-400/80">· {inactiveCount} inactive</span>
-                  : <span className="text-green-400/60">· all active</span>}
-              </p>
+              <p className="text-[11px] text-slate-500">Active</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-lg font-semibold text-white">{stats.activeCategories}</p>
+                {inactiveCount > 0 && (
+                  <span className="text-[10px] text-amber-500/70 font-medium">· {inactiveCount} inactive</span>
+                )}
+              </div>
             </div>
           </div>
-          {/* Total Posts */}
-          <div className="flex items-center gap-3 px-6">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
+        </div>
+
+        {/* Total Posts */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-cyan-500/10 rounded-md flex items-center justify-center shrink-0">
               <FileText className="h-4 w-4 text-cyan-400" />
             </div>
             <div>
-              <p className="text-xl font-bold text-white leading-none">{stats.totalPosts}</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Posts <span className="text-cyan-400/70">· {stats.totalCategories > 0 ? `avg ${(stats.totalPosts / stats.totalCategories).toFixed(1)}` : "—"}</span>
-              </p>
+              <p className="text-[11px] text-slate-500">Total Posts</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-lg font-semibold text-white">{stats.totalPosts}</p>
+                <span className="text-[10px] text-cyan-500/60 font-medium">· avg {(stats.totalPosts / (stats.totalCategories || 1)).toFixed(1)}</span>
+              </div>
             </div>
           </div>
-          {/* Subcategories */}
-          <div className="flex items-center gap-3 pl-6">
-            <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center shrink-0">
+        </div>
+
+        {/* Subcategories */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-pink-500/10 rounded-md flex items-center justify-center shrink-0">
               <LayoutList className="h-4 w-4 text-pink-400" />
             </div>
             <div>
-              <p className="text-xl font-bold text-white leading-none">{stats.totalSubCategories}</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Subcategories <span className="text-pink-400/70">· {stats.totalCategories} parent{stats.totalCategories !== 1 ? "s" : ""}</span>
-              </p>
+              <p className="text-[11px] text-slate-500">Subcategories</p>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-lg font-semibold text-white">{stats.totalSubCategories}</p>
+                <span className="text-[10px] text-pink-500/60 font-medium">· {stats.totalCategories} parents</span>
+              </div>
             </div>
           </div>
         </div>
@@ -530,7 +543,7 @@ export default function BlogCategoriesPage() {
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Posts</th>
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Status</th>
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Display Order</th>
-                  <th className="text-left py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Created</th>
+                  <th className="text-left py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Created At</th>
                   <th className="text-left py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Updated By</th>
                   <th className="text-center py-2.5 px-3 text-slate-400 font-medium text-xs uppercase tracking-wide">Actions</th>
                 </tr>
@@ -615,7 +628,7 @@ export default function BlogCategoriesPage() {
                         </div>
                       </td>
 
-                      {/* Posts count */}
+                    
                     {/* Posts count */}
 <td className="py-3 px-3 text-center">
   {isInactive ? (
@@ -668,13 +681,13 @@ export default function BlogCategoriesPage() {
                       </td>
 
                       {/* Updated By */}
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3  w-[200px]">
                         {cat.updatedBy ? (
                           <div className="flex items-center gap-1.5">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isInactive ? "bg-slate-600" : "bg-gradient-to-br from-violet-500 to-cyan-500"}`}>
                               {cat.updatedBy.charAt(0).toUpperCase()}
                             </div>
-                            <span className={`text-xs truncate max-w-[100px] ${isInactive ? "text-slate-600" : "text-slate-400"}`} title={cat.updatedBy}>
+                            <span className={`text-xs  max-w-[140px] ${isInactive ? "text-slate-600" : "text-slate-400"}`} title={cat.updatedBy}>
                               {cat.updatedBy}
                             </span>
                           </div>

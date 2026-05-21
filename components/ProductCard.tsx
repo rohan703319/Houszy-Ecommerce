@@ -11,7 +11,6 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useToast } from "@/components/toast/CustomToast";
 import { getDiscountBadge, getDiscountedPrice } from "@/app/lib/discountHelpers";
 import { getOldPriceDiscount } from "@/utils/pricing";
-import { getVatRate } from "@/app/lib/vatHelpers";
 import GenderBadge from "./shared/GenderBadge";
 const FALLBACK_IMAGE = "/placeholder-product.jpg";
 import { useState, useRef } from "react";
@@ -19,12 +18,10 @@ import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { useRouter } from "next/navigation";
 export default function ProductCard({
   product,
-  vatRates,
   variantForCard = null,
   cardSlug,
 }: {
   product: any;
-  vatRates: any[];
   variantForCard?: any | null;
   cardSlug: string;
 })
@@ -105,12 +102,14 @@ const hasActiveCoupon = product.assignedDiscounts?.some((d: any) => {
   return true;
 });
 
+const hasGenderBadge = !!(
+  product.gender &&
+  ["male", "female", "unisex"].includes(product.gender.toLowerCase())
+);
+
   // ---------- VAT ----------
-  const vatRate = getVatRate(
-    vatRates,
-    product.vatRateId,
-    product.vatExempt
-  );
+  // Use vatRate directly from API response; fallback to null if not present
+  const vatRate: number | null = product.vatRate ?? null;
 
   // ---------- Stock ----------
   const stock =
@@ -283,7 +282,7 @@ if (product.orderMinimumQuantity > 1) {
 <GenderBadge gender={product.gender} />
           {/* DISCOUNT BADGE — smaller */}
          {product.displayDiscountType === "System" && discountBadge && (
-            <div className="absolute top-1 right-2 z-20">
+            <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
                 <div className="flex flex-col items-center leading-none">
                   <span className="text-[10px] md:text-xs font-extrabold">
@@ -296,7 +295,7 @@ if (product.orderMinimumQuantity > 1) {
           )}
           {/* COUPON BADGE — smaller */}
 {!discountBadge && hasActiveCoupon && (
-  <div className="absolute top-1 md:top-2 right-1 md:right-2 z-20">
+  <div className={`absolute z-20 ${hasGenderBadge ? "top-12 left-2" : "top-1 md:top-2 left-1 md:left-2"}`}>
     <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
       <div className="flex flex-col items-center text-center">
@@ -321,7 +320,7 @@ if (product.orderMinimumQuantity > 1) {
 {product.displayDiscountType === "OldPrice" &&
  !hasActiveCoupon &&
  oldPriceData && (
-  <div className="absolute top-1 right-2 z-20">
+  <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
     <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
       <div className="flex flex-col items-center leading-none">
         <span className="text-[10px] md:text-xs font-extrabold">
@@ -335,7 +334,7 @@ if (product.orderMinimumQuantity > 1) {
   </div>
 )}
           {/* VAT Relief — bottom left on image */}
-          {product.vatExempt && (
+          {(product.vatExempt || product.vatRate === 0) && (
             <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
               <BadgePercent className="h-2.5 w-2.5" />
               VAT Relief
@@ -413,12 +412,7 @@ systemDiscountAmount:
       toast.success("Product added to wishlist!");
     }
   }}
-  className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all
-    ${
-  product.displayDiscountType !== "None" || hasActiveCoupon
-    ? "top-12"
-    : "top-2"
-}
+  className={`absolute z-20 right-2 top-2 p-1.5 rounded-full shadow-sm border transition-all
     ${
       isInWishlist(defaultVariant?.id ?? product.id)
         ? "bg-red-50 border-red-200"
@@ -498,7 +492,7 @@ systemDiscountAmount:
     £{oldPriceData.oldPrice.toFixed(2)}
   </span>
 )}
-          {!product.vatExempt && vatRate !== null && (
+          {vatRate !== null && vatRate > 0 && !product.vatExempt && (
             <span className="text-[9px] md:text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap">
               {vatRate}% VAT
             </span>

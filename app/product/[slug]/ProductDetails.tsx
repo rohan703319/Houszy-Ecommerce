@@ -37,8 +37,8 @@ import { detectUKRegion } from "@/app/lib/region";
 import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
-import { useVatRates } from "@/app/hooks/useVatRates";
 import { useCartActivity } from "@/context/CartContext";
+import { trackViewItem } from "@/lib/analytics";
 // ---------- Types ----------
 interface ProductImage {
   id: string;
@@ -145,7 +145,7 @@ interface Product {
   variants?: Variant[];
   assignedDiscounts?: AssignedDiscount[];
   vatExempt?: boolean;
-  vatRateId?: string | null;
+  vatRate?: number;
   gender?: string;
   isRecurring?: boolean;
   recurringCycleLength?: number;
@@ -398,8 +398,8 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
   const shouldShowCrossNav = crossSellProducts.length > 4;
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "delivery">("description");
   const [purchaseType, setPurchaseType] = useState<"one" | "subscription">("one");
-  const vatRates = useVatRates();
-  const [vatRate, setVatRate] = useState<number | null>(null);
+  // Use vatRate directly from API response
+  const vatRate: number | null = (product as any).vatRate ?? null;
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -555,6 +555,15 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
   const [finalPrice, setFinalPrice] = useState<number>(() => product?.price ?? 0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const viewItemTrackedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const signature = `${product.id}:${selectedVariant?.id ?? "base"}`;
+    if (viewItemTrackedRef.current === signature) return;
+
+    viewItemTrackedRef.current = signature;
+    trackViewItem(product, selectedVariant);
+  }, [product, product.id, selectedVariant]);
   // 🔥 GROUP LEVEL TOGGLE (single source of truth)
   const [groupEnabled, setGroupEnabled] = useState<boolean>(() => {
     return product.automaticallyAddProducts ? true : true;
@@ -812,26 +821,6 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       updateVariantInUrl(autoMatch);
     }
   };
-  //vat dikhane ke liye
-  // useEffect(() => {
-  //   const fetchVatRates = async () => {
-  //     try {
-  //       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/VATRates?activeOnly=true`);
-  //       const json = await res.json();
-  //       setVatRates(json.data || []);
-  //     } catch (err) {
-  //       console.error("VAT fetch error:", err);
-  //     }
-  //   };
-  //   fetchVatRates();
-  // }, []);
-  //vat dikhane ke liye
-  useEffect(() => {
-    if (!product || !product.vatRateId || product.vatExempt) return;
-
-    const rateValue = vatRates.find(r => r.id === product.vatRateId)?.rate;
-    setVatRate(rateValue ?? null);
-  }, [vatRates, product]);
   // Reset state when product changes
   useEffect(() => {
     setSelectedImage(0);
@@ -890,7 +879,8 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
 
   // 🔥 OLD PRICE FALLBACK (PDP SAFE)
   const oldPriceValue =
-    selectedVariant?.oldPrice ?? product.oldPrice;
+    selectedVariant?.compareAtPrice ?? selectedVariant?.oldPrice ??
+    product.compareAtPrice ?? product.oldPrice;
 
   const currentDisplayType =
     selectedVariant?.displayDiscountType ??
@@ -2104,11 +2094,11 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               </div>
               {/* BADGES WRAP SAFELY BELOW ON MOBILE */}
               <div className="flex flex-wrap items-center gap-2 sm:ml-3">
-                {/* VAT Exempt */}
-                {product.vatExempt && (
+                {/* VAT Exempt / Relief */}
+                {(product.vatExempt || (product as any).vatRate === 0) && (
                   <div className="flex items-center gap-1 text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded text-xs font-semibold">
                     <BadgePercent className="h-3 w-3" />
-                    VAT Exempt
+                    VAT Relief
                   </div>
                 )}
                 {/* Unisex */}
@@ -2329,7 +2319,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 £{(oldPriceData.oldPrice * normalQty).toFixed(2)}
                               </span>
                             )}
-                            {vatRate !== null && (
+                            {vatRate !== null && vatRate > 0 && !product.vatExempt && (
                               <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-md font-semibold">
                                 {vatRate}% VAT
                               </span>
@@ -2459,7 +2449,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               £{(oldPriceData.oldPrice * normalQty).toFixed(2)}
                             </span>
                           )}
-                          {vatRate !== null && (
+                          {vatRate !== null && vatRate > 0 && !product.vatExempt && (
                             <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded font-semibold">
                               {vatRate}% VAT
                             </span>

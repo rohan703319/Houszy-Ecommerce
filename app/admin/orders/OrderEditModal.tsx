@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, FormEvent, useRef } from 'react';
+import { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
 import {
   X,
   Loader2,
@@ -26,6 +26,8 @@ import {
 
 } from 'lucide-react';
 import { useToast } from '@/app/admin/_components/CustomToast';
+import { getSelectStyles } from '@/app/admin/_utils/styles';
+import { useTheme } from '@/app/admin/_context/theme-provider';
 import Select from 'react-select';
 import { brandsService } from '@/lib/services/brands';
 import { categoriesService } from '@/lib/services/categories';
@@ -39,7 +41,7 @@ import {
 import { Order } from '@/lib/services/orders';
 import { addressLookupService } from '@/lib/services/AddressLookup';
 import { API_BASE_URL } from '@/lib/api';
-import { getProductImage, getThumbnailImage } from '../_utils/formatUtils';
+import { getImageUrl, getProductImage, getThumbnailImage } from '../_utils/formatUtils';
 
 // ===========================
 // INTERFACES
@@ -103,61 +105,6 @@ interface OrderEditModalProps {
   onSuccess: () => void;
 }
 
-// ===========================
-// REACT SELECT STYLES
-// ===========================
-
-const selectStyles = {
-  control: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: 'rgb(15 23 42 / 0.5)',
-    borderColor: state.isFocused ? 'rgb(139 92 246)' : 'rgb(51 65 85)',
-    borderRadius: '0.75rem',
-    padding: '0.15rem',
-    minHeight: '38px',
-    boxShadow: state.isFocused ? '0 0 0 2px rgb(139 92 246 / 0.5)' : 'none',
-    '&:hover': {
-      borderColor: 'rgb(139 92 246)',
-    },
-  }),
-  menu: (base: any) => ({
-    ...base,
-    backgroundColor: 'rgb(30 41 59)',
-    borderRadius: '0.75rem',
-    border: '1px solid rgb(51 65 85)',
-    overflow: 'hidden',
-    zIndex: 9999,
-  }),
-  option: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: state.isSelected
-      ? 'rgb(139 92 246)'
-      : state.isFocused
-      ? 'rgb(51 65 85)'
-      : 'transparent',
-    color: 'white',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    padding: '8px 12px',
-    '&:active': {
-      backgroundColor: 'rgb(139 92 246)',
-    },
-  }),
-  singleValue: (base: any) => ({
-    ...base,
-    color: 'white',
-    fontSize: '0.875rem',
-  }),
-  placeholder: (base: any) => ({
-    ...base,
-    color: 'rgb(148 163 184)',
-    fontSize: '0.875rem',
-  }),
-  input: (base: any) => ({
-    ...base,
-    color: 'white',
-  }),
-};
 
 // ✅ Add this helper function at the top of component (after imports, before component)
 const getStatusAsNumber = (status: string | number): number => {
@@ -190,6 +137,8 @@ export default function OrderEditModal({
   onSuccess,
 }: OrderEditModalProps) {
   const toast = useToast();
+  const { theme } = useTheme();
+  const selectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -1156,7 +1105,7 @@ useEffect(() => {
             <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700">
               {item.productImageUrl ? (
               <img
-  src={getThumbnailImage(item.productImageUrl)}
+  src={getImageUrl(item.productImageUrl)}
   alt={item.productName}
   className="w-full h-full object-cover"
     onError={(e) => (e.currentTarget.src = "/placeholder.png")}

@@ -4,7 +4,7 @@
 import { useState, useMemo, useTransition, useEffect, useCallback, useRef, } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
-import { getVatRate } from "@/app/lib/vatHelpers";
+
 import PremiumPriceSlider from "@/components/filters/PremiumPriceSlider";
 import Link from "next/link";
 import { ShoppingCart, Star, SlidersHorizontal, X, Search, Grid3x3, LayoutGrid, ChevronRight, ExternalLink, BadgePercent, Grid2x2, AwardIcon, Loader2, } from "lucide-react";
@@ -135,9 +135,8 @@ export default function CategoryClient({
   initialSortBy,
   initialSortDirection,
   brands,
-  vatRates, // ✅ SERVER SE AAYA
   discount, // ✅ ADD THIS
-}: CategoryClientProps & { vatRates: any[] }) {
+}: CategoryClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 useEffect(() => {
@@ -770,11 +769,7 @@ const finalQty = getInitialQty(product);
       toast.error(`Maximum allowed quantity is ${allowedMaxQty}`);
       return;
     }
-const vatRate = getVatRate(
-  vatRates,
-  (product as any).vatRateId,
-  product.vatExempt
-);
+const vatRate: number | null = (product as any).vatRate ?? null;
 
     // ============================
     // ⭐ ADD TO CART
@@ -1209,7 +1204,7 @@ if (product.orderMinimumQuantity > 1) {
   <ProductCard
     key={`${item.productData.id}-${item.variantForCard?.id ?? "parent"}`}
     product={item.productData}
-    vatRates={vatRates}
+
     variantForCard={item.variantForCard}
     cardSlug={item.cardSlug}
   />

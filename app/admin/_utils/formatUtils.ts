@@ -107,7 +107,9 @@ export const getProductImage = (images: any[]): string => {
   }
 
   // Otherwise attach base URL (for local uploads)
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
+  const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
+  const cleanPath = imageUrl.replace("~", "").replace(/^\//, "");
+  return `${baseUrl}/${cleanPath}`;
 };
 
 /**
@@ -150,9 +152,10 @@ export const generateSlug = (title: string) =>
     if (!imageUrl) return "";
     if (imageUrl.startsWith("http")) return imageUrl;
     
-    const cleanUrl = imageUrl.split('?')[0];
+    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
+    const cleanPath = imageUrl.split('?')[0].replace(/^\//, "");
     
-    return `${API_BASE_URL}/${cleanUrl}`;
+    return `${baseUrl}/${cleanPath}`;
   };
 
   export const extractFilename = (imageUrl: string) => {

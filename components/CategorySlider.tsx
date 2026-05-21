@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
+import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,7 +16,7 @@ interface Category {
   name: string;
   slug: string;
   imageUrl?: string | null;
-  
+
 }
 
 export default function CategorySlider({
@@ -55,61 +55,55 @@ export default function CategorySlider({
 
       {/* ===== SLIDER ===== */}
       <Swiper
-        modules={[Navigation, Pagination, Autoplay]}
+        modules={[Navigation, Autoplay]}
         spaceBetween={16}
         slidesPerView={2}
         breakpoints={{
           640: { slidesPerView: 2 },
           768: { slidesPerView: 3 },
-          1024: { slidesPerView: 4 },
-          1280: { slidesPerView: 5 },
+          1024: { slidesPerView: 3 },
+          1280: { slidesPerView: 4 },
         }}
         autoplay={{ delay: 2500, disableOnInteraction: false, pauseOnMouseEnter: true }}
         navigation={{
           prevEl: "#catPrev",
           nextEl: "#catNext",
         }}
-        pagination={{
-          clickable: true,
-          dynamicBullets: true,
-        }}
         loop
-        className="pb-12"
+        className="category-slider"
       >
-        {categories.map((category) => (
-          <SwiperSlide key={category.id}>
-            <Link href={`/category/${category.slug}`}>
-              <Card
-                className="w-full h-[160px] md:h-[200px] lg:h-[230px] bg-white rounded-2xl
-                           shadow-[0_4px_20px_rgba(0,0,0,0.08)]
-                           hover:shadow-[0_6px_25px_rgba(0,0,0,0.12)]
-                           transition-all duration-300
-                           flex flex-col items-center justify-between py-3 md:py-6"
-              >
-                <CardContent className="p-0 w-full flex flex-col items-center justify-between h-full">
-                  {/* ===== IMAGE ===== */}
-                  <div
-                    className="w-[80px] h-[80px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px]
-                               flex items-center justify-center overflow-hidden"
-                  >
-                    <img
-                      src={getImageSrc(category.imageUrl)}
-                      alt={category.name}
-                      loading="lazy"
-                      className="h-full w-auto object-contain"
-                      style={{ objectPosition: "center" }}
-                    />
-                  </div>
+        {categories.map((category) => {
+          const imageSrc = category.imageUrl
+            ? `${baseUrl}${category.imageUrl}`
+            : "/images/placeholder.jpg";
 
-                  {/* ===== TITLE ===== */}
-                  <h3 className="font-semibold text-gray-900 text-xs md:text-sm text-center pb-1 md:pb-2 px-1 line-clamp-2">
+          return (
+            <SwiperSlide key={category.id}>
+              <Link
+                href={`/category/${category.slug}`}
+                className="group relative block overflow-hidden rounded-[24px] transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
+              >
+                {/* IMAGE */}
+                <div className="relative h-[340px] md:h-[380px] w-full overflow-hidden rounded-[24px]">
+                  <Image
+                    src={imageSrc}
+                    alt={category.name}
+                    fill
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    className="object-contain object-center"
+                  />
+                </div>
+
+                {/* BUTTON */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+                  <span className="bg-[#f39a16] text-black font-bold uppercase tracking-wider text-[13px] md:text-[14px] h-[40px] min-w-[140px] md:min-w-[160px] px-5 rounded-[6px] inline-flex items-center justify-center shadow-sm transition-all duration-300 group-hover:bg-black group-hover:text-white whitespace-nowrap">
                     {category.name}
-                  </h3>
-                </CardContent>
-              </Card>
-            </Link>
-          </SwiperSlide>
-        ))}
+                  </span>
+                </div>
+              </Link>
+            </SwiperSlide>
+          );
+        })}
       </Swiper>
     </div>
   );

@@ -161,26 +161,31 @@ export function CancellationActionButtons({
   compact?: boolean;
 }) {
   return (
-    <div className={`flex flex-wrap gap-2 ${compact ? "justify-center" : ""}`}>
-      <button
-        type="button"
-        onClick={onApprove}
-        className={`rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 font-semibold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 ${
-          compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-xs"
-        }`}
-      >
-        Approve
-      </button>
-      <button
-        type="button"
-        onClick={onReject}
-        className={`rounded-xl bg-gradient-to-r from-rose-500 to-red-500 font-semibold text-white transition hover:shadow-lg hover:shadow-rose-500/20 ${
-          compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-xs"
-        }`}
-      >
-        Reject
-      </button>
-    </div>
+<div className={`flex flex-wrap gap-1.5 ${compact ? "justify-center" : ""}`}>
+  <button
+    type="button"
+    onClick={onApprove}
+    className={`rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 font-semibold text-white transition hover:shadow-md hover:shadow-emerald-500/20 ${
+      compact
+        ? "px-2 py-1 text-[10px] leading-none"
+        : "px-2.5 py-1.5 text-[11px] leading-none"
+    }`}
+  >
+    Approve
+  </button>
+
+  <button
+    type="button"
+    onClick={onReject}
+    className={`rounded-lg bg-gradient-to-r from-rose-500 to-red-500 font-semibold text-white transition hover:shadow-md hover:shadow-rose-500/20 ${
+      compact
+        ? "px-2 py-1 text-[10px] leading-none"
+        : "px-2.5 py-1.5 text-[11px] leading-none"
+    }`}
+  >
+    Reject
+  </button>
+</div>
   );
 }
 
@@ -333,7 +338,7 @@ export default function CancellationRequestManager({
                   {request.reason || "No reason provided"}
                 </p>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <CancellationActionButtons
                     onApprove={() => openDecisionModal(request, "approve")}
                     onReject={() => openDecisionModal(request, "reject")}

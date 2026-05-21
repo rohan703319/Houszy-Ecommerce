@@ -152,7 +152,7 @@ export interface RelatedProduct {
 export interface DropdownsData {
   brands: BrandData[];
   categories: CategoryData[];
-  vatRates: VATRateData[];
+
 }
 
 export interface ProductItem {
@@ -185,10 +185,26 @@ export interface Product {
   assignedDiscounts(assignedDiscounts: any): unknown;
   discountLabel: string;
   discountTitle: string;
+  
   id: string;
   name: string;
   slug?: string;
   status?:string;
+  gender?:string;
+  requireOtherProducts?:boolean;
+  requiredProductIds?: string;
+  automaticallyAddProducts?:boolean;
+  recurringCycleLength?:string;
+  vatRate?:number;
+  recurringCyclePeriod?:string;
+  displayStockAvailability?:boolean;
+  displayStockQuantity?:boolean;
+vatRateName?:string;
+recurringTotalCycles?:number;
+deliveryDateId?:number;
+dispatchTimeNote?:string;
+nextDayDeliveryFree?:boolean;
+nextDayDeliveryCutoffTime?:string;
   sku: string;
   gtin?: string;
   isActive?: boolean;
@@ -298,8 +314,6 @@ export interface BrandData {
   displayOrder?: number;
 }
 
-// lib/services/products.ts (or wherever SimpleProduct is defined)
-
 export interface SimpleProduct {
   id: string;
   name: string;
@@ -327,7 +341,6 @@ export interface SimpleProduct {
     isMain?: boolean;
   }[];
 }
-
 
 export interface CreateProductDto {
   name: string;
@@ -358,8 +371,7 @@ export interface CreateProductDto {
   metaDescription?: string;
   metaKeywords?: string;
   tags?: string;
-  allowCustomerReviews?: boolean;
-  
+  allowCustomerReviews?: boolean;  
   backInStockCount?: number; // ✅ ADD THIS
 }
 
@@ -367,6 +379,7 @@ export interface UpdateProductDto extends Partial<CreateProductDto> {}
 export interface ProductQueryParams {
   page?: number;
   pageSize?: number;
+  vatRateId?: string;
 
   // Search
  
@@ -458,64 +471,109 @@ export const productsService = {
 getAll: async (params?: ProductQueryParams) => {
   const queryParams = new URLSearchParams();
 
-  if (params?.page) queryParams.append("page", params.page.toString());
-  if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString());
+  if (params?.page)
+    queryParams.append("page", params.page.toString());
 
-  if (params?.searchTerm) queryParams.append("searchTerm", params.searchTerm);
+  if (params?.pageSize)
+    queryParams.append("pageSize", params.pageSize.toString());
+
+  if (params?.searchTerm)
+    queryParams.append("searchTerm", params.searchTerm);
+
   if (params?.stockStatus)
-  queryParams.append("stockStatus", params.stockStatus);
+    queryParams.append("stockStatus", params.stockStatus);
 
   if (params?.isPharmaProduct !== undefined)
-  queryParams.append("isPharmaProduct", params.isPharmaProduct.toString());
+    queryParams.append(
+      "isPharmaProduct",
+      params.isPharmaProduct.toString()
+    );
 
-  if (params?.categoryId) queryParams.append("categoryId", params.categoryId);
-  if (params?.brandId) queryParams.append("brandId", params.brandId);
+  if (params?.categoryId)
+    queryParams.append("categoryId", params.categoryId);
 
-  if (params?.productType) queryParams.append("productType", params.productType);
+  if (params?.brandId)
+    queryParams.append("brandId", params.brandId);
+
+  if (params?.vatRateId)
+    queryParams.append("vatRateId", params.vatRateId);
+
+  if (params?.productType)
+    queryParams.append("productType", params.productType);
 
   if (params?.isPublished !== undefined)
-    queryParams.append("isPublished", params.isPublished.toString());
+    queryParams.append(
+      "isPublished",
+      params.isPublished.toString()
+    );
 
   if (params?.showOnHomepage !== undefined)
-    queryParams.append("showOnHomepage", params.showOnHomepage.toString());
+    queryParams.append(
+      "showOnHomepage",
+      params.showOnHomepage.toString()
+    );
 
   if (params?.markAsNew !== undefined)
-    queryParams.append("markAsNew", params.markAsNew.toString());
+    queryParams.append(
+      "markAsNew",
+      params.markAsNew.toString()
+    );
 
   if (params?.isRecurring !== undefined)
-    queryParams.append("isRecurring", params.isRecurring.toString());
-
-  if (params?.vatExempt !== undefined)
-    queryParams.append("vatExempt", params.vatExempt.toString());
+    queryParams.append(
+      "isRecurring",
+      params.isRecurring.toString()
+    );
 
   if (params?.notReturnable !== undefined)
-    queryParams.append("notReturnable", params.notReturnable.toString());
+    queryParams.append(
+      "notReturnable",
+      params.notReturnable.toString()
+    );
 
   if (params?.nextDayDeliveryEnabled !== undefined)
-    queryParams.append("nextDayDeliveryEnabled", params.nextDayDeliveryEnabled.toString());
+    queryParams.append(
+      "nextDayDeliveryEnabled",
+      params.nextDayDeliveryEnabled.toString()
+    );
 
   if (params?.sameDayDeliveryEnabled !== undefined)
-    queryParams.append("sameDayDeliveryEnabled", params.sameDayDeliveryEnabled.toString());
+    queryParams.append(
+      "sameDayDeliveryEnabled",
+      params.sameDayDeliveryEnabled.toString()
+    );
 
   if (params?.standardDeliveryEnabled !== undefined)
-    queryParams.append("standardDeliveryEnabled", params.standardDeliveryEnabled.toString());
-
-  if (params?.manageInventoryMethod)
-    queryParams.append("manageInventoryMethod", params.manageInventoryMethod);
+    queryParams.append(
+      "standardDeliveryEnabled",
+      params.standardDeliveryEnabled.toString()
+    );
 
   if (params?.isDeleted !== undefined)
-    queryParams.append("isDeleted", params.isDeleted.toString());
+    queryParams.append(
+      "isDeleted",
+      params.isDeleted.toString()
+    );
+
+  if (params?.isActive !== undefined)
+    queryParams.append(
+      "isActive",
+      params.isActive.toString()
+    );
 
   if (params?.sortBy)
     queryParams.append("sortBy", params.sortBy);
 
   if (params?.sortDirection)
-    queryParams.append("sortDirection", params.sortDirection);
-  if (params?.isActive !== undefined)
-  queryParams.append("isActive", params.isActive.toString());
+    queryParams.append(
+      "sortDirection",
+      params.sortDirection
+    );
 
   const url = `${API_ENDPOINTS.products}${
-    queryParams.toString() ? `?${queryParams.toString()}` : ""
+    queryParams.toString()
+      ? `?${queryParams.toString()}`
+      : ""
   }`;
 
   return apiClient.get<PaginatedResponse<Product>>(url);
@@ -560,11 +618,15 @@ searchSummary: async (params: {
   },
 
 // 🔥 Inventory Bulk Update (JSON) — MUST BE PUT
-bulkUpdateInventory: async (items: {
-  productId: string;
-  newStock: number;
-  newPrice: number;
-}[]) => {
+bulkUpdateInventory: async (
+  items: {
+    productId: string;
+    variantId?: string;   // ✅ added
+    newStock: number;
+    newPrice: number;
+    newOldPrice: number;
+  }[]
+) => {
   return apiClient.put<
     ApiResponse<{
       totalItems: number;
@@ -583,11 +645,21 @@ bulkUpdateInventory: async (items: {
         newStock: number;
         oldPrice: number;
         newPrice: number;
+        oldOldPrice: number;
+        newOldPrice: number;
       }[];
     }>
   >(API_ENDPOINTS.inventoryBulkUpdate, items);
 },
 
+inventorySampleExcel: async () => {
+  return apiClient.get(
+    `${API_ENDPOINTS.inventorySampleExcel}`,
+    {
+      responseType: "blob",
+    }
+  );
+},
 getSimpleProducts: async () => {
   return apiClient.get<ApiResponse<Product[]>>(
     `${API_ENDPOINTS.products}/simple`
@@ -600,25 +672,7 @@ bulkUploadInventoryExcel: async (file: File) => {
   formData.append("file", file);
 
   return apiClient.post<
-    ApiResponse<{
-      totalItems: number;
-      updated: number;
-      skipped: number;
-      errors: {
-        row: number;
-        productId: string;
-        reason: string;
-      }[];
-      details: {
-        productId: string;
-        productName: string;
-        sku: string;
-        oldStock: number;
-        newStock: number;
-        oldPrice: number;
-        newPrice: number;
-      }[];
-    }>
+    ApiResponse<any>
   >(API_ENDPOINTS.inventoryBulkUpload, formData);
 },
 toggleActive: async (id: string) => {
@@ -661,18 +715,18 @@ restore: async (id: string) => {
   // ==========================================
   // IMAGE MANAGEMENT
   // ==========================================
-
-  addImages: async (productId: string, images: FormData) => {
-    return apiClient.post<ApiResponse<ProductImage[]>>(
-      `${API_ENDPOINTS.products}/${productId}/images`,
-      images,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-  },
+addImages: async (
+  productId: string,
+  images: FormData,
+  name?: string
+) => {
+  return apiClient.post<ApiResponse<ProductImage[]>>(
+    `${API_ENDPOINTS.products}/${productId}/images${
+      name ? `?name=${encodeURIComponent(name)}` : ''
+    }`,
+    images
+  );
+},
 
   deleteImage: async (imageId: string) => {
     return apiClient.delete<ApiResponse<void>>(
@@ -735,6 +789,66 @@ downloadImportTemplate: async () => {
     `${API_ENDPOINTS.products}/import-template`,
     {
       responseType: "blob",   // ✅ VERY IMPORTANT
+    }
+  );
+},
+
+/**
+ * Download Bulk Update Template (Excel)
+ * POST: /api/Products/bulk-update-template
+ * Params: searchTerm, isPublished, stockStatus, categoryId, fields
+ */
+  downloadBulkUpdateTemplate: async (params: {
+    searchTerm?: string;
+    isPublished?: boolean;
+    stockStatus?: string;
+    categoryId?: string;
+    fields: string[];
+  }) => {
+    const queryParams = new URLSearchParams();
+    
+    if (params.searchTerm) queryParams.append("searchTerm", params.searchTerm);
+    if (params.isPublished !== undefined) queryParams.append("isPublished", params.isPublished.toString());
+    if (params.stockStatus) queryParams.append("stockStatus", params.stockStatus);
+    if (params.categoryId) {
+      const ids = params.categoryId.split(",");
+      ids.forEach(id => {
+        if (id.trim()) queryParams.append("categoryId", id.trim());
+      });
+    }
+    
+    // 💡 OPTIMIZATION: If too many fields are selected, the URL becomes too long.
+    // We only send the fields if the user has specifically filtered them.
+    // If they selected almost everything, we omit the param to let backend default to all.
+    if (params.fields && params.fields.length > 0 && params.fields.length < 100) {
+      queryParams.append("fields", params.fields.join(","));
+    }
+
+    const url = `${API_ENDPOINTS.bulkUpdateTemplate}${
+      queryParams.toString() ? `?${queryParams.toString()}` : ""
+    }`;
+
+    return apiClient.get(url, {
+      responseType: "blob",
+    });
+  },
+
+/**
+ * Upload Bulk Update Excel File
+ * POST: /api/Products/bulk-update-excel
+ * Body: multipart/form-data (excelFile)
+ */
+bulkUpdateWithExcel: async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiClient.post<ApiResponse<any>>(
+    API_ENDPOINTS.bulkUpdateExcel,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     }
   );
 },

@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -330,7 +328,7 @@ mainEntity: {
       initialSortBy={searchParamsResolved.sortBy || "name"}
       initialSortDirection={searchParamsResolved.sortDirection || "asc"}
       brands={category.brands ?? []}
-      vatRates={vatRatesRes.data || []}
+
       discount={discount}
     />
 

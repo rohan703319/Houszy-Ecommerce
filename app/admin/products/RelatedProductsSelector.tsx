@@ -106,36 +106,49 @@ const fetchDropdownData = async () => {
 useEffect(() => {
   fetchDropdownData();
 }, []);
+// 🔥 Replace your useEffect with this
+
+
 
 const fetchProducts = async () => {
   setLoadingProducts(true);
 
   try {
-    const isSearchMode = debouncedSearch.length >= 3;
+    const search = debouncedSearch.trim();
+    const hasSearch = search.length >= 3;
 
     const params: any = {
-      categoryId: selectedCategories[0],
-      brandId: selectedBrands[0],
+      isPublished: true,
+      page: 1,
+      pageSize: 250,
     };
 
-    if (isSearchMode) {
-      // 🔥 SEARCH MODE (NO PAGINATION)
-      params.searchTerm = debouncedSearch;
-    } else {
-      // 🔥 NORMAL MODE
-      params.page = page;
-      params.pageSize = 250;
+    // ✅ single-select filters
+    if (selectedCategories.length > 0) {
+      params.categoryId = selectedCategories[0];
     }
+
+    if (selectedBrands.length > 0) {
+      params.brandId = selectedBrands[0];
+    }
+
+    // ✅ search + filters together
+    if (hasSearch) {
+      params.searchTerm = search;
+    }
+
+    console.log("🔥 API PARAMS:", params);
 
     const res = await productsService.getAll(params);
 
     const items = res.data?.data?.items || [];
+    const total = res.data?.data?.totalCount || items.length;
 
     setProducts(items);
-    setTotalCount(res.data?.data?.totalCount || items.length);
+    setTotalCount(total);
 
   } catch (e) {
-    console.error(e);
+    console.error("❌ fetchProducts error:", e);
     setProducts([]);
     setTotalCount(0);
   } finally {
@@ -143,9 +156,12 @@ const fetchProducts = async () => {
   }
 };
 useEffect(() => {
+  setPage(1);
+}, [debouncedSearch, selectedBrands, selectedCategories]);
+
+useEffect(() => {
   fetchProducts();
 }, [debouncedSearch, selectedBrands, selectedCategories, page]);
-
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -164,24 +180,44 @@ useEffect(() => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Toggle brand
-  const toggleBrand = (brandId: string) => {
-    setSelectedBrands(prev =>
-      prev.includes(brandId)
-        ? prev.filter(id => id !== brandId)
-        : [...prev, brandId]
-    );
-  };
 
-  // Toggle category
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
+// ===============================
+// ✅ FIX BRAND toggleBrand
+// ===============================
 
+const toggleBrand = (brandId: string) => {
+  const selected = brands.find((x) => x.id === brandId);
+
+  setSelectedBrands((prev) =>
+    prev[0] === brandId ? [] : [brandId]
+  );
+
+  setBrandSearch((prev) =>
+    selectedBrands[0] === brandId
+      ? ""
+      : selected?.name || ""
+  );
+
+  setShowBrandDropdown(false);
+};
+
+
+
+const toggleCategory = (categoryId: string) => {
+  const selected = categories.find((x) => x.id === categoryId);
+
+  setSelectedCategories((prev) =>
+    prev[0] === categoryId ? [] : [categoryId]
+  );
+
+  setCategorySearch((prev) =>
+    selectedCategories[0] === categoryId
+      ? ""
+      : selected?.name || ""
+  );
+
+  setShowCategoryDropdown(false);
+};
   // Toggle product
   const toggleProduct = (productId: string) => {
     if (selectedProductIds.includes(productId)) {
@@ -212,7 +248,27 @@ const fetchSelectedProducts = async () => {
     console.error("Selected products fetch error", e);
   }
 };
+// 🔥 Add these useMemo filters after selectedProducts
 
+const filteredBrands = useMemo(() => {
+  const search = brandSearch.trim().toLowerCase();
+
+  if (!search) return brands;
+
+  return brands.filter((brand) =>
+    brand.name?.toLowerCase().includes(search)
+  );
+}, [brands, brandSearch]);
+
+const filteredCategories = useMemo(() => {
+  const search = categorySearch.trim().toLowerCase();
+
+  if (!search) return categories;
+
+  return categories.filter((category) =>
+    category.name?.toLowerCase().includes(search)
+  );
+}, [categories, categorySearch]);
 useEffect(() => {
   fetchSelectedProducts();
 }, [selectedProductIds]);
@@ -222,15 +278,39 @@ const selectedProducts = selectedProductIds
   .filter(Boolean) as Product[];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
-      <div>
-        <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">
-          {config.title}
-        </h3>
-        <p className="text-sm text-slate-400 mt-2">{config.description}</p>
-      </div>
+<div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-3">
 
+  {/* Left Content */}
+  <div>
+    <h3 className="text-lg font-semibold text-white">
+      {config.title}
+    </h3>
+
+    <p className="text-sm text-slate-400 mt-1">
+      {config.description}
+    </p>
+  </div>
+
+  {/* Right Button */}
+  {(selectedBrands.length > 0 || selectedCategories.length > 0) && (
+    <button
+      type="button"
+      onClick={() => {
+        setSelectedBrands([]);
+        setSelectedCategories([]);
+        setBrandSearch("");
+        setCategorySearch("");
+      }}
+      className="mt-0.5 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all whitespace-nowrap"
+    >
+      <X className="w-3.5 h-3.5" />
+      Clear Filters
+    </button>
+  )}
+
+</div>
       {/* Main Filter Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -238,7 +318,7 @@ const selectedProducts = selectedProductIds
         {/* Category Filter - Right */}
         <div className="lg:col-span-1" ref={categoryRef}>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            🔍 Filter by Category
+            Filter by Category
           </label>
           <div className="relative">
             <input
@@ -246,17 +326,33 @@ const selectedProducts = selectedProductIds
               value={categorySearch}
               onChange={e => setCategorySearch(e.target.value)}
               onClick={() => setShowCategoryDropdown(true)}
-              placeholder="Select categories to filter products..."
-              className="w-full px-3 py-2.5 pr-10 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all cursor-pointer"
+              placeholder="Select category..."
+
+className={`w-full px-3 py-2.5 pr-10 rounded-xl text-white placeholder-slate-500 transition-all cursor-pointer ${
+  selectedCategories.length > 0
+    ? "bg-cyan-500/10 border border-cyan-400/50 ring-2 ring-cyan-400/30 shadow-lg shadow-cyan-500/10"
+    : "bg-slate-800/50 border border-slate-700 focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+}`}
             />
-            <div className="absolute right-3 top-3 flex items-center gap-2">
-              {selectedCategories.length > 0 && (
-                <span className="px-2 py-0.5 bg-violet-500/20 text-violet-400 text-xs rounded-full">
-                  {selectedCategories.length}
-                </span>
-              )}
-              <ChevronDown className="h-5 w-5 text-slate-400 pointer-events-none" />
-            </div>
+
+
+<div className="absolute right-3 top-3 flex items-center gap-2">
+  {selectedCategories.length > 0 ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedCategories([]);
+        setCategorySearch("");
+      }}
+      className="text-slate-400 hover:text-red-400 transition-colors"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  ) : null}
+
+  <ChevronDown className="h-5 w-5 text-slate-400 pointer-events-none" />
+</div>
 
             {/* Category Dropdown */}
             {showCategoryDropdown && (
@@ -277,26 +373,30 @@ const selectedProducts = selectedProductIds
 
                 {/* Category List */}
                 <div className="max-h-64 overflow-y-auto">
-                  {categories.length > 0 ? (
-                    categories.map(category => (
-                      <label
-                        key={category.id}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedCategories.includes(category.id)}
-                          onChange={() => toggleCategory(category.id)}
-                          className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                        />
-                        <span className="text-sm text-slate-300">{category.name}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">
-                      No categories found
-                    </div>
-                  )}
+         
+
+{filteredCategories.length > 0 ? (
+  filteredCategories.map((category) => (
+    <label
+      key={category.id}
+      className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
+    >
+
+
+<input
+  type="radio"
+  name="categoryFilter"
+  checked={selectedCategories.includes(category.id)}
+  onChange={() => toggleCategory(category.id)}
+/>
+      <span className="text-sm text-slate-300">{category.name}</span>
+    </label>
+  ))
+) : (
+  <div className="px-4 py-8 text-center text-sm text-slate-400">
+    No categories found
+  </div>
+)}
                 </div>
               </div>
             )}
@@ -306,7 +406,7 @@ const selectedProducts = selectedProductIds
                 {/* Brand Filter - Middle */}
         <div className="lg:col-span-1" ref={brandRef}>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            🔍 Filter by Brand
+             Filter by Brand
           </label>
           <div className="relative">
             <input
@@ -314,17 +414,33 @@ const selectedProducts = selectedProductIds
               value={brandSearch}
               onChange={e => setBrandSearch(e.target.value)}
               onClick={() => setShowBrandDropdown(true)}
-              placeholder="Select brands to filter products..."
-              className="w-full px-3 py-2.5 pr-10 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all cursor-pointer"
-            />
-            <div className="absolute right-3 top-3 flex items-center gap-2">
-              {selectedBrands.length > 0 && (
-                <span className="px-2 py-0.5 bg-violet-500/20 text-violet-400 text-xs rounded-full">
-                  {selectedBrands.length}
-                </span>
-              )}
-              <ChevronDown className="h-5 w-5 text-slate-400 pointer-events-none" />
-            </div>
+              placeholder="Select brands.."
+
+
+className={`w-full px-3 py-2.5 pr-10 rounded-xl text-white placeholder-slate-500 transition-all cursor-pointer ${
+  selectedBrands.length > 0
+    ? "bg-violet-500/10 border border-violet-400/50 ring-2 ring-violet-400/30 shadow-lg shadow-violet-500/10"
+    : "bg-slate-800/50 border border-slate-700 focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+}`}      />
+
+
+<div className="absolute right-3 top-3 flex items-center gap-2">
+  {selectedBrands.length > 0 ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedBrands([]);
+        setBrandSearch("");
+      }}
+      className="text-slate-400 hover:text-red-400 transition-colors"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  ) : null}
+
+  <ChevronDown className="h-5 w-5 text-slate-400 pointer-events-none" />
+</div>
 
             {/* Brand Dropdown */}
             {showBrandDropdown && (
@@ -345,26 +461,28 @@ const selectedProducts = selectedProductIds
 
                 {/* Brand List */}
                 <div className="max-h-64 overflow-y-auto">
-                  {brands.length > 0 ? (
-                    brands.map(brand => (
-                      <label
-                        key={brand.id}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedBrands.includes(brand.id)}
-                          onChange={() => toggleBrand(brand.id)}
-                          className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                        />
-                        <span className="text-sm text-slate-300">{brand.name}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">
-                      No brands found
-                    </div>
-                  )}
+
+{filteredBrands.length > 0 ? (
+  filteredBrands.map((brand) => (
+    <label
+      key={brand.id}
+      className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/50 cursor-pointer border-b border-slate-700/50 last:border-0 transition-colors"
+    >
+
+<input
+  type="radio"
+  name="brandFilter"
+  checked={selectedBrands.includes(brand.id)}
+  onChange={() => toggleBrand(brand.id)}
+/>
+      <span className="text-sm text-slate-300">{brand.name}</span>
+    </label>
+  ))
+) : (
+  <div className="px-4 py-8 text-center text-sm text-slate-400">
+    No brands found
+  </div>
+)}
                 </div>
               </div>
             )}
@@ -428,6 +546,8 @@ const selectedProducts = selectedProductIds
     </div>
   )}
 
+
+
   {!loadingProducts && products.map(product => {
     const imageUrl = getProductImage(product.images || []);
 
@@ -472,63 +592,6 @@ const selectedProducts = selectedProductIds
 
       </div>
 
-      {/* Active Filters */}
-      {(selectedBrands.length > 0 || selectedCategories.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-800/30 border border-slate-700 rounded-lg">
-          <span className="text-xs text-slate-400 font-medium">Active Filters:</span>
-          
-          {selectedBrands.map(brandId => {
-            const brand = brands.find(b => b.id === brandId);
-            
-            return brand ? (
-              <span
-                key={brandId}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-violet-500/20 text-violet-400 text-xs rounded-lg border border-violet-500/30"
-              >
-                
-                {brand.name}
-                <button
-                  type="button"
-                  onClick={() => toggleBrand(brandId)}
-                  className="hover:text-violet-300"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ) : null;
-          })}
-
-          {selectedCategories.map(categoryId => {
-            const category = categories.find(c => c.id === categoryId);
-            return category ? (
-              <span
-                key={categoryId}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-lg border border-cyan-500/30"
-              >
-                {category.name}
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(categoryId)}
-                  className="hover:text-cyan-300"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ) : null;
-          })}
-
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedBrands([]);
-              setSelectedCategories([]);
-            }}
-            className="ml-auto text-xs text-red-400 hover:text-red-300 transition-colors"
-          >
-            Clear All
-          </button>
-        </div>
-      )}
 
       {/* Selected Products */}
       {selectedProducts.length > 0 && (
@@ -542,7 +605,7 @@ const selectedProducts = selectedProductIds
               onClick={() => onProductsChange([])}
               className="text-xs text-red-400 hover:text-red-300 transition-colors"
             >
-              Clear All
+            Clear Selected
             </button>
           </div>
           <div className="border border-slate-700 rounded-xl p-4 space-y-2 bg-slate-800/30 max-h-64 overflow-y-auto">
@@ -569,13 +632,30 @@ const selectedProducts = selectedProductIds
 
         {/* TEXT */}
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm text-white truncate">
-            {product.name}
-          </p>
-          <p className="text-xs text-slate-400 truncate">
-            SKU: {product.sku} • £{Number(product.price).toFixed(2)}
-          </p>
-        </div>
+  {/* Product Name */}
+  <p className="font-semibold text-sm text-white truncate tracking-wide">
+    {product.name}
+  </p>
+
+  {/* SKU + Price */}
+  <p className="text-xs mt-1 flex items-center gap-2 truncate">
+    
+    <span className="text-slate-400">
+      SKU:
+    </span>
+
+    <span className="text-slate-200 font-medium">
+      {product.sku}
+    </span>
+
+    <span className="text-slate-600">•</span>
+
+    <span className="text-emerald-400 font-semibold">
+      £{Number(product.price).toFixed(2)}
+    </span>
+
+  </p>
+</div>
       </div>
 
       <button

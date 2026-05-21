@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/toast/CustomToast";
 import * as signalR from "@microsoft/signalr";
+import { trackAddToCart } from "@/lib/analytics";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5285";
 function getSessionId(): string {
@@ -233,7 +234,30 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessionId, setSessionId] = useState<string>(() => getSessionId());
   const [cartActivity, setCartActivity] = useState<{ productId: string; message: string; timestamp: number } | null>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
+  const addToCartAnalyticsRef = useRef<{ signature: string; timestamp: number } | null>(null);
   const toast = useToast();
+
+  const sendAddToCartAnalytics = useCallback((item: CartItem) => {
+    const signature = [
+      item.productId ?? item.id,
+      item.variantId ?? "",
+      item.type ?? "one-time",
+      item.purchaseContext ?? "standalone",
+      item.quantity,
+      item.finalPrice ?? item.price,
+    ].join("|");
+    const now = Date.now();
+
+    if (
+      addToCartAnalyticsRef.current?.signature === signature &&
+      now - addToCartAnalyticsRef.current.timestamp < 1000
+    ) {
+      return;
+    }
+
+    addToCartAnalyticsRef.current = { signature, timestamp: now };
+    trackAddToCart(item);
+  }, []);
 
   // ── Load cart from backend on mount / session change ───────────────────────
   useEffect(() => {
@@ -447,6 +471,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           return prev;
         }
 
+        sendAddToCartAnalytics(item);
         return prev.map((p) =>
           p.productId === item.productId &&
             (p.variantId ?? null) === (item.variantId ?? null) &&
@@ -476,6 +501,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         );
       }
 
+      sendAddToCartAnalytics(item);
       return [
         ...prev,
         {

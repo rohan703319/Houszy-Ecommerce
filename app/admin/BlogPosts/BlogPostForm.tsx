@@ -14,6 +14,7 @@ import { blogPostsService, BlogPost, BlogCategory } from "@/lib/services/blogPos
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { blogCategoriesService } from "@/lib/services/blogCategories";
 import { generateSlug } from "../_utils/formatUtils";
+import { getBackendMessage } from "@/app/admin/_utils/errorUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormErrors {
@@ -106,7 +107,7 @@ function computeSeo(
   metaKeywords: string,
   thumbnailUrl: string,
   tags: string[],
-  blogCategoryId: string,
+  blogCategoryId: string[],
 ): { score: number; checks: SeoCheck[] } {
   const plainBody = body.replace(/<[^>]+>/g, "").trim();
   const wordCount = plainBody ? plainBody.split(/\s+/).length : 0;
@@ -170,9 +171,9 @@ function computeSeo(
     {
       key: "category",
       label: "Category",
-      description: blogCategoryId ? "Category assigned" : "Select a category",
+      description: blogCategoryId.length > 0 ? `${blogCategoryId.length} assigned` : "Select a category",
       points: 5,
-      status: blogCategoryId ? "pass" : "fail",
+      status: blogCategoryId.length > 0 ? "pass" : "fail",
     },
     {
       key: "tags",
@@ -317,7 +318,18 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
   const [publishedAt, setPublishedAt] = useState(
     initialData?.publishedAt ? initialData.publishedAt.slice(0, 16) : ""
   );
-  const [blogCategoryId, setBlogCategoryId] = useState(initialData?.blogCategoryId ?? "");
+  const [blogCategoryId, setBlogCategoryId] = useState<string[]>(() => {
+    if (initialData?.categoryIds && initialData.categoryIds.length > 0) {
+      return initialData.categoryIds;
+    }
+    if (initialData?.categories && initialData.categories.length > 0) {
+      return initialData.categories.map((c: any) => c.categoryId);
+    }
+    if (initialData?.blogCategoryId) {
+      return [initialData.blogCategoryId];
+    }
+    return [];
+  });
   const [relatedBlogPostIds, setRelatedBlogPostIds] = useState<string[]>(initialData?.relatedBlogPostIds ?? []);
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
@@ -339,6 +351,7 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
   const [relatedPostSearch, setRelatedPostSearch] = useState("");
   const [showRelatedDropdown, setShowRelatedDropdown] = useState(false);
   const relatedDropdownRef = useRef<HTMLDivElement>(null);
+
 
   // Load categories
   useEffect(() => {
@@ -417,43 +430,86 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
       toast.error("Please fix the errors before saving.");
       return;
     }
+    
     setSaving(true);
-    const payload: Partial<BlogPost> = {
-      title: title.trim(),
-      slug: slug.trim(),
-      bodyOverview: summary || undefined,
-      body,
-      isPublished: publish !== undefined ? publish : isPublished,
-      publishedAt: publishedAt || undefined,
-      blogCategoryId: blogCategoryId || null,
-      relatedBlogPostIds,
-      tags,
-      allowComments,
-      showOnHomePage,
-      includeInSitemap,
-      displayOrder,
-      metaTitle: metaTitle || undefined,
-      metaDescription: metaDescription || undefined,
-      metaKeywords: metaKeywords || undefined,
-      thumbnailImageUrl: thumbnailUrl || undefined,
+const currentUser =
+  typeof window !== "undefined"
+    ? JSON.parse(localStorage.getItem("user") || "{}")
+    : {};
+
+const payload: Partial<BlogPost> = {
+  title: title.trim(),
+  slug: slug.trim(),
+  bodyOverview: summary || undefined,
+  body,
+  isPublished: publish !== undefined ? publish : isPublished,
+  publishedAt: publishedAt || undefined,
+  blogCategoryId: blogCategoryId.length > 0 ? blogCategoryId.join(",") : null,
+  relatedBlogPostIds,
+  tags,
+  allowComments,
+  showOnHomePage,
+  includeInSitemap,
+  displayOrder,
+  metaTitle: metaTitle || undefined,
+  metaDescription: metaDescription || undefined,
+  metaKeywords: metaKeywords || undefined,
+  thumbnailImageUrl: thumbnailUrl || undefined,
+  authorName: `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim(),
+  authorId: currentUser?.id || "",
+  };
+  
+    const finalPayload: any = {
+      ...payload,
+      id: mode === "edit" ? initialData?.id : undefined,
+      isActive: true,
+      blogCategoryId: blogCategoryId[0] || null,
+      categoryIds: blogCategoryId,
+      publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
     };
+
+    // Remove undefined fields
+    const cleanPayload = Object.fromEntries(
+      Object.entries(finalPayload).filter(([_, v]) => v !== undefined)
+    );
 
     try {
       if (mode === "create") {
-        const r = await blogPostsService.create(payload);
+        // POST is flat (confirmed working)
+        const finalPayload: any = {
+          ...payload,
+          isActive: true,
+          blogCategoryId: blogCategoryId[0] || null,
+          categoryIds: blogCategoryId,
+          publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
+        };
+        const r = await blogPostsService.create(finalPayload as any);
         if (r.data?.success) {
           toast.success("Blog post created!");
           router.push("/admin/BlogPosts");
-        } else throw new Error(r.data?.message || "Failed to create.");
+        } else throw new Error(getBackendMessage(r.data));
       } else {
-        const r = await blogPostsService.update(initialData!.id, { ...payload, id: initialData!.id });
+        // PUT might still need wrapping if flat causes Network Error
+        const wrappedPayload: any = {
+          id: initialData!.id,
+          command: {
+            ...payload,
+            id: initialData!.id,
+            isActive: true,
+            blogCategoryId: blogCategoryId[0] || null,
+            categoryIds: blogCategoryId,
+            publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
+          }
+        };
+        const r = await blogPostsService.update(initialData!.id, wrappedPayload as any);
         if (r.data?.success) {
           toast.success("Blog post updated!");
           router.push("/admin/BlogPosts");
-        } else throw new Error(r.data?.message || "Failed to update.");
+        } else throw new Error(getBackendMessage(r.data));
       }
     } catch (e: any) {
-      toast.error(e.message || "Save failed.");
+      console.error("Save Error:", e);
+      toast.error(getBackendMessage(e));
     } finally {
       setSaving(false);
     }
@@ -872,19 +928,39 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
 
           {/* Category */}
           <SectionCard title="Category" icon={<BookOpen className="w-3.5 h-3.5" />}>
-            <select
-              value={blogCategoryId}
-              onChange={(e) => setBlogCategoryId(e.target.value)}
-              className={inp}
-              disabled={loadingCats}
-            >
-              <option value="">— No Category —</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#475569 #1e293b" }}>
+              {loadingCats ? (
+                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Loading categories...
+                </div>
+              ) : categories.length > 0 ? (
+                categories.map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-700/30 transition-colors cursor-pointer group"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={blogCategoryId.includes(c.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setBlogCategoryId((prev) => [...prev, c.id]);
+                        } else {
+                          setBlogCategoryId((prev) => prev.filter((id) => id !== c.id));
+                        }
+                      }}
+                      className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900 transition-all"
+                    />
+                    <span className={`text-xs transition-colors ${blogCategoryId.includes(c.id) ? "text-white font-medium" : "text-slate-400 group-hover:text-slate-300"}`}>
+                      {c.name}
+                    </span>
+                  </label>
+                ))
+              ) : (
+                <p className="text-[11px] text-slate-500 px-2">No categories found.</p>
+              )}
+            </div>
           </SectionCard>
 
           <SectionCard
