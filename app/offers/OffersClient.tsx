@@ -19,83 +19,83 @@ export default function OffersClient({
 }: OffersClientProps) {
   const vatRates = useVatRates();
 
-const [products, setProducts] = useState<any[]>(initialItems);
-const [filteredProducts, setFilteredProducts] = useState<any[]>(initialItems);
+  const [products, setProducts] = useState<any[]>(initialItems);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>(initialItems);
 
-const [sortBy, setSortBy] = useState<"name" | "price">("name");
-const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<"name" | "price">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-const flattenedProducts = useMemo(() => {
+  const flattenedProducts = useMemo(() => {
 
-  const flat = flattenProductsForListing(filteredProducts);
+    const flat = flattenProductsForListing(filteredProducts);
 
-  const seen = new Set<string>();
+    const seen = new Set<string>();
 
-  const unique = flat.filter((item: any) => {
-    const key = `${item.productData.id}-${item.variantForCard?.id ?? "parent"}`;
+    const unique = flat.filter((item: any) => {
+      const key = `${item.productData.id}-${item.variantForCard?.id ?? "parent"}`;
 
-    if (seen.has(key)) return false;
+      if (seen.has(key)) return false;
 
-    seen.add(key);
-    return true;
-  });
+      seen.add(key);
+      return true;
+    });
 
-  const getCardPrice = (item: any) => {
-    const basePrice =
-      typeof item.variantForCard?.price === "number"
-        ? item.variantForCard.price
-        : item.productData.price;
-
-    return basePrice;
-  };
-
- const sorted = [...unique].sort((a, b) => {
-
-  // 🔥 STOCK CHECK (MOST IMPORTANT)
-  const getStock = (item: any) => {
-    if (item.variantForCard) {
-      return item.variantForCard.stockQuantity ?? 0;
-    }
-    return item.productData?.stockQuantity ?? 0;
-  };
-
-  const stockA = getStock(a);
-  const stockB = getStock(b);
-
-  const isOutA = stockA <= 0;
-  const isOutB = stockB <= 0;
-
-  // ✅ Out of stock always last
-  if (isOutA && !isOutB) return 1;
-  if (!isOutA && isOutB) return -1;
-
-  // ===== EXISTING SORT LOGIC =====
-
-  if (sortBy === "name") {
-    const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
-    const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
-
-    const comparison = nameA.localeCompare(nameB);
-    return sortDirection === "asc" ? comparison : -comparison;
-  }
-
-  if (sortBy === "price") {
     const getCardPrice = (item: any) => {
-      return typeof item.variantForCard?.price === "number"
-        ? item.variantForCard.price
-        : item.productData.price;
+      const basePrice =
+        typeof item.variantForCard?.price === "number"
+          ? item.variantForCard.price
+          : item.productData.price;
+
+      return basePrice;
     };
 
-    const comparison = getCardPrice(a) - getCardPrice(b);
-    return sortDirection === "asc" ? comparison : -comparison;
-  }
+    const sorted = [...unique].sort((a, b) => {
 
-  return 0;
-});
+      // 🔥 STOCK CHECK (MOST IMPORTANT)
+      const getStock = (item: any) => {
+        if (item.variantForCard) {
+          return item.variantForCard.stockQuantity ?? 0;
+        }
+        return item.productData?.stockQuantity ?? 0;
+      };
 
-  return sorted;
+      const stockA = getStock(a);
+      const stockB = getStock(b);
 
-}, [filteredProducts, sortBy, sortDirection]);
+      const isOutA = stockA <= 0;
+      const isOutB = stockB <= 0;
+
+      // ✅ Out of stock always last
+      if (isOutA && !isOutB) return 1;
+      if (!isOutA && isOutB) return -1;
+
+      // ===== EXISTING SORT LOGIC =====
+
+      if (sortBy === "name") {
+        const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
+        const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
+
+        const comparison = nameA.localeCompare(nameB);
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+
+      if (sortBy === "price") {
+        const getCardPrice = (item: any) => {
+          return typeof item.variantForCard?.price === "number"
+            ? item.variantForCard.price
+            : item.productData.price;
+        };
+
+        const comparison = getCardPrice(a) - getCardPrice(b);
+        return sortDirection === "asc" ? comparison : -comparison;
+      }
+
+      return 0;
+    });
+
+    return sorted;
+
+  }, [filteredProducts, sortBy, sortDirection]);
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -147,30 +147,30 @@ const flattenedProducts = useMemo(() => {
   }, [products]);
 
   // Price range derive
-useEffect(() => {
-  if (!products || products.length === 0) return;
+  useEffect(() => {
+    if (!products || products.length === 0) return;
 
-  const flat = flattenProductsForListing(products);
+    const flat = flattenProductsForListing(products);
 
-  const prices = flat.map((item: any) => {
-    const variantPrice =
-      typeof item.variantForCard?.price === "number" &&
-      item.variantForCard.price > 0
-        ? item.variantForCard.price
-        : item.productData.price ?? 0;
+    const prices = flat.map((item: any) => {
+      const variantPrice =
+        typeof item.variantForCard?.price === "number" &&
+          item.variantForCard.price > 0
+          ? item.variantForCard.price
+          : item.productData.price ?? 0;
 
-    return variantPrice;
-  });
+      return variantPrice;
+    });
 
-  if (prices.length === 0) return;
+    if (prices.length === 0) return;
 
-  const min = Math.floor(Math.min(...prices));
-  const max = Math.ceil(Math.max(...prices));
+    const min = Math.floor(Math.min(...prices));
+    const max = Math.ceil(Math.max(...prices));
 
-  setMinPrice(min);
-  setMaxPrice(max);
-  setPriceRange([min, max]);
-}, [products]);
+    setMinPrice(min);
+    setMaxPrice(max);
+    setPriceRange([min, max]);
+  }, [products]);
 
   // Filtering + sorting
   // Backend already guarantees all products have active discounts — no need to re-check
@@ -200,14 +200,14 @@ useEffect(() => {
       return true;
     });
 
-return result;
+    return result;
   }, [
     products,
     selectedCategories,
     selectedBrands,
     priceRange,
     minRating,
-   
+
   ]);
 
   useEffect(() => {
@@ -229,7 +229,7 @@ return result;
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b mb-4 px-4 pt-4 lg:px-6 lg:pt-6">
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="h-5 w-5 text-[#445D41]" />
+          <SlidersHorizontal className="h-5 w-5 text-[#f38918]" />
           <h2 className="font-bold text-base text-gray-900">Filters</h2>
         </div>
         <div className="flex items-center gap-3">
@@ -262,7 +262,7 @@ return result;
                 >
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-[#445D41]"
+                    className="w-4 h-4 text-[#f38918]"
                     checked={selectedCategories.includes(cat.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -293,7 +293,7 @@ return result;
                 >
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-[#445D41]"
+                    className="w-4 h-4 text-[#f38918]"
                     checked={selectedBrands.includes(brand.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -337,7 +337,7 @@ return result;
             >
               <input
                 type="radio"
-                className="w-4 h-4 text-[#445D41]"
+                className="w-4 h-4 text-[#f38918]"
                 checked={minRating === rating}
                 onChange={() => setMinRating(rating)}
               />
@@ -354,7 +354,7 @@ return result;
       <div className="lg:hidden px-4 pb-4 pt-2 border-t mt-auto">
         <button
           onClick={() => setShowFilters(false)}
-          className="w-full py-3 bg-[#445D41] text-white rounded-lg font-semibold text-sm"
+          className="w-full py-3 bg-[#f38918] text-white rounded-lg font-semibold text-sm"
         >
           Show Results ({filteredProducts.length})
         </button>
@@ -366,33 +366,33 @@ return result;
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-7xl mx-auto px-4 py-4">
         {/* Breadcrumbs */}
-       <div className="hidden md:flex items-center justify-between gap-4 mb-2">
+        <div className="hidden md:flex items-center justify-between gap-4 mb-2">
 
-  {/* LEFT: Breadcrumb */}
-  <nav className="flex items-center flex-wrap gap-1 text-xs md:text-sm text-gray-600">
-    <a href="/" className="hover:text-[#445D41] transition-colors">
-      Home
-    </a>
-    <span className="mx-2 text-gray-400">/</span>
-    <span className="font-semibold text-gray-900">Offers</span>
-  </nav>
+          {/* LEFT: Breadcrumb */}
+          <nav className="flex items-center flex-wrap gap-1 text-xs md:text-sm text-gray-600">
+            <a href="/" className="hover:text-[#f38918] transition-colors">
+              Home
+            </a>
+            <span className="mx-2 text-gray-400">/</span>
+            <span className="font-semibold text-gray-900">Offers</span>
+          </nav>
 
-  {/* RIGHT: Sort */}
-  <select
-    value={`${sortBy}-${sortDirection}`}
-    onChange={(e) => handleSortChange(e.target.value)}
-    className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
-  >
-    <option value="name-asc">A-Z</option>
-    <option value="name-desc">Z-A</option>
-    <option value="price-asc">Low-High</option>
-    <option value="price-desc">High-Low</option>
-  </select>
+          {/* RIGHT: Sort */}
+          <select
+            value={`${sortBy}-${sortDirection}`}
+            onChange={(e) => handleSortChange(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#f38918]"
+          >
+            <option value="name-asc">A-Z</option>
+            <option value="name-desc">Z-A</option>
+            <option value="price-asc">Low-High</option>
+            <option value="price-desc">High-Low</option>
+          </select>
 
-</div>
+        </div>
 
         {/* Filter + Sort bar */}
-       <div className="flex items-center justify-between gap-2 mb-3 lg:hidden">
+        <div className="flex items-center justify-between gap-2 mb-3 lg:hidden">
           <button
             onClick={() => setShowFilters(true)}
             className="lg:hidden flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 shadow-sm"
@@ -400,7 +400,7 @@ return result;
             <SlidersHorizontal className="h-4 w-4" />
             <span>Filters</span>
             {activeFilterCount > 0 && (
-              <span className="inline-flex items-center justify-center bg-[#445D41] text-white text-xs rounded-full w-4 h-4 leading-none">
+              <span className="inline-flex items-center justify-center bg-[#f38918] text-white text-xs rounded-full w-4 h-4 leading-none">
                 {activeFilterCount}
               </span>
             )}
@@ -409,7 +409,7 @@ return result;
           <select
             value={`${sortBy}-${sortDirection}`}
             onChange={(e) => handleSortChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#f38918]"
           >
             <option value="name-asc">Name: A–Z</option>
             <option value="name-desc">Name: Z–A</option>
@@ -434,24 +434,24 @@ return result;
         <div className="flex gap-6 lg:gap-8">
           {/* Desktop left filters */}
           <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-24 h-[calc(100vh-96px)] overflow-y-auto overscroll-contain pr-2 hide-scrollbar">
-          <Card className="shadow-sm flex flex-col h-full">
-            <CardContent className="p-0 flex flex-col h-full">
-              {filterPanelContent}
-            </CardContent>
-          </Card>
+            <Card className="shadow-sm flex flex-col h-full">
+              <CardContent className="p-0 flex flex-col h-full">
+                {filterPanelContent}
+              </CardContent>
+            </Card>
           </aside>
 
           {/* PRODUCT GRID */}
           <div className="flex-1">
             <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-3 mb-8">
-             {flattenedProducts.map((item) => (
-  <ProductCard
-    key={item.variantForCard?.id ?? item.productData.id}
-    product={item.productData}
-    variantForCard={item.variantForCard}
-    cardSlug={item.cardSlug}
-  />
-))}
+              {flattenedProducts.map((item) => (
+                <ProductCard
+                  key={item.variantForCard?.id ?? item.productData.id}
+                  product={item.productData}
+                  variantForCard={item.variantForCard}
+                  cardSlug={item.cardSlug}
+                />
+              ))}
 
             </div>
 

@@ -67,75 +67,75 @@ export default function CategoriesClient({
 
     return filtered;
   }, [categories, search, sort, categoryMap]);
-const totalCount = categories.length;
-const filteredCount = filteredCategories.length;
+  const totalCount = categories.length;
+  const filteredCount = filteredCategories.length;
   return (
     <>
       {/* SEARCH + SORT BAR */}
-  <div className="mb-6 space-y-2">
+      <div className="mb-6 space-y-2">
 
-  {/* 🔹 Row 1: Search + Sort */}
-<div className="flex gap-2 md:justify-between md:items-center">
+        {/* 🔹 Row 1: Search + Sort */}
+        <div className="flex gap-2 md:justify-between md:items-center">
 
-    {/* SEARCH */}
-<div className="flex items-center gap-3 w-full md:w-auto">
-  
-  {/* SEARCH */}
-  <div className="relative w-full md:w-[260px]">
-    <input
-      type="text"
-      placeholder="Search categories..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#445D41]"
-    />
+          {/* SEARCH */}
+          <div className="flex items-center gap-3 w-full md:w-auto">
 
-    {search && (
-      <button
-        type="button"
-        onClick={() => setSearch("")}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
-      >
-        <X size={16} />
-      </button>
-    )}
-  </div>
+            {/* SEARCH */}
+            <div className="relative w-full md:w-[260px]">
+              <input
+                type="text"
+                placeholder="Search categories..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#f38918]"
+              />
 
-  {/* ✅ COUNT (desktop me right me) */}
-  <p className="hidden md:block text-sm text-gray-600 whitespace-nowrap">
-    {search
-      ? `showing ${filteredCount} of ${totalCount} categories`
-      : `${totalCount} total categories`}
-  </p>
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
 
-</div>
+            {/* ✅ COUNT (desktop me right me) */}
+            <p className="hidden md:block text-sm text-gray-600 whitespace-nowrap">
+              {search
+                ? `showing ${filteredCount} of ${totalCount} categories`
+                : `${totalCount} total categories`}
+            </p>
 
-    {/* SORT */}
-    <select
-      value={sort}
-      onChange={(e) => setSort(e.target.value)}
-     className="w-[120px] md:w-[140px] border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#445D41]"
-    >
-      <option value="az">A → Z</option>
-      <option value="za">Z → A</option>
-    </select>
+          </div>
 
-  </div>
+          {/* SORT */}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="w-[120px] md:w-[140px] border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f38918]"
+          >
+            <option value="az">A → Z</option>
+            <option value="za">Z → A</option>
+          </select>
 
-  {/* 🔹 Row 2: COUNT */}
-<p className="text-xs text-gray-500 md:hidden">
-  {search ? (
-    <>
-      Showing <span className="font-semibold">{filteredCount}</span> of {totalCount} categories
-    </>
-  ) : (
-    <>
-      <span className="font-semibold">{totalCount}</span> total categories
-    </>
-  )}
-</p>
+        </div>
 
-</div>
+        {/* 🔹 Row 2: COUNT */}
+        <p className="text-xs text-gray-500 md:hidden">
+          {search ? (
+            <>
+              Showing <span className="font-semibold">{filteredCount}</span> of {totalCount} categories
+            </>
+          ) : (
+            <>
+              <span className="font-semibold">{totalCount}</span> total categories
+            </>
+          )}
+        </p>
+
+      </div>
 
       {/* CATEGORY GRID */}
       {filteredCategories.length === 0 ? (
@@ -162,8 +162,8 @@ const filteredCount = filteredCategories.length;
                     !category.imageUrl
                       ? "/placeholder.png"
                       : category.imageUrl.startsWith("http")
-                      ? category.imageUrl
-                      : `${baseUrl}${category.imageUrl}`
+                        ? category.imageUrl
+                        : `${baseUrl}${category.imageUrl}`
                   }
                   alt={category.name}
                   onError={(e) => {
@@ -175,13 +175,13 @@ const filteredCount = filteredCategories.length;
 
               {/* Parent path */}
               {/* {getCategoryPath(category) && (
-                <span className="relative text-[10.5px] uppercase font-bold tracking-wider text-gray-400 text-center mb-1.5 line-clamp-1 px-2 group-hover:text-[#445D41]/75 transition">
+                <span className="relative text-[10.5px] uppercase font-bold tracking-wider text-gray-400 text-center mb-1.5 line-clamp-1 px-2 group-hover:text-[#f38918]/75 transition">
                   {getCategoryPath(category)}
                 </span>
               )} */}
 
               {/* Name */}
-              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#445D41] transition">
+              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#f38918] transition">
                 {category.name}
               </h3>
 

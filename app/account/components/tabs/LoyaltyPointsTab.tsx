@@ -1,7 +1,7 @@
 "use client";
 
 import { LoyaltyPoints } from "@/context/AuthContext";
-import { Gift, Trophy, TrendingUp, ArrowUpRight, Crown, Medal, ShieldCheck, Wallet, Info, AwardIcon, } from "lucide-react";
+import { Gift, Trophy, TrendingUp, ArrowUpRight, Crown, Medal, ShieldCheck, Wallet, Info, AwardIcon } from "lucide-react";
 
 interface Props {
   loyalty?: LoyaltyPoints;
@@ -9,30 +9,15 @@ interface Props {
 
 const formatDate = (date?: string) => {
   if (!date) return "—";
-  return new Date(date).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const StatCard = ({
-  label,
-  value,
-  icon,
-  className = "",
-}: {
-  label: string;
-  value: string | number;
-  icon?: React.ReactNode;
-  className?: string;
-}) => (
-  <div className={`border rounded-xl p-2 md:p-4 shadow-sm ${className}`}>
-    <div className="flex items-center gap-2 text-xs text-gray-500">
-      {icon}
+const StatCard = ({ label, value }: { label: string; value: string | number }) => (
+  <div className="bg-gray-50 rounded-2xl p-4 sm:p-5">
+    <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-gray-400 mb-1">
       {label}
     </div>
-    <div className="text-sm font-semibold text-gray-900 mt-2">
+    <div className="text-xl font-black text-gray-900 tracking-tight">
       {value}
     </div>
   </div>
@@ -41,265 +26,159 @@ const StatCard = ({
 export default function LoyaltyPointsTab({ loyalty }: Props) {
   if (!loyalty) {
     return (
-      <div className="bg-white border rounded-xl p-6 text-center text-gray-500">
-        Loyalty points information is not available.
+      <div className="bg-gray-50/50 rounded-3xl border border-gray-100 p-16 text-center flex flex-col items-center">
+        <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
+          <AwardIcon className="w-8 h-8 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-black text-gray-900 mb-2">No loyalty data</h3>
+        <p className="text-sm font-medium text-gray-500">Loyalty points information is not available.</p>
       </div>
     );
   }
 
   const {
-    currentBalance,
-    redemptionValue,
-    totalPointsEarned,
-    totalPointsRedeemed,
-    totalPointsExpired,
-    tierLevel,
-    pointsToNextTier,
-     nextTierName,   // ✅ ADD THIS
-    lastEarnedAt,
-    lastRedeemedAt,
+    currentBalance, redemptionValue, totalPointsEarned, totalPointsRedeemed,
+    totalPointsExpired, tierLevel, pointsToNextTier, nextTierName, lastEarnedAt, lastRedeemedAt,
   } = loyalty;
 
-  /* 🎨 Tier styling */
   const tierConfig = {
-    Gold: {
-      bg: " bg-gradient-to-br from-[#f3e7c3] via-[#e2c66f] to-[#c9a227] text-black",
-      badge: "bg-yellow-100 text-yellow-800",
-      icon: <Crown size={18} />,
-      label: "Gold Member",
-    },
-    Silver: {
-      bg: "bg-gradient-to-br from-gray-300 to-gray-400 text-gray-900",
-      badge: "bg-gray-100 text-gray-700",
-      icon: <Medal size={18} />,
-      label: "Silver Member",
-    },
-    Bronze: {
-      bg: "bg-gradient-to-br from-amber-700 to-amber-800 text-white",
-      badge: "bg-amber-100 text-amber-800",
-      icon: <ShieldCheck size={18} />,
-      label: "Bronze Member",
-    },
+    Gold: { bg: "bg-gradient-to-br from-[#f3e7c3] via-[#e2c66f] to-[#c9a227]", text: "text-black", badge: "bg-yellow-900 text-yellow-100", icon: <Crown size={24} />, label: "Gold Member" },
+    Silver: { bg: "bg-gradient-to-br from-gray-200 to-gray-400", text: "text-gray-900", badge: "bg-gray-900 text-gray-100", icon: <Medal size={24} />, label: "Silver Member" },
+    Bronze: { bg: "bg-gradient-to-br from-amber-700 to-amber-900", text: "text-white", badge: "bg-amber-100 text-amber-900", icon: <ShieldCheck size={24} />, label: "Bronze Member" },
   }[tierLevel];
 
   return (
-    <div className="space-y-2">
-      {/* HEADER */}
-     <div className="bg-[#445D41] border rounded-xl p-4 shadow-sm flex items-center justify-between">
-  <div>
-    <div className="flex items-center gap-2">
-      <AwardIcon className="text-white" size={25} />
-      <h2 className="text-lg font-semibold text-white">
-        Loyalty Points
-      </h2>
-    </div>
-
-    <p className="text-sm text-white mt-1 leading-snug">
-      Earn points on every purchase and redeem them for rewards
-    </p>
-  </div>
-
-  <span
-    className={`px-4 py-1.5 rounded-md text-xs font-semibold tracking-wide ${tierConfig.badge}`}
-  >
-    {tierLevel} Member
-  </span>
-</div>
-
-
-      {/* 🔥 TOP ROW – 3 CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* membership */}
-     
-  <div
-          className={`rounded-xl p-4 shadow-sm flex flex-col justify-between ${tierConfig.bg}`}
-        >
-          <div className="flex items-center gap-2 opacity-90">
-            {tierConfig.icon}
-            <span className="text-sm font-medium">
-              Membership
+    <div className="space-y-4 animate-in fade-in duration-500">
+      
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-gray-100 pb-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            Loyalty Points
+            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-widest uppercase ${tierConfig?.badge} mb-0.5`}>
+              {tierLevel}
             </span>
-          </div>
-
-          <div className="mt-1">
-            <div className="text-xl font-semibold">
-              {tierConfig.label}
-            </div>
-            <div className="text-sm opacity-90 mt-1">
-              Premium customer benefits unlocked
-            </div>
-          </div>
-        </div>
-       <div className="bg-white text-[#445D41] rounded-xl p-4 shadow-sm">
-  <div className="flex items-center gap-2 text-[#445D41]">
-    <ArrowUpRight size={18} />
-    Redemption Value
-  </div>
-  <div className="text-3xl font-bold mt-3">
-   £{redemptionValue.toFixed(2)}
-<p className="text-xs text-gray-500 mt-3">
-  Available to redeem
-</p>
-  </div>
-</div>
-
-       
-
-        {/* 🟡 current points */}
-         <div className="bg-white text-[#445D41] rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-[#445D41]">
-            <Wallet size={18} />
-            Current Balance
-
-          </div>
-          <div className="text-3xl font-bold mt-3">
-            {currentBalance.toLocaleString()} pts
-            <p className="text-xs text-gray-500 mt-3">
-  Worth £{(currentBalance / loyalty.redemptionRate).toFixed(2)}
-</p>
-          </div>
+          </h1>
+          <p className="text-[11px] font-medium text-gray-500 mt-1">Earn points on every purchase and redeem them for rewards.</p>
         </div>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          label="Total Points Earned"
-          value={totalPointsEarned.toLocaleString()}
-          className="bg-white"
-        />
-        <StatCard
-          label="Points Redeemed"
-          value={totalPointsRedeemed.toLocaleString()}
-          className="bg-white"
-        />
-        <StatCard
-          label="Points Expired"
-          value={totalPointsExpired.toLocaleString()}
-          className="bg-white"
-        />
-       
-      </div>
-  
-      {(loyalty.totalReviewBonusEarned || loyalty.totalReferralBonusEarned) && (
-  <div className="bg-white border rounded-xl p-5 shadow-sm text-sm text-gray-600">
-    {(loyalty.totalReviewBonusEarned ?? 0) > 0 && (
-      <p>Review Bonus Earned: {loyalty.totalReviewBonusEarned} pts</p>
-    )}
-   {(loyalty.totalReferralBonusEarned ?? 0) > 0 && (
-      <p>Referral Bonus Earned: {loyalty.totalReferralBonusEarned} pts</p>
-    )}
-  </div>
-)}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Tier Card */}
+        <div className={`rounded-2xl p-4 flex flex-col justify-between shadow-sm relative overflow-hidden ${tierConfig?.bg} ${tierConfig?.text}`}>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/20 rounded-full -mr-12 -mt-12 blur-xl" />
+          <div className="flex items-center gap-1.5 opacity-90 font-black uppercase tracking-widest text-[9px] relative z-10">
+            {tierConfig?.icon} Membership
+          </div>
+          <div className="mt-4 relative z-10">
+            <div className="text-xl font-black tracking-tight">{tierConfig?.label}</div>
+            <div className="text-[10px] font-bold opacity-80 mt-0.5 uppercase tracking-widest">Benefits unlocked</div>
+          </div>
+        </div>
+        
+        {/* Value Card */}
+        <div className="bg-gray-50 rounded-2xl p-4 flex flex-col justify-between">
+          <div className="flex items-center gap-1.5 font-black uppercase tracking-widest text-[9px] text-gray-400">
+            <ArrowUpRight size={14} /> Redemption Value
+          </div>
+          <div className="mt-4">
+            <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tighter">£{redemptionValue.toFixed(2)}</div>
+            <div className="text-[10px] font-bold text-gray-500 mt-0.5 uppercase tracking-widest">Available to redeem</div>
+          </div>
+        </div>
 
-  {/* PROGRESS */}
-  {pointsToNextTier > 0 && nextTierName && (
-    <div className="bg-white border rounded-xl p-3 shadow-sm">
-      <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-        <TrendingUp size={14} />
-        Progress to {nextTierName}
+        {/* Points Card */}
+        <div className="bg-gray-50 rounded-2xl p-4 flex flex-col justify-between border-2 border-[#f38918]/20">
+          <div className="flex items-center gap-1.5 font-black uppercase tracking-widest text-[9px] text-[#f38918]">
+            <Wallet size={14} /> Current Balance
+          </div>
+          <div className="mt-4">
+            <div className="text-2xl sm:text-3xl font-black text-[#f38918] tracking-tighter">{currentBalance.toLocaleString()} <span className="text-lg">pts</span></div>
+            <div className="text-[10px] font-bold text-gray-500 mt-0.5 uppercase tracking-widest">Worth £{(currentBalance / loyalty.redemptionRate).toFixed(2)}</div>
+          </div>
+        </div>
       </div>
 
-      <p className="text-sm text-gray-600 leading-tight">
-        Earn{" "}
-        <strong>{pointsToNextTier.toLocaleString()} more points</strong>{" "}
-        to reach <strong>{nextTierName} tier</strong>
-      </p>
-    </div>
-  )}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <StatCard label="Total Earned" value={totalPointsEarned.toLocaleString()} />
+        <StatCard label="Redeemed" value={totalPointsRedeemed.toLocaleString()} />
+        <StatCard label="Expired" value={totalPointsExpired.toLocaleString()} />
+      </div>
 
-  {/* ACTIVITY */}
-  <div className="bg-white border rounded-xl p-4 shadow-sm">
-    <p className="text-xs font-medium text-gray-500 mb-1">
-      Activity Timeline
-    </p>
-
-    <div className="flex justify-between text-xs">
-      <span className="text-gray-900"> Last Earned</span>
-      <span className="font-medium">
-        {formatDate(lastEarnedAt)}
-      </span>
-    </div>
-
-    <div className="flex justify-between text-xs mt-1">
-      <span className="text-gray-900"> Last Redeemed</span>
-      <span className="font-medium">
-        {formatDate(lastRedeemedAt)}
-      </span>
-    </div>
-  </div>
-
-</div>
-{loyalty.pointsExpiryEnabled &&
-  loyalty.expiringPoints?.some((p) => p.points > 0) && (
-    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-      <strong>Points expiring soon:</strong>
-
-      <div className="mt-2 space-y-1">
-        {loyalty.expiringPoints
-          .filter((p) => p.points > 0)
-          .map((p, i) => (
-            <div key={i}>
-              {p.points} pts expiring on{" "}
-              {new Date(p.expiresAt).toLocaleDateString("en-GB")}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        {/* Progress & Bonus */}
+        <div className="space-y-4">
+          {pointsToNextTier > 0 && nextTierName && (
+            <div>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+                <TrendingUp size={12} /> Progress to {nextTierName}
+              </h3>
+              <p className="text-[11px] font-medium text-gray-600">
+                Earn <strong className="text-black">{pointsToNextTier.toLocaleString()} more points</strong> to reach <strong className="text-black">{nextTierName} tier</strong>
+              </p>
             </div>
-          ))}
+          )}
+
+          <div>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+              <Gift size={12} /> Bonus Earned
+            </h3>
+            <div className="space-y-1 text-[11px] font-medium text-gray-600">
+              {(loyalty.totalReviewBonusEarned ?? 0) > 0 ? (
+                <p>Review Bonus: <span className="font-bold text-black">{loyalty.totalReviewBonusEarned} pts</span></p>
+              ) : <p>No Review Bonus</p>}
+              {(loyalty.totalReferralBonusEarned ?? 0) > 0 ? (
+                <p>Referral Bonus: <span className="font-bold text-black">{loyalty.totalReferralBonusEarned} pts</span></p>
+              ) : <p>No Referral Bonus</p>}
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Timeline */}
+        <div>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5 flex items-center gap-1.5">
+            <Info size={12} /> Activity Timeline
+          </h3>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+              <span className="text-[11px] font-semibold text-gray-500">Last Earned</span>
+              <span className="text-[11px] font-bold text-gray-900">{formatDate(lastEarnedAt)}</span>
+            </div>
+            <div className="flex justify-between items-center pb-2">
+              <span className="text-[11px] font-semibold text-gray-500">Last Redeemed</span>
+              <span className="text-[11px] font-bold text-gray-900">{formatDate(lastRedeemedAt)}</span>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-)}
 
-
-
-<div className="bg-green-50 border rounded-xl p-4 text-xs text-gray-700">
-
-  {/* TITLE */}
-  <p className="text-sm font-semibold text-[#445D41] mb-2">
-   How redemption works:
-  </p>
-
-  {/* RULES GRID */}
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-
-    <div className="bg-white border rounded-md px-2 py-1">
-      <span className="block text-gray-500">Points value</span>
-      <span className="font-medium">{loyalty.redemptionRateText}</span>
-    </div>
-
-    <div className="bg-white border rounded-md px-2 py-1">
-      <span className="block text-gray-500">Minimum redeem:</span>
-      <span className="font-medium">
-        {loyalty.minimumRedemptionPoints} pts
-      </span>
-    </div>
-
-    <div className="bg-white border rounded-md px-2 py-1">
-      <span className="block text-gray-500">Max per order:</span>
-      <span className="font-medium">
-        {loyalty.maxPointsPerRedemption} pts
-      </span>
-    </div>
-
-    <div className="bg-white border rounded-md px-2 py-1">
-      <span className="block text-gray-500">Max usage:</span>
-      <span className="font-medium">
-        {loyalty.maxRedemptionPercentOfOrder}% of order value
-      </span>
-    </div>
-
-  </div>
-
-  {/* EXPIRY */}
-  {loyalty.pointsExpiryEnabled && (
-    <p className="mt-2 text-[11px] text-gray-500">
-      Points expire after{" "}
-      <span className="font-medium">
-        {loyalty.pointsExpiryMonths} months
-      </span>{" "}
-      if unused.
-    </p>
-  )}
-</div>
+      <div className="bg-gray-900 rounded-2xl p-5 text-white mt-4">
+        <p className="text-xs font-bold flex items-center gap-1.5 mb-3 text-[#f38918]">
+          <Info size={14} /> How redemption works
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Value</span>
+            <span className="font-bold text-xs">{loyalty.redemptionRateText}</span>
+          </div>
+          <div>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Min</span>
+            <span className="font-bold text-xs">{loyalty.minimumRedemptionPoints} pts</span>
+          </div>
+          <div>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Max/Order</span>
+            <span className="font-bold text-xs">{loyalty.maxPointsPerRedemption} pts</span>
+          </div>
+          <div>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Limit</span>
+            <span className="font-bold text-xs">{loyalty.maxRedemptionPercentOfOrder}% <span className="text-gray-400 font-medium">of cart</span></span>
+          </div>
+        </div>
+        {loyalty.pointsExpiryEnabled && (
+          <p className="mt-4 text-[10px] font-medium text-gray-400">
+            Points expire after <span className="text-white font-bold">{loyalty.pointsExpiryMonths} months</span> if unused.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

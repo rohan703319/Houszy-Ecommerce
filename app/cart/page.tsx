@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import Link from "next/link";
-import { Trash2, GiftIcon, AwardIcon, Truck } from "lucide-react";
+import { Trash2, GiftIcon, AwardIcon, Truck, ShoppingBag, Plus, Minus, Tag, ChevronRight, Info, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/toast/CustomToast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -166,12 +166,18 @@ export default function CartPage() {
     );
   }, [cart]);
   const bundleSavings = useMemo(() => {
-    return cart
-      .filter(i => i.hasBundleDiscount)
-      .reduce(
-        (sum, i) => sum + (i.individualSavings ?? 0) * (i.quantity ?? 1),
-        0
-      );
+    return cart.reduce((sum, item) => {
+      let savings = 0;
+      // 1. If individual child has savings
+      if (item.hasBundleDiscount && item.individualSavings) {
+        savings += item.individualSavings * (item.quantity ?? 1);
+      }
+      // 2. If it's a bundle parent with totalSavings
+      if (item.isBundleParent && item.productData?.totalSavings) {
+        savings += item.productData.totalSavings * (item.quantity ?? 1);
+      }
+      return sum + savings;
+    }, 0);
   }, [cart]);
 
   const finalDiscount = useMemo(() => {
@@ -562,481 +568,321 @@ export default function CartPage() {
     }
     return threshold;
   }, [cart]);
-
-  // UI render
-  // -------------------------
+  // UI render\n  // -------------------------\n
   if (!cart || cart.length === 0) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-gray-600">
-        <div className="relative">
-          <svg width="240" height="240" viewBox="0 0 24 24" stroke="#9aa1ab" fill="none" strokeWidth="1.4" className="opacity-80 drop-shadow">
-            <circle cx="12" cy="12" r="11" fill="#f5f6f7" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 6h2l1.5 9h10l2-6H6M8 17.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm8 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-          </svg>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center bg-gray-50/30 px-4">
+        <div className="bg-white p-10 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center max-w-sm text-center">
+          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+            <ShoppingBag className="w-8 h-8 text-gray-300" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">Your cart is empty</h2>
+          <p className="text-sm text-gray-500 mb-8">Looks like you haven't added anything to your bag yet.</p>
+          <Link href="/" className="w-full bg-black text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition-all shadow-md">
+            Start Shopping
+          </Link>
         </div>
-
-        <p className="text-xl font-semibold text-gray-700 mt-6">Your cart is empty</p>
-
-        <Link href="/" className="mt-4 bg-[#445D41] text-white px-6 py-2 rounded-lg hover:bg-black transition-all">
-          Continue Shopping
-        </Link>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50/50 pb-32 lg:pb-12">
       {/* Fixed bottom checkout bar — mobile only */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col leading-tight">
-            <span className="text-[10px] text-gray-500">Total</span>
-            <span className="text-base font-bold text-gray-900">£{cartTotal.toFixed(2)}</span>
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] px-4 py-3 pb-safe">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Total</span>
+            <span className="text-lg font-black text-gray-900 leading-none mt-0.5">£{cartTotal.toFixed(2)}</span>
           </div>
           <button
             onClick={handleCheckout}
-            className="flex-1 bg-black hover:bg-gray-800 text-white py-2.5 rounded-xl font-semibold text-sm shadow-md transition"
+            className="flex-1 bg-black hover:bg-gray-800 text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
           >
-            Proceed to Checkout
+            Checkout Now
           </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-3 py-3 pb-24 lg:pb-3">
-        <h1 className="text-lg font-bold mb-3">My Shopping Bag</h1>
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <div className="flex items-end justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gray-100 rounded-xl">
+              <ShoppingBag className="h-5 w-5 text-gray-900" />
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+              Shopping Bag
+            </h1>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* LEFT: items */}
-          <div className="lg:col-span-2 space-y-2">
+          <div className="w-full lg:flex-1 space-y-4">
             {cart.map((item) => {
               const basePrice = item.priceBeforeDiscount ?? item.price;
               const finalPrice = item.finalPrice ?? item.price;
               const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
 
-              // 🟠 OLD PRICE % CALC
-              const oldPricePercent =
-                item.displayDiscountType === "OldPrice" &&
-                  oldPrice &&
-                  oldPrice > basePrice
-                  ? Math.round(((oldPrice - basePrice) / oldPrice) * 100)
-                  : null;
-              // ❌ bundle child direct render nahi hoga
+              const oldPricePercent = item.displayDiscountType === "OldPrice" && oldPrice && oldPrice > basePrice
+                ? Math.round(((oldPrice - basePrice) / oldPrice) * 100) : null;
+
               if (isBundleChild(item)) return null;
 
-              const bundleChildren = isBundleParent(item)
-                ? item.bundleId ? getBundleChildren(item.bundleId) : []
-
-                : [];
-
+              const bundleChildren = isBundleParent(item) ? item.bundleId ? getBundleChildren(item.bundleId) : [] : [];
 
               return (
-                <React.Fragment
-                  key={item.id + (item.variantId ?? "") + (item.type ?? "")}
-                >
-
-                  <div key={item.id + (item.variantId ?? "") + (item.type ?? "")} className="bg-white rounded-xl border border-gray-200 p-3 flex flex-row gap-3 shadow-sm">
-
-                    {/* Image + delete */}
-                    <div className="relative w-[72px] h-[72px] md:w-24 md:h-24 flex-shrink-0">
-                      <Link href={`/product/${item.slug}`}>
-                        <img
-                          src={item.image}
-                          alt="no image"
-                          className="w-[72px] h-[72px] md:w-24 md:h-24 object-contain rounded-md border bg-gray-50"
-                        />
+                <div key={item.id + (item.variantId ?? "") + (item.type ?? "")} className="bg-white rounded p-3 shadow-sm hover:shadow-md transition-all duration-300 relative group overflow-hidden">
+                  <div className="flex flex-row gap-3">
+                    {/* Image */}
+                    <div className="relative w-[72px] h-[72px] md:w-24 md:h-24 flex-shrink-0 bg-white rounded-lg border border-gray-200 p-1 overflow-hidden flex items-center justify-center">
+                      <Link href={`/product/${item.slug}`} className="w-full h-full flex items-center justify-center">
+                        <img src={item.image} alt="product" className="max-w-full max-h-full object-contain" />
                       </Link>
-                      <button
-                        onClick={() => setRemoveTarget({ item, bundleChildren })}
-                        className="absolute -top-2 -left-2 bg-white border border-gray-200 rounded-full p-1 text-red-500 hover:bg-red-50 shadow-sm transition"
-                        aria-label="Remove item"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {item.couponCode && (item.discountAmount ?? 0) > 0 && (() => {
+                        const preCouponPrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
+                        const pct = Math.round(((item.discountAmount ?? 0) / (preCouponPrice || 1)) * 100);
+                        return pct > 0 ? (
+                          <span className="absolute top-2 left-2 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider z-10 shadow-sm">
+                            -{pct}%
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
 
-                    {/* Right: all details */}
+                    {/* Details */}
                     <div className="flex flex-col flex-1 min-w-0">
-
-                      {/* Row 1: Name + Price */}
-                      <div className="flex items-start justify-between gap-1">
-                        <Link href={`/product/${item.slug}`} className="flex-1 min-w-0 pr-2 md:pr-4">
-                          <h2 className="font-medium text-xs md:text-sm text-gray-900 hover:text-[#445D41] leading-tight line-clamp-2">
-                            {item.name}
-                          </h2>
-                        </Link>
-                        <div className="flex flex-col items-end flex-shrink-0 ml-1">
-
-                          {/* PRICE ROW */}
-                          <div className="flex items-center gap-1 flex-wrap justify-end">
-
-                            {/* FINAL PRICE */}
-                            <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
-                              £{
-                                (
-                                  (
-                                    item.displayDiscountType === "System" ||
-                                      item.couponCode
-                                      ? (item.finalPrice ?? item.price)
-                                      : item.price
-                                  ) * (item.quantity ?? 1)
-                                ).toFixed(2)
-                              }
-                            </p>
-
-                            {/* CUT PRICE */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <Link href={`/product/${item.slug}`}>
+                            <h2 className="font-semibold text-sm text-gray-900 leading-tight hover:text-[#f38918] transition-colors line-clamp-2">
+                              {item.name}
+                            </h2>
+                          </Link>
+                          {/* Price Row */}
+                          <div className="flex items-baseline gap-2 mt-0.5 mb-2">
+                            <span className="text-sm font-bold text-[#f38918]">
+                              £{((item.displayDiscountType === "System" || item.couponCode ? (item.finalPrice ?? item.price) : item.price) * (item.quantity ?? 1)).toFixed(2)}
+                            </span>
                             {(() => {
-
-                              let comparePrice: number | null = null;
-
-                              // SYSTEM DISCOUNT
-                              // SYSTEM DISCOUNT
-                              if (
-                                item.displayDiscountType === "System" &&
-                                (item.systemDiscountAmount ?? 0) > 0
-                              ) {
-                                comparePrice =
-                                  item.price + (item.discountAmount ?? 0);
+                              let comparePrice = null;
+                              if (item.displayDiscountType === "System" && (item.systemDiscountAmount ?? 0) > 0) {
+                                comparePrice = item.price + (item.discountAmount ?? 0);
+                              } else if (item.couponCode && (item.discountAmount ?? 0) > 0) {
+                                comparePrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
+                              } else if (item.displayDiscountType === "OldPrice") {
+                                const oldP = item.oldPrice ?? item.productData?.oldPrice;
+                                if (oldP && oldP > item.price) comparePrice = oldP;
                               }
-
-                              // COUPON DISCOUNT — reconstruct pre-coupon price reliably
-                              else if (
-                                item.couponCode &&
-                                (item.discountAmount ?? 0) > 0
-                              ) {
-                                comparePrice =
-                                  (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-                              }
-
-                              // OLD PRICE
-                              else if (
-                                item.displayDiscountType === "OldPrice"
-                              ) {
-                                const oldPrice =
-                                  item.oldPrice ??
-                                  item.productData?.oldPrice;
-
-                                if (oldPrice && oldPrice > item.price) {
-                                  comparePrice = oldPrice;
-                                }
-                              }
-
                               if (!comparePrice) return null;
-
                               return (
-                                <span className="text-[11px] text-gray-400 line-through whitespace-nowrap">
+                                <span className="text-xs font-semibold text-gray-400 line-through">
                                   £{(comparePrice * (item.quantity ?? 1)).toFixed(2)}
                                 </span>
                               );
-
                             })()}
-
                           </div>
 
-                          {/* COUPON DISCOUNT BADGE — shown when coupon is active */}
-                          {item.couponCode && (item.discountAmount ?? 0) > 0 && (() => {
-                            const preCouponPrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-                            const pct = Math.round(((item.discountAmount ?? 0) / (preCouponPrice || 1)) * 100);
-                            return pct > 0 ? (
-                              <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
-                                {pct}% OFF
+                          {/* QTY & BADGES IN ONE ROW */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Quantity Controls */}
+                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded p-0.5 shadow-sm h-7">
+                              {(item.quantity ?? 1) === 1 ? (
+                                <button onClick={() => setRemoveTarget({ item, bundleChildren })} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white rounded transition-colors">
+                                  <Trash2 size={12} />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const minQty = item.productData?.orderMinimumQuantity ?? 1;
+                                    if ((item.quantity ?? 1) <= minQty) { toast.error(`Minimum order quantity is ${minQty}`); return; }
+                                    const newQty = (item.quantity ?? 1) - 1;
+                                    updateQuantity(item.id, newQty);
+                                    if (item.isBundleParent && item.bundleId) bundleChildren.forEach((c) => updateQuantity(c.id, newQty));
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center text-gray-700 hover:bg-white rounded transition-colors font-bold"
+                                >
+                                  <Minus size={12} />
+                                </button>
+                              )}
+                              <input
+                                type="number"
+                                className="w-7 text-center bg-transparent outline-none font-bold text-xs text-gray-900"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  let val = parseInt(e.target.value || "1", 10);
+                                  if (val < 1) return;
+                                  setMaxToastMap((prev) => ({ ...prev, [item.id]: false }));
+                                  if (item.isBundleParent && item.bundleId) {
+                                    const maxQty = getBundleMaxQty(item, bundleChildren);
+                                    if (val > maxQty) { toast.error(`Only ${maxQty} items available in bundle`); val = maxQty; }
+                                  }
+                                  updateQuantity(item.id, val);
+                                  if (item.isBundleParent && item.bundleId) bundleChildren.forEach((c) => updateQuantity(c.id, val));
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const itemId = item.id;
+                                  let newQty = (item.quantity ?? 1) + 1;
+                                  const stock = getItemStock(item);
+                                  if (newQty > stock) {
+                                    if (!maxToastMap[itemId]) {
+                                      toast.error(`Only ${stock} items available in stock`);
+                                      setMaxToastMap((prev) => ({ ...prev, [itemId]: true }));
+                                    }
+                                    return;
+                                  }
+                                  if (item.isBundleParent && item.bundleId) {
+                                    const maxQty = getBundleMaxQty(item, bundleChildren);
+                                    if (newQty > maxQty) { toast.error(`Only ${maxQty} items available in this bundle item`); return; }
+                                  }
+                                  setMaxToastMap((prev) => ({ ...prev, [itemId]: false }));
+                                  updateQuantity(item.id, newQty);
+                                  if (item.isBundleParent && item.bundleId) bundleChildren.forEach((c) => updateQuantity(c.id, newQty));
+                                }}
+                                className="w-6 h-6 flex items-center justify-center text-gray-700 hover:bg-white rounded transition-colors font-bold"
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </div>
+
+                            {/* Badges */}
+                            {typeof item.vatRate === "number" && item.vatRate > 0 ? (
+                              <span className="text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                {item.vatRate}% VAT
                               </span>
-                            ) : null;
-                          })()}
-
-                          {/* SYSTEM DISCOUNT — only show when NO coupon is active */}
-                          {item.displayDiscountType === "System" &&
-                            !item.couponCode &&
-                            (item.systemDiscountAmount ?? 0) > 0 && (
-                              <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
-                                {Math.round(
-                                  ((item.systemDiscountAmount ?? 0) /
-                                    ((item.price + (item.discountAmount ?? 0)) || 1)) *
-                                  100
-                                )}
-                                % OFF
-                              </span>
-                            )}
-
-                          {/* OLD PRICE DISCOUNT */}
-                          {item.displayDiscountType === "OldPrice" &&
-                            !item.couponCode &&
-                            oldPricePercent && (
-                              <span className="text-[10px] font-semibold text-green-700 whitespace-nowrap">
-                                {oldPricePercent}% OFF
-                              </span>
-                            )}
-
-                        </div>
-                      </div>
-
-                      {/* Row 2: meta (stock / subscription) */}
-                      {getItemStock(item) === 0 && (
-                        <p className="text-red-600 text-[10px] font-semibold mt-0.5">Out of Stock — remove this item</p>
-                      )}
-                      {item.type === "subscription" && (
-                        <p className="text-xs font-semibold text-indigo-600 mt-1">
-                          Subscription • Every{" "}
-                          {item.frequency && !isNaN(Number(item.frequency))
-                            ? `${item.frequency} `
-                            : ""}
-                          {item.frequencyPeriod} • {item.subscriptionTotalCycles} cycles
-                        </p>
-                      )}
-
-                      {/* Row 3: Qty controls + VAT + Loyalty */}
-                      <div className="flex items-center justify-between mt-1.5 flex-wrap gap-1">
-                        {/* Qty */}
-                        <div className="flex items-center border rounded-md h-7">
-                          {(item.quantity ?? 1) === 1 ? (
-                            <button
-                              onClick={() => setRemoveTarget({ item, bundleChildren })}
-                              className="px-1.5 h-full text-gray-600 hover:text-red-600 flex items-center"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                const minQty = item.productData?.orderMinimumQuantity ?? 1;
-                                if ((item.quantity ?? 1) <= minQty) { toast.error(`Minimum order quantity is ${minQty}`); return; }
-                                const newQty = (item.quantity ?? 1) - 1;
-                                updateQuantity(item.id, newQty);
-                                if (item.isBundleParent && item.bundleId) bundleChildren.forEach((c) => updateQuantity(c.id, newQty));
-                              }}
-                              className="px-1.5 h-full text-gray-700 font-bold text-sm flex items-center"
-                            >-</button>
-                          )}
-                          <input
-                            type="number"
-                            className="w-8 text-center outline-none font-medium text-sm border-l border-r border-gray-200 h-full"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              let val = parseInt(e.target.value || "1", 10);
-                              if (val < 1) return;
-
-                              setMaxToastMap((prev) => ({ ...prev, [item.id]: false }));
-
-                              // bundle check...
-                              if (item.isBundleParent && item.bundleId) {
-                                const maxQty = getBundleMaxQty(item, bundleChildren);
-
-                                if (val > maxQty) {
-                                  toast.error(`Only ${maxQty} items available in bundle`);
-                                  val = maxQty;
-                                }
-                              }
-
-                              updateQuantity(item.id, val);
-
-                              if (item.isBundleParent && item.bundleId)
-                                bundleChildren.forEach((c) => updateQuantity(c.id, val));
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              const itemId = item.id;
-                              let newQty = (item.quantity ?? 1) + 1;
-
-                              // 🔥 STOCK CHECK (ADD THIS)
-                              const stock = getItemStock(item);
-
-                              if (newQty > stock) {
-                                if (!maxToastMap[itemId]) {
-                                  toast.error(`Only ${stock} items available in stock`);
-                                  setMaxToastMap((prev) => ({ ...prev, [itemId]: true }));
-                                }
-                                return;
-                              }
-
-                              // 🔥 BUNDLE CHECK (existing)
-                              if (item.isBundleParent && item.bundleId) {
-                                const maxQty = getBundleMaxQty(item, bundleChildren);
-
-                                if (newQty > maxQty) {
-                                  toast.error(`Only ${maxQty} items available in this bundle item`);
-                                  return;
-                                }
-                              }
-
-                              // ✅ RESET TOAST FLAG
-                              setMaxToastMap((prev) => ({ ...prev, [itemId]: false }));
-
-                              updateQuantity(item.id, newQty);
-
-                              if (item.isBundleParent && item.bundleId)
-                                bundleChildren.forEach((c) => updateQuantity(c.id, newQty));
-                            }}
-                            className="px-1.5 h-full text-gray-700 font-bold text-sm flex items-center"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        {/* VAT + Loyalty badges */}
-                        <div className="flex flex-wrap items-center gap-1">
-                          {typeof item.vatRate === "number" && item.vatRate > 0 && (
-                            <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
-                              {item.vatRate}% VAT
-                            </span>
-                          )}
-                          {(
-                            item.vatIncluded === false ||
-                            item.vatRate === 0 ||
-                            item.vatRate === null
-                          ) && (
-                              <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                            ) : (item.vatIncluded === false || item.vatRate === 0 || item.vatRate === null) ? (
+                              <span className="text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 VAT Exempt
                               </span>
+                            ) : null}
+                            {getItemLoyaltyPoints(item) > 0 && (
+                              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                <AwardIcon className="w-3 h-3" />
+                                Earn {getItemLoyaltyPoints(item)} pts
+                              </div>
                             )}
-                          {getItemLoyaltyPoints(item) > 0 && (
-                            <div className="inline-flex items-center gap-0.5 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
-                              <AwardIcon className="h-3 w-3 text-green-600" />
-                              Earn {getItemLoyaltyPoints(item)} pts
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                            {item.shipSeparately === true && purchasableItemCount > 1 && (
+                              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                📦 Ships separately
+                              </span>
+                            )}
+                            {item.type === "subscription" && (
+                              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                Sub • {item.frequency && !isNaN(Number(item.frequency)) ? `${item.frequency} ` : ""}{item.frequencyPeriod}
+                              </span>
+                            )}
+                          </div>
 
-                      {/* Row 4: Coupon */}
-                      {item.couponCode ? (
-                        <div className="flex items-center gap-1.5 bg-green-50 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-semibold mt-1 w-fit">
-                          <span>Coupon: {item.couponCode}</span>
-                          <button onClick={() => removeCouponFromItem(item.id, item.type)} className="text-red-600 underline">Remove</button>
+                          {/* Extra info (Coupons, Errors) */}
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {item.couponCode ? (
+                              <div className="flex items-center gap-1 bg-green-50 text-green-800 px-2 py-1 rounded border border-green-100">
+                                <span className="text-[10px] font-bold uppercase tracking-wide">{item.couponCode}</span>
+                                <button onClick={() => removeCouponFromItem(item.id, item.type)} className="flex items-center justify-center text-green-600 hover:text-red-600 transition-colors ml-1">
+                                  <Trash2 size={10} />
+                                </button>
+                              </div>
+                            ) : availableCoupons.some((c) => c.productIds.includes(item.id)) ? (
+                              <button onClick={() => { setSelectedItem(item); setShowOffers(true); }} className="flex items-center gap-1 text-[10px] font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded border border-gray-200 transition-colors">
+                                <GiftIcon size={12} />
+                                Offers
+                              </button>
+                            ) : null}
+
+                            {getItemStock(item) === 0 && (
+                              <span className="text-red-600 text-[10px] font-bold bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Out of Stock</span>
+                            )}
+                            {stockError[item.id] && <span className="text-red-600 text-[10px] font-medium">{stockError[item.id]}</span>}
+                            {item.productData?.isPharmaProduct && (
+                              <button onClick={() => setPharmaEditItem(item)} className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline decoration-blue-300 underline-offset-2 transition-colors">
+                                Edit Medical Info
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      ) : availableCoupons.some((c) => c.productIds.includes(item.id)) && (
-                        <button
-                          onClick={() => { setSelectedItem(item); setShowOffers(true); }}
-                          className="flex items-center gap-1 text-[10px] text-green-600 font-medium hover:underline mt-1 w-fit"
-                        >
-                          <GiftIcon className="h-3.5 w-3.5" />
-                          Apply coupon
+
+                        {/* Top-right trash icon */}
+                        <button onClick={() => setRemoveTarget({ item, bundleChildren })} className="w-7 h-7 flex items-center justify-center rounded bg-gray-50 border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                          <Trash2 size={14} />
                         </button>
-                      )}
-
-                      {/* Row 5: extras */}
-                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                        {item.productData?.isPharmaProduct && (
-                          <button onClick={() => setPharmaEditItem(item)} className="text-[10px] font-medium text-blue-600 hover:underline">
-                            Edit Medical Info
-                          </button>
-                        )}
-                        {item.shipSeparately === true && purchasableItemCount > 1 && (
-                          <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
-                            📦 Ships separately
-                          </span>
-                        )}
-                        {stockError[item.id] && <p className="text-red-600 text-[10px]">{stockError[item.id]}</p>}
                       </div>
-
                     </div>
                   </div>
-                  {/* 🔥 GROUPED PRODUCTS (NESTED) */}
+
+                  {/* Bundle Children */}
                   {bundleChildren.length > 0 && (
-                    <div className="mt-3 ml-6 border-l-2 border-dashed border-gray-300 pl-4 space-y-3">
-                      {/* 🔥 SINGLE GROUP REMOVE BUTTON (TOP-LEFT) */}
-                      {!item.productData?.automaticallyAddProducts && (
-                        <div className="mb-2">
-
-                        </div>
-                      )}
-                      {bundleChildren.map((gp: any) => (
-                        <div
-                          key={gp.id}
-                          className="flex items-center justify-between bg-gray-50 rounded-lg p-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Link
-                              href={`/product/${gp.slug}`}
-                              className="flex items-center gap-3 group"
-                            >
-                              <img
-                                src={gp.image}
-                                alt={"no img"}
-                                className="w-16 h-16 object-cover rounded border"
-                              />
+                    <div className="mt-5 pt-5 border-t border-gray-100">
+                      <div className="flex items-center gap-2 mb-3 px-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Bundle Contents</span>
+                      </div>
+                      <div className="space-y-2">
+                        {bundleChildren.map((gp: any) => (
+                          <div key={gp.id} className="flex items-center gap-3 bg-gray-50/50 p-2 sm:p-3 rounded-xl border border-gray-100">
+                            <Link href={`/product/${gp.slug}`} className="relative w-12 h-12 bg-white rounded-lg border border-gray-100 p-1 flex-shrink-0">
+                              <img src={gp.image} alt="no img" className="max-w-full max-h-full object-contain mix-blend-multiply" />
                             </Link>
-                            <div>
+                            <div className="flex-1 min-w-0">
                               <Link href={`/product/${gp.slug}`}>
-                                <p className="text-sm font-semibold text-gray-800 
-              line-clamp-2 max-w-[220px]">
-                                  {gp.name}
-                                </p>
-
+                                <h3 className="text-xs font-bold text-gray-900 leading-tight truncate">{gp.name}</h3>
                               </Link>
-                              <div className="flex flex-col">
-                                {/* 🔥 BUNDLE PRICE */}
+                              <div className="flex items-center gap-2 mt-1">
                                 {gp.hasBundleDiscount ? (
                                   <>
-
-                                    {/* FINAL PRICE + SAVING */}
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-sm font-semibold text-green-700">
-                                        £{(gp.price * gp.quantity).toFixed(2)}
-                                      </p>
-
-                                      {(gp.individualSavings ?? 0) > 0 && (
-                                        <span className="text-[11px] text-green-600 whitespace-nowrap">
-                                          (You save £{(gp.individualSavings * gp.quantity).toFixed(2)})
-                                        </span>
-                                      )}
-                                    </div>
+                                    <span className="text-xs font-bold text-gray-900">£{(gp.price * gp.quantity).toFixed(2)}</span>
+                                    {(gp.individualSavings ?? 0) > 0 && (
+                                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                                        Save £{(gp.individualSavings * gp.quantity).toFixed(2)}
+                                      </span>
+                                    )}
                                   </>
                                 ) : (
-                                  <p className="text-sm font-semibold text-gray-800">
-                                    £{(gp.price * gp.quantity).toFixed(2)}
-                                  </p>
+                                  <span className="text-xs font-bold text-gray-900">£{(gp.price * gp.quantity).toFixed(2)}</span>
                                 )}
-
                               </div>
-
+                            </div>
+                            <div className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 shadow-sm">
+                              x{gp.quantity}
                             </div>
                           </div>
-                          <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-2 border rounded-md px-3 py-1.5 bg-gray-100">
-                              <span className="text-sm font-semibold text-gray-800">
-                                Qty: {gp.quantity}
-                              </span>
-                            </div>
-
-                            <span className="text-[11px] text-gray-500 mt-1">
-                              Quantity matches main product
-                            </span>
-                          </div>
-
-
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
-
-                </React.Fragment>
+                </div>
               );
             })}
-
           </div>
 
-          {/* RIGHT: order summary + coupon input */}
-          <div className="lg:col-span-1">
-            <div className="bg-white border border-gray-200 rounded-xl shadow-md p-2 sticky top-24">
+          {/* RIGHT: order summary */}
+          <div className="w-full lg:w-[350px] flex-shrink-0">
+            <div className="bg-white border border-gray-200 rounded shadow-sm p-4 sticky top-24">
+              <h2 className="text-lg font-bold text-gray-900 mb-2 tracking-tight">Price Details</h2>
+
               {/* Free Shipping Progress */}
               {freeShippingThreshold > 0 && (
-                <div className="mb-2 bg-[#f8fafc] border border-gray-200 rounded-lg p-2.5">
+                <div className="mb-2 bg-gray-50 border border-gray-100 rounded p-4 sm:p-5">
                   {cartTotal >= freeShippingThreshold ? (
-                    <div className="flex items-center gap-2 text-[#445D41] text-xs font-semibold">
-                      <Truck size={14} className="flex-shrink-0" />
-                      <span>Yay! You get <strong className="text-green-600">FREE Delivery!</strong></span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                        <Truck size={18} />
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Delivery!</span></span>
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-start gap-2 text-gray-700 text-xs mb-1.5 leading-tight">
-                        <Truck size={14} className="text-[#445D41] mt-0.5 flex-shrink-0" />
-                        <span>
-                          Add <strong className="text-[#445D41]">£{(freeShippingThreshold - cartTotal).toFixed(2)}</strong> more for <strong className="text-green-600">FREE Delivery!</strong>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded bg-gray-200 text-gray-600 flex items-center justify-center flex-shrink-0">
+                          <Truck size={18} />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-700 leading-tight">
+                          Add <span className="font-bold text-gray-900">£{(freeShippingThreshold - cartTotal).toFixed(2)}</span> more for <span className="text-orange-600 font-bold">FREE Delivery</span>
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-gray-200 rounded h-2.5 overflow-hidden">
                         <div
-                          className="bg-[#445D41] h-full rounded-full transition-all duration-500 ease-out"
+                          className="bg-black h-full rounded transition-all duration-500 ease-out"
                           style={{ width: `${Math.min((cartTotal / freeShippingThreshold) * 100, 100)}%` }}
                         ></div>
                       </div>
@@ -1045,110 +891,100 @@ export default function CartPage() {
                 </div>
               )}
 
-              {/* Inline coupon input */}
-              <div className="border border-gray-300 rounded-lg p-2 mb-2">
-                <h3 className="text-sm font-semibold mb-1.5">Apply Coupon</h3>
-                <div className="flex gap-1">
+              {/* Apply Coupon */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag size={16} className="text-gray-400" />
+                  <h3 className="text-sm font-bold text-gray-900">Promo Code</h3>
+                </div>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
-                    placeholder="Enter coupon code"
-                    className="flex-1 border px-2 py-1.5 rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#445D41]"
+                    placeholder="Enter code"
+                    className="flex-1 bg-gray-50 border border-gray-200 px-4 py-3 rounded text-sm font-semibold outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all placeholder:font-medium placeholder:text-gray-400"
                   />
-                  <button onClick={applyCouponInput} className="bg-[#445D41] text-white px-3 py-1.5 rounded-lg text-xs">
+                  <button onClick={applyCouponInput} className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded text-sm font-bold shadow-sm transition-colors">
                     Apply
                   </button>
                 </div>
               </div>
+
               {totalLoyaltyPoints > 0 && (
-                <div className="flex items-center justify-between text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1.5 rounded-lg mb-2">
-                  <span>🎁 Total Loyalty Points</span>
-                  <span className="font-semibold">{totalLoyaltyPoints} points</span>
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-100 p-4 rounded mb-6">
+                  <div className="flex items-center gap-2 text-amber-800">
+                    <AwardIcon size={18} />
+                    <span className="font-bold text-sm">Loyalty Points</span>
+                  </div>
+                  <span className="font-black text-amber-700">+{totalLoyaltyPoints}</span>
                 </div>
               )}
 
-              {/* Price details */}
-              <h3 className="text-sm font-semibold mb-2">Price Details</h3>
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
+              {/* Price Details */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm font-semibold text-gray-500">
                   <span>Subtotal (Incl. VAT)</span>
-                  <span>£{correctSubtotal.toFixed(2)}</span>
+                  <span className="text-gray-900 font-bold">£{correctSubtotal.toFixed(2)}</span>
                 </div>
-
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center text-sm font-semibold text-gray-500">
                   <span>VAT</span>
-                  <span>£{orderVatAmount.toFixed(2)}</span>
+                  <span className="text-gray-900 font-bold">£{orderVatAmount.toFixed(2)}</span>
                 </div>
 
                 {bundleSavings > 0 && (
-                  <div className="flex justify-between text-green-700">
+                  <div className="flex justify-between items-center text-sm font-bold text-green-600">
                     <span>Bundle Savings</span>
-                    <span>- £{bundleSavings.toFixed(2)}</span>
+                    <span>-£{bundleSavings.toFixed(2)}</span>
                   </div>
                 )}
                 {finalDiscount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
-                    <span>- £{finalDiscount.toFixed(2)}</span>
+                  <div className="flex justify-between items-center text-sm font-bold text-green-600">
+                    <span>Discounts</span>
+                    <span>-£{finalDiscount.toFixed(2)}</span>
                   </div>
                 )}
-
-                {totalCombinedDiscount > 0 && (
-                  <div className="flex justify-between text-green-800 font-semibold border-t pt-1.5 mt-1">
-                    <span>Total Discount</span>
-                    <span>- £{totalCombinedDiscount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-semibold text-gray-900 border-t pt-1.5 text-sm">
-                  <span>Total Amount</span>
-                  <span>
-                    £{(correctSubtotal - totalCombinedDiscount).toFixed(2)}
-                  </span>
-                </div>
               </div>
 
-              <button onClick={handleCheckout} className="hidden lg:block w-full mt-3 bg-[#445D41] hover:bg-black text-white py-2.5 rounded-xl font-semibold text-sm shadow-md">
+              <div className="border-t border-gray-100 my-4"></div>
+
+              <div className="flex justify-between items-end mb-4">
+                <span className="text-sm font-bold text-gray-900">Total Amount</span>
+                <span className="text-xl font-black text-gray-900 tracking-tight">£{(correctSubtotal - totalCombinedDiscount).toFixed(2)}</span>
+              </div>
+
+              <button onClick={handleCheckout} className="w-full bg-black hover:bg-gray-800 text-white py-3 rounded font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group">
                 Proceed to Checkout
+                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
+
+              <div className="mt-5 flex items-center justify-center gap-2 text-gray-400 text-xs font-semibold">
+                <ShieldCheck size={14} />
+                <span>Secure Checkout Process</span>
+              </div>
+
               {showOffers && selectedItem && (
                 <ProductOffersModal
                   item={selectedItem}
-                  onClose={() => {
-                    setShowOffers(false);
-                    setSelectedItem(null);
-                  }}
-                  onApply={(couponData) =>
-                    applyCouponFromBackend(selectedItem, couponData)
-                  }
+                  onClose={() => { setShowOffers(false); setSelectedItem(null); }}
+                  onApply={(couponData) => applyCouponFromBackend(selectedItem, couponData)}
                   isDiscountActive={isDiscountActive}
                 />
               )}
               <ConfirmRemoveModal
                 open={!!removeTarget}
-                title="Remove item from cart?"
-                description="This item will be permanently removed from your shopping bag."
+                title="Remove item"
+                description="Are you sure you want to remove this item from your bag?"
                 onCancel={() => setRemoveTarget(null)}
                 onConfirm={() => {
                   if (!removeTarget) return;
-
                   const { item, bundleChildren } = removeTarget;
-
-                  // 🔥 bundle parent → remove children first
-                  if (
-                    item.isBundleParent === true &&
-                    item.purchaseContext === "bundle" &&
-                    item.bundleId
-                  ) {
-                    bundleChildren.forEach((c: any) =>
-                      removeFromCart(c.id, c.type)
-                    );
+                  if (item.isBundleParent === true && item.purchaseContext === "bundle" && item.bundleId) {
+                    bundleChildren.forEach((c: any) => removeFromCart(c.id, c.type));
                   }
-
                   removeFromCart(item.id, item.type);
-
                   setRemoveTarget(null);
-                  toast.error("Item removed from cart");
+                  toast.error("Item removed");
                 }}
               />
               {pharmaEditItem && (
@@ -1157,16 +993,13 @@ export default function CartPage() {
                   productId={pharmaEditItem.productId}
                   mode="edit"
                   onClose={() => setPharmaEditItem(null)}
-                  onSuccess={() => {
-                    setPharmaEditItem(null);
-                    toast.success("Medical information updated successfully.");
-                  }}
+                  onSuccess={() => { setPharmaEditItem(null); toast.success("Medical info updated."); }}
                 />
               )}
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

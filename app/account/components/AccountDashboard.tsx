@@ -18,9 +18,10 @@ import {
   KeyRound,
   Repeat,
   Truck,
-  Gift,
   LogOut,
-  Award
+  Award,
+  ChevronRight,
+  Menu,
 } from "lucide-react";
 
 type Tab =
@@ -32,22 +33,27 @@ type Tab =
   | "tracking"
   | "loyalty";
 
+const NAV_ITEMS: { tab: Tab; label: string; icon: React.ReactNode }[] = [
+  { tab: "profile", label: "My Profile", icon: <User size={18} /> },
+  { tab: "orders", label: "My Orders", icon: <Package size={18} /> },
+  { tab: "subscriptions", label: "Subscriptions", icon: <Repeat size={18} /> },
+  { tab: "tracking", label: "Order Tracking", icon: <Truck size={18} /> },
+  { tab: "change-password", label: "Change Password", icon: <KeyRound size={18} /> },
+  { tab: "addresses", label: "Saved Addresses", icon: <MapPin size={18} /> },
+  { tab: "loyalty", label: "Loyalty Points", icon: <Award size={18} /> },
+];
+
 export default function AccountDashboard() {
   const { user, logout, profileLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-const [showLogoutModal, setShowLogoutModal] = useState(false);
-  // ✅ URL is the single source of truth
-  const tabParam = searchParams.get("tab");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const tabParam = searchParams.get("tab");
   const validTabs: Tab[] = [
-    "profile",
-    "orders",
-    "addresses",
-    "change-password",
-    "subscriptions",
-    "tracking",
-    "loyalty",
+    "profile", "orders", "addresses", "change-password",
+    "subscriptions", "tracking", "loyalty",
   ];
 
   const activeTab: Tab = validTabs.includes(tabParam as Tab)
@@ -56,8 +62,11 @@ const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading your account…
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#f38918] border-t-transparent rounded animate-spin" />
+          <span className="text-sm font-semibold tracking-wide text-gray-500 uppercase">Loading Dashboard…</span>
+        </div>
       </div>
     );
   }
@@ -65,125 +74,116 @@ const [showLogoutModal, setShowLogoutModal] = useState(false);
   if (!user) return null;
 
   const initials =
-    `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}` || "U";
+    `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() || "U";
 
   const goToTab = (tab: Tab) => {
     router.push(`/account?tab=${tab}`);
+    setMobileMenuOpen(false);
   };
 
-  return (
-    <div className="min-h-screen bg-[#f7f8fa] py-2">
-      <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-xl font-semibold mb-2">My Account</h1>
+  const activeNavItem = NAV_ITEMS.find((n) => n.tab === activeTab);
 
-        <div className="grid grid-cols-12 gap-4 md:gap-6">
-          {/* LEFT SIDEBAR — vertical on desktop, horizontal scroll on mobile */}
-          <div className="col-span-12 md:col-span-3">
-            {/* Mobile: horizontal scrollable tabs */}
-            <div className="md:hidden flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-              {(["profile","orders","subscriptions","tracking","change-password","addresses","loyalty"] as Tab[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => goToTab(tab)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border transition
-                    ${activeTab === tab ? "bg-[#445D41] text-white border-[#445D41]" : "bg-white text-gray-600 border-gray-300"}`}
-                >
-                  {tab === "profile" ? "Profile" : tab === "orders" ? "Orders" : tab === "subscriptions" ? "Subscriptions" : tab === "tracking" ? "Tracking" : tab === "change-password" ? "Password" : tab === "addresses" ? "Addresses" : "Loyalty"}
-                </button>
-              ))}
-              <button
-               onClick={() => setShowLogoutModal(true)}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap border border-red-300 bg-white text-red-600"
-              >
-                Logout
-              </button>
-            </div>
-            {/* Desktop: vertical sidebar */}
-            <div className="hidden md:block sticky top-24">
-              <div className="bg-white rounded-xl border shadow-sm p-4 space-y-2">
-                <SidebarButton active={activeTab === "profile"} onClick={() => goToTab("profile")}><User size={18} /> My Profile</SidebarButton>
-                <SidebarButton active={activeTab === "orders"} onClick={() => goToTab("orders")}><Package size={18} /> My Orders</SidebarButton>
-                <SidebarButton active={activeTab === "subscriptions"} onClick={() => goToTab("subscriptions")}><Repeat size={18} /> Subscriptions</SidebarButton>
-                <SidebarButton active={activeTab === "tracking"} onClick={() => goToTab("tracking")}><Truck size={18} /> Order Tracking</SidebarButton>
-                <SidebarButton active={activeTab === "change-password"} onClick={() => goToTab("change-password")}><KeyRound size={18} /> Change Password</SidebarButton>
-                <SidebarButton active={activeTab === "addresses"} onClick={() => goToTab("addresses")}><MapPin size={18} /> Saved Addresses</SidebarButton>
-                <SidebarButton active={activeTab === "loyalty"} onClick={() => goToTab("loyalty")}><Award size={18} /> Loyalty Points</SidebarButton>
-                <hr />
-               <SidebarButton danger onClick={() => setShowLogoutModal(true)}>
-  <LogOut size={18} /> Logout
-</SidebarButton>
+  return (
+    <div className="min-h-screen bg-gray-50/50 py-6 md:py-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-8">
+
+        {/* UNIFIED APP LAYOUT */}
+        <div className="bg-white rounded shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row min-h-[75vh]">
+
+          {/* MOBILE HEADER */}
+          <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-100 bg-white sticky top-0 z-20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded bg-gradient-to-br from-[#f38918] to-orange-600 text-white flex items-center justify-center text-sm font-bold shadow-md">
+                {initials}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">{user.firstName} {user.lastName}</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">{activeNavItem?.label}</p>
               </div>
             </div>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 bg-gray-50 rounded text-gray-600 border border-gray-200"
+            >
+              <Menu size={20} />
+            </button>
           </div>
 
-          {/* RIGHT CONTENT */}
-          <div className="col-span-12 md:col-span-9">
-            {activeTab === "profile" && (
-              <ProfileTab user={user} initials={initials} />
-            )}
-
-            {activeTab === "orders" && (
-              <OrdersTab orders={user.orders ?? []} />
-            )}
-
-            {activeTab === "subscriptions" && <SubscriptionsTab />}
-
-            {activeTab === "tracking" && <OrderTrackingTab />}
-
-            {activeTab === "change-password" && <ChangePasswordTab />}
-
-          {activeTab === "addresses" && <AddressesTab />}
-
-          {activeTab === "loyalty" && (
-  <LoyaltyPointsTab loyalty={user.loyaltyPoints} />
-)}
+          {/* SIDEBAR (DESKTOP + MOBILE DROPDOWN) */}
+          <aside className={`
+            ${mobileMenuOpen ? "block" : "hidden"} 
+            md:block md:w-72 flex-shrink-0 bg-gray-50/50 border-r border-gray-100
+          `}>
 
 
-          </div>
-        </div>
-      </div>
-{showLogoutModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-    
-    <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Navigation */}
+            <nav className="p-4 space-y-1">
+              {NAV_ITEMS.map(({ tab, label, icon }) => (
+                <SidebarButton
+                  key={tab}
+                  active={activeTab === tab}
+                  onClick={() => goToTab(tab)}
+                >
+                  {icon}
+                  {label}
+                </SidebarButton>
+              ))}
 
-      {/* Header */}
-      <div className="bg-[#445D41] px-6 py-4">
-        <h2 className="text-white text-lg font-semibold">
-          Confirm Logout
-        </h2>
-      </div>
+              <div className="h-px bg-gray-200 my-4 mx-2" />
 
-      {/* Body */}
-      <div className="p-6">
-        <p className="text-sm text-gray-600 mb-6">
-          Are you sure you want to logout from your account?
-        </p>
+              <SidebarButton danger onClick={() => setShowLogoutModal(true)}>
+                <LogOut size={18} />
+                Sign Out
+              </SidebarButton>
+            </nav>
+          </aside>
 
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={() => setShowLogoutModal(false)}
-            className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={() => {
-              logout();
-              router.replace("/account");
-            }}
-            className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
+          {/* MAIN CONTENT AREA */}
+          <main className="flex-1 bg-white relative overflow-x-hidden">
+            <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto h-full">
+              {activeTab === "profile" && <ProfileTab user={user} initials={initials} />}
+              {activeTab === "orders" && <OrdersTab orders={user.orders ?? []} />}
+              {activeTab === "subscriptions" && <SubscriptionsTab />}
+              {activeTab === "tracking" && <OrderTrackingTab />}
+              {activeTab === "change-password" && <ChangePasswordTab />}
+              {activeTab === "addresses" && <AddressesTab />}
+              {activeTab === "loyalty" && <LoyaltyPointsTab loyalty={user.loyaltyPoints} />}
+            </div>
+          </main>
         </div>
       </div>
 
-    </div>
-  </div>
-)}
+      {/* LOGOUT MODAL */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-sm bg-white rounded shadow-2xl overflow-hidden transform transition-all scale-100">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogOut size={28} strokeWidth={2.5} />
+              </div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">Ready to leave?</h2>
+              <p className="text-sm font-medium text-gray-500 mt-2">You will need to sign in again to access your account dashboard and order history.</p>
+            </div>
+            <div className="flex gap-3 px-6 pb-6">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 py-3 text-sm font-bold rounded border-2 border-gray-100 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  logout();
+                  router.replace("/account");
+                }}
+                className="flex-1 py-3 text-sm font-bold rounded bg-black text-white hover:bg-gray-900 transition-colors shadow-md"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

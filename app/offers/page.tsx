@@ -58,110 +58,59 @@ export default async function OffersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50">
-      {/* HERO BANNER - Exact Match Design */}
-      <div className="relative w-full overflow-hidden border-b border-gray-200 min-h-[200px] bg-[#445D41]">
+      {/* COMPACT CLEAN HERO BANNER */}
+      <div className="bg-white border-b border-gray-200 py-6 md:py-8 relative overflow-hidden">
+        {/* Subtle Background Pattern */}
+        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
 
-        {/* Geometric Square Grid Background using Tailwind Square Brackets */}
-        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+        {/* Subtle orange glow top right */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#f38918]/10 rounded-full blur-[60px] pointer-events-none"></div>
 
-        {/* Floating Background Icons - Left Side */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          <BadgePercent className="absolute top-10 left-[5%] text-white opacity-10 h-12 w-12 transform -rotate-12" />
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-5 hidden md:flex">
+            <Link href="/" className="hover:text-gray-800 transition-colors">Home</Link>
+            <ChevronRight className="h-3 w-3 text-gray-300" />
+            <span className="text-gray-900 font-bold">Offers</span>
+          </nav>
 
-          <Tag className="absolute bottom-10 left-[5%] text-white opacity-10 h-16 w-16 transform rotate-45" />
-          <Gift className="absolute top-1/3 left-[40%] text-white opacity-[0.06] h-32 w-32 transform -rotate-12" />
-          <ShoppingBag className="absolute bottom-5 left-[35%] text-white opacity-10 h-10 w-10 transform rotate-12" />
-        </div>
-
-        {/* Smooth fade-out gradient */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#445D41]/30 to-[#445D41] pointer-events-none z-0"></div>
-
-        {/* Diagonal Black Section on the Right (Using Tailwind Square Brackets) */}
-        <div
-          className="hidden md:block absolute top-0 bottom-0 right-0 w-[55%] bg-[#0a0a0a] z-0 [clip-path:polygon(15%_0,100%_0,100%_100%,0%_100%)] overflow-hidden"
-        >
-          {/* Square Grid Pattern for Black Side */}
-          <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-
-          {/* Floating Background Icons - Right Side */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-            <TrendingUp className="absolute top-1/4 left-[30%] text-white opacity-[0.04] h-20 w-20 transform rotate-12" />
-            <Gift className="absolute bottom-1/4 left-[45%] text-white opacity-[0.04] h-24 w-24 transform -rotate-12" />
-            <ShoppingBag className="absolute top-[10%] left-[60%] text-white opacity-[0.02] h-40 w-40 transform rotate-12" />
-            <BadgePercent className="absolute bottom-[15%] left-[80%] text-white opacity-[0.03] h-32 w-32 transform -rotate-12" />
-          </div>
-
-          {/* Subtle glow inside the black area */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#445D41]/10 rounded-full blur-[100px] pointer-events-none"></div>
-
-          {/* Floating dots */}
-          <div className="absolute top-12 left-1/3 w-1.5 h-1.5 bg-white rounded-full opacity-50"></div>
-          <div className="absolute top-1/4 right-1/4 w-1 h-1 bg-white rounded-full opacity-30"></div>
-          <div className="absolute bottom-1/3 right-1/3 w-2 h-2 bg-white rounded-full opacity-50"></div>
-          <div className="absolute bottom-12 left-1/4 w-2.5 h-2.5 bg-white rounded-full opacity-60"></div>
-        </div>
-
-        {/* Mobile Black Background */}
-        <div className="md:hidden absolute inset-0 top-[45%] bg-black"></div>
-
-        {/* Content Container */}
-        <div className="relative max-w-7xl mx-auto px-4 flex flex-col md:flex-row h-full min-h-[200px] z-10">
-
-          {/* Left Content (Green Side) */}
-          <div className="w-full md:w-[50%] flex flex-col justify-center py-6 md:py-6">
-            <div className="relative">
-              {/* Breadcrumb */}
-              <nav className="flex items-center gap-1.5 text-xs font-medium text-white/70 mb-8 hidden md:flex">
-                <Link href="/" className="hover:text-white transition-colors">Home</Link>
-                <ChevronRight className="h-3 w-3 text-white/50" />
-                <span className="text-white font-semibold">Offers</span>
-              </nav>
-
-              {/* Pill Badge */}
-              <div className="inline-flex items-center gap-1.5 px-4 py-1 bg-white/10 rounded-full mb-3 w-max border border-white/20">
-                <Gift className="h-3.5 w-3.5 text-white" />
-                <span className="text-white font-bold text-[10px] uppercase tracking-widest">Exclusive Deals</span>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#f38918]/10 text-[#f38918] rounded-md mb-4 border border-[#f38918]/20">
+                <Gift className="h-3.5 w-3.5" />
+                <span className="font-bold text-[10px] uppercase tracking-wider">Exclusive Deals</span>
               </div>
 
-              {/* Compact Typography */}
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-white mb-2 tracking-tight leading-tight flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span>Today's</span>
-                <span className="text-[#445D41] bg-white px-2 py-0.5 rounded-md transform -rotate-2 shadow-sm">Offers</span>
-                <span>&amp; Deals</span>
+              <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-1 tracking-tight">
+                Houszy <span className="text-[#f38918]">Offers</span> & Deals
               </h1>
 
-              <p className="text-white/90 text-sm max-w-sm font-medium leading-snug">
-                Save big on thousands of health &amp; beauty products. New deals added regularly.
+              <p className="text-gray-500 text-sm font-medium leading-relaxed">
+                Shop exclusive discounts across Kitchenware, Homeware, Fitness and Everyday Essentials. Don't miss our latest deals and special offers available for a limited time.
               </p>
             </div>
-          </div>
 
-          {/* Right Content (Black Side) */}
-          <div className="w-full md:w-[50%] flex items-center md:justify-end py-6 md:py-8 z-10">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-md lg:mr-8">
-
-              {/* Dark Card 1 */}
-              <div className="flex items-center gap-3 bg-[#111111] border border-white/5 rounded-xl p-4 shadow-xl flex-1 hover:-translate-y-1 transition-transform">
-                <div className="flex items-center justify-center w-10 h-10 bg-[#222] rounded-full flex-shrink-0">
-                  <BadgePercent className="h-5 w-5 text-white" />
+            {/* Stats Cards */}
+            <div className="flex items-center gap-3 sm:gap-4 mt-2 md:mt-0">
+              <div className="flex flex-col justify-center bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 min-w-[130px] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-50">
+                    <BadgePercent className="h-4 w-4 text-[#f38918]" />
+                  </div>
+                  <span className="text-2xl font-black text-gray-900 leading-none">{discounts.length}</span>
                 </div>
-                <div>
-                  <div className="text-2xl font-black text-white leading-none">{discounts.length}</div>
-                  <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Active Deals</div>
-                </div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Active Deals</span>
               </div>
 
-              {/* Dark Card 2 */}
-              <div className="flex items-center gap-3 bg-[#111111] border border-white/5 rounded-xl p-4 shadow-xl flex-1 hover:-translate-y-1 transition-transform">
-                <div className="flex items-center justify-center w-10 h-10 bg-[#222] rounded-full flex-shrink-0">
-                  <ShoppingBag className="h-4 w-4 text-white" />
+              <div className="flex flex-col justify-center bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 min-w-[130px] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-50">
+                    <ShoppingBag className="h-4 w-4 text-[#f38918]" />
+                  </div>
+                  <span className="text-2xl font-black text-gray-900 leading-none">{discounts.reduce((acc, d) => acc + (d.productCount ?? 0), 0)}+</span>
                 </div>
-                <div>
-                  <div className="text-2xl font-black text-white leading-none">{discounts.reduce((acc, d) => acc + (d.productCount ?? 0), 0)}+</div>
-                  <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Products</div>
-                </div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Products</span>
               </div>
-
             </div>
           </div>
         </div>
@@ -181,11 +130,11 @@ export default async function OffersPage() {
         ) : (
           <>
             <section className="mt-1">
-              <div className="flex items-center justify-between mb-6 mt-2 border-b border-gray-200 pb-4">
+              <div className="flex items-center justify-between mb-6 mt-2 border-b  border-gray-200 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-6 bg-[#445D41] rounded-full"></div>
+                  <div className="w-1.5 h-6 bg-[#f38918] rounded-full"></div>
                   <h2 className="text-xl md:text-2xl font-black text-gray-900">All Offers</h2>
-                  <span className="px-2.5 py-0.5 bg-[#445D41]/10 text-[#445D41] text-[10px] font-black uppercase tracking-wider rounded">
+                  <span className="px-2.5 py-0.5 bg-[#f38918]/10 text-[#f38918] text-[10px] font-black uppercase tracking-wider rounded">
                     {discounts.length} Live
                   </span>
                 </div>
@@ -239,7 +188,7 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
 
       {/* Card Body */}
       <div className="p-5 flex flex-col flex-1">
-        <h3 className="font-bold text-gray-900 text-base leading-snug group-hover:text-[#445D41] transition-colors line-clamp-2 mb-3">
+        <h3 className="font-bold text-gray-900 text-base leading-snug group-hover:text-[#f38918] transition-colors line-clamp-2 mb-3">
           {d.name}
         </h3>
 
@@ -286,7 +235,7 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
 
           {/* CTA */}
           {isProductLevel && (
-            <div className="text-xs font-bold text-gray-900 group-hover:text-[#445D41] transition-colors pt-2">
+            <div className="text-xs font-bold text-gray-900 group-hover:text-[#f38918] transition-colors pt-2">
               View Deals &rarr;
             </div>
           )}

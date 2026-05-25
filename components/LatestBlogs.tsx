@@ -32,7 +32,8 @@ export default function LatestBlogs() {
     const fetchBlogs = async () => {
       try {
         setLoading(true);
-        const response = await fetch('https://testapi.knowledgemarkg.com/api/BlogPosts');
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+        const response = await fetch(`${API_BASE}/api/BlogPosts`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch blogs');
@@ -91,7 +92,7 @@ export default function LatestBlogs() {
 
   return (
     <div className="w-full">
-      <h2 className="text-[15px] md:text-[22px] font-bold text-center mb-8 md:mb-12">
+      <h2 className="text-[15px] md:text-[22px] font-bold text-center mb-8 md:mb-10 text-black tracking-tight">
         Our Latest Blogs
       </h2>
 
@@ -116,12 +117,12 @@ export default function LatestBlogs() {
             <SwiperSlide key={blog.id} className="h-auto">
               <div className="flex flex-col h-full bg-white group cursor-pointer">
                 {/* Image */}
-                <div className="w-full aspect-[16/10] relative overflow-hidden bg-gray-100 rounded-sm">
+                <div className="w-full aspect-[16/9] relative overflow-hidden bg-gray-100 rounded">
                   {/* Fallback to placeholder if image is missing */}
                   <img
                     src={blog.thumbnailImageUrl || blog.featuredImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(blog.title)}&background=random&size=600`}
                     alt={blog.title}
-                    className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
 
@@ -129,7 +130,7 @@ export default function LatestBlogs() {
                 <div className="pt-4 flex flex-col flex-1">
                   <span className="text-[13px] text-gray-500 font-medium">in {formatDate(blog.publishedAt)}</span>
                   <Link href={`/blog/${blog.slug}`}>
-                    <h3 className="text-[16px] md:text-[18px] font-bold mt-2 leading-snug group-hover:text-[#f39a16] transition-colors line-clamp-2">
+                    <h3 className="text-[15px] md:text-base font-bold mt-2 leading-snug group-hover:text-[#f39a16] transition-colors line-clamp-2">
                       {blog.title}
                     </h3>
                   </Link>

@@ -11,7 +11,7 @@ export default function EmptyCart() {
           width="150"
           height="150"
           viewBox="0 0 24 24"
-          stroke="#445D41"
+          stroke="#f38918"
           fill="none"
           strokeWidth="1.5"
           className="opacity-80 drop-shadow-sm"
@@ -39,7 +39,7 @@ export default function EmptyCart() {
       {/* CTA Button */}
       <Link
         href="/"
-        className="inline-flex items-center gap-2 bg-[#445D41] hover:bg-black text-white px-8 py-3 rounded-xl text-sm font-semibold transition-all shadow-md"
+        className="inline-flex items-center gap-2 bg-[#f38918] hover:bg-black text-white px-8 py-3 rounded-xl text-sm font-semibold transition-all shadow-md"
       >
         Continue Shopping
       </Link>

@@ -7,7 +7,7 @@ export default function CareersPage() {
     <div className="bg-gray-50 min-h-screen flex flex-col">
 
       {/* HERO */}
-      <div className="bg-[#445D41] text-white py-2 px-4 text-center">
+      <div className="bg-[#f38918] text-white py-2 px-4 text-center">
         <h1 className="text-xl md:text-3xl font-bold">
           Careers at Direct Care
         </h1>
@@ -17,7 +17,7 @@ export default function CareersPage() {
       <div className="flex-1 flex items-start justify-center px-4 pt-20">
         <div className="bg-white border rounded-xl shadow-sm p-8 max-w-xl w-full text-center">
 
-          <Briefcase className="mx-auto text-[#445D41] mb-4" size={40} />
+          <Briefcase className="mx-auto text-[#f38918] mb-4" size={40} />
 
           <h2 className="text-xl md:text-2xl font-semibold mb-3">
             Careers Page Coming Soon
@@ -32,7 +32,7 @@ export default function CareersPage() {
         </div>
       </div>
 
-   
+
 
     </div>
   );

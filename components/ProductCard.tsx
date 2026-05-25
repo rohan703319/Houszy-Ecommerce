@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Star, BadgePercent, AwardIcon, PackageX, Heart } from "lucide-react";
+import { Star, BadgePercent, AwardIcon, PackageX, Heart, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 
@@ -24,88 +24,101 @@ export default function ProductCard({
   product: any;
   variantForCard?: any | null;
   cardSlug: string;
-})
- {
+}) {
   const router = useRouter();
   const toast = useToast();
   const { addToCart, cart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [showPharmaModal, setShowPharmaModal] = useState(false);
 
-// 🔁 resume add after modal
-const pharmaApprovedRef = useRef(false);
+  // 🔁 resume add after modal
+  const pharmaApprovedRef = useRef(false);
 
   // ---------- Variant ----------
-const defaultVariant =
-  variantForCard ??
-  product.variants?.find((v: any) => v.isDefault) ??
-  product.variants?.[0] ??
-  null;
+  const defaultVariant =
+    variantForCard ??
+    product.variants?.find((v: any) => v.isDefault) ??
+    product.variants?.[0] ??
+    null;
 
   // ---------- Image ----------
- const mainImage = (() => {
-  // 1️⃣ Default variant image
-  if (defaultVariant?.imageUrl) {
-    return defaultVariant.imageUrl.startsWith("http")
-      ? defaultVariant.imageUrl
-      : `${process.env.NEXT_PUBLIC_API_URL}${defaultVariant.imageUrl}`;
-  }
+  const mainImage = (() => {
+    // 1️⃣ Default variant image
+    if (defaultVariant?.imageUrl) {
+      return defaultVariant.imageUrl.startsWith("http")
+        ? defaultVariant.imageUrl
+        : `${process.env.NEXT_PUBLIC_API_URL}${defaultVariant.imageUrl}`;
+    }
 
-  // 2️⃣ Product main image (isMain === true)
-  const mainProductImage = product.images?.find(
-    (img: any) => img.isMain && img.imageUrl
-  );
-  if (mainProductImage?.imageUrl) {
-    return mainProductImage.imageUrl.startsWith("http")
-      ? mainProductImage.imageUrl
-      : `${process.env.NEXT_PUBLIC_API_URL}${mainProductImage.imageUrl}`;
-  }
+    // 2️⃣ Product main image (isMain === true)
+    const mainProductImage = product.images?.find(
+      (img: any) => img.isMain && img.imageUrl
+    );
+    if (mainProductImage?.imageUrl) {
+      return mainProductImage.imageUrl.startsWith("http")
+        ? mainProductImage.imageUrl
+        : `${process.env.NEXT_PUBLIC_API_URL}${mainProductImage.imageUrl}`;
+    }
 
-  // 3️⃣ Any product image
-  const anyImage = product.images?.find((img: any) => img.imageUrl);
-  if (anyImage?.imageUrl) {
-    return anyImage.imageUrl.startsWith("http")
-      ? anyImage.imageUrl
-      : `${process.env.NEXT_PUBLIC_API_URL}${anyImage.imageUrl}`;
-  }
+    // 3️⃣ Any product image
+    const anyImage = product.images?.find((img: any) => img.imageUrl);
+    if (anyImage?.imageUrl) {
+      return anyImage.imageUrl.startsWith("http")
+        ? anyImage.imageUrl
+        : `${process.env.NEXT_PUBLIC_API_URL}${anyImage.imageUrl}`;
+    }
 
-  // 4️⃣ Fallback
-  return FALLBACK_IMAGE;
-})();
+    // 4️⃣ Fallback
+    return FALLBACK_IMAGE;
+  })();
+
+  // ---------- Hover Image ----------
+  const hoverImage = (() => {
+    const sorted = product.images
+      ?.slice()
+      ?.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    
+    if (sorted && sorted.length > 1 && sorted[1]?.imageUrl) {
+      return sorted[1].imageUrl.startsWith("http")
+        ? sorted[1].imageUrl
+        : `${process.env.NEXT_PUBLIC_API_URL}${sorted[1].imageUrl}`;
+    }
+    return null;
+  })();
 
   // ---------- Pricing ----------
   const basePrice =
-  typeof defaultVariant?.price === "number" && defaultVariant.price > 0
-    ? defaultVariant.price
-    : product.price;
+    typeof defaultVariant?.price === "number" && defaultVariant.price > 0
+      ? defaultVariant.price
+      : product.price;
 
   const finalPrice = getDiscountedPrice(product, basePrice);
   const discountBadge = getDiscountBadge(product);
   // 🔥 NEW: oldPrice fallback logic
-const oldPriceValue =
-  defaultVariant?.oldPrice ?? product.oldPrice;
+  const oldPriceValue =
+    defaultVariant?.oldPrice ?? product.oldPrice;
 
-const oldPriceData = getOldPriceDiscount(
-  finalPrice,
-  oldPriceValue,
-  !!discountBadge
-);
-// ---------- Active Coupon (indicator only) ----------
-const hasActiveCoupon = product.assignedDiscounts?.some((d: any) => {
-  if (!d.isActive) return false;
-  if (!d.requiresCouponCode) return false;
+  const oldPriceData = getOldPriceDiscount(
+    finalPrice,
+    oldPriceValue,
+    !!discountBadge
+  );
+  // ---------- Active Coupon (indicator only) ----------
+  const hasActiveCoupon = product.assignedDiscounts?.some((d: any) => {
+    if (!d.isActive) return false;
+    if (!d.requiresCouponCode) return false;
 
-  const now = new Date();
-  if (d.startDate && now < new Date(d.startDate)) return false;
-  if (d.endDate   && now > new Date(d.endDate))   return false;
+    const now = new Date();
+    if (d.startDate && now < new Date(d.startDate)) return false;
+    if (d.endDate && now > new Date(d.endDate)) return false;
 
-  return true;
-});
+    return true;
+  });
 
-const hasGenderBadge = !!(
-  product.gender &&
-  ["male", "female", "unisex"].includes(product.gender.toLowerCase())
-);
+  const hasGenderBadge = !!(
+    product.gender &&
+    ["male", "female", "unisex"].includes(product.gender.toLowerCase())
+  );
 
   // ---------- VAT ----------
   // Use vatRate directly from API response; fallback to null if not present
@@ -116,223 +129,225 @@ const hasGenderBadge = !!(
     defaultVariant?.stockQuantity ??
     product.stockQuantity ??
     0;
-// ---------- Loyalty Points (Product + Variant aware) ----------
-const loyaltyPoints = (() => {
-  if (product.excludeFromLoyaltyPoints) return null;
+  // ---------- Loyalty Points (Product + Variant aware) ----------
+  const loyaltyPoints = (() => {
+    if (product.excludeFromLoyaltyPoints) return null;
 
-  if (defaultVariant?.loyaltyPointsEarnable) {
-    return defaultVariant.loyaltyPointsEarnable;
-  }
+    if (defaultVariant?.loyaltyPointsEarnable) {
+      return defaultVariant.loyaltyPointsEarnable;
+    }
 
-  if (product.loyaltyPointsEarnable) {
-    return product.loyaltyPointsEarnable;
-  }
+    if (product.loyaltyPointsEarnable) {
+      return product.loyaltyPointsEarnable;
+    }
 
-  return null;
-})();
-const handlePharmaGuard = (): boolean => {
-  if (pharmaApprovedRef.current) return true;
+    return null;
+  })();
+  const handlePharmaGuard = (): boolean => {
+    if (pharmaApprovedRef.current) return true;
 
-  if (product.isPharmaProduct) {
-    setShowPharmaModal(true);
-    return false;
-  }
+    if (product.isPharmaProduct) {
+      setShowPharmaModal(true);
+      return false;
+    }
 
-  return true;
-};
-const getInitialQty = (product: any) => {
-  return product.orderMinimumQuantity ?? 1;
-};
+    return true;
+  };
+  const getInitialQty = (product: any) => {
+    return product.orderMinimumQuantity ?? 1;
+  };
 
 
   // ---------- Add to Cart ----------
- const handleAddToCart = () => {
-  if (product.disableBuyButton) return;
-  // 🔥 PHARMA GUARD
-  if (!handlePharmaGuard()) return;
-  const variantId = defaultVariant?.id ?? null;
+  const handleAddToCart = () => {
+    if (product.disableBuyButton) return;
+    // 🔥 PHARMA GUARD
+    if (!handlePharmaGuard()) return;
+    const variantId = defaultVariant?.id ?? null;
 
-const maxQty = product.orderMaximumQuantity ?? Infinity;
-const finalQty = getInitialQty(product);
+    const maxQty = product.orderMaximumQuantity ?? Infinity;
+    const finalQty = getInitialQty(product);
 
 
-  const existingCartQty = cart
-    .filter(
-      (c) =>
-        c.productId === product.id &&
-        (c.variantId ?? null) === variantId
-    )
-    .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
+    const existingCartQty = cart
+      .filter(
+        (c) =>
+          c.productId === product.id &&
+          (c.variantId ?? null) === variantId
+      )
+      .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
 
-  const stockQty =
-    defaultVariant?.stockQuantity ??
-    product.stockQuantity ??
-    0;
+    const stockQty =
+      defaultVariant?.stockQuantity ??
+      product.stockQuantity ??
+      0;
 
-  const allowedMaxQty = Math.min(stockQty, maxQty);
+    const allowedMaxQty = Math.min(stockQty, maxQty);
 
-  // ⭐ BLOCK IF EXCEEDS
-  if (existingCartQty + finalQty > allowedMaxQty) {
-    toast.error(`Maximum allowed quantity is ${allowedMaxQty}`);
-    return;
-  }
+    // ⭐ BLOCK IF EXCEEDS
+    if (existingCartQty + finalQty > allowedMaxQty) {
+      toast.error(`Maximum allowed quantity is ${allowedMaxQty}`);
+      return;
+    }
 
-  addToCart({
-    id: `${variantId ?? product.id}-one`,
-    productId: product.id,
-    name: defaultVariant
-      ? `${product.name} (${[
+    addToCart({
+      id: `${variantId ?? product.id}-one`,
+      productId: product.id,
+      name: defaultVariant
+        ? `${product.name} (${[
           defaultVariant.option1Value,
           defaultVariant.option2Value,
           defaultVariant.option3Value,
         ]
           .filter(Boolean)
           .join(", ")})`
-      : product.name,
-    price: finalPrice,
-    priceBeforeDiscount: basePrice,
-    finalPrice,
-   discountAmount:
-  (
-    defaultVariant?.displayDiscountType ??
-    product.displayDiscountType
-  ) === "System"
-    ? +(basePrice - finalPrice).toFixed(2)
-    : 0,
-   oldPrice:
-  defaultVariant?.oldPrice ??
-  product.oldPrice ??
-  undefined,
+        : product.name,
+      price: finalPrice,
+      priceBeforeDiscount: basePrice,
+      finalPrice,
+      discountAmount:
+        (
+          defaultVariant?.displayDiscountType ??
+          product.displayDiscountType
+        ) === "System"
+          ? +(basePrice - finalPrice).toFixed(2)
+          : 0,
+      oldPrice:
+        defaultVariant?.oldPrice ??
+        product.oldPrice ??
+        undefined,
 
-displayDiscountType:
-  defaultVariant?.displayDiscountType ??
-  product.displayDiscountType ??
-  "None",
+      displayDiscountType:
+        defaultVariant?.displayDiscountType ??
+        product.displayDiscountType ??
+        "None",
 
-hasSystemDiscount:
-  defaultVariant?.hasSystemDiscount ??
-  product.hasSystemDiscount ??
-  false,
+      hasSystemDiscount:
+        defaultVariant?.hasSystemDiscount ??
+        product.hasSystemDiscount ??
+        false,
 
-systemDiscountAmount:
-  defaultVariant?.systemDiscountAmount ??
-  product.systemDiscountAmount ??
-  0,
-    quantity: finalQty,
-    image: mainImage,
-    sku: defaultVariant?.sku ?? product.sku,
-    variantId: variantId,
-    vatRate: vatRate,
-vatIncluded: vatRate !== null,
-   slug: cardSlug,
-    variantOptions: {
-      option1: defaultVariant?.option1Value ?? null,
-      option2: defaultVariant?.option2Value ?? null,
-      option3: defaultVariant?.option3Value ?? null,
-    },
-    shipSeparately: product.shipSeparately,
-    nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
-    sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
-    productData: JSON.parse(JSON.stringify(product)),
-  });
+      systemDiscountAmount:
+        defaultVariant?.systemDiscountAmount ??
+        product.systemDiscountAmount ??
+        0,
+      quantity: finalQty,
+      image: mainImage,
+      sku: defaultVariant?.sku ?? product.sku,
+      variantId: variantId,
+      vatRate: vatRate,
+      vatIncluded: vatRate !== null,
+      slug: cardSlug,
+      variantOptions: {
+        option1: defaultVariant?.option1Value ?? null,
+        option2: defaultVariant?.option2Value ?? null,
+        option3: defaultVariant?.option3Value ?? null,
+      },
+      shipSeparately: product.shipSeparately,
+      nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+      sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
+      productData: JSON.parse(JSON.stringify(product)),
+    });
 
-  // ⭐ UX TOAST
-if (product.orderMinimumQuantity > 1) {
-  toast.warning(
-    `Minimum order quantity is ${product.orderMinimumQuantity}. Added ${finalQty} items to cart.`
-  );
-} else {
- toast.success(
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-sm font-medium">
-        {product.name} added to cart!
-      </span>
+    // ⭐ UX TOAST
+    if (product.orderMinimumQuantity > 1) {
+      toast.warning(
+        `Minimum order quantity is ${product.orderMinimumQuantity}. Added ${finalQty} items to cart.`
+      );
+    } else {
+      toast.success(
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-medium">
+            {product.name} added to cart!
+          </span>
 
-      <button
-  onClick={(e) => {
-    e.stopPropagation();
-    toast.clearAll();
-    router.push("/cart");
-  }}
-  className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#445D41] hover:bg-black hover:text-white transition shadow-sm"
->
-  Cart→
-</button>
-    </div>
-  );
-}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.clearAll();
+              router.push("/cart");
+            }}
+            className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-black hover:bg-[#f39a16] hover:text-black transition shadow-sm"
+          >
+            Cart→
+          </button>
+        </div>
+      );
+    }
 
 
-};
+  };
 
 
   return (
-    <div className="group border border-gray-200 rounded-lg hover:shadow-xl transition-all bg-white">
+    <div className="group rounded-lg hover:shadow-xl transition-all bg-white">
       {/* IMAGE */}
-      <Link href={`/product/${cardSlug}`}>
+      <Link href={`/product/${cardSlug}`} className="block">
         <div className="relative h-44 md:h-56 bg-white rounded-t-lg overflow-hidden">
           <Image
             src={mainImage}
             alt={product.name}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
-            className="object-contain p-2 group-hover:scale-110 transition-transform duration-300"
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            className={`object-contain p-2 transition-all duration-300 group-hover:scale-110 ${hoverImage ? 'group-hover:opacity-0' : ''}`}
             loading="lazy"
           />
-<GenderBadge gender={product.gender} />
+          {hoverImage && (
+            <Image
+              src={hoverImage}
+              alt={`${product.name} hover`}
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              className="object-contain p-2 opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110"
+              loading="lazy"
+            />
+          )}
+          <GenderBadge gender={product.gender} />
           {/* DISCOUNT BADGE — smaller */}
-         {product.displayDiscountType === "System" && discountBadge && (
+          {product.displayDiscountType === "System" && discountBadge && (
             <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
-                <div className="flex flex-col items-center leading-none">
-                  <span className="text-[10px] md:text-xs font-extrabold">
-                    {discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
-                  </span>
-                  <span className="text-[7px] md:text-[8px] font-semibold">OFF</span>
-                </div>
+              <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
+                <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
+                  -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
+                </span>
               </div>
             </div>
           )}
           {/* COUPON BADGE — smaller */}
-{!discountBadge && hasActiveCoupon && (
-  <div className={`absolute z-20 ${hasGenderBadge ? "top-12 left-2" : "top-1 md:top-2 left-1 md:left-2"}`}>
-    <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
+          {!discountBadge && hasActiveCoupon && (
+            <div className={`absolute z-20 ${hasGenderBadge ? "top-12 left-2" : "top-1 md:top-2 left-1 md:left-2"}`}>
+              <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
-      <div className="flex flex-col items-center text-center">
-        <span className="flex items-center gap-1 text-[9px]">
-          Coupon
-        </span>
-        <span className="text-[9px] opacity-90">
-          Available
-        </span>
-      </div>
+                <div className="flex flex-col items-center text-center">
+                  <span className="flex items-center gap-1 text-[9px]">
+                    Coupon
+                  </span>
+                  <span className="text-[9px] opacity-90">
+                    Available
+                  </span>
+                </div>
 
-      {/* hole */}
-      <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
+                {/* hole */}
+                <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
 
-      {/* string effect */}
-      <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
+                {/* string effect */}
+                <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
 
-    </div>
-  </div>
-)}
-{/* 🔥 OLD PRICE BADGE */}
-{product.displayDiscountType === "OldPrice" &&
- !hasActiveCoupon &&
- oldPriceData && (
-  <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
-    <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md ring-2 ring-white">
-      <div className="flex flex-col items-center leading-none">
-        <span className="text-[10px] md:text-xs font-extrabold">
-          {oldPriceData.discount}%
-        </span>
-        <span className="text-[7px] md:text-[8px] font-semibold">
-          OFF
-        </span>
-      </div>
-    </div>
-  </div>
-)}
+              </div>
+            </div>
+          )}
+          {/* 🔥 OLD PRICE BADGE */}
+          {product.displayDiscountType === "OldPrice" &&
+            !hasActiveCoupon &&
+            oldPriceData && (
+              <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
+                <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
+                  <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
+                    -{oldPriceData.discount}%
+                  </span>
+                </div>
+              </div>
+            )}
           {/* VAT Relief — bottom left on image */}
           {(product.vatExempt || product.vatRate === 0) && (
             <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
@@ -341,92 +356,90 @@ if (product.orderMinimumQuantity > 1) {
             </span>
           )}
           {/* ❤️ WISHLIST BUTTON */}
-<button
-  onClick={(e) => {
-    e.preventDefault();
+          <button
+            onClick={(e) => {
+              e.preventDefault();
 
-const wishlistId = defaultVariant?.id ?? product.id;
-const inWishlist = isInWishlist(wishlistId);
+              const wishlistId = defaultVariant?.id ?? product.id;
+              const inWishlist = isInWishlist(wishlistId);
 
-toggleWishlist({
-  id: wishlistId,
-  productId: product.id,
-  variantId: defaultVariant?.id ?? null,
+              toggleWishlist({
+                id: wishlistId,
+                productId: product.id,
+                variantId: defaultVariant?.id ?? null,
 
-  // ✅ MATCH CART EXACTLY
-  name: defaultVariant
-    ? `${product.name} (${[
-        defaultVariant.option1Value,
-        defaultVariant.option2Value,
-        defaultVariant.option3Value,
-      ]
-        .filter(Boolean)
-        .join(", ")})`
-    : product.name,
+                // ✅ MATCH CART EXACTLY
+                name: defaultVariant
+                  ? `${product.name} (${[
+                    defaultVariant.option1Value,
+                    defaultVariant.option2Value,
+                    defaultVariant.option3Value,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")})`
+                  : product.name,
 
-  slug: cardSlug,
-  
-  price: finalPrice,
-priceBeforeDiscount: basePrice,
-finalPrice: finalPrice,
-discountAmount:
-  product.displayDiscountType === "System"
-    ? +(basePrice - finalPrice).toFixed(2)
-    : 0,
-appliedDiscountId: null,
-couponCode: null,
-oldPrice:
-  defaultVariant?.oldPrice ??
-  product.oldPrice ??
-  null,
+                slug: cardSlug,
 
-displayDiscountType:
-  product.displayDiscountType ?? "None",
+                price: finalPrice,
+                priceBeforeDiscount: basePrice,
+                finalPrice: finalPrice,
+                discountAmount:
+                  product.displayDiscountType === "System"
+                    ? +(basePrice - finalPrice).toFixed(2)
+                    : 0,
+                appliedDiscountId: null,
+                couponCode: null,
+                oldPrice:
+                  defaultVariant?.oldPrice ??
+                  product.oldPrice ??
+                  null,
 
-hasSystemDiscount:
-  product.hasSystemDiscount ?? false,
+                displayDiscountType:
+                  product.displayDiscountType ?? "None",
 
-systemDiscountAmount:
-  product.systemDiscountAmount ?? 0,
-  image: mainImage,
+                hasSystemDiscount:
+                  product.hasSystemDiscount ?? false,
 
-  vatRate: vatRate ?? null,
-  vatExempt: product.vatExempt,
+                systemDiscountAmount:
+                  product.systemDiscountAmount ?? 0,
+                image: mainImage,
 
-  sku: defaultVariant?.sku ?? product.sku,
+                vatRate: vatRate ?? null,
+                vatExempt: product.vatExempt,
 
-  stockQuantity:
-    defaultVariant?.stockQuantity ??
-    product.stockQuantity ??
-    null,
-    productData: JSON.parse(JSON.stringify(product)),
+                sku: defaultVariant?.sku ?? product.sku,
 
-  // 🔥 OPTIONAL BUT IMPORTANT
-  orderMaximumQuantity: product.orderMaximumQuantity ?? null,
-  orderMinimumQuantity: product.orderMinimumQuantity ?? null,
-});
+                stockQuantity:
+                  defaultVariant?.stockQuantity ??
+                  product.stockQuantity ??
+                  null,
+                productData: JSON.parse(JSON.stringify(product)),
 
-    if (inWishlist) {
-      toast.error("Product removed from wishlist");
-    } else {
-      toast.success("Product added to wishlist!");
-    }
-  }}
-  className={`absolute z-20 right-2 top-2 p-1.5 rounded-full shadow-sm border transition-all
-    ${
-      isInWishlist(defaultVariant?.id ?? product.id)
-        ? "bg-red-50 border-red-200"
-        : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
-    }`}
->
-  <Heart
-    className={`h-4 w-4 transition-colors ${
-      isInWishlist(defaultVariant?.id ?? product.id)
-        ? "fill-red-500 text-red-500"
-        : "text-gray-400 hover:text-red-400"
-    }`}
-  />
-</button>
+                // 🔥 OPTIONAL BUT IMPORTANT
+                orderMaximumQuantity: product.orderMaximumQuantity ?? null,
+                orderMinimumQuantity: product.orderMinimumQuantity ?? null,
+              });
+
+              if (inWishlist) {
+                toast.error("Product removed from wishlist");
+              } else {
+                toast.success("Product added to wishlist!");
+              }
+            }}
+            className={`absolute z-20 right-2 top-2 p-1.5 rounded-full shadow-sm border transition-all
+    ${isInWishlist(defaultVariant?.id ?? product.id)
+                ? "bg-red-50 border-red-200"
+                : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
+              }`}
+          >
+            <Heart
+              className={`h-4 w-4 transition-colors ${isInWishlist(defaultVariant?.id ?? product.id)
+                ? "fill-red-500 text-red-500"
+                : "text-gray-400 hover:text-red-400"
+                }`}
+            />
+          </button>
         </div>
       </Link>
 
@@ -434,15 +447,15 @@ systemDiscountAmount:
       <div className="p-2 md:p-4">
         {/* TITLE */}
         <Link href={`/product/${cardSlug}`}>
-          <h3 className="font-semibold text-xs md:text-sm mb-1 line-clamp-2 hover:text-[#445D41] transition min-h-[32px] md:min-h-[40px]">
+          <h3 className="font-semibold text-xs md:text-sm mb-1 line-clamp-2 hover:text-[#f39a16] transition min-h-[32px] md:min-h-[40px]">
             {defaultVariant
               ? `${product.name} (${[
-                  defaultVariant.option1Value,
-                  defaultVariant.option2Value,
-                  defaultVariant.option3Value,
-                ]
-                  .filter(Boolean)
-                  .join(", ")})`
+                defaultVariant.option1Value,
+                defaultVariant.option2Value,
+                defaultVariant.option3Value,
+              ]
+                .filter(Boolean)
+                .join(", ")})`
               : product.name}
           </h3>
         </Link>
@@ -459,8 +472,8 @@ systemDiscountAmount:
             ({product.reviewCount || 0})
           </span>
           {loyaltyPoints && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
-              <AwardIcon className="h-2.5 w-2.5 text-green-600 flex-shrink-0" />
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#f38918] bg-orange-50 border border-orange-200 px-1 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
+              <AwardIcon className="h-2.5 w-2.5 text-[#f38918] flex-shrink-0" />
               Earn {loyaltyPoints} pts
             </span>
           )}
@@ -468,86 +481,85 @@ systemDiscountAmount:
 
         {/* PRICE */}
         <div className="flex items-center gap-1 md:gap-2 mb-1">
-          <span className="text-sm md:text-xl font-bold text-[#445D41]">
-         £{
-  (
-    product.displayDiscountType === "System"
-      ? finalPrice
-      : basePrice
-  ).toFixed(2)
-}
+          <span className="text-sm md:text-xl font-bold text-[#f38918]">
+            £{
+              (
+                product.displayDiscountType === "System"
+                  ? finalPrice
+                  : basePrice
+              ).toFixed(2)
+            }
           </span>
-         {/* 🔥 CASE 1: REAL DISCOUNT */}
-{product.displayDiscountType === "System" && discountBadge && (
-  <span className="text-xs md:text-sm text-gray-400 line-through">
-    £{basePrice.toFixed(2)}
-  </span>
-)}
+          {/* 🔥 CASE 1: REAL DISCOUNT */}
+          {product.displayDiscountType === "System" && discountBadge && (
+            <span className="text-xs md:text-sm text-gray-400 line-through">
+              £{basePrice.toFixed(2)}
+            </span>
+          )}
 
-{/* 🔥 CASE 2: OLD PRICE */}
-{product.displayDiscountType === "OldPrice" &&
- !hasActiveCoupon &&
- oldPriceData && (
-  <span className="text-xs md:text-sm text-gray-400 line-through">
-    £{oldPriceData.oldPrice.toFixed(2)}
-  </span>
-)}
+          {/* 🔥 CASE 2: OLD PRICE */}
+          {product.displayDiscountType === "OldPrice" &&
+            !hasActiveCoupon &&
+            oldPriceData && (
+              <span className="text-xs md:text-sm text-gray-400 line-through">
+                £{oldPriceData.oldPrice.toFixed(2)}
+              </span>
+            )}
           {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-            <span className="text-[9px] md:text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap">
+            <span className="text-[9px] md:text-xs font-semibold text-black bg-gray-50 border border-gray-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap">
               {vatRate}% VAT
             </span>
           )}
         </div>
 
         {/* ADD TO CART */}
-<Button
-  onClick={handleAddToCart}
-  disabled={stock === 0 || product.disableBuyButton === true}
-  className={`mt-1 w-full
-    ${
-      stock === 0
-        ? "bg-red-700 text-white cursor-not-allowed"
-        : "bg-[#445D41] hover:bg-[#334a2c] text-white"
-    }`}
->
-  {stock > 0 ? (
-    <ShoppingCart className="mr-2 h-4 w-4" />
-  ) : (
-    <PackageX className="mr-2 h-4 w-4" />
-  )}
+        <Button
+          onClick={handleAddToCart}
+          disabled={stock === 0 || product.disableBuyButton === true}
+          className={`mt-1 w-full font-bold
+    ${stock === 0
+              ? "bg-red-700 text-white cursor-not-allowed"
+              : "bg-black text-white hover:bg-[#f39a16] hover:text-black transition-colors duration-300"
+            }`}
+        >
+          {stock > 0 ? (
+            <ShoppingBag className="mr-2 h-4 w-4" />
+          ) : (
+            <PackageX className="mr-2 h-4 w-4" />
+          )}
 
-  {stock > 0 ? "Add to Cart" : "Out of Stock"}
-</Button>
+          {stock > 0 ? "Add to Cart" : "Out of Stock"}
+        </Button>
 
       </div>
       {showPharmaModal && (
-  <PharmaQuestionsModal
-    open={showPharmaModal}
-    productId={product.id}
-    mode="add"
-    onClose={() => {
-      setShowPharmaModal(false);
-    }}
-    onSuccess={(messageFromBackend) => {
-      // 🔒 approve once
-      pharmaApprovedRef.current = true;
+        <PharmaQuestionsModal
+          open={showPharmaModal}
+          productId={product.id}
+          mode="add"
+          onClose={() => {
+            setShowPharmaModal(false);
+          }}
+          onSuccess={(messageFromBackend) => {
+            // 🔒 approve once
+            pharmaApprovedRef.current = true;
 
-      
 
-      setShowPharmaModal(false);
 
-      // 🔁 resume add-to-cart
-      handleAddToCart();
+            setShowPharmaModal(false);
 
-      // reset for next click
-      setTimeout(() => {
-        pharmaApprovedRef.current = false;
-      }, 0);
-    }}
-  />
-)}
+            // 🔁 resume add-to-cart
+            handleAddToCart();
+
+            // reset for next click
+            setTimeout(() => {
+              pharmaApprovedRef.current = false;
+            }, 0);
+          }}
+        />
+      )}
 
     </div>
-    
+
   );
 }

@@ -3,6 +3,7 @@ export const revalidate = 300;
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import CommentForm from "./CommentForm";
 import CommentsList from "./CommentsList";
 import * as LucideIcons from "lucide-react";
@@ -196,15 +197,15 @@ export default async function BlogDetailPage({
 
             {/* Breadcrumb */}
             <nav className="hidden md:flex text-xs text-gray-500 mb-2 -mt-5 items-center gap-1">
-              <Link href="/" className="hover:underline text-[#445D41]">Home</Link>
+              <Link href="/" className="hover:underline text-[#f38918]">Home</Link>
               <span>/</span>
-              <Link href="/blog" className="hover:underline text-[#445D41]">Blog</Link>
+              <Link href="/blog" className="hover:underline text-[#f38918]">Blog</Link>
               <span>/</span>
               {post.blogCategoryName ? (
                 <>
                   <Link
                     href={`/blog/category/${post.blogCategorySlug || post.blogCategoryName?.toLowerCase()}`}
-                    className="hover:underline text-[#445D41]"
+                    className="hover:underline text-[#f38918]"
                   >
                     {post.blogCategoryName}
                   </Link>
@@ -260,15 +261,16 @@ export default async function BlogDetailPage({
 
             {/* Featured Image */}
             {(post.featuredImageUrl || post.thumbnailImageUrl) && (
-              <div className="mt-2 mb-2 w-full rounded-xl overflow-hidden">
-                <img
+              <div className="mt-2 mb-2 w-full rounded-xl overflow-hidden relative aspect-[16/9]">
+                <Image
                   src={
                     (post.featuredImageUrl || post.thumbnailImageUrl)?.startsWith("http")
                       ? (post.featuredImageUrl || post.thumbnailImageUrl)
-                      : `${process.env.NEXT_PUBLIC_API_URL}${post.featuredImageUrl || post.thumbnailImageUrl}`
+                      : `${process.env.NEXT_PUBLIC_API_URL || ""}${post.featuredImageUrl || post.thumbnailImageUrl}`
                   }
-                  alt={post.title}
-                  className="w-full h-full object-contain"
+                  alt={post.title || "Blog Image"}
+                  fill
+                  className="object-contain"
                 />
               </div>
             )}
@@ -396,15 +398,18 @@ export default async function BlogDetailPage({
               <div className="space-y-5">
                 {recentPosts.map((blog: any) => (
                   <Link key={blog.id} href={`/blog/${blog.slug}`} className="flex gap-4 group">
-                    <img
-                      src={
-                        absoluteUrl(blog.thumbnailImageUrl) ??
-                        absoluteUrl(blog.featuredImageUrl) ??
-                        "/placeholder-blog.png"
-                      }
-                      className="w-24 h-16 rounded-lg object-cover shadow-sm group-hover:opacity-90"
-                      alt={blog.title}
-                    />
+                    <div className="relative w-24 h-16 shrink-0">
+                      <Image
+                        src={
+                          absoluteUrl(blog.thumbnailImageUrl) ??
+                          absoluteUrl(blog.featuredImageUrl) ??
+                          "/placeholder-blog.png"
+                        }
+                        fill
+                        className="rounded-lg object-cover shadow-sm group-hover:opacity-90"
+                        alt={blog.title || "Blog Article"}
+                      />
+                    </div>
 
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">

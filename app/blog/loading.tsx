@@ -1,68 +1,64 @@
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-gray-100 pt-[0.5rem] pb-[2.5rem]">
-      <div className="max-w-7xl mx-auto px-1 space-y-4 animate-pulse">
+    <main className="min-h-screen bg-white pt-4 pb-16">
+      <div className="max-w-8xl mx-auto px-8 animate-pulse">
+        {/* Breadcrumb */}
+        <div className="h-4 w-32 bg-gray-200 rounded mb-4" />
 
-        {/* ================= CATEGORIES ================= */}
-        <section className="bg-white rounded-2xl shadow-xl p-4 md:p-8 border">
-          <div className="h-6 bg-gray-200 rounded w-60 mb-6" />
+        {/* Categories Horizontal Menu */}
+        <div className="flex flex-wrap items-center gap-3 mb-10">
+          <div className="w-20 h-9 bg-gray-200 rounded-full" />
+          <div className="w-24 h-9 bg-gray-200 rounded-full" />
+          <div className="w-32 h-9 bg-gray-200 rounded-full" />
+          <div className="w-28 h-9 bg-gray-200 rounded-full" />
+          <div className="w-24 h-9 bg-gray-200 rounded-full" />
+        </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-gray-50 border p-3 rounded-xl flex items-center gap-3"
-              >
-                <div className="w-10 h-10 bg-gray-200 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-20" />
-                  <div className="h-2 bg-gray-200 rounded w-10" />
+        {/* Categories & Posts loop */}
+        {[1, 2].map((i) => (
+          <div key={i} className="mb-16">
+            {/* Category Title */}
+            <div className="h-10 w-64 bg-gray-200 rounded mb-8" />
+            
+            {/* Posts Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+              {[1, 2, 3].map((j) => (
+                <div key={j} className="flex flex-col h-full">
+                  {/* IMAGE */}
+                  <div className="w-full aspect-[16/10] bg-gray-200 rounded-xl mb-4" />
+                  
+                  {/* TITLE */}
+                  <div className="h-6 bg-gray-200 rounded w-full mb-2" />
+                  <div className="h-6 bg-gray-200 rounded w-2/3 mb-2" />
+                  
+                  {/* OVERVIEW */}
+                  <div className="h-4 bg-gray-200 rounded w-full mb-1" />
+                  <div className="h-4 bg-gray-200 rounded w-5/6 mb-3" />
+                  
+                  {/* DATE & VIEWS */}
+                  <div className="flex gap-2 mb-3">
+                    <div className="h-4 bg-gray-200 rounded w-24" />
+                    <div className="h-4 bg-gray-200 rounded w-16" />
+                  </div>
+                  
+                  {/* TAGS */}
+                  <div className="flex gap-2 mb-4 mt-auto">
+                    <div className="h-6 bg-gray-200 rounded w-16" />
+                    <div className="h-6 bg-gray-200 rounded w-20" />
+                  </div>
+                  
+                  {/* READ MORE */}
+                  <div className="h-4 bg-gray-200 rounded w-20" />
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            
+            {/* LOAD MORE BUTTON */}
+            <div className="mt-12">
+              <div className="w-36 h-12 bg-gray-200 rounded-lg" />
+            </div>
           </div>
-        </section>
-
-        {/* ================= ARTICLES ================= */}
-        <section className="bg-white rounded-2xl shadow-xl p-4 md:p-8 border">
-          <div className="h-6 bg-gray-200 rounded w-60 mb-6" />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-gray-50 border rounded-xl p-3 flex flex-col"
-              >
-                {/* image */}
-                <div className="w-full h-28 bg-gray-200 rounded-lg mb-2" />
-
-                {/* category */}
-                <div className="h-3 bg-gray-200 rounded w-20 mb-2" />
-
-                {/* title */}
-                <div className="h-4 bg-gray-200 rounded w-full mb-2" />
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-
-                {/* description */}
-                <div className="h-3 bg-gray-200 rounded w-full mb-1" />
-                <div className="h-3 bg-gray-200 rounded w-5/6 mb-3" />
-
-                {/* footer */}
-                <div className="flex justify-between mt-auto">
-                  <div className="h-3 bg-gray-200 rounded w-20" />
-                  <div className="h-3 bg-gray-200 rounded w-12" />
-                </div>
-
-                {/* labels */}
-                <div className="flex gap-2 mt-3">
-                  <div className="h-5 w-12 bg-gray-200 rounded-full" />
-                  <div className="h-5 w-14 bg-gray-200 rounded-full" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
+        ))}
       </div>
     </main>
   );

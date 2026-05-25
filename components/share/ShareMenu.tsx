@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import Image from "next/image";
 import { shareUrls, copyToClipboard } from "./shareUtils";
 import { useToast } from "@/components/toast/CustomToast";
-import Image from "next/image";
+
 interface Props {
   url: string;
   title: string;
@@ -40,75 +40,64 @@ export default function ShareMenu({ url, title, onClose }: Props) {
     };
   }, [onClose]);
 
-const open = (shareUrl: string) => {
-  if (shareUrl.startsWith("mailto:")) {
-    window.location.href = shareUrl; // ✅ FIXED
-  } else {
-    window.open(shareUrl, "_blank", "noopener,noreferrer");
-  }
+  const open = (shareUrl: string) => {
+    if (shareUrl.startsWith("mailto:")) {
+      window.location.href = shareUrl; // ✅ FIXED
+    } else {
+      window.open(shareUrl, "_blank", "noopener,noreferrer");
+    }
 
-  onClose();
-};
+    onClose();
+  };
 
   return (
-  <div
-    ref={ref}
-    className="absolute right-0 mt-14 w-56 bg-white border border-gray-200 
-               rounded-xl shadow-xl z-50 overflow-hidden"
-  >
-    {/* HEADER */}
-    <div className="flex items-center justify-between px-4 py-2 border-b">
-      <span className="text-sm font-semibold text-gray-700">Share</span>
-      <button onClick={onClose}>
-        <X className="h-6 w-6 text-gray-500 hover:text-black" />
+    <div
+      ref={ref}
+      className="flex flex-row items-center gap-1.5 p-1.5 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-max whitespace-nowrap"
+    >
+      <button
+        className="p-2 hover:bg-gray-100 rounded-md transition-colors flex items-center justify-center"
+        onClick={() => open(shareUrls.email(url, title))}
+        title="Email"
+      >
+        <Image src="/icons/email.svg" alt="Email" width={20} height={20} className="object-contain" />
+      </button>
+
+      <button
+        className="p-2 hover:bg-gray-100 rounded-md transition-colors flex items-center justify-center"
+        onClick={() => open(shareUrls.facebook(url))}
+        title="Facebook"
+      >
+        <Image src="/icons/facebook.svg" alt="Facebook" width={20} height={20} className="object-contain" />
+      </button>
+
+      <button
+        className="p-2 hover:bg-gray-100 rounded-md transition-colors flex items-center justify-center"
+        onClick={() => open(shareUrls.messenger(url))}
+        title="Messenger"
+      >
+        <Image src="/icons/messenger.svg" alt="Messenger" width={20} height={20} className="object-contain" />
+      </button>
+
+      <button
+        className="p-2 hover:bg-gray-100 rounded-md transition-colors flex items-center justify-center"
+        onClick={() => open(shareUrls.whatsapp(url, title))}
+        title="WhatsApp"
+      >
+        <Image src="/icons/whatsapp.svg" alt="WhatsApp" width={20} height={20} className="object-contain" />
+      </button>
+
+      <button
+        className="p-2 hover:bg-gray-100 rounded-md transition-colors flex items-center justify-center"
+        onClick={async () => {
+          await copyToClipboard(url);
+          toast.success("Link copied");
+          onClose();
+        }}
+        title="Copy Link"
+      >
+        <Image src="/icons/link.svg" alt="Copy Link" width={20} height={20} className="object-contain" />
       </button>
     </div>
-
-    {/* ITEMS */}
-  <button
-  className="share-item"
-  onClick={() => open(shareUrls.email(url, title))}
->
- <Image src="/icons/email.svg" alt="email" width={20} height={20} />
-  <span>Email</span>
-</button>
-
-<button
-  className="share-item"
-  onClick={() => open(shareUrls.facebook(url))}
->
-<Image src="/icons/facebook.svg" alt="facebook" width={20} height={20} />
-  <span>Facebook</span>
-</button>
-
-<button
-  className="share-item"
-  onClick={() => open(shareUrls.messenger(url))}
->
-  <Image src="/icons/messenger.svg" alt="messenger" width={20} height={20} />
-  <span>Messenger</span>
-</button>
-
-<button
-  className="share-item"
-  onClick={() => open(shareUrls.whatsapp(url, title))}
->
- <Image src="/icons/whatsapp.svg" alt="whatsapp" width={20} height={20} />
-  <span>WhatsApp</span>
-</button>
-
-<button
-  className="share-item"
-  onClick={async () => {
-    await copyToClipboard(url);
-    toast.success("Link copied");
-    onClose();
-  }}
->
- <Image src="/icons/link.svg" alt="link" width={20} height={20} />
-  <span>Copy Link</span>
-</button>
-  </div>
-);
-
+  );
 }

@@ -184,7 +184,7 @@ export default function ResetPasswordClient() {
           <Button
             type="submit"
             disabled={loading || !isPasswordValid || !passwordsMatch}
-            className="w-full h-11 bg-[#445D41] hover:bg-black text-white"
+            className="w-full h-11 bg-[#f38918] hover:bg-black text-white"
           >
             {loading ? "Resetting..." : "Reset Password"}
           </Button>

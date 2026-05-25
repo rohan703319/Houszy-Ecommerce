@@ -23,9 +23,13 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'api.directcare.com', pathname: '/**' },
       { protocol: 'https', hostname: 'api.direct-care.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'direct-care.co.uk', pathname: '/**' },
+       { protocol: 'https', hostname: 'test.astircare.co.uk', pathname: '/**' },
+
       { protocol: 'https', hostname: 'testapi.knowledgemarkg.com', pathname: '/**' },
       { protocol: 'https', hostname: 'www.direct-care.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'example.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'img.youtube.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'i.ytimg.com', pathname: '/**' },
     ],
   },
 

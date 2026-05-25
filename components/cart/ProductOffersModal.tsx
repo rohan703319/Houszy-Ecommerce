@@ -21,15 +21,15 @@ export default function ProductOffersModal({
   const [error, setError] = useState<string | null>(null);
 
   if (!item) return null;
-useEffect(() => {
-  const originalOverflow = document.body.style.overflow;
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
 
-  document.body.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
 
-  return () => {
-    document.body.style.overflow = originalOverflow;
-  };
-}, []);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
   const discounts =
     item?.productData?.assignedDiscounts?.filter(
       (d: any) => d.requiresCouponCode && isDiscountActive(d)
@@ -84,12 +84,12 @@ useEffect(() => {
   };
 
   return (
-<div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center overflow-y-auto pb-10">
-     <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden max-h-[85vh] pb-20 sm:pb-0">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center overflow-y-auto pb-10">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden max-h-[85vh] pb-20 sm:pb-0">
 
         <div className="px-6 py-5 border-b bg-green-50 flex justify-between">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-[#445D41]" />
+            <Sparkles className="h-5 w-5 text-[#f38918]" />
             Offers & Coupons
           </h3>
           <button onClick={onClose}>
@@ -116,7 +116,7 @@ useEffect(() => {
                 if (!couponInput.trim()) return;
                 handleApplyCoupon(couponInput.trim());
               }}
-              className="h-11 px-6 rounded-xl bg-[#445D41] text-white font-semibold flex items-center gap-2 disabled:opacity-60"
+              className="h-11 px-6 rounded-xl bg-[#f38918] text-white font-semibold flex items-center gap-2 disabled:opacity-60"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -137,56 +137,56 @@ useEffect(() => {
               No offers available.
             </p>
           ) : (
-           discounts.map((d: any) => (
-  <div
-    key={d.id}
-    className="rounded-2xl border border-gray-200 bg-white p-4 hover:border-[#445D41] hover:shadow-sm transition"
-  >
-    <div className="flex items-start justify-between gap-4">
+            discounts.map((d: any) => (
+              <div
+                key={d.id}
+                className="rounded-2xl border border-gray-200 bg-white p-4 hover:border-[#f38918] hover:shadow-sm transition"
+              >
+                <div className="flex items-start justify-between gap-4">
 
-      {/* LEFT SIDE (UPDATED PREMIUM UI) */}
-      <div>
-        <div className="flex items-start gap-2">
-          <Tag className="h-5 w-5 text-[#445D41] mt-0.5" />
+                  {/* LEFT SIDE (UPDATED PREMIUM UI) */}
+                  <div>
+                    <div className="flex items-start gap-2">
+                      <Tag className="h-5 w-5 text-[#f38918] mt-0.5" />
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-semibold text-gray-900">
-                {d.name}
-              </p>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {d.name}
+                          </p>
 
-              {d.usePercentage && (
-                <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-md">
-                  {d.discountPercentage}% OFF
-                </span>
-              )}
-            </div>
+                          {d.usePercentage && (
+                            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-md">
+                              {d.discountPercentage}% OFF
+                            </span>
+                          )}
+                        </div>
 
-            <p className="mt-1 text-xs font-medium text-[#445D41] tracking-wide">
-              Use Code: {d.couponCode}
-            </p>
+                        <p className="mt-1 text-xs font-medium text-[#f38918] tracking-wide">
+                          Use Code: {d.couponCode}
+                        </p>
 
-            {!d.usePercentage && d.discountAmount > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
-                Save £{d.discountAmount}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+                        {!d.usePercentage && d.discountAmount > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Save £{d.discountAmount}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-      {/* RIGHT SIDE BUTTON */}
-      <button
-        disabled={loading}
-        onClick={() => handleApplyCoupon(d.couponCode)}
-        className="rounded-lg bg-[#445D41] hover:bg-black text-white text-xs font-semibold px-4 py-2 transition"
-      >
-        Apply
-      </button>
+                  {/* RIGHT SIDE BUTTON */}
+                  <button
+                    disabled={loading}
+                    onClick={() => handleApplyCoupon(d.couponCode)}
+                    className="rounded-lg bg-[#f38918] hover:bg-black text-white text-xs font-semibold px-4 py-2 transition"
+                  >
+                    Apply
+                  </button>
 
-    </div>
-  </div>
-))
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>

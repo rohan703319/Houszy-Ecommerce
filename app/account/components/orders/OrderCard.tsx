@@ -120,7 +120,7 @@ function StripePaymentForm({
       <Button
         type="submit"
         disabled={loading || !stripe}
-        className="w-full bg-[#445D41] hover:bg-green-800 text-white font-semibold"
+        className="w-full bg-[#f38918] hover:bg-green-800 text-white font-semibold"
       >
         {loading ? "Processing…" : `Pay £${amount.toFixed(2)}`}
       </Button>
@@ -549,8 +549,8 @@ export default function OrderCard({
     <div
       id={`order-${order.orderNumber}`}
       className={`bg-white rounded-xl border shadow-sm p-5 space-y-4 ${order.orderNumber === targetOrderId
-          ? "border-orange-500 ring-2 ring-orange-300 bg-orange-50"
-          : ""
+        ? "border-orange-500 ring-2 ring-orange-300 bg-orange-50"
+        : ""
         }`}
     >
       {/* HEADER */}
@@ -603,7 +603,7 @@ export default function OrderCard({
               />
             </div>
             <div className="flex-1">
-              <p className="font-medium text-sm text-[#445D41] line-clamp-2">{item.productName}</p>
+              <p className="font-medium text-sm text-[#f38918] line-clamp-2">{item.productName}</p>
               <p className="text-xs text-black mt-1">Qty: {item.quantity}</p>
             </div>
             <div className="text-right text-sm font-semibold">
@@ -651,11 +651,11 @@ export default function OrderCard({
               <button
                 onClick={() => setShowStoreModal(true)}
                 title="View store address"
-                className="flex items-center gap-1 text-[#445D41] font-semibold hover:underline"
+                className="flex items-center gap-1 text-[#f38918] font-semibold hover:underline"
               >
                 {order.collectionStoreName || "Selected Store"}
 
-                <span className="text-xs text-gray-400 group-hover:text-[#445D41]">
+                <span className="text-xs text-gray-400 group-hover:text-[#f38918]">
                   ↗
                 </span>
               </button>
@@ -691,7 +691,7 @@ export default function OrderCard({
             <button
               onClick={() => setShowPriceModal(true)}
               title="View price breakdown"
-              className="text-[#445D41] font-semibold hover:underline"
+              className="text-[#f38918] font-semibold hover:underline"
             >
               £{order.totalPaidAmount?.toFixed(2) ?? "0.00"}
             </button>
@@ -702,13 +702,13 @@ export default function OrderCard({
           value={
             <span
               className={`font-medium ${order.paymentStatus?.toLowerCase() === "successful"
-                  ? "text-green-600"
-                  : order.paymentStatus?.toLowerCase() === "pending" ||
-                    order.paymentStatus?.toLowerCase() === "partiallypaid"
-                    ? "text-orange-500"
-                    : order.paymentStatus?.toLowerCase() === "failed"
-                      ? "text-red-600"
-                      : "text-gray-600"
+                ? "text-green-600"
+                : order.paymentStatus?.toLowerCase() === "pending" ||
+                  order.paymentStatus?.toLowerCase() === "partiallypaid"
+                  ? "text-orange-500"
+                  : order.paymentStatus?.toLowerCase() === "failed"
+                    ? "text-red-600"
+                    : "text-gray-600"
                 }`}
             >
               {order.paymentStatus ?? "—"}
@@ -851,12 +851,12 @@ export default function OrderCard({
                               <td className="py-1 text-center">
                                 <span
                                   className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${op.ChangeType === "Added"
-                                      ? "bg-green-100 text-green-700"
-                                      : op.ChangeType === "Removed"
-                                        ? "bg-red-100 text-red-700"
-                                        : op.ChangeType === "PriceAdjusted"
-                                          ? "bg-purple-100 text-purple-700"
-                                          : "bg-blue-100 text-blue-700"
+                                    ? "bg-green-100 text-green-700"
+                                    : op.ChangeType === "Removed"
+                                      ? "bg-red-100 text-red-700"
+                                      : op.ChangeType === "PriceAdjusted"
+                                        ? "bg-purple-100 text-purple-700"
+                                        : "bg-blue-100 text-blue-700"
                                     }`}
                                 >
                                   {op.ChangeType}
@@ -912,7 +912,7 @@ export default function OrderCard({
           size="sm"
           variant="outline"
           disabled={invoiceLoading}
-          className="text-white bg-[#445D41] hover:bg-black hover:text-white gap-1"
+          className="text-white bg-[#f38918] hover:bg-black hover:text-white gap-1"
         >
           <Download className="h-4 w-4" />
 
@@ -939,7 +939,7 @@ export default function OrderCard({
             size="sm"
             variant="outline"
             onClick={handleReorder}
-            className="text-white bg-black hover:bg-[#445D41] hover:text-white gap-1"
+            className="text-white bg-black hover:bg-[#f38918] hover:text-white gap-1"
           >
             <RefreshCcw className="h-4 w-4" />
             Reorder
@@ -975,7 +975,7 @@ export default function OrderCard({
         >
 
           {/* 🔥 HEADER */}
-          <DialogHeader className="bg-[#445D41] text-white px-5 py-2 space-y-0">
+          <DialogHeader className="bg-[#f38918] text-white px-5 py-2 space-y-0">
             <DialogTitle className="text-lg font-semibold">
               Cancel Order
             </DialogTitle>
@@ -1017,7 +1017,7 @@ export default function OrderCard({
                   onChange={(e) => setCustomReason(e.target.value)}
                   placeholder={`Please specify your reason (min ${MIN_OTHER_REASON_LENGTH} characters)`}
                   rows={3}
-                  className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+                  className="w-full border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#f38918]"
                 />
                 <p className="text-xs text-gray-500">
                   {customReason.trim().length}/{MIN_OTHER_REASON_LENGTH} characters required
@@ -1068,7 +1068,7 @@ export default function OrderCard({
         >
 
           {/* HEADER (with DialogTitle FIX) */}
-          <DialogHeader className="bg-[#445D41] text-white px-5 py-3 space-y-0">
+          <DialogHeader className="bg-[#f38918] text-white px-5 py-3 space-y-0">
             <DialogTitle className="text-lg font-semibold">
               Collection Store
             </DialogTitle>
@@ -1082,7 +1082,7 @@ export default function OrderCard({
 
             <div>
               <p className="text-xs text-gray-500">Store Name</p>
-              <p className="font-semibold text-[#445D41]">
+              <p className="font-semibold text-[#f38918]">
                 {order.collectionStoreName}
               </p>
             </div>
@@ -1142,7 +1142,7 @@ export default function OrderCard({
         >
 
           {/* HEADER (with DialogTitle FIX) */}
-          <DialogHeader className="bg-[#445D41] text-white px-5 py-3 space-y-0">
+          <DialogHeader className="bg-[#f38918] text-white px-5 py-3 space-y-0">
             <DialogTitle className="text-lg font-semibold">
               Price Breakdown
             </DialogTitle>

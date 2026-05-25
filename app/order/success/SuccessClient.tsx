@@ -139,29 +139,29 @@ export default function SuccessClient() {
   return (
     <div className="max-w-7xl  mx-auto px-4 md:px-6 py-2">
 
-      <div className="bg-white rounded-2xl shadow-md p-6">
+      <div className="bg-white rounded shadow-md p-6">
 
         {/* SUCCESS HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* LEFT: Order confirmed */}
           <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-md bg-green-100 flex items-center justify-center text-green-700 font-bold">
+            <div className="h-12 w-12 rounded bg-green-100 flex items-center justify-center text-green-700 font-bold">
               ✓
             </div>
 
             <div>
-              <h1 className="text-2xl font-semibold text-[#445D41]">
+              <h1 className="text-2xl font-semibold text-[#f38918]">
                 Order confirmed
               </h1>
-              <p className="text-sm text-[#445D41]">
+              <p className="text-sm text-[#f38918]">
                 Confirmation sent to <strong>{order.customerEmail}</strong>
               </p>
             </div>
           </div>
 
           <div
-            className={`flex items-start sm:items-center gap-2 rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm ${loyaltyPointsEarned > 0
-              ? "bg-gradient-to-br from-green-600 to-[#445D41] text-white"
+            className={`flex items-start sm:items-center gap-2 rounded px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm ${loyaltyPointsEarned > 0
+              ? "bg-gradient-to-br from-orange-600 to-[#f38918] text-white"
               : "bg-orange-100 text-orange-700 "
               }`}
           >
@@ -187,7 +187,7 @@ export default function SuccessClient() {
               <h2 className="text-sm font-semibold uppercase mb-2">
                 Order information
               </h2>
-              <div className="border rounded-lg p-4 space-y-1.5">
+              <div className="border rounded p-4 space-y-1.5">
                 <div className="flex justify-between">
                   <span>Order Number:</span>
                   <span className="font-medium">{order.orderNumber}</span>
@@ -231,7 +231,7 @@ export default function SuccessClient() {
                 Delivery & Billing
               </h2>
 
-              <div className="border rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="border rounded p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {order.deliveryMethod === "HomeDelivery" && order.shippingAddress && (
                   <div className="flex gap-3">
@@ -415,13 +415,13 @@ export default function SuccessClient() {
             {/* ITEMS */}
             <section>
               <div className="flex items-center gap-2 mb-2">
-                <Package className="w-4 h-4 text-[#445D41]" />
+                <Package className="w-4 h-4 text-[#f38918]" />
                 <h2 className="text-sm font-semibold uppercase">
                   Items
                 </h2>
               </div>
 
-              <div className="border rounded-lg divide-y">
+              <div className="border rounded divide-y">
                 {order.orderItems.map((item: any) => (
 
                   <div
@@ -440,7 +440,7 @@ export default function SuccessClient() {
                     <div className="flex-1 min-w-0">
                       <Link
                         href={`/product/${item.productSlug}`}
-                        className="font-medium hover:text-[#445D41] line-clamp-2"
+                        className="font-medium hover:text-[#f38918] line-clamp-2"
                       >
                         {item.productName}
                       </Link>
@@ -518,7 +518,7 @@ export default function SuccessClient() {
                 <h2 className="text-sm font-semibold uppercase mb-2">
                   Payment Details
                 </h2>
-                <div className="border rounded-lg p-4 space-y-2">
+                <div className="border rounded p-4 space-y-2">
                   {!payment && (
                     <>
                       <div className="flex justify-between">
@@ -578,7 +578,7 @@ export default function SuccessClient() {
                 <h2 className="text-sm font-semibold uppercase mb-2">
                   Summary
                 </h2>
-                <div className="border rounded-lg p-4 space-y-2 bg-gray-50">
+                <div className="border rounded p-4 space-y-2 bg-gray-50">
                   <div className="flex justify-between">
                     <span>Subtotal (Incl. VAT)</span>
 
@@ -643,7 +643,7 @@ export default function SuccessClient() {
                 {isAuthenticated && (
                   <Link
                     href="/account?tab=orders"
-                    className="flex items-center justify-center gap-2 bg-[#445D41] text-white py-3 rounded-lg font-semibold hover:opacity-90 transition"
+                    className="flex items-center justify-center gap-2 bg-[#f38918] text-white py-3 rounded font-semibold hover:opacity-90 transition"
                   >
                     <PackageIcon className="w-5 h-5" />
                     Go to My Orders
@@ -654,7 +654,7 @@ export default function SuccessClient() {
                 {/* Continue Shopping (always show) */}
                 <Link
                   href="/"
-                  className="flex items-center justify-center gap-2 border border-[#445D41] text-[#445D41] py-3 rounded-lg font-semibold hover:bg-gray-900 hover:text-white transition"
+                  className="flex items-center justify-center gap-2 border border-[#f38918] text-[#f38918] py-3 rounded font-semibold hover:bg-gray-900 hover:text-white transition"
                 >
                   <ShoppingBag className="w-5 h-5" />
                   Continue Shopping

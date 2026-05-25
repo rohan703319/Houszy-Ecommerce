@@ -32,24 +32,22 @@ export default function Stat({
         }
       }}
       className={`
-        border rounded-xl p-4 flex items-center gap-3 bg-white
-        transition-all duration-200
-        ${isClickable ? "cursor-pointer hover:shadow-md hover:-translate-y-[1px]" : ""}
-        focus:outline-none focus:ring-2 focus:ring-[#445D41]/40
+        bg-gray-50 rounded-xl px-2.5 py-3 md:px-4 flex items-center gap-2 md:gap-3
+        transition-all duration-200 border border-transparent
+        ${isClickable ? "cursor-pointer hover:bg-orange-50 hover:border-orange-100 group" : ""}
+        focus:outline-none focus:ring-2 focus:ring-[#f38918]/40
         ${className}
       `}
     >
       {icon && (
-        <div className="h-10 w-10 rounded-lg bg-[#445D41] text-white flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center shrink-0 text-gray-400 [&>svg]:h-4 [&>svg]:w-4 md:[&>svg]:h-5 md:[&>svg]:w-5 group-hover:text-[#f38918] transition-colors">
           {icon}
         </div>
       )}
 
-      <div className="flex flex-col">
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm md:text-base font-semibold text-gray-900">
-          {value}
-        </p>
+      <div className="flex flex-col min-w-0">
+        <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wide md:tracking-widest text-gray-400 group-hover:text-gray-500 mb-0.5 leading-tight">{label}</p>
+        <p className="text-xs md:text-sm font-black text-gray-900 tracking-tight truncate group-hover:text-[#f38918] transition-colors">{value}</p>
       </div>
     </div>
   );

@@ -2,25 +2,25 @@
 export const revalidate = 3600;
 import React from "react";
 import Link from "next/link";
-import * as LucideIcons from "lucide-react";
+import Image from "next/image";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.direct-care.co.uk"),
+  metadataBase: new URL("https://houszy.co.uk"),
 
-  title: "Health & Wellness Blog UK | Direct Care",
+  title: "Health & Wellness Blog UK | Houszy",
   description:
-    "Explore expert health tips, medicine guides, and wellness advice from Direct Care UK.",
+    "Explore expert health tips, medicine guides, and wellness advice from Houszy UK.",
 
   alternates: {
-    canonical: "https://www.direct-care.co.uk/blog",
+    canonical: "https://houszy.co.uk/blog",
   },
 
   openGraph: {
-    title: "Direct Care Blog UK",
+    title: "Houszy Blog UK",
     description:
       "Health tips, medicine guides, and wellness advice.",
-    url: "https://www.direct-care.co.uk/blog",
+    url: "https://houszy.co.uk/blog",
     locale: "en_GB",
     type: "website",
   },
@@ -91,172 +91,138 @@ export default async function BlogPage() {
     }).length;
   };
   return (
-    <main className="min-h-screen bg-gray-100 pt-[0.5rem] pb-[2.5rem]">
-      <h1 className="sr-only">
-        Health & Wellness Blog UK - Direct Care
-      </h1>
+    <main className="min-h-screen bg-white pt-4 pb-16">
+      <div className="max-w-8xl mx-auto px-8">
 
-      <div className="max-w-7xl mx-auto px-1 space-y-4">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
+          <Link href="/" className="hover:text-gray-800 transition-colors">Home</Link>
+          <span>&gt;</span>
+          <span className="text-gray-800 font-medium">Blog</span>
+        </nav>
 
-        {/* ===================== CATEGORIES CARD ===================== */}
-        <section className="bg-white rounded-2xl shadow-xl p-4 md:p-8 border ">
-          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6 text-gray-900">Explore Blogs by Categories</h2>
+        {/* Categories Horizontal Menu */}
+        <div className="flex flex-wrap items-center gap-3 mb-10">
+          <Link href="/blog" className="px-5 py-2 rounded bg-black text-white text-sm font-semibold transition-colors shadow-sm">
+            Home
+          </Link>
+          {categories.map((cat: any) => (
+            <Link key={cat.id} href={`/blog/category/${cat.slug}`} className="px-5 py-2 rounded bg-gray-100 text-gray-700 hover:bg-[#f38918] hover:text-white text-sm font-medium transition-colors border border-gray-200 hover:border-[#f38918] shadow-sm">
+              {cat.name}
+            </Link>
+          ))}
+        </div>
 
-          <div
-            className="
-            grid 
-            grid-cols-2 
-            sm:grid-cols-3 
-            md:grid-cols-4 
-            lg:grid-cols-6 
-            xl:grid-cols-8 
-            gap-4
-          "
-          >
-            {categories.map((cat: any) => (
-              <Link
-                key={cat.id}
-                href={`/blog/category/${cat.slug}`}
-                className="
-                group bg-gray-50 border 
-                p-3 rounded-xl 
-                hover:bg-white 
-                hover:shadow-md 
-                transition 
-                flex items-center gap-3
-              "
-              >
-                {/* ICON */}
-                <div className="w-10 h-10 rounded-lg overflow-hidden shadow-sm flex-shrink-0">
-                  <img
-                    src={absoluteUrl(cat.imageUrl) ?? '/placeholder-category.png'}
-                    alt={`${cat.name} blog category`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition"
-                  />
-                </div>
+        {/* CATEGORY BASED BLOG ROWS */}
+        {categories.map((cat: any) => {
+          // get posts for this category
+          const catPosts = visiblePosts.filter((p: any) => {
+            if (p.categories && Array.isArray(p.categories)) {
+              return p.categories.some((c: any) => c.categoryId === cat.id);
+            }
+            return p.blogCategoryId === cat.id;
+          });
 
-                {/* TEXT */}
-                <div className="flex flex-col">
-                  <h3 className="text-xs font-semibold text-gray-900 leading-snug break-words group-hover:text-green-900">
-                    {cat.name}
-                  </h3>
-                  <p className="text-[10px] text-gray-500">
-                    {getPostCount(cat.id)} posts
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+          if (catPosts.length === 0) return null;
 
-        {/* ===================== LATEST ARTICLES CARD ===================== */}
-        <section className="bg-white rounded-2xl shadow-xl p-4 md:p-8 border">
-          <h2 className="text-xl md:text-2xl font-semibold mb-4 md:mb-6 text-gray-900">
-            Latest Articles
-          </h2>
+          return (
+            <div key={cat.id} className="mb-16">
+              {/* Category Title */}
+              <h2 className="text-4xl font-black text-black mb-8">{cat.name}</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+              {/* Posts Grid for Category */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+                {catPosts.slice(0, 3).map((post: any) => (
+                  <Link key={post.id} href={`/blog/${post.slug}`} className="group flex flex-col">
+                    <article className="flex flex-col h-full">
+                      {/* IMAGE */}
+                      <div className="w-full aspect-[16/10] bg-gray-50 rounded-xl overflow-hidden mb-4 border border-gray-100 relative">
+                        <Image
+                          src={
+                            absoluteUrl(post.thumbnailImageUrl) ??
+                            absoluteUrl(post.featuredImageUrl) ??
+                            '/placeholder-article.png'
+                          }
+                          alt={post.title}
+                          fill
+                          className="object-contain group-hover:scale-105 transition-transform duration-500 ease-out"
+                        />
+                      </div>
 
-            {visiblePosts.slice(0, 12).map((post: any) => (
-              <Link
-                key={post.id}
-                href={`/blog/${post.slug}`}
-                className="block"
-              >
-                <article
-                  className="bg-gray-50 border rounded-xl shadow-sm hover:shadow-lg transition p-3 flex flex-col h-full hover:-translate-y-1 cursor-pointer"
-                >
-                  {/* IMAGE */}
-                  <div className="w-full h-28 bg-white rounded-lg overflow-hidden mb-1 flex items-start justify-center pt-0">
-                    <img
-                      src={
-                        absoluteUrl(post.thumbnailImageUrl) ??
-                        absoluteUrl(post.featuredImageUrl) ??
-                        '/placeholder-article.png'
-                      }
-                      alt={post.title}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
+                      {/* TITLE */}
+                      <h2 className="text-lg font-bold text-gray-900 leading-snug line-clamp-2 group-hover:text-[#f38918] transition-colors mb-2">
+                        {post.title}
+                      </h2>
 
+                      {/* OVERVIEW */}
+                      {post.bodyOverview && (
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                          {post.bodyOverview}
+                        </p>
+                      )}
 
-                  {/* CATEGORY LABELS */}
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {post.categories && Array.isArray(post.categories) && post.categories.length > 0 ? (
-                      post.categories.map((c: any) => (
-                        <span key={c.categoryId} className="text-[11px] bg-green-50 text-[#445D41] font-medium px-2 py-1 rounded w-fit">
-                          {c.categoryName}
-                        </span>
-                      ))
-                    ) : post.blogCategoryName ? (
-                      <span className="text-[11px] bg-green-50 text-[#445D41] font-medium px-2 py-1 rounded w-fit">
-                        {post.blogCategoryName}
-                      </span>
-                    ) : null}
-                  </div>
+                      {/* DATE & VIEWS */}
+                      <div className="text-[13px] text-gray-500 mb-3">
+                        in {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        <span className="ml-2">• {post.viewCount ?? 0} Views</span>
+                      </div>
 
-                  {/* TITLE */}
-                  <h3 className="text-[15px] font-semibold text-gray-900 mb-1 line-clamp-2 leading-snug hover:text-green-900">
-                    {post.title}
-                  </h3>
-                  {/* OVERVIEW */}
-                  <p className="text-[13px] text-gray-600 line-clamp-2 mb-3">
-                    {post.bodyOverview}
-                  </p>
+                      {/* TAGS */}
+                      <div className="flex flex-wrap gap-2 mb-4 mt-auto">
+                        {post.categories && Array.isArray(post.categories) && post.categories.length > 0 ? (
+                          post.categories.map((c: any) => (
+                            <span key={c.categoryId} className="text-xs bg-gray-100 text-gray-700 font-medium px-2.5 py-1 rounded-md">
+                              {c.categoryName}
+                            </span>
+                          ))
+                        ) : post.blogCategoryName ? (
+                          <span className="text-xs bg-gray-100 text-gray-700 font-medium px-2.5 py-1 rounded-md">
+                            {post.blogCategoryName}
+                          </span>
+                        ) : null}
 
-                  {/* FOOTER META */}
-                  <div className="mt-auto flex justify-between text-sm text-gray-500">
-                    <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
-                    <span className="text-xs">Views: {post.viewCount ?? 0}</span>
-                  </div>
-
-                  {/* LABELS */}
-                  {/* LABELS (with icons + priority) */}
-                  {post.labels?.length > 0 && (
-                    <div className="mt-3 flex gap-2 flex-wrap">
-
-                      {[...post.labels]
-                        .sort((a: any, b: any) => (a.priority ?? 999) - (b.priority ?? 999))
-                        .map((l: any) => {
-
-                          // Auto icon loader from lucide-react
-                          const IconComponent =
-                            (LucideIcons as any)[l.icon] ?? LucideIcons.Sparkles;
-
-                          return (
-                            <span
-                              key={l.name}
-                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium shadow-sm"
-                              style={{
-                                background: l.color || "#ddd",
-                                color: "#fff",
-                              }}
-                            >
-                              <IconComponent className="h-3 w-3" />
+                        {post.labels?.length > 0 && (
+                          post.labels.sort((a: any, b: any) => (a.priority ?? 999) - (b.priority ?? 999)).map((l: any) => (
+                            <span key={l.name} className="text-xs border border-gray-200 text-gray-700 font-medium px-2.5 py-1 rounded-md">
                               {l.name}
                             </span>
-                          );
-                        })}
-                    </div>
-                  )}
+                          ))
+                        )}
+                      </div>
 
-                </article>
-              </Link>
-            ))}
+                      {/* READ MORE */}
+                      <div className="text-sm text-gray-600 font-medium group-hover:text-[#f38918] transition-colors">
+                        Read more
+                      </div>
+                    </article>
+                  </Link>
+                ))}
+              </div>
 
-          </div>
-        </section>
+              {/* LOAD MORE BUTTON */}
+              {catPosts.length > 3 && (
+                <div className="mt-12">
+                  <Link href={`/blog/category/${cat.slug}`}>
+                    <button className="bg-[#f38918] hover:bg-black text-white font-bold py-3 px-8 rounded-lg transition-colors">
+                      Load more &gt;
+                    </button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Blog",
-            name: "Direct Care Blog",
-            url: "https://www.direct-care.co.uk/blog",
-            description:
-              "Health tips, medicine guides, and wellness articles from Direct Care UK.",
+            name: "Houszy Blog",
+            url: "https://houszy.co.uk/blog",
+            description: "Expert tips, guides, and advice from Houszy.",
           }),
         }}
       />

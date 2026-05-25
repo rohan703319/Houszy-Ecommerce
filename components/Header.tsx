@@ -382,7 +382,7 @@ export default function Header({
                 alt="Houszy Logo"
                 width={150}
                 height={50}
-                className="h-8 w-auto md:h-[52px] md:w-auto object-contain"
+                className="h-10 w-auto sm:h-11 md:h-[52px] md:w-auto object-contain"
                 priority
               />
             </Link>
@@ -452,23 +452,20 @@ export default function Header({
               >
                 <Link
                   href="/blog"
-                  className={`relative flex items-center gap-1 cursor-pointer py-1 transition-colors whitespace-nowrap group ${
-                    blogsHovered ? "text-[#f38918]" : "text-black hover:text-[#f38918]"
-                  }`}
+                  className={`relative flex items-center gap-1 cursor-pointer py-1 transition-colors whitespace-nowrap group ${blogsHovered ? "text-[#f38918]" : "text-black hover:text-[#f38918]"
+                    }`}
                 >
                   Blogs
                   {blogCategories.length > 0 && (
                     <ChevronDown
                       size={14}
-                      className={`transition-transform duration-300 ease-in-out ${
-                        blogsHovered ? "rotate-180" : "rotate-0"
-                      }`}
+                      className={`transition-transform duration-300 ease-in-out ${blogsHovered ? "rotate-180" : "rotate-0"
+                        }`}
                     />
                   )}
                   <span
-                    className={`absolute bottom-0 left-0 h-[2.5px] bg-[#f38918] transition-all duration-200 ${
-                      blogsHovered ? "w-full" : "w-0 group-hover:w-full"
-                    }`}
+                    className={`absolute bottom-0 left-0 h-[2.5px] bg-[#f38918] transition-all duration-200 ${blogsHovered ? "w-full" : "w-0 group-hover:w-full"
+                      }`}
                   />
                 </Link>
 
@@ -490,6 +487,23 @@ export default function Header({
                     })}
                   </div>
                 )}
+              </div>
+
+              <div
+                className="relative flex items-center py-1.5"
+                onMouseEnter={() => {
+                  setHovered(false);
+                  setActiveCategory(null);
+                  setBlogsHovered(false);
+                }}
+              >
+                <Link
+                  href="/bundle-deals"
+                  className="relative flex items-center gap-1 cursor-pointer py-1 transition-colors whitespace-nowrap group text-black hover:text-[#f38918]"
+                >
+                  Bundle Deals
+                  <span className="absolute bottom-0 left-0 h-[2.5px] bg-[#f38918] transition-all duration-200 w-0 group-hover:w-full" />
+                </Link>
               </div>
 
               <Link
@@ -521,10 +535,10 @@ export default function Header({
             <Link href="/wishlist" className="relative p-1 text-gray-700 hover:text-red-500 transition">
               <Heart
                 size={22}
-                className={wishlistCount > 0 ? "fill-[#f38918] text-[#f38918]" : ""}
+                className={wishlistCount > 0 ? "fill-red-500 text-[#f38918]" : ""}
               />
               {wishlistCount > 0 && (
-                <span className="absolute -top-0.5 -right-1 bg-[#f38918] text-white text-[9px] rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                <span className="absolute -top-0.5 -right-1 bg-red-500 text-white text-[9px] rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
                   {wishlistCount}
                 </span>
               )}
@@ -594,6 +608,24 @@ export default function Header({
               </button>
             )}
 
+            {/* Wishlist */}
+            <Link
+              href="/wishlist"
+              className="relative hover:text-[#f38918] transition flex items-center gap-1"
+              aria-label="Wishlist"
+            >
+              <Heart
+                size={22}
+                strokeWidth={1.5}
+                className={wishlistCount > 0 ? "fill-red-500 text-[#f38918]" : ""}
+              />
+              {wishlistCount > 0 && (
+                <span className="absolute -bottom-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-[16px] h-[16px] flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+
             {/* Cart */}
             <button
               className="relative hover:text-[#f38918] transition flex items-center gap-1"
@@ -610,227 +642,227 @@ export default function Header({
           </div>
         </div>
 
-      {/* ✅ SEARCH OVERLAY — covers the header perfectly */}
-      {mobileSearchOpen && (
-        <div
-          ref={mobileSearchRef}
-          className="absolute inset-0 bg-white z-[60] flex items-center justify-center px-4 md:px-6 lg:px-20"
-        >
-          <div className="w-full max-w-[50rem] relative flex items-center gap-3">
-            <form onSubmit={handleSearch} className="flex-1 relative flex items-center">
-              <input
-                type="text"
-                id="header-search-input"
-                autoFocus
-                autoComplete="off"
-                placeholder="Search"
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                onFocus={() => results.length > 0 && setShowSearchDropdown(true)}
-                className="w-full border border-black pl-4 pr-10 py-2.5 text-[15px] text-black focus:outline-none placeholder:text-gray-400 font-normal rounded-none"
-              />
-              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black">
-                <Search size={18} strokeWidth={1.5} />
+        {/* ✅ SEARCH OVERLAY — covers the header perfectly */}
+        {mobileSearchOpen && (
+          <div
+            ref={mobileSearchRef}
+            className="absolute inset-0 bg-white z-[60] flex items-center justify-center px-4 md:px-6 lg:px-20"
+          >
+            <div className="w-full max-w-[50rem] relative flex items-center gap-3">
+              <form onSubmit={handleSearch} className="flex-1 relative flex items-center">
+                <input
+                  type="text"
+                  id="header-search-input"
+                  autoFocus
+                  autoComplete="off"
+                  placeholder="Search"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  onFocus={() => results.length > 0 && setShowSearchDropdown(true)}
+                  className="w-full border border-black pl-4 pr-10 py-2.5 text-[15px] text-black focus:outline-none placeholder:text-gray-400 font-normal rounded-none"
+                />
+                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black">
+                  <Search size={18} strokeWidth={1.5} />
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileSearchOpen(false);
+                  setSearchValue("");
+                  setShowSearchDropdown(false);
+                }}
+                className="text-gray-500 hover:text-black transition"
+              >
+                <X size={24} strokeWidth={1.5} />
               </button>
-            </form>
-            <button
-              type="button"
-              onClick={() => {
-                setMobileSearchOpen(false);
-                setSearchValue("");
-                setShowSearchDropdown(false);
-              }}
-              className="text-gray-500 hover:text-black transition"
-            >
-              <X size={24} strokeWidth={1.5} />
-            </button>
 
-            {showSearchDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-2xl max-h-[55vh] overflow-y-auto z-[70] rounded-none">
-                {searchLoading && <div className="p-4 text-sm text-gray-500">Searching...</div>}
-                {!searchLoading && results.length === 0 && (
-                  <div className="p-4 text-sm text-gray-500">No products found</div>
-                )}
-                {!searchLoading && flattenedResults.map((item) => {
+              {showSearchDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-2xl max-h-[55vh] overflow-y-auto z-[70] rounded-none">
+                  {searchLoading && <div className="p-4 text-sm text-gray-500">Searching...</div>}
+                  {!searchLoading && results.length === 0 && (
+                    <div className="p-4 text-sm text-gray-500">No products found</div>
+                  )}
+                  {!searchLoading && flattenedResults.map((item) => {
 
-                  const product = item.productData;
-                  const defaultVariant = item.variantForCard;
-                  const cardSlug = item.cardSlug;
+                    const product = item.productData;
+                    const defaultVariant = item.variantForCard;
+                    const cardSlug = item.cardSlug;
 
 
 
-                  const basePrice =
-                    typeof defaultVariant?.price === "number" &&
-                      defaultVariant.price > 0
-                      ? defaultVariant.price
-                      : product.price;
+                    const basePrice =
+                      typeof defaultVariant?.price === "number" &&
+                        defaultVariant.price > 0
+                        ? defaultVariant.price
+                        : product.price;
 
-                  const finalPrice = getDiscountedPrice(product, basePrice);
+                    const finalPrice = getDiscountedPrice(product, basePrice);
 
-                  const discountBadge = getDiscountBadge(product);
+                    const discountBadge = getDiscountBadge(product);
 
-                  const oldPriceValue =
-                    defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
-                    product.compareAtPrice ?? product.oldPrice;
+                    const oldPriceValue =
+                      defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
+                      product.compareAtPrice ?? product.oldPrice;
 
-                  const oldPriceData =
-                    (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
-                      ? getOldPriceDiscount(
-                        basePrice,
-                        oldPriceValue,
-                        false
-                      )
-                      : null;
+                    const oldPriceData =
+                      (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
+                        ? getOldPriceDiscount(
+                          basePrice,
+                          oldPriceValue,
+                          false
+                        )
+                        : null;
 
-                  const productImage =
-                    defaultVariant?.imageUrl ||
-                    product.images?.find((img: any) => img.isMain)?.imageUrl ||
-                    product.images?.[0]?.imageUrl;
+                    const productImage =
+                      defaultVariant?.imageUrl ||
+                      product.images?.find((img: any) => img.isMain)?.imageUrl ||
+                      product.images?.[0]?.imageUrl;
 
-                  const stockQty = defaultVariant?.stockQuantity ?? product.stockQuantity ?? 0;
-                  const isInStock = stockQty > 0;
+                    const stockQty = defaultVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+                    const isInStock = stockQty > 0;
 
-                  return (
-                    <Link
-                      key={`${product.id}-${cardSlug}`}
-                      href={`/product/${cardSlug}`}
-                      onClick={() => {
-                        setShowSearchDropdown(false);
-                        setSearchValue("");
-                        setMobileSearchOpen(false);
-                      }}
-                      className="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 hover:bg-gray-50"
-                    >
-
-                      {/* IMAGE */}
-                      <img
-                        src={
-                          productImage?.startsWith("http")
-                            ? productImage
-                            : `${process.env.NEXT_PUBLIC_API_URL}${productImage}`
-                        }
-                        alt={product.name}
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = "/placeholder.png";
+                    return (
+                      <Link
+                        key={`${product.id}-${cardSlug}`}
+                        href={`/product/${cardSlug}`}
+                        onClick={() => {
+                          setShowSearchDropdown(false);
+                          setSearchValue("");
+                          setMobileSearchOpen(false);
                         }}
-                        className="w-10 h-10 object-contain flex-shrink-0 rounded"
-                      />
+                        className="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 hover:bg-gray-50"
+                      >
 
-                      <div className="flex flex-col flex-1 min-w-0">
+                        {/* IMAGE */}
+                        <img
+                          src={
+                            productImage?.startsWith("http")
+                              ? productImage
+                              : `${process.env.NEXT_PUBLIC_API_URL}${productImage}`
+                          }
+                          alt={product.name}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = "/placeholder.png";
+                          }}
+                          className="w-10 h-10 object-contain flex-shrink-0 rounded"
+                        />
 
-                        {/* NAME + RATING */}
-                        <div className="flex items-center gap-1 flex-wrap">
+                        <div className="flex flex-col flex-1 min-w-0">
 
-                          <span className="text-sm font-medium text-gray-800 line-clamp-1">
-                            {defaultVariant
-                              ? `${product.name} (${[
-                                defaultVariant.option1Value,
-                                defaultVariant.option2Value,
-                                defaultVariant.option3Value,
-                              ]
-                                .filter(Boolean)
-                                .join(", ")})`
-                              : product.name}
-                          </span>
+                          {/* NAME + RATING */}
+                          <div className="flex items-center gap-1 flex-wrap">
 
-                          {/* â­ RATING */}
-                          {typeof product.averageRating === "number" &&
-                            product.averageRating > 0 && (
-                              <div className="flex items-center gap-0.5">
-                                {renderStars(product.averageRating)}
-                                <span className="text-[10px] text-gray-500">
-                                  ({product.approvedReviewCount ?? product.reviewCount ?? 0})
+                            <span className="text-sm font-medium text-gray-800 line-clamp-1">
+                              {defaultVariant
+                                ? `${product.name} (${[
+                                  defaultVariant.option1Value,
+                                  defaultVariant.option2Value,
+                                  defaultVariant.option3Value,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")})`
+                                : product.name}
+                            </span>
+
+                            {/* â­ RATING */}
+                            {typeof product.averageRating === "number" &&
+                              product.averageRating > 0 && (
+                                <div className="flex items-center gap-0.5">
+                                  {renderStars(product.averageRating)}
+                                  <span className="text-[10px] text-gray-500">
+                                    ({product.approvedReviewCount ?? product.reviewCount ?? 0})
+                                  </span>
+                                </div>
+                              )}
+                          </div>
+
+                          {/* CATEGORY + DISCOUNT */}
+                          <div className="flex items-center gap-2 flex-wrap">
+
+                            <span className="text-xs text-gray-500">
+                              {
+                                product.categories?.find((c: any) => c.isPrimary)?.categoryName ??
+                                product.categories?.[0]?.categoryName ??
+                                ""
+                              }
+                            </span>
+
+                            {/* SYSTEM DISCOUNT */}
+                            {product.displayDiscountType === "System" &&
+                              discountBadge && (
+                                <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">
+                                  {discountBadge.type === "percent"
+                                    ? `${discountBadge.value}% OFF`
+                                    : `£${discountBadge.value} OFF`}
                                 </span>
-                              </div>
-                            )}
-                        </div>
+                              )}
 
-                        {/* CATEGORY + DISCOUNT */}
-                        <div className="flex items-center gap-2 flex-wrap">
-
-                          <span className="text-xs text-gray-500">
-                            {
-                              product.categories?.find((c: any) => c.isPrimary)?.categoryName ??
-                              product.categories?.[0]?.categoryName ??
-                              ""
-                            }
-                          </span>
-
-                          {/* SYSTEM DISCOUNT */}
-                          {product.displayDiscountType === "System" &&
-                            discountBadge && (
+                            {/* OLD PRICE DISCOUNT */}
+                            {!discountBadge && oldPriceData && (
                               <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">
-                                {discountBadge.type === "percent"
-                                  ? `${discountBadge.value}% OFF`
-                                  : `£${discountBadge.value} OFF`}
+                                {oldPriceData.discount}% OFF
                               </span>
                             )}
+                          </div>
 
-                          {/* OLD PRICE DISCOUNT */}
-                          {!discountBadge && oldPriceData && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">
-                              {oldPriceData.discount}% OFF
+                          {/* PRICE + LOYALTY */}
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+
+                            <span className="text-sm font-semibold text-[#f38918]">
+                              £
+                              {(
+                                product.displayDiscountType === "System"
+                                  ? finalPrice
+                                  : basePrice
+                              ).toFixed(2)}
                             </span>
-                          )}
-                        </div>
 
-                        {/* PRICE + LOYALTY */}
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {/* SYSTEM CUT PRICE */}
+                            {product.displayDiscountType === "System" &&
+                              discountBadge && (
+                                <span className="text-xs text-gray-400 line-through">
+                                  £{basePrice.toFixed(2)}
+                                </span>
+                              )}
 
-                          <span className="text-sm font-semibold text-[#f38918]">
-                            £
-                            {(
-                              product.displayDiscountType === "System"
-                                ? finalPrice
-                                : basePrice
-                            ).toFixed(2)}
-                          </span>
-
-                          {/* SYSTEM CUT PRICE */}
-                          {product.displayDiscountType === "System" &&
-                            discountBadge && (
+                            {/* OLD PRICE CUT */}
+                            {!discountBadge && oldPriceData && (
                               <span className="text-xs text-gray-400 line-through">
-                                £{basePrice.toFixed(2)}
+                                £{oldPriceData.oldPrice.toFixed(2)}
                               </span>
                             )}
 
-                          {/* OLD PRICE CUT */}
-                          {!discountBadge && oldPriceData && (
-                            <span className="text-xs text-gray-400 line-through">
-                              £{oldPriceData.oldPrice.toFixed(2)}
-                            </span>
-                          )}
+                            {/* LOYALTY */}
+                            {product.loyaltyPointsMessage && (
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">
+                                {product.loyaltyPointsMessage}
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                          {/* LOYALTY */}
-                          {product.loyaltyPointsMessage && (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">
-                              {product.loyaltyPointsMessage}
+                        {/* STOCK */}
+                        <div className="ml-auto flex-shrink-0 self-start">
+                          {isInStock ? (
+                            <span className="text-[10px] px-2 py-1 rounded bg-green-100 text-orange-600 font-semibold">
+                              In Stock
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-2 py-1 rounded bg-red-100 text-red-600 font-semibold">
+                              Out of Stock
                             </span>
                           )}
                         </div>
-                      </div>
 
-                      {/* STOCK */}
-                      <div className="ml-auto flex-shrink-0 self-start">
-                        {isInStock ? (
-                          <span className="text-[10px] px-2 py-1 rounded bg-green-100 text-orange-600 font-semibold">
-                            In Stock
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-2 py-1 rounded bg-red-100 text-red-600 font-semibold">
-                            Out of Stock
-                          </span>
-                        )}
-                      </div>
-
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* ✅ MOBILE DRAWER */}
@@ -854,7 +886,7 @@ export default function Header({
           {/* â”€â”€ Header â”€â”€ */}
           <div className="bg-white px-4 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-200">
             <Link href="/" onClick={() => setMenuOpen(false)}>
-              <Image src="/logo/logo.png?v=3" alt="logo" width={130} height={50} className="object-contain" />
+              <Image src="/logo/logo.png?v=3" alt="logo" width={80} height={25} className="object-contain w-20 h-auto" />
             </Link>
             <button
               onClick={() => setMenuOpen(false)}
@@ -877,7 +909,7 @@ export default function Header({
                     onClick={() => { handleAccountClick(); setMenuOpen(false); }}
                     className="text-xs text-[#f38918] font-medium hover:underline"
                   >
-                    View Account â†’
+                    View Account
                   </button>
                 </div>
                 <button
@@ -1042,7 +1074,7 @@ export default function Header({
                 <BadgePercent size={18} />
                 Offers &amp; Deals
               </Link>
-               <Link
+              <Link
                 href="/brands"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#f38918] transition border-b border-gray-100"
@@ -1071,9 +1103,8 @@ export default function Header({
                     >
                       <ChevronDown
                         size={16}
-                        className={`text-[#f38918] transition-transform duration-300 ${
-                          mobileBlogsOpen ? "rotate-180" : "rotate-0"
-                        }`}
+                        className={`text-[#f38918] transition-transform duration-300 ${mobileBlogsOpen ? "rotate-180" : "rotate-0"
+                          }`}
                       />
                     </button>
                   )}
@@ -1097,6 +1128,13 @@ export default function Header({
                   </div>
                 )}
               </div>
+              <Link
+                href="/bundle-deals"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#f38918] transition border-b border-gray-100 font-medium"
+              >
+                Bundle Deals
+              </Link>
               <Link
                 href="/cart"
                 onClick={() => setMenuOpen(false)}

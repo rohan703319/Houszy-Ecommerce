@@ -2,155 +2,184 @@
 
 export default function TermsPage() {
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-white min-h-screen">
 
       {/* HERO */}
-      <div className="bg-[#445D41] text-white py-3 text-center px-4">
+      <div className="bg-black text-[#f38918] py-3 text-center px-4">
         <h1 className="text-xl md:text-3xl font-bold">
           Terms & Conditions
         </h1>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-8xl mx-auto px-4 py-2 space-y-2 mb-5">
 
         {/* INTRO */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <p className="text-sm black leading-relaxed">
-            These terms and conditions govern the use of our website at https://direct-care.co.uk/ (referred to as “this site”) and all orders placed through it. We recognise that legal documentation such as this can be complex, and we aim to make it understandable for you.
-          </p>
-        </div>
-
-        {/* INTRODUCTION */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Introduction</h2>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            We are Direct Care Ltd, our company is registered in England and Wales <strong>(Company Number: 06874500), </strong>with our business operations based in England and our registered office located at:
-          </p>
-
-          <p className="text-sm font-semibold black leading-relaxed">
-            Direct Care Ltd <br />
-            Unit 38A, Plume Street <br />
-            Spacebox Business Park <br />
-            B6 7RT Birmingham
-          </p>
-        </div>
-
-        {/* REGISTRATION */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
           <h2 className="text-lg font-semibold mb-3">
-            Registration, Acceptance of Terms, And Contract With You
+            Important Notice
           </h2>
 
-          <p className="text-sm black leading-relaxed mb-3">
-            Your use of this site and any orders placed on it are subject to English law, and any legal disputes shall be resolved exclusively in English courts.
+          <p className="text-base text-gray-700 leading-relaxed">
+            These terms and conditions govern how we supply the products listed on this site, https://houszy.co.uk/ to customers. By using our website and buying our products, you accept these terms and conditions, together with our privacy policy.
           </p>
 
-          <p className="text-sm black leading-relaxed mb-3">
-            Ownership and responsibility for products transfer to you upon dispatch. It is your responsibility to adhere to any restrictions regarding product reception and usage.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            To register and use this website, you must be at least 18 years old, and the information provided must be accurate. You are accountable for your site usage and orders: hence, safeguard your login credentials to prevent misuse.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            While we take precautions in preparing site content, we disclaim all warranties concerning site content to the extent permitted by law.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            We, along with our directors or affiliated entities, bear no liability for losses or claims arising directly or indirectly from site usage, except for damages resulting from negligence causing death or personal injury by us, our directors, or employees.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            Links to other websites on this site are provided for informational purposes only. We have no control over these external sites, and thus disclaim any responsibility or liability for their content. The inclusion of links does not indicate our endorsement of the linked site’s content.
-          </p>
-
-          <p className="text-sm black leading-relaxed">
-            Non-enforceability of any term or condition shall not affect the validity of the remaining provisions.
+          <p className="text-base text-gray-700 leading-relaxed mt-3">
+            Please carefully read the terms and conditions before you use or purchase any product from our website. If you do not accept our terms and conditions, or our privacy policy, please do not use or order any product on this website.
           </p>
         </div>
 
-        {/* ORDERS */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Orders And Payment</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            Registration
+          </h2>
 
-          <p className="text-sm black leading-relaxed mb-3">
-            We reserve the right to accept or reject any order without explanation. Our confirmation email acknowledges receipt of your order, but a contract is formed only upon sending you an invoice.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            Payment is typically processed upon goods dispatch (except for PayPal payments, deducted upon order placement). In case of payment rejection, you must promptly arrange alternative payment methods.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            Failure to fully pay for an order may result in reasonable collection charges or solicitors’ fees added to your customer account.
-          </p>
-
-          <p className="text-sm black leading-relaxed mb-3">
-            For EU residents, product prices include VAT. Outside the EU or exempt from VAT, prices exclude VAT. These terms do not supersede your consumer rights. All site offers are subject to stock availability.
-          </p>
-
-          <p className="text-sm black leading-relaxed">
-            Products with the best-before date are dispatched within a minimum three-month period. For extended storage or multipack orders beyond three months, please contact our Customer Services team.
-          </p>
-        </div>
-
-        {/* MARKETING */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Marketing and Promotions</h2>
-
-          <p className="text-sm black mb-2">
-            Discounts and offers using voucher codes are subject to the following conditions:
-          </p>
-
-          <ul className="list-disc pl-5 text-sm black space-y-1">
-            <li>One voucher code per order.</li>
-            <li>Legal restrictions prohibit discounts or promotions on certain items.</li>
-            <li>Further conditions may apply.</li>
-            <li>Multi-buy promotions will discount the cheapest item. These promotions apply only to UK orders.</li>
+          <ul className="list-disc pl-5 text-base text-gray-700 space-y-2">
+            <li>
+              When you register to the Houszy website as a customer, the personal data that you provide must be correct, current, accurate and complete.
+            </li>
+            <li>
+              You must not register using a name that you are not authorised to use or impersonate another person or entity.
+            </li>
           </ul>
         </div>
 
-        {/* PRODUCT REVIEW */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Product Review</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            Our Rights
+          </h2>
 
-          <p className="text-sm black leading-relaxed">
-            All reviews undergo approval. Reviews unrelated to products, mentioning service, or deemed offensive will not be published. Service-related feedback should be directed to our customer service team.
-          </p>
+          <ul className="list-disc pl-5 text-base text-gray-700 space-y-2">
+            <li>
+              Houszy reserves the right to modify these terms and conditions at any time.
+            </li>
+            <li>
+              We may withdraw or change this website temporarily or permanently without notice.
+            </li>
+            <li>
+              Continued use of the website means acceptance of any updated terms.
+            </li>
+          </ul>
         </div>
-
-        {/* PRIVACY */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Privacy Policy</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            Third-Party Links
+          </h2>
 
-          <p className="text-sm black leading-relaxed">
-            Your privacy matters to us. Please consult our Privacy Policy for details regarding the collection, usage, and safeguarding of data. We process personal information following our Privacy Policy and may verify your identity and credit rating through third-party providers.
+          <p className="text-base text-gray-700 leading-relaxed">
+            Houszy may provide links to third-party websites and resources. We are not responsible for their content, privacy policies, terms, products, services or any losses arising from their use.
           </p>
         </div>
 
-        {/* INTELLECTUAL */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Intellectual Property</h2>
+          <h2 className="text-lg font-semibold mb-3">
+            Placing and Accepting Orders
+          </h2>
 
-          <p className="text-sm black leading-relaxed">
-            We hold the copyright for all designs, text, graphics, and formatting on this site. Limited copying or printing for personal, non-commercial use is permitted. Brand names, product names, service names, titles, and copyrights belong to their respective owners and are not authorised for use.
-          </p>
-
-          <p className="text-sm black mt-3">
-            These terms may be modified in response to the Consumer Bill of Rights Act 2015.
+          <p className="text-base text-gray-700 leading-relaxed">
+            An order number or order acknowledgement email does not constitute order acceptance. Acceptance of an order only occurs once the product has been dispatched.
           </p>
         </div>
 
-        {/* CONTACT */}
-        <div className="bg-white p-6 rounded-xl border shadow-sm text-center">
-          <h2 className="text-lg font-semibold mb-3">Contact Information</h2>
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Order Cancellation
+          </h2>
 
-          <p className="text-sm black">
-            You can reach us by phone at <strong>+441216616357/+441214616835 or via email at customersupport@direct-care.co.uk.</strong>
+          <p className="text-base text-gray-700 leading-relaxed">
+            Orders placed before 2pm Monday to Saturday are usually dispatched the same day. To cancel an order please contact
+            <strong> customersupport@houszy.co.uk </strong>
+            or call
+            <strong> +441214616837</strong>.
           </p>
         </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Price and Payment
+          </h2>
+
+          <p className="text-base text-gray-700 leading-relaxed">
+            All prices are displayed in GBP and include UK VAT. Delivery charges are shown during checkout. Houszy accepts debit and credit card payments and may verify customer details through third-party services.
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Product Description Information
+          </h2>
+
+          <p className="text-base text-gray-700 leading-relaxed">
+            We make every effort to ensure product descriptions, prices, measurements and images are accurate, however actual product colours may vary depending on your display settings.
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Availability and Delivery
+          </h2>
+
+          <p className="text-base text-gray-700 leading-relaxed">
+            Product availability is subject to stock levels. If an item becomes unavailable, customers will be informed and offered a refund or exchange where applicable.
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Intellectual Property
+          </h2>
+
+          <p className="text-base text-gray-700 leading-relaxed">
+            All content, trademarks, graphics and intellectual property on the Houszy website remain the property of Houszy or its licensors and may not be reproduced without permission.
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Indemnity
+          </h2>
+
+          <p className="text-base text-gray-700 leading-relaxed">
+            You agree to indemnify and hold harmless Houszy, its employees, directors and suppliers against claims, liabilities, damages and expenses resulting from misuse of this website or breach of these terms.
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-3">
+            Governing Jurisdiction and Law
+          </h2>
+
+          <p className="text-base text-gray-700 leading-relaxed">
+            These Terms and Conditions are governed by the laws of England and Wales and any disputes shall be subject to the jurisdiction of the English Courts.
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">
+            Company Details
+          </h2>
+
+          <div className="text-base text-gray-700 space-y-2">
+            <p>
+              <strong>Houszy</strong> is a trademark of Direct Care LTD
+            </p>
+
+            <p>Spacebox Business Park</p>
+            <p>Unit 38A, Plume Street</p>
+            <p>B6 7RT Birmingham</p>
+            <p>United Kingdom</p>
+
+            <p className="pt-2">
+              Company Number: <strong>06874500</strong>
+            </p>
+
+            <p>
+              VAT Number: <strong>985055882</strong>
+            </p>
+          </div>
+        </div>
+
+
+
 
       </div>
     </div>

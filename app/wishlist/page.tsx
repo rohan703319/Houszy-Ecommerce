@@ -6,97 +6,97 @@ import { useToast } from "@/components/toast/CustomToast";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Heart, ShoppingCart, Trash2, BadgePercent, PackageX } from "lucide-react";
+import { Heart, ShoppingCart, Trash2, BadgePercent, PackageX, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function WishlistPage() {
   const { wishlist, removeFromWishlist, clearWishlist } = useWishlist();
   const { addToCart, cart } = useCart();
   const toast = useToast();
-const [showConfirm, setShowConfirm] = useState(false);
-const handleAddToCart = (item: WishlistItem) => {
-  const existingCartQty = cart
-    .filter(
-      (c) =>
-        c.productId === item.productId &&
-        (c.variantId ?? null) === (item.variantId ?? null)
-    )
-    .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const handleAddToCart = (item: WishlistItem) => {
+    const existingCartQty = cart
+      .filter(
+        (c) =>
+          c.productId === item.productId &&
+          (c.variantId ?? null) === (item.variantId ?? null)
+      )
+      .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
 
-  const stock = item.stockQuantity ?? 0;
+    const stock = item.stockQuantity ?? 0;
 
-  const productData = (item as any).productData;
+    const productData = (item as any).productData;
 
-  const maxQty =
-    productData?.orderMaximumQuantity ?? Infinity;
+    const maxQty =
+      productData?.orderMaximumQuantity ?? Infinity;
 
-  const minQty =
-    productData?.orderMinimumQuantity ?? 1;
+    const minQty =
+      productData?.orderMinimumQuantity ?? 1;
 
-  const finalQty = minQty;
+    const finalQty = minQty;
 
-  // ❌ OUT OF STOCK
-  if (stock === 0) {
-    toast.error("Out of stock");
-    return;
-  }
+    // ❌ OUT OF STOCK
+    if (stock === 0) {
+      toast.error("Out of stock");
+      return;
+    }
 
-  // ❌ MAX ORDER CHECK
-  if (existingCartQty + finalQty > maxQty) {
-    toast.error(`Maximum order quantity is ${maxQty}`);
-    return;
-  }
+    // ❌ MAX ORDER CHECK
+    if (existingCartQty + finalQty > maxQty) {
+      toast.error(`Maximum order quantity is ${maxQty}`);
+      return;
+    }
 
-  // ❌ STOCK CHECK
-  if (existingCartQty + finalQty > stock) {
-    toast.error(`Only ${stock - existingCartQty} left in stock`);
-    return;
-  }
+    // ❌ STOCK CHECK
+    if (existingCartQty + finalQty > stock) {
+      toast.error(`Only ${stock - existingCartQty} left in stock`);
+      return;
+    }
 
-  // ✅ ADD TO CART (FULL DATA)
-  addToCart({
-    id: item.variantId
-      ? `${item.variantId}-one`
-      : item.productId,
+    // ✅ ADD TO CART (FULL DATA)
+    addToCart({
+      id: item.variantId
+        ? `${item.variantId}-one`
+        : item.productId,
 
-    type: "one-time",
+      type: "one-time",
 
-    productId: item.productId,
-    variantId: item.variantId ?? null,
+      productId: item.productId,
+      variantId: item.variantId ?? null,
 
-    name: item.name,
-   price: item.finalPrice ?? item.price,
-finalPrice: item.finalPrice ?? item.price,
-priceBeforeDiscount:
-  item.priceBeforeDiscount ?? item.price,
-discountAmount: item.discountAmount ?? 0,
-appliedDiscountId: item.appliedDiscountId ?? null,
-couponCode: item.couponCode ?? null,
-oldPrice: item.oldPrice ?? null,
+      name: item.name,
+      price: item.finalPrice ?? item.price,
+      finalPrice: item.finalPrice ?? item.price,
+      priceBeforeDiscount:
+        item.priceBeforeDiscount ?? item.price,
+      discountAmount: item.discountAmount ?? 0,
+      appliedDiscountId: item.appliedDiscountId ?? null,
+      couponCode: item.couponCode ?? null,
+      oldPrice: item.oldPrice ?? null,
 
-displayDiscountType:
-  item.displayDiscountType ?? "None",
+      displayDiscountType:
+        item.displayDiscountType ?? "None",
 
-hasSystemDiscount:
-  item.hasSystemDiscount ?? false,
+      hasSystemDiscount:
+        item.hasSystemDiscount ?? false,
 
-systemDiscountAmount:
-  item.systemDiscountAmount ?? 0,
-    quantity: finalQty,
+      systemDiscountAmount:
+        item.systemDiscountAmount ?? 0,
+      quantity: finalQty,
 
-    image: item.image,
-    slug: item.slug,
-    sku: item.sku,
+      image: item.image,
+      slug: item.slug,
+      sku: item.sku,
 
-    vatRate: item.vatRate ?? null,
-    vatIncluded: item.vatRate != null,
+      vatRate: item.vatRate ?? null,
+      vatIncluded: item.vatRate != null,
 
-    // 🔥🔥🔥 MOST IMPORTANT
-    productData: productData,
-  });
+      // 🔥🔥🔥 MOST IMPORTANT
+      productData: productData,
+    });
 
-  toast.success(`${item.name} added to cart`);
-};
+    toast.success(`${item.name} added to cart`);
+  };
 
   if (wishlist.length === 0) {
     return (
@@ -105,7 +105,7 @@ systemDiscountAmount:
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Your Wishlist is Empty</h1>
         <p className="text-gray-500 mb-6">Save products you love by clicking the heart icon.</p>
         <Link href="/">
-          <Button className="bg-[#445D41] hover:bg-black text-white px-6 py-2 rounded-xl">
+          <Button className="bg-[#f38918] hover:bg-black text-white px-6 py-2 rounded-xl">
             Continue Shopping
           </Button>
         </Link>
@@ -123,12 +123,12 @@ systemDiscountAmount:
             My Wishlist <span className="text-gray-400 font-normal text-base">({wishlist.length})</span>
           </h1>
         </div>
-       <button
-  onClick={() => setShowConfirm(true)}
-  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
->
-  <Trash2 className="h-3.5 w-3.5" /> Clear all
-</button>
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Clear all
+        </button>
       </div>
 
       {/* Grid */}
@@ -139,119 +139,118 @@ systemDiscountAmount:
             className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex flex-col"
           >
             {/* Image */}
-           <Link href={`/product/${item.slug}`}>
+            <Link href={`/product/${item.slug}`}>
               <div className="relative h-[130px] w-full rounded-lg overflow-hidden">
                 <Image
-                  src={item.image}
+                  src={item.image || "/placeholder.jpg"}
                   alt={item.name}
                   fill
                   className="object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.jpg"; }}
                 />
               </div>
             </Link>
 
             {/* Name */}
-          <Link href={`/product/${item.slug}`}>
-  <div className="mb-1">
-    <p className="text-xs font-semibold text-gray-800 line-clamp-2 hover:text-[#445D41]">
-      {item.variantId ? item.name.split(" - ")[0] : item.name}
-    </p>
+            <Link href={`/product/${item.slug}`}>
+              <div className="mb-1">
+                <p className="text-xs font-semibold text-gray-800 line-clamp-2 hover:text-[#f38918]">
+                  {item.variantId ? item.name.split(" - ")[0] : item.name}
+                </p>
 
-    {item.variantName && (
-      <span className="inline-block text-[12px] text-gray-500">
-        {item.variantName}
-      </span>
-    )}
-  </div>
-</Link>
-         
+                {item.variantName && (
+                  <span className="inline-block text-[12px] text-gray-500">
+                    {item.variantName}
+                  </span>
+                )}
+              </div>
+            </Link>
+
             {/* Price + VAT */}
-           <div className="flex items-baseline gap-1 flex-wrap mb-3 mt-auto">
-  <span className="text-sm font-bold text-[#445D41]">
-    £{
-      (
-        item.displayDiscountType === "System"
-          ? (item.finalPrice ?? item.price)
-          : item.price
-      ).toFixed(2)
-    }
-  </span>
+            <div className="flex items-baseline gap-1 flex-wrap mb-3 mt-auto">
+              <span className="text-sm font-bold text-[#f38918]">
+                £{
+                  (
+                    item.displayDiscountType === "System"
+                      ? (item.finalPrice ?? item.price)
+                      : item.price
+                  ).toFixed(2)
+                }
+              </span>
 
-  {/* SYSTEM DISCOUNT */}
-  {item.displayDiscountType === "System" &&
-    (item.priceBeforeDiscount ?? item.price) >
-      (item.finalPrice ?? item.price) && (
-      <>
-        <span className="text-[11px] text-gray-400 line-through">
-          £{(item.priceBeforeDiscount ?? item.price).toFixed(2)}
-        </span>
+              {/* SYSTEM DISCOUNT */}
+              {item.displayDiscountType === "System" &&
+                (item.priceBeforeDiscount ?? item.price) >
+                (item.finalPrice ?? item.price) && (
+                  <>
+                    <span className="text-[11px] text-gray-400 line-through">
+                      £{(item.priceBeforeDiscount ?? item.price).toFixed(2)}
+                    </span>
 
-        <span className="text-[10px] font-semibold text-green-700">
-          {Math.round(
-            (((item.priceBeforeDiscount ?? item.price) -
-              (item.finalPrice ?? item.price)) /
-              (item.priceBeforeDiscount ?? item.price)) *
-              100
-          )}
-          % OFF
-        </span>
-      </>
-    )}
+                    <span className="text-[10px] font-semibold text-orange-700">
+                      {Math.round(
+                        (((item.priceBeforeDiscount ?? item.price) -
+                          (item.finalPrice ?? item.price)) /
+                          (item.priceBeforeDiscount ?? item.price)) *
+                        100
+                      )}
+                      % OFF
+                    </span>
+                  </>
+                )}
 
-  {/* OLD PRICE */}
-  {item.displayDiscountType === "OldPrice" &&
-    item.oldPrice &&
-    item.oldPrice > item.price && (
-      <>
-        <span className="text-[11px] text-gray-400 line-through">
-          £{item.oldPrice.toFixed(2)}
-        </span>
+              {/* OLD PRICE */}
+              {item.displayDiscountType === "OldPrice" &&
+                item.oldPrice &&
+                item.oldPrice > item.price && (
+                  <>
+                    <span className="text-[11px] text-gray-400 line-through">
+                      £{item.oldPrice.toFixed(2)}
+                    </span>
 
-        <span className="text-[10px] font-semibold text-green-700">
-          {Math.round(
-            ((item.oldPrice - item.price) /
-              item.oldPrice) *
-              100
-          )}
-          % OFF
-        </span>
-      </>
-    )}
+                    <span className="text-[10px] font-semibold text-orange-700">
+                      {Math.round(
+                        ((item.oldPrice - item.price) /
+                          item.oldPrice) *
+                        100
+                      )}
+                      % OFF
+                    </span>
+                  </>
+                )}
 
-  {item.vatExempt ? (
-    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-green-700 bg-green-50 border border-green-200 px-1 py-0.5 rounded whitespace-nowrap">
-      <BadgePercent className="h-2.5 w-2.5" /> VAT Exempt
-    </span>
-  ) : item.vatRate != null ? (
-    <span className="text-[9px] font-semibold text-green-700 bg-green-100 px-1 py-0.5 rounded whitespace-nowrap">
-      ({item.vatRate}% VAT)
-    </span>
-  ) : null}
-</div>
+              {item.vatExempt ? (
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-1 py-0.5 rounded whitespace-nowrap">
+                  <BadgePercent className="h-2.5 w-2.5" /> VAT Exempt
+                </span>
+              ) : item.vatRate != null ? (
+                <span className="text-[9px] font-semibold text-orange-700 bg-orange-100 px-1 py-0.5 rounded whitespace-nowrap">
+                  ({item.vatRate}% VAT)
+                </span>
+              ) : null}
+            </div>
 
             {/* Buttons */}
             <div className="flex gap-1">
-       <Button
-  onClick={() => {
-    if ((item.stockQuantity ?? 0) === 0) return;
-    handleAddToCart(item);
-  }}
-  disabled={(item.stockQuantity ?? 0) === 0}
-  className={`flex-1 h-7 text-[10px] px-1.5 text-white rounded-lg font-semibold
+              <Button
+                onClick={() => {
+                  if ((item.stockQuantity ?? 0) === 0) return;
+                  handleAddToCart(item);
+                }}
+                disabled={(item.stockQuantity ?? 0) === 0}
+                className={`flex-1 h-7 text-[10px] px-1.5 text-white rounded-lg font-semibold
     ${(item.stockQuantity ?? 0) === 0
-      ? "bg-red-600 cursor-not-allowed"
-      : "bg-[#445D41] hover:bg-black"}
+                    ? "bg-red-600 cursor-not-allowed"
+                    : "bg-black hover:bg-[#f38918]"}
   `}
->
-{(item.stockQuantity ?? 0) === 0 ? (
-  <PackageX className="h-3 w-3" />
-) : (
-  <ShoppingCart className="h-3 w-3" />
-)}
+              >
+                {(item.stockQuantity ?? 0) === 0 ? (
+                  <PackageX className="h-3 w-3" />
+                ) : (
+                  <ShoppingBag className="h-3 w-3" />
+                )}
 
-{(item.stockQuantity ?? 0) === 0 ? "Out of Stock" : "Add to cart"}
-</Button>
+                {(item.stockQuantity ?? 0) === 0 ? "Out of Stock" : "Add to cart"}
+              </Button>
               <button
                 onClick={() => { removeFromWishlist(item.id); toast.error("Removed from wishlist"); }}
                 className="h-7 w-7 flex items-center justify-center rounded-lg border border-gray-200 text-red-400 hover:text-red-600 hover:border-red-300 transition flex-shrink-0"
@@ -262,53 +261,53 @@ systemDiscountAmount:
           </div>
         ))}
       </div>
- {showConfirm && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    
-    <div className="w-[90%] max-w-md rounded-2xl overflow-hidden shadow-2xl">
-      
-      {/* HEADER */}
-      <div className="bg-[#445D41] px-5 py-4">
-        <h2 className="text-white text-lg font-semibold">
-          Clear Wishlist
-        </h2>
-      </div>
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
 
-      {/* BODY */}
-      <div className="bg-white px-5 py-6">
-        <p className="text-gray-600 text-sm mb-6">
-          Are you sure you want to remove all items from your wishlist?
-        </p>
+          <div className="w-[90%] max-w-md rounded-2xl overflow-hidden shadow-2xl">
 
-        {/* ACTIONS */}
-        <div className="flex justify-end gap-3">
-          
-          <button
-            onClick={() => setShowConfirm(false)}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-100 transition"
-          >
-            Cancel
-          </button>
+            {/* HEADER */}
+            <div className="bg-black px-5 py-4">
+              <h2 className="text-white text-lg font-semibold">
+                Clear Wishlist
+              </h2>
+            </div>
 
-          <button
-            onClick={() => {
-              clearWishlist();
-              toast.error("Wishlist cleared");
-              setShowConfirm(false);
-            }}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition flex items-center gap-1"
-          >
-            {/* icon optional */}
-            Yes, Clear
-          </button>
+            {/* BODY */}
+            <div className="bg-white px-5 py-6">
+              <p className="text-gray-600 text-sm mb-6">
+                Are you sure you want to remove all items from your wishlist?
+              </p>
 
+              {/* ACTIONS */}
+              <div className="flex justify-end gap-3">
+
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={() => {
+                    clearWishlist();
+                    toast.error("Wishlist cleared");
+                    setShowConfirm(false);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition flex items-center gap-1"
+                >
+                  {/* icon optional */}
+                  Yes, Clear
+                </button>
+
+              </div>
+            </div>
+
+          </div>
         </div>
-      </div>
+      )}
+    </div>
 
-    </div>
-  </div>
-)}
-    </div>
-    
   );
 }

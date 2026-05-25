@@ -197,6 +197,7 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
       sessionStorage.removeItem("pendingReviewDraft");
 
       // auto scroll to review form
+      setShowReviewForm(true);
       setTimeout(() => {
         const el = document.getElementById("reviews-section");
         el?.scrollIntoView({ behavior: "instant" });
@@ -218,6 +219,8 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
   const [filterRating, setFilterRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<"recent" | "high" | "low">("recent");
   const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const { isAuthenticated, accessToken } = useAuth();
   const toast = useToast();
@@ -365,14 +368,14 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
 
     el.classList.add(
       "ring-2",
-      "ring-[#445D41]",
+      "ring-[#f38918]",
       "bg-green-50"
     );
 
     const timeout = setTimeout(() => {
       el.classList.remove(
         "ring-2",
-        "ring-[#445D41]",
+        "ring-[#f38918]",
         "bg-green-50"
       );
     }, 2500);
@@ -380,180 +383,253 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
     return () => clearTimeout(timeout);
   }, [highlightReviewId, swiperInstance, filteredReviews]);
 
+  // STATS
+  const approvedReviewsAll = useMemo(() => reviews.filter((r) => r.isApproved === true), [reviews]);
+  const totalReviewsCount = approvedReviewsAll.length;
+  const averageRating = totalReviewsCount > 0 ? (approvedReviewsAll.reduce((sum, r) => sum + r.rating, 0) / totalReviewsCount).toFixed(1) : "0.0";
+  const ratingCounts = useMemo(() => {
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    approvedReviewsAll.forEach(r => {
+      if (r.rating >= 1 && r.rating <= 5) {
+        counts[r.rating as keyof typeof counts]++;
+      }
+    });
+    return counts;
+  }, [approvedReviewsAll]);
+  const getPercent = (count: number) => totalReviewsCount > 0 ? (count / totalReviewsCount) * 100 : 0;
+
   return (
     <>
-      <section id="reviews-section" className="mt-6 md:mt-10 bg-white p-4 md:p-6 rounded-xl shadow-md border border-gray-200 overflow-x-hidden w-full">
-        <h2 className="text-lg md:text-2xl font-bold mb-3 text-gray-900">Ratings & Reviews</h2>
-        {/* FILTER PANEL */}
-        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-2 md:gap-3 mb-4 p-3 bg-gray-50 rounded-lg border w-full overflow-x-hidden">
-          <div className="flex items-center gap-1.5 font-semibold text-gray-700 text-sm">
-            <Filter className="h-4 w-4" /> Filter
+      <section id="reviews-section" className="mt-6 md:mt-10 bg-white p-4 md:p-8 rounded-2xl shadow-sm border border-gray-100 overflow-x-hidden w-full">
+        <h2 className="text-xl md:text-2xl font-bold mb-6 text-gray-900">Rating & Reviews</h2>
+
+        {/* Houszy style overview block */}
+        <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 mb-8 pb-8 border-b border-gray-100">
+
+          {/* Left: Average */}
+          <div className="flex flex-col items-center justify-center min-w-[120px]">
+            <span className="text-4xl font-bold text-gray-900 mb-1">{averageRating}</span>
+            <div className="flex text-yellow-400 text-xl mb-1">
+              {"★".repeat(Math.round(Number(averageRating)))}<span className="text-gray-200">{"★".repeat(5 - Math.round(Number(averageRating)))}</span>
+            </div>
+            <span className="text-xs font-medium text-gray-600">{totalReviewsCount} reviews</span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 items-center">
-            {[5, 4, 3, 2, 1].map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterRating(filterRating === s ? null : s)}
-                className={`px-2 py-1 rounded-md border text-xs font-medium transition ${filterRating === s ? "bg-[#445D41] text-white" : "bg-white text-gray-600 hover:bg-gray-100"
-                  }`}
-              >
-                {s} ★
-              </button>
+          {/* Middle: Distribution */}
+          <div className="flex-1 max-w-md w-full border-l border-gray-100 pl-8 hidden sm:block">
+            {[5, 4, 3, 2, 1].map((star) => (
+              <div key={star} className="flex items-center gap-3 mb-1.5 text-xs">
+                <span className="w-10 text-gray-800 font-medium">{star} Star</span>
+                <div className="flex-1 h-2 bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-full bg-[#f38918]"
+                    style={{ width: `${getPercent(ratingCounts[star as keyof typeof ratingCounts])}%` }}
+                  />
+                </div>
+                <span className="w-6 text-right text-gray-600 font-medium">{ratingCounts[star as keyof typeof ratingCounts]}</span>
+              </div>
             ))}
           </div>
 
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="border rounded-md px-2 py-1 text-xs bg-white"
-          >
-            <option value="recent">Most Recent</option>
-            <option value="high">Highest Rated</option>
-            <option value="low">Lowest Rated</option>
-          </select>
-
-          <label className="flex items-center gap-1.5 cursor-pointer text-xs">
-            <input
-              type="checkbox"
-              checked={showVerifiedOnly}
-              onChange={() => setShowVerifiedOnly(!showVerifiedOnly)}
-            />
-            Verified only
-          </label>
+          {/* Right: Actions */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 mt-4 md:mt-0 md:ml-auto w-full md:w-auto">
+            <button
+              onClick={() => setShowReviewForm(!showReviewForm)}
+              className="px-6 py-2 border border-gray-300 font-bold text-sm hover:bg-gray-50 transition whitespace-nowrap w-full sm:w-auto text-gray-900"
+            >
+              Write a review
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="p-2 border border-gray-300 hover:bg-gray-50 transition flex items-center justify-center w-full sm:w-auto"
+            >
+              <Filter className="w-4 h-4 text-gray-800" />
+            </button>
+          </div>
         </div>
 
-        {/* WRITE REVIEW FORM */}
-        {allowCustomerReviews && (
-          <div className="mb-6 p-4 md:p-5 border rounded-xl bg-gray-50 shadow-sm">
-            <h3 className="flex items-center gap-2 font-semibold text-base mb-4 text-gray-900">
-              Write a Review
-              <Edit3 className="w-4 h-4 text-black" />
-            </h3>
+        {/* FILTER PANEL */}
+        {showFilters && (
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8 p-4 rounded-xl border border-gray-100 bg-gray-50/30 w-full">
+            <div className="flex items-center gap-2 font-bold text-gray-800 text-sm">
+              <Filter className="h-4 w-4" /> Filter
+            </div>
 
-            {/* RATING */}
-            <div className="flex flex-col gap-1 mb-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">Your Rating:</span>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <span
-                      key={s}
-                      className={`cursor-pointer text-2xl transition-transform duration-150 ${rating >= s ? "text-yellow-500 scale-110" : "text-gray-300"
-                        }`}
-                      onClick={() => setRating(s)}
-                    >
-                      ★
-                    </span>
-                  ))}
+            <div className="flex flex-wrap gap-2 items-center justify-center flex-1">
+              {[5, 4, 3, 2, 1].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFilterRating(filterRating === s ? null : s)}
+                  className={`px-3 py-1 rounded border text-xs font-bold transition ${filterRating === s ? "border-[#f38918] text-[#f38918] bg-orange-50" : "border-gray-200 text-gray-600 bg-white hover:bg-gray-50"
+                    }`}
+                >
+                  {s} ★
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-6">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium text-gray-700 bg-white outline-none focus:border-[#f38918] cursor-pointer"
+              >
+                <option value="recent">Most Recent</option>
+                <option value="high">Highest Rated</option>
+                <option value="low">Lowest Rated</option>
+              </select>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showVerifiedOnly}
+                  onChange={() => setShowVerifiedOnly(!showVerifiedOnly)}
+                  className="accent-[#f38918] rounded w-4 h-4 cursor-pointer border-gray-300"
+                />
+                Verified only
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* WRITE REVIEW FORM */}
+        {allowCustomerReviews && showReviewForm && (
+          <div className="mb-10 p-5 md:p-6 border border-gray-100 rounded-xl bg-white shadow-sm transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="flex items-center gap-2 font-bold text-base text-gray-900">
+                Write a Review
+                <Edit3 className="w-4 h-4 text-[#f38918]" />
+              </h3>
+              <button onClick={() => setShowReviewForm(false)} className="text-gray-400 hover:text-gray-600 text-xs font-semibold px-2 py-1 rounded hover:bg-gray-50">Cancel</button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Rating, Title, Comment */}
+              <div className="flex flex-col gap-3">
+                {/* RATING */}
+                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-sm font-semibold text-gray-700">Rating:</span>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <span
+                        key={s}
+                        className={`cursor-pointer text-xl transition-all duration-150 ${rating >= s ? "text-yellow-400 scale-110" : "text-gray-300"
+                          }`}
+                        onClick={() => setRating(s)}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* TITLE */}
+                <div>
+                  <input
+                    value={title}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setTitle(value);
+                      validateField("title", value);
+                    }}
+                    placeholder="Review title*"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#f38918] placeholder:text-gray-400 font-medium bg-gray-50 focus:bg-white transition-colors"
+                  />
+                  {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
+                </div>
+
+                {/* COMMENT */}
+                <div className="flex-1 flex flex-col">
+                  <textarea
+                    value={comment}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setComment(value);
+                      validateField("comment", value);
+                    }}
+                    rows={4}
+                    placeholder="Share your experience..."
+                    className="w-full flex-1 border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#f38918] placeholder:text-gray-400 font-medium bg-gray-50 focus:bg-white transition-colors resize-none"
+                  />
+                  {errors.comment && <p className="text-xs text-red-500 mt-1">{errors.comment}</p>}
                 </div>
               </div>
-              {rating === 0 && <p className="text-xs text-gray-500">Please select a rating</p>}
-            </div>
 
-            {/* TITLE */}
-            <input
-              value={title}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTitle(value);
-                validateField("title", value);
-              }}
-              placeholder="Review title*"
-              className="w-full border rounded-lg p-2.5 text-sm mb-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#445D41]/40"
-            />
-            {errors.title && <p className="text-xs text-red-500 mb-2">{errors.title}</p>}
-
-            {/* COMMENT */}
-            <textarea
-              value={comment}
-              onChange={(e) => {
-                const value = e.target.value;
-                setComment(value);
-                validateField("comment", value);
-              }}
-              rows={3}
-              placeholder="Share your experience..."
-              className="w-full border rounded-lg p-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#445D41]/40"
-            />
-            {errors.comment && <p className="text-xs text-red-500 mt-1">{errors.comment}</p>}
-
-            {/* IMAGE UPLOAD */}
-            <div className="mt-4">
-              <p className="text-sm font-semibold text-gray-800 mb-2">Upload Images (optional)</p>
-              <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#445D41] hover:bg-white transition text-sm">
-                <UploadCloud className="h-4 w-4 text-gray-600" />
-                <span className="text-gray-700 font-medium">Add Images</span>
-                <span className="text-gray-400 text-xs">Click to upload review images</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => handleImageSelect(e.target.files)}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {/* IMAGE PREVIEW */}
-            {imagePreviews.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {imagePreviews.map((src, i) => (
-                  <div key={`preview-image-${i}`} className="relative w-[90px] h-[90px]">
-                    <div className="w-[90px] h-[90px] overflow-hidden rounded-lg border bg-gray-50">
-                      <img src={src} alt="Preview" className="w-full h-full object-contain" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setImageFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-5 w-5"
-                    >✕</button>
+              {/* Right Column: Media Uploads */}
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* IMAGE UPLOAD */}
+                  <div>
+                    <label className="flex flex-col items-center justify-center gap-1.5 p-3 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#f38918] transition bg-gray-50 hover:bg-orange-50/30 h-24">
+                      <UploadCloud className="h-5 w-5 text-gray-500" />
+                      <span className="text-gray-700 font-semibold text-xs text-center leading-tight">Add Images<br /><span className="text-gray-400 text-[9px] font-medium">JPG/PNG (Max 5)</span></span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleImageSelect(e.target.files)}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
-                ))}
-              </div>
-            )}
 
-            {/* VIDEO */}
-            <div className="mt-4">
-              <p className="text-sm font-semibold text-gray-800 mb-2">Upload Video (optional)</p>
-              <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[#445D41] hover:bg-white transition text-sm">
-                <UploadCloud className="h-4 w-4 text-gray-600" />
-                <span className="text-gray-700 font-medium">Upload Review Video</span>
-                <span className="text-gray-400 text-xs">Click to upload review video</span>
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => handleVideoSelect(e.target.files)}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {/* VIDEO PREVIEW */}
-            {videoPreviews.length > 0 && (
-              <div className="mt-3">
-                {videoPreviews.map((src, i) => (
-                  <div key={`preview-video-${i}`} className="relative w-32 sm:w-36">
-                    <div className="aspect-video w-full overflow-hidden rounded-lg border bg-black">
-                      <video src={src} muted preload="metadata" className="w-full h-full object-contain" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setVideoFiles([])}
-                      className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full h-5 w-5"
-                    >✕</button>
+                  {/* VIDEO UPLOAD */}
+                  <div>
+                    <label className="flex flex-col items-center justify-center gap-1.5 p-3 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#f38918] transition bg-gray-50 hover:bg-orange-50/30 h-24">
+                      <UploadCloud className="h-5 w-5 text-gray-500" />
+                      <span className="text-gray-700 font-semibold text-xs text-center leading-tight">Add Video<br /><span className="text-gray-400 text-[9px] font-medium">MP4/WebM (Max 1)</span></span>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => handleVideoSelect(e.target.files)}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
 
-            <Button
-              onClick={handleSubmitReview}
-              disabled={rating === 0 || comment.trim().length < 5 || loading}
-              className="mt-4 w-full bg-[#445D41] hover:bg-black text-white rounded-xl py-2.5 font-medium text-sm transition"
-            >
-              {loading ? "Submitting..." : "Submit Review"}
-            </Button>
+                {/* PREVIEWS */}
+                {(imagePreviews.length > 0 || videoPreviews.length > 0) && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {imagePreviews.map((src, i) => (
+                      <div key={`preview-image-${i}`} className="relative w-12 h-12">
+                        <div className="w-full h-full overflow-hidden rounded border border-gray-200">
+                          <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setImageFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] rounded-full h-4 w-4 flex items-center justify-center shadow-sm"
+                        >✕</button>
+                      </div>
+                    ))}
+                    {videoPreviews.map((src, i) => (
+                      <div key={`preview-video-${i}`} className="relative w-16 h-12">
+                        <div className="w-full h-full overflow-hidden rounded border border-gray-200 bg-black">
+                          <video src={src} muted preload="metadata" className="w-full h-full object-cover" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setVideoFiles([])}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] rounded-full h-4 w-4 flex items-center justify-center shadow-sm"
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* SUBMIT BUTTON */}
+                <div className="mt-auto pt-2">
+                  <Button
+                    onClick={handleSubmitReview}
+                    disabled={rating === 0 || comment.trim().length < 5 || loading}
+                    className="w-full bg-[#f38918] hover:bg-[#d67814] disabled:opacity-50 text-white rounded-lg py-2.5 font-bold text-sm transition-all"
+                  >
+                    {loading ? "Submitting..." : "Submit Review"}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -603,7 +679,7 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <div className="w-7 h-7 rounded-full bg-[#445D41]/10 flex-shrink-0 flex items-center justify-center text-[#445D41] font-bold text-[10px] uppercase">
+                          <div className="w-7 h-7 rounded-full bg-[#f38918]/10 flex-shrink-0 flex items-center justify-center text-[#f38918] font-bold text-[10px] uppercase">
                             {r.customerName.charAt(0)}
                           </div>
                           <span className="text-xs font-bold text-gray-900 truncate">
@@ -703,7 +779,7 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
                     <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
                       <p className="text-[10px] font-medium text-gray-400">{timeFromNow(r.createdAt)}</p>
                       {r.replies && r.replies.length > 0 && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-[#445D41] uppercase">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-[#f38918] uppercase">
                           <MessageSquare className="w-3 h-3" /> {r.replies.length} Reply
                         </div>
                       )}
@@ -713,7 +789,7 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
                       <div className="mt-3">
                         {r.replies.slice(0, 1).map((reply) => (
                           <div key={reply.id} className="bg-gray-50 rounded-xl p-2.5 text-[11px] border border-gray-100">
-                            <p className="text-gray-700 line-clamp-2"><span className="font-bold text-[#445D41]">Response:</span> {reply.comment}</p>
+                            <p className="text-gray-700 line-clamp-2"><span className="font-bold text-[#f38918]">Response:</span> {reply.comment}</p>
                           </div>
                         ))}
                       </div>

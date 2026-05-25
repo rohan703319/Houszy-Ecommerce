@@ -30,9 +30,9 @@ export default function ConfirmRemoveModal({
 
       {/* Modal */}
       <div className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden">
-        
+
         {/* 🔥 HEADER STRIP */}
-        <div className="bg-[#445D41] px-5 py-3">
+        <div className="bg-black px-5 py-3">
           <h2 className="text-white text-base font-semibold">
             {title}
           </h2>
@@ -48,7 +48,7 @@ export default function ConfirmRemoveModal({
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-[#445D41] hover:text-white transition"
+              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-[#f38918] hover:text-white transition"
             >
               Cancel
             </button>

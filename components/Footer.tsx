@@ -57,7 +57,7 @@ export default function Footer() {
             </button>
             <ul className={`text-[13px] md:text-[14px] text-gray-300 mt-3 space-y-3 ${open.inspiration ? "block" : "hidden md:block"}`}>
               <li><Link href="/blog" className="hover:text-white transition">Blog</Link></li>
-              <li><Link href="/recipes" className="hover:text-white transition">Recipes</Link></li>
+
               <li><Link href="/reviews" className="hover:text-white transition">Reviews</Link></li>
             </ul>
           </div>
@@ -144,14 +144,14 @@ export default function Footer() {
                   href={social.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-600 hover:border-white transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-white hover:scale-105 transition-all"
                 >
                   <Image
                     src={social.icon}
                     alt={social.name}
-                    width={16}
-                    height={16}
-                    className="invert opacity-80 hover:opacity-100 transition-opacity"
+                    width={20}
+                    height={20}
+                    className="object-contain"
                   />
                 </a>
               ))}
@@ -161,8 +161,8 @@ export default function Footer() {
 
         {/* Payments Strip */}
         <div className="flex justify-end pb-4 pt-2">
-          {/* Using standard img tag with a version query to bypass Next.js aggressive image caching */}
-          <img src="/payments/visa.png?v=3" alt="Payments" className="h-9 md:h-[46px] w-auto object-contain" />
+          {/* Using next/image for better performance and caching control */}
+          <Image src="/payments/visa.png" unoptimized alt="Payments" width={300} height={46} className="h-9 md:h-[46px] w-auto object-contain" />
         </div>
 
         {/* Bottom Copyright */}

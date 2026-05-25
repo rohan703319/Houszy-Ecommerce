@@ -259,7 +259,7 @@
 // <div className="mb-2 flex items-center justify-between gap-2">
 //   {/* Breadcrumbs */}
 //   <nav className="hidden md:flex items-center flex-wrap gap-1 text-xs md:text-sm text-gray-600">
-//     <a href="/" className="hover:text-[#445D41] transition-colors">Home</a>
+//     <a href="/" className="hover:text-[#f38918] transition-colors">Home</a>
 //     <span className="mx-1 text-gray-400">/</span>
 //     <span className="font-semibold text-gray-900">Products</span>
 //   </nav>
@@ -275,7 +275,7 @@
 //     <select
 //       value={`${sortBy}-${sortDirection}`}
 //       onChange={(e) => handleSortChange(e.target.value)}
-//       className="px-2 md:px-4 py-1 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+//       className="px-2 md:px-4 py-1 border border-gray-300 rounded-lg bg-white text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#f38918]"
 //     >
 //       <option value="name-asc">A-Z</option>
 //       <option value="name-desc">Z-A</option>
@@ -291,7 +291,7 @@
 //     <CardContent className="p-4 space-y-4">
 //       <div className="flex items-center justify-between pb-2 border-b">
 //         <div className="flex items-center gap-2">
-//           <SlidersHorizontal className="h-4 w-4 text-[#445D41]" />
+//           <SlidersHorizontal className="h-4 w-4 text-[#f38918]" />
 //           <h2 className="font-bold text-sm text-gray-900">Filters</h2>
 //         </div>
 //         <button onClick={resetFilters} className="text-xs text-blue-600">Reset</button>
@@ -345,7 +345,7 @@
 //     {/* HEADER + RESET */}
 //     <div className="flex items-center justify-between pb-4 border-b mb-6">
 //                   <div className="flex items-center gap-2">
-//                     <SlidersHorizontal className="h-5 w-5 text-[#445D41]" />
+//                     <SlidersHorizontal className="h-5 w-5 text-[#f38918]" />
 //                     <h2 className="font-bold text-base text-gray-900">
 //                       Filters
 //                     </h2>
@@ -496,7 +496,7 @@
 
 //       <button
 //         onClick={resetFilters}
-//         className="px-6 py-2 rounded-lg bg-[#445D41] text-white text-sm font-semibold hover:bg-black transition"
+//         className="px-6 py-2 rounded-lg bg-[#f38918] text-white text-sm font-semibold hover:bg-black transition"
 //       >
 //         Clear all filters
 //       </button>

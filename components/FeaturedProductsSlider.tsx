@@ -79,24 +79,42 @@ interface Product {
 }
 
 
-const ProductCardImage = ({ src, alt, className }: { src: string; alt: string; className?: string }) => {
+const ProductCardImage = ({ src, hoverSrc, alt, className }: { src: string; hoverSrc?: string; alt: string; className?: string }) => {
   const [imgSrc, setImgSrc] = useState(src);
+  const [hoverImgSrc, setHoverImgSrc] = useState(hoverSrc);
 
   useEffect(() => {
     setImgSrc(src);
   }, [src]);
 
+  useEffect(() => {
+    setHoverImgSrc(hoverSrc);
+  }, [hoverSrc]);
+
   return (
-    <div className="relative w-full h-full transform transition duration-300 md:group-hover:scale-110">
+    <div className="relative w-full h-full transform transition duration-300">
+      {/* Main Image */}
       <Image
         src={imgSrc}
         alt={alt}
         fill
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 250px"
-        className="object-contain"
+        className={`object-contain transition-opacity duration-300 ${hoverImgSrc ? 'group-hover:opacity-0' : ''}`}
         onError={() => setImgSrc("/placeholder.jpg")}
         loading="lazy"
       />
+      {/* Hover Image */}
+      {hoverImgSrc && (
+        <Image
+          src={hoverImgSrc}
+          alt={`${alt} hover`}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 250px"
+          className="object-contain opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          onError={() => setHoverImgSrc("")} // On error, just hide hover image
+          loading="lazy"
+        />
+      )}
     </div>
   );
 };
@@ -176,6 +194,24 @@ export default function FeaturedProductsSlider({
 
     // 4️⃣ Absolute fallback
     return "/placeholder.jpg";
+  };
+
+  const getProductHoverImage = (product: Product) => {
+    // Find the second image for hover effect
+    const sorted = (product as any)?.images
+      ?.slice()
+      ?.sort(
+        (a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      );
+
+    // Make sure we have at least 2 images
+    if (sorted && sorted.length > 1 && sorted[1]?.imageUrl) {
+      return sorted[1].imageUrl.startsWith("http")
+        ? sorted[1].imageUrl
+        : `${baseUrl}${sorted[1].imageUrl}`;
+    }
+
+    return undefined;
   };
 
   const handleBuyNow = (
@@ -418,11 +454,20 @@ export default function FeaturedProductsSlider({
             ["male", "female", "unisex"].includes(product.gender.toLowerCase())
           );
 
+          const hasRightDiscountBadge = !!(
+            (product.displayDiscountType === "System" && discountBadge) ||
+            (!discountBadge && !hasActiveCoupon && oldPriceData)
+          );
+
+          const heartTopClass = hasRightDiscountBadge
+            ? (hasGenderBadge ? "top-16" : "top-10")
+            : "top-2";
+
           return (
             <SwiperSlide key={variantForCard?.id ?? product.id}>
 
               <Card
-                className="group border-0 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 rounded-2xl flex flex-col flex-1 overflow-hidden bg-[#F4F4F4]">
+                className="group border-0 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl flex flex-col flex-1 overflow-hidden bg-[#F4F4F4]">
                 <CardContent className="p-3 md:p-4 flex flex-col h-full">
 
 
@@ -433,18 +478,19 @@ export default function FeaturedProductsSlider({
                     <GenderBadge gender={product.gender} />
 
 
-                    <div className="group h-[240px] sm:h-[280px] md:h-[290px] flex items-center justify-center overflow-hidden bg-white rounded-xl relative shadow-sm">
+                    <div className="group h-[160px] sm:h-[220px] md:h-[290px] flex items-center justify-center overflow-hidden bg-white rounded-xl relative shadow-sm">
 
 
                       <ProductCardImage
                         src={getProductDisplayImage(product, defaultVariant)}
+                        hoverSrc={getProductHoverImage(product)}
                         alt={product.name}
                       />
 
 
                       {/* VAT Relief — bottom left on image */}
                       {(product.vatExempt || (product as any).vatRate === 0) && (
-                        <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
+                        <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
                           <BadgePercent className="h-2.5 w-2.5" />
                           VAT Relief
                         </span>
@@ -559,13 +605,9 @@ export default function FeaturedProductsSlider({
                             toast.success("Product added to wishlist!");
                           }
                         }}
-                        className={`hidden absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all ${(
-                          product.displayDiscountType !== "None" ||
-                          hasActiveCoupon
-                        ) ? "top-2" : "top-2"
-                          } ${isInWishlist(defaultVariant?.id ?? product.id)
-                            ? "bg-red-50 border-red-200"
-                            : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
+                        className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all ${heartTopClass} ${isInWishlist(defaultVariant?.id ?? product.id)
+                          ? "bg-red-50 border-red-200"
+                          : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
                           }`}
                       >
                         <Heart
@@ -620,7 +662,7 @@ export default function FeaturedProductsSlider({
                     <div className="min-h-[30px] mt-2 mb-0 flex flex-col justify-center w-full">
                       {/* PRICE ROW */}
                       <div className="flex items-center justify-center gap-2">
-                        <span className="text-sm md:text-base font-bold text-[#E52323] leading-none">
+                        <span className="text-sm md:text-base font-bold text-[#f38918] leading-none">
                           £{
                             (
                               product.displayDiscountType === "System"
@@ -792,7 +834,7 @@ export default function FeaturedProductsSlider({
                                         toast.clearAll();
                                         router.push("/cart");
                                       }}
-                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#445D41] hover:bg-black hover:text-white transition shadow-sm"
+                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
                                     >
                                       Cart→
                                     </button>
@@ -830,7 +872,7 @@ export default function FeaturedProductsSlider({
                           {/* ADD TO CART KE JAGAH NOTIFY */}
                           <Button
                             variant="outline"
-                            className="w-full text-xs md:text-xs border border-green-500 text-green-700 hover:bg-green-50"
+                            className="w-full text-xs md:text-xs border border-orange-400 text-[#f38918] hover:bg-orange-50"
                             onClick={() =>
                               setNotifyProduct({
                                 productId: product.id,
@@ -991,7 +1033,7 @@ export default function FeaturedProductsSlider({
                       toast.clearAll();
                       router.push("/cart");
                     }}
-                    className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#445D41] hover:bg-black hover:text-white transition shadow-sm"
+                    className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
                   >
                     Cart→
                   </button>

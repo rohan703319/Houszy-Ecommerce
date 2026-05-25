@@ -56,7 +56,7 @@ export default function PremiumPriceSlider({
           >
 
             <div
-              className="h-2 bg-[#445D41] rounded-full absolute"
+              className="h-2 bg-[#f38918] rounded-full absolute"
               style={{
                 left: `${((value[0] - min) / (max - min)) * 100}%`,
                 right: `${100 - ((value[1] - min) / (max - min)) * 100}%`,
@@ -75,8 +75,8 @@ export default function PremiumPriceSlider({
             <div
               key={key}
               {...rest}
-             className="h-5 w-5 bg-white border-2 border-[#445D41] rounded-full shadow-md cursor-pointer flex items-center justify-center transition hover:scale-110 active:scale-95" >
-              <div className="h-2 w-2 bg-[#445D41] rounded-full" />
+              className="h-5 w-5 bg-white border-2 border-[#f38918] rounded-full shadow-md cursor-pointer flex items-center justify-center transition hover:scale-110 active:scale-95" >
+              <div className="h-2 w-2 bg-[#f38918] rounded-full" />
             </div>
           );
         }}
@@ -85,9 +85,9 @@ export default function PremiumPriceSlider({
       {/* Inputs */}
       <div className="flex items-center justify-between gap-3 mt-3">
 
-    
 
- 
+
+
 
       </div>
 

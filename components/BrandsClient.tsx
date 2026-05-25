@@ -25,83 +25,83 @@ export default function BrandsClient({
       b.name.toLowerCase().includes(search.toLowerCase())
     );
 
- if (sort === "az") {
-  filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-} else {
-  filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name));
-}
+    if (sort === "az") {
+      filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name));
+    }
 
     return filtered;
   }, [brands, search, sort]);
-const totalCount = brands.length;
-const filteredCount = filteredBrands.length;
+  const totalCount = brands.length;
+  const filteredCount = filteredBrands.length;
   return (
     <>
       {/* SEARCH + SORT BAR */}
-     <div className="mb-6 space-y-2">
+      <div className="mb-6 space-y-2">
 
-  {/* 🔹 Row 1 */}
-  <div className="flex gap-2 md:justify-between md:items-center">
+        {/* 🔹 Row 1 */}
+        <div className="flex gap-2 md:justify-between md:items-center">
 
-    {/* SEARCH + COUNT */}
-    <div className="flex items-center gap-3 w-full md:w-auto">
-      
-      {/* SEARCH */}
-      <div className="relative w-full md:w-[260px]">
-        <input
-          type="text"
-          placeholder="Search brands..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#445D41]"
-        />
+          {/* SEARCH + COUNT */}
+          <div className="flex items-center gap-3 w-full md:w-auto">
 
-        {search && (
-          <button
-            type="button"
-            onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+            {/* SEARCH */}
+            <div className="relative w-full md:w-[260px]">
+              <input
+                type="text"
+                placeholder="Search brands..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#f38918]"
+              />
+
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* ✅ COUNT (desktop) */}
+            <p className="hidden md:block text-sm text-gray-600 whitespace-nowrap">
+              {search
+                ? `showing ${filteredCount} of ${totalCount} brands`
+                : `${totalCount} total brands`}
+            </p>
+
+          </div>
+
+          {/* SORT */}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="w-[120px] md:w-[140px] border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f38918]"
           >
-            <X size={16} />
-          </button>
-        )}
+            <option value="az">A → Z</option>
+            <option value="za">Z → A</option>
+          </select>
+
+        </div>
+
+        {/* 🔹 Row 2 (mobile count) */}
+        <p className="text-xs text-gray-500 md:hidden">
+          {search ? (
+            <>
+              Showing <span className="font-semibold">{filteredCount}</span> of {totalCount} brands
+            </>
+          ) : (
+            <>
+              <span className="font-semibold">{totalCount}</span> total brands
+            </>
+          )}
+        </p>
+
       </div>
-
-      {/* ✅ COUNT (desktop) */}
-      <p className="hidden md:block text-sm text-gray-600 whitespace-nowrap">
-        {search
-          ? `showing ${filteredCount} of ${totalCount} brands`
-          : `${totalCount} total brands`}
-      </p>
-
-    </div>
-
-    {/* SORT */}
-    <select
-      value={sort}
-      onChange={(e) => setSort(e.target.value)}
-      className="w-[120px] md:w-[140px] border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#445D41]"
-    >
-      <option value="az">A → Z</option>
-      <option value="za">Z → A</option>
-    </select>
-
-  </div>
-
-  {/* 🔹 Row 2 (mobile count) */}
-  <p className="text-xs text-gray-500 md:hidden">
-    {search ? (
-      <>
-        Showing <span className="font-semibold">{filteredCount}</span> of {totalCount} brands
-      </>
-    ) : (
-      <>
-        <span className="font-semibold">{totalCount}</span> total brands
-      </>
-    )}
-  </p>
-
-</div>
 
       {/* BRANDS GRID */}
       {filteredBrands.length === 0 ? (
@@ -128,7 +128,7 @@ const filteredCount = filteredBrands.length;
                 />
               </div>
 
-              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#445D41] transition">
+              <h3 className="relative text-sm md:text-base font-semibold text-gray-900 text-center group-hover:text-[#f38918] transition">
                 {brand.name}
               </h3>
             </Link>

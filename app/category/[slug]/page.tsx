@@ -13,7 +13,7 @@ interface SearchParams {
   page?: string;
   pageSize?: string;
   discount?: string;
-   discountIds?: string;
+  discountIds?: string;
   subCategorySlug?: string;
   brands?: string;    // brand slugs, comma-separated  e.g. "acme,bandaid"
   price?: string;     // price range e.g. "10-100"
@@ -78,7 +78,7 @@ async function getProducts(
     sortDirection = "asc",
     price,
     minRating,
-     discountIds,
+    discountIds,
   } = params;
 
   const query = new URLSearchParams({
@@ -86,14 +86,14 @@ async function getProducts(
     pageSize,
     sortBy,
     sortDirection,
-      // ✅ ADD THESE FILTERS
-  isPublished: "true",
-  isActive: "true",
-  isDeleted: "false",
+    // ✅ ADD THESE FILTERS
+    isPublished: "true",
+    isActive: "true",
+    isDeleted: "false",
   });
 
   if (categorySlug) query.set("categorySlug", categorySlug);
-  if (brandIds)     query.set("brandIds", brandIds);
+  if (brandIds) query.set("brandIds", brandIds);
 
   if (price) {
     const [min, max] = price.split("-");
@@ -102,9 +102,9 @@ async function getProducts(
   }
 
   if (minRating) query.set("minRating", minRating);
-if (discountIds) {
-  query.set("discountIds", discountIds);
-}
+  if (discountIds) {
+    query.set("discountIds", discountIds);
+  }
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/Products?${query.toString()}`,
     { cache: "no-store" }
@@ -126,11 +126,11 @@ export async function generateMetadata({ params, searchParams }: any) {
     `${process.env.NEXT_PUBLIC_API_URL}/api/Categories?includeInactive=false&includeSubCategories=true`,
     { next: { revalidate: 600 } }
   ).then((r) => r.json());
-const categoriesArray = Array.isArray(categoriesRes.data)
-  ? categoriesRes.data
-  : categoriesRes.data?.items || [];
+  const categoriesArray = Array.isArray(categoriesRes.data)
+    ? categoriesRes.data
+    : categoriesRes.data?.items || [];
 
-const category = findCategoryBySlug(categoriesArray, slug);
+  const category = findCategoryBySlug(categoriesArray, slug);
 
   if (!category) {
     return {
@@ -139,42 +139,42 @@ const category = findCategoryBySlug(categoriesArray, slug);
     };
   }
 
- return {
-  title: discount
-    ? `${category.name} – ${discount}% OFF`
-    : category.metaTitle || category.name,
+  return {
+    title: discount
+      ? `${category.name} – ${discount}% OFF`
+      : category.metaTitle || category.name,
 
-  description:
-    category.metaDescription || category.description || "",
+    description:
+      category.metaDescription || category.description || "",
 
-  keywords: category.metaKeywords || category.name,
+    keywords: category.metaKeywords || category.name,
 
-  openGraph: {
-    title: category.metaTitle || category.name,
-    description: category.metaDescription,
-    url: `https://direct-care.co.uk/category/${slug}`,
-    siteName: "Direct Care",
-    images: [
-      {
-        url: category.imageUrl || "/fallback.jpg",
-        width: 800,
-        height: 600,
-      },
-    ],
-    type: "website",
-  },
+    openGraph: {
+      title: category.metaTitle || category.name,
+      description: category.metaDescription,
+      url: `https://direct-care.co.uk/category/${slug}`,
+      siteName: "Direct Care",
+      images: [
+        {
+          url: category.imageUrl || "/fallback.jpg",
+          width: 800,
+          height: 600,
+        },
+      ],
+      type: "website",
+    },
 
-  twitter: {
-    card: "summary_large_image",
-    title: category.metaTitle || category.name,
-    description: category.metaDescription,
-    images: [category.imageUrl || "/fallback.jpg"],
-  },
+    twitter: {
+      card: "summary_large_image",
+      title: category.metaTitle || category.name,
+      description: category.metaDescription,
+      images: [category.imageUrl || "/fallback.jpg"],
+    },
 
-  alternates: {
-    canonical: `https://direct-care.co.uk/category/${slug}`,
-  },
-};
+    alternates: {
+      canonical: `https://direct-care.co.uk/category/${slug}`,
+    },
+  };
 }
 
 /* =====================
@@ -184,7 +184,7 @@ const category = findCategoryBySlug(categoriesArray, slug);
 function Loading() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Loader2 className="h-12 w-12 animate-spin text-[#445D41]" />
+      <Loader2 className="h-12 w-12 animate-spin text-[#f38918]" />
     </div>
   );
 }
@@ -213,35 +213,35 @@ export default async function CategoryPage({
     { next: { revalidate: 600 } }
   ).then((r) => r.json());
 
-const categoriesArray = Array.isArray(categoriesRes.data)
-  ? categoriesRes.data
-  : categoriesRes.data?.items || [];
+  const categoriesArray = Array.isArray(categoriesRes.data)
+    ? categoriesRes.data
+    : categoriesRes.data?.items || [];
 
-const category = findCategoryBySlug(categoriesArray, slug);
-if (!category) return notFound();
+  const category = findCategoryBySlug(categoriesArray, slug);
+  if (!category) return notFound();
 
-const categoryPath =
-  findCategoryPath(categoriesArray, slug) || [];
+  const categoryPath =
+    findCategoryPath(categoriesArray, slug) || [];
 
-const breadcrumbs: BreadcrumbItem[] = [
-  { label: "Home", href: "/" },
-  ...categoryPath.slice(0, -1).map((c: any) => ({
-    label: c.name,
-    href: `/category/${c.slug}`,
-  })),
-  {
-    label: categoryPath.at(-1)?.name || category.name,
-    href: `/category/${slug}`, // ✅ ALWAYS PRESENT
-  },
-];
+  const breadcrumbs: BreadcrumbItem[] = [
+    { label: "Home", href: "/" },
+    ...categoryPath.slice(0, -1).map((c: any) => ({
+      label: c.name,
+      href: `/category/${c.slug}`,
+    })),
+    {
+      label: categoryPath.at(-1)?.name || category.name,
+      href: `/category/${slug}`, // ✅ ALWAYS PRESENT
+    },
+  ];
 
   // Map brand slugs (from URL) → brand IDs (for API)
   const brandSlugs = searchParamsResolved.brands?.split(",").filter(Boolean) ?? [];
   const resolvedBrandIds = brandSlugs.length > 0
     ? (category.brands ?? [] as any[])
-        .filter((b: any) => brandSlugs.includes(b.slug))
-        .map((b: any) => b.id)
-        .join(",")
+      .filter((b: any) => brandSlugs.includes(b.slug))
+      .map((b: any) => b.id)
+      .join(",")
     : undefined;
 
   // Subcategory filter — use subCategorySlug query param (stays on same page)
@@ -254,84 +254,84 @@ const breadcrumbs: BreadcrumbItem[] = [
     { next: { revalidate: 600 } }
   ).then((r) => r.json());
 
- return (
-  <Suspense fallback={<Loading />}>
+  return (
+    <Suspense fallback={<Loading />}>
 
-    {/* ✅ SEO: CATEGORY DESCRIPTION (SERVER SIDE) */}
-    {category?.description && (
-      <div style={{ display: "none" }}>
-        <div dangerouslySetInnerHTML={{ __html: category.description }} />
-      </div>
-    )}
+      {/* ✅ SEO: CATEGORY DESCRIPTION (SERVER SIDE) */}
+      {category?.description && (
+        <div style={{ display: "none" }}>
+          <div dangerouslySetInnerHTML={{ __html: category.description }} />
+        </div>
+      )}
 
-    {/* ✅ SEO: FAQ SCHEMA */}
-    {(category as any)?.faqs?.length > 0 && (
+      {/* ✅ SEO: FAQ SCHEMA */}
+      {(category as any)?.faqs?.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": (category as any).faqs
+                .filter((f: any) => f.isActive)
+                .sort((a: any, b: any) => a.displayOrder - b.displayOrder)
+                .map((faq: any) => ({
+                  "@type": "Question",
+                  "name": faq.question,
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": faq.answer,
+                  },
+                })),
+            }),
+          }}
+        />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": (category as any).faqs
-              .filter((f: any) => f.isActive)
-              .sort((a: any, b: any) => a.displayOrder - b.displayOrder)
-              .map((faq: any) => ({
-                "@type": "Question",
-                "name": faq.question,
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": faq.answer,
-                },
-              })),
+            "@type": "CollectionPage",
+            name: category.name,
+            description: category.metaDescription || category.description,
+            url: `https://direct-care.co.uk/category/${category.slug}`,
+            mainEntity: {
+              "@type": "ItemList",
+            }
           }),
         }}
       />
-    )}
-    <script
-  type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html: JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: category.name,
-      description: category.metaDescription || category.description,
-      url: `https://direct-care.co.uk/category/${category.slug}`,
-mainEntity: {
-  "@type": "ItemList",
-}
-    }),
-  }}
-/>
-<script
-  type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html: JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: breadcrumbs.map((item, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-      item: `https://direct-care.co.uk${item.href}`,
-      })),
-    }),
-  }}
-/>
-    {/* 🔥 EXISTING CODE (UNCHANGED) */}
-    <CategoryClient
-      category={category}
-      breadcrumbs={breadcrumbs}
-      initialProducts={productsRes.data?.items ?? []}
-      totalCount={productsRes.data?.totalCount ?? 0}
-      currentPage={productsRes.data?.page ?? 1}
-      pageSize={productsRes.data?.pageSize ?? 20}
-      totalPages={productsRes.data?.totalPages ?? 1}
-      initialSortBy={searchParamsResolved.sortBy || "name"}
-      initialSortDirection={searchParamsResolved.sortDirection || "asc"}
-      brands={category.brands ?? []}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: breadcrumbs.map((item, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              item: `https://direct-care.co.uk${item.href}`,
+            })),
+          }),
+        }}
+      />
+      {/* 🔥 EXISTING CODE (UNCHANGED) */}
+      <CategoryClient
+        category={category}
+        breadcrumbs={breadcrumbs}
+        initialProducts={productsRes.data?.items ?? []}
+        totalCount={productsRes.data?.totalCount ?? 0}
+        currentPage={productsRes.data?.page ?? 1}
+        pageSize={productsRes.data?.pageSize ?? 20}
+        totalPages={productsRes.data?.totalPages ?? 1}
+        initialSortBy={searchParamsResolved.sortBy || "name"}
+        initialSortDirection={searchParamsResolved.sortDirection || "asc"}
+        brands={category.brands ?? []}
 
-      discount={discount}
-    />
+        discount={discount}
+      />
 
-  </Suspense>
-);
+    </Suspense>
+  );
 }

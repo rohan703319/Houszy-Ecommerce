@@ -132,7 +132,7 @@ export default function CategoryOffersSlider({
         {/* ===== HEADER (NO BACKGROUND) ===== */}
         <div className="mb-1 md:mb-3 text-center">
           <h2 className="text-xl md:text-3xl font-extrabold tracking-tight">
-            <span className="text-[#445D41]">Exclusive</span>{" "}
+            <span className="text-[#f38918]">Exclusive</span>{" "}
             <span className="text-[#2C332B]">Category Offers</span>
           </h2>
           <p className="mt-1 text-xs md:text-base text-gray-700">
@@ -142,7 +142,7 @@ export default function CategoryOffersSlider({
       </div>
 
       {/* ===== FESTIVE BACKGROUND STARTS HERE (FULL WIDTH) ===== */}
-      <div className="relative w-full overflow-hidden bg-gradient-to-r from-[#445D41] via-[#2f6b3f] to-black pt-4 pb-2">
+      <div className="relative w-full overflow-hidden bg-gradient-to-r from-[#f38918] via-[#2f6b3f] to-black pt-4 pb-2">
         {/* SQUARE GRID PATTERN (High Performance) */}
         <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
 
@@ -240,13 +240,13 @@ export default function CategoryOffersSlider({
 
                       {/* CONTENT */}
                       <div className="px-3 md:px-4 pt-3 pb-4 flex flex-col items-center text-center w-full bg-white z-10 border-t border-gray-50">
-                        <h3 className="text-xs md:text-sm font-bold text-[#445D41] leading-tight line-clamp-1 mb-1">
+                        <h3 className="text-xs md:text-sm font-bold text-[#f38918] leading-tight line-clamp-1 mb-1">
                           {cat.name}
                         </h3>
 
                         {adminComment && (
                           <p className="flex items-center justify-center gap-1 text-[10px] md:text-xs font-medium text-gray-600 line-clamp-1 mb-2.5">
-                            <Tag className="w-3 h-3 text-[#445D41]/70" />
+                            <Tag className="w-3 h-3 text-[#f38918]/70" />
                             {adminComment}
                           </p>
                         )}

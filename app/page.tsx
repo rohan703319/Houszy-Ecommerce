@@ -13,13 +13,13 @@ import NewsletterWrapper from "@/components/NewsletterWrapper";
 import CategoryOffersSlider from "@/components/CategoryOffersSlider";
 import { getActiveBanners } from "@/lib/bannerUtils";
 import Script from "next/script";
-import { ShoppingCart, Star, TrendingUp, Zap, Gift, Shield, } from "lucide-react";
+import { TrendingUp, Zap, Gift, Shield, } from "lucide-react";
 import WhyChooseUs from "@/components/WhyChooseUs";
 import LatestBlogs from "@/components/LatestBlogs";
 import DiscountedProductsSlider from "@/components/DiscountedProductsSlider";
 import type { Metadata } from "next";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 // ✅ Static feature section
 const features = [
@@ -98,7 +98,7 @@ interface HomeBanner {
 async function getBanners(baseUrl: string): Promise<Banner[]> {
   try {
     const res = await fetch(`${baseUrl}/api/Banners`, {
-      next: { revalidate: 3600 },
+      next: { revalidate: 60 },
     });
     const result = await res.json();
     return result.success ? result.data : [];
@@ -318,11 +318,11 @@ export default async function Home() {
         )}
 
         {/* ===== OUR POPULAR COLLECTIONS ===== */}
-        <section className="w-full bg-white py-10 md:py-14">
+        <section className="w-full bg-white pt-4 pb-4 md:py-14">
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
 
             {/* Heading */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-1 md:mb-8">
               <h2 className="text-[15px] md:text-[22px] font-bold text-black">
                 Our Popular Collections
               </h2>

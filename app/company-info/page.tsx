@@ -5,7 +5,7 @@ export default function CompanyInfoPage() {
     <div className="bg-gray-50 min-h-screen">
 
       {/* HERO */}
-      <div className="bg-[#445D41] text-white py-2 px-2 text-center">
+      <div className="bg-[#f38918] text-white py-2 px-2 text-center">
         <h1 className="text-xl md:text-3xl font-bold">
           Our Company
         </h1>
@@ -30,31 +30,31 @@ export default function CompanyInfoPage() {
         <div className="bg-white p-6 rounded-xl border shadow-sm">
           <h2 className="text-lg font-semibold mb-3">Information</h2>
 
-<p className="text-sm black">
-  <strong>Owner name:</strong> Brijesh Kumar
-</p>
+          <p className="text-sm black">
+            <strong>Owner name:</strong> Brijesh Kumar
+          </p>
 
-<p className="text-sm black">
-  <strong>Superintendent pharmacist:</strong>{" "}
-  <span className="font-semibold">
-    Surabhi Kumari (2057840)
-  </span>
-</p>
+          <p className="text-sm black">
+            <strong>Superintendent pharmacist:</strong>{" "}
+            <span className="font-semibold">
+              Surabhi Kumari (2057840)
+            </span>
+          </p>
 
-<p className="text-sm black">
-  <strong>Pharmacy address:</strong> Unit 38A, Plume Street, Aston, Birmingham
-</p>
+          <p className="text-sm black">
+            <strong>Pharmacy address:</strong> Unit 38A, Plume Street, Aston, Birmingham
+          </p>
 
-<p className="text-sm black">
-  <strong>GPhC registration number:</strong> Awaiting
-</p>
+          <p className="text-sm black">
+            <strong>GPhC registration number:</strong> Awaiting
+          </p>
 
-<p className="text-sm black mt-4">
-  <strong>Drop us an email</strong> if you have any complaints, concerns, or feedback at{" "}
-  <span className="font-semibold">
-    Suby@direct-care.co.uk
-  </span>
-</p>
+          <p className="text-sm black mt-4">
+            <strong>Drop us an email</strong> if you have any complaints, concerns, or feedback at{" "}
+            <span className="font-semibold">
+              Suby@direct-care.co.uk
+            </span>
+          </p>
           <p className="text-sm black mt-4 leading-relaxed">
             To complain about a pharmacy, you should first contact the pharmacy directly on their registered email address or phone number to try and resolve the issue. If you are not satisfied, you can then escalate your complaint to the local or national ombudsman or through your local Integrated Care Board (ICB). The complaint should be made within 12 months of the incident, and you should receive a response acknowledging the complaint within three working days, with a full response provided within a specified timeframe, typically under six months.
           </p>

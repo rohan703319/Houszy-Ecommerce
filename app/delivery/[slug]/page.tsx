@@ -47,33 +47,15 @@ export default async function DeliveryPage({
     <div className="max-w-6xl mx-auto px-4 py-2">
 
       {/* 🔥 HERO */}
-     <div className="mb-10 text-center">
-  <h1 className="text-xl md:text-3xl font-bold text-[#445D41]">
-    {data.pageTitle}
-  </h1>
-  <p className="text-gray-600 mt-2 text-lg max-w-2xl mx-auto">
-    {data.pageSubtitle}
-  </p>
-</div>
+      <div className="mb-10 text-center">
+        <h1 className="text-xl md:text-3xl font-bold text-[#f38918]">
+          {data.pageTitle}
+        </h1>
+        <p className="text-gray-600 mt-2 text-lg max-w-2xl mx-auto">
+          {data.pageSubtitle}
+        </p>
+      </div>
 
-      {/* 🔥 FEATURE CARDS */}
-      {data.featureCards?.length > 0 && (
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {data.featureCards.map((card: any, i: number) => (
-            <div
-              key={i}
-              className="border rounded-lg p-5 shadow-sm hover:shadow-md transition"
-            >
-              <h3 className="font-semibold text-lg mb-2">
-                {card.heading}
-              </h3>
-              <p className="text-sm text-gray-600">
-                {card.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* 🔥 INFO POINTS */}
       {data.infoPoints?.length > 0 && (
@@ -170,7 +152,7 @@ export default async function DeliveryPage({
             return (
               <div
                 key={i}
-                className="bg-[#445D41] text-white p-6 rounded-lg text-center mb-10"
+                className="bg-[#f38918] text-white p-6 rounded-lg text-center mb-10"
               >
                 <h2 className="text-xl font-bold mb-2">
                   {section.heading}

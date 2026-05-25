@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PageProps) {
       const d = json?.data;
       if (d) return { title: `${d.name} | Offers | Direct Care`, description: `Save with ${d.name}` };
     }
-  } catch {}
+  } catch { }
   return { title: "Offer | Direct Care" };
 }
 
@@ -58,7 +58,7 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
       const json = await res.json();
       discount = json?.data ?? null;
     }
-  } catch {}
+  } catch { }
 
   if (!discount || discount.isDeleted) notFound();
 
@@ -81,7 +81,7 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
       initialItems = items;
       initialHasMore = items.length === PAGE_SIZE;
     }
-  } catch {}
+  } catch { }
 
   const daysLeft = getDaysLeft(discount.endDate);
   const isExpiringSoon = daysLeft !== null && daysLeft <= 3;
@@ -91,8 +91,8 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
     <div className="min-h-screen bg-gray-50">
       {/* DISCOUNT HERO */}
 
-      <main className="max-w-7xl mx-auto px-4 py-2">
-     
+      <main className="max-w-8xl mx-auto px-8 py-4">
+
 
         <DiscountProductsClient
           discountId={discount.id}

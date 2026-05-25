@@ -31,15 +31,27 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | null>(null);
 
 /* ================= STYLES ================= */
-const toastStyles: Record<ToastType, string> = {
-  success:
-    "bg-green-700 text-white",
-  error:
-    "bg-gradient-to-r from-red-600 to-red-700 text-white",
-info:
-  "bg-violet-500 text-white border border-white/10 shadow-[0_12px_35px_rgba(0,0,0,0.5)] relative overflow-hidden",
-  warning:
-    "bg-gradient-to-r from-yellow-400 to-yellow-500 text-black",
+const toastStyles: Record<ToastType, { wrapper: string, icon: string, text: string }> = {
+  success: {
+    wrapper: "bg-white border border-green-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
+    icon: "text-green-600 bg-green-50",
+    text: "text-gray-900"
+  },
+  error: {
+    wrapper: "bg-white border border-red-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
+    icon: "text-red-500 bg-red-50",
+    text: "text-gray-900"
+  },
+  info: {
+    wrapper: "bg-white border border-blue-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
+    icon: "text-blue-600 bg-blue-50",
+    text: "text-gray-900"
+  },
+  warning: {
+    wrapper: "bg-white border border-orange-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
+    icon: "text-[#f38918] bg-orange-50",
+    text: "text-gray-900"
+  },
 };
 
 const toastIcons: Record<ToastType, any> = {
@@ -100,24 +112,28 @@ const ToastItem = ({
     }
   };
 
+  const styles = toastStyles[toast.type];
+
   return (
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl min-w-[320px] max-w-[420px] shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur-md border border-white/20 text-sm font-medium animate-toastInanimate-[slideInLeft_0.3s_ease] ${toastStyles[toast.type]}`}
+      className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl min-w-[320px] max-w-[420px] transition-all animate-toastInanimate-[slideInLeft_0.3s_ease] ${styles.wrapper}`}
     >
       {/* ICON */}
-     <Icon className="w-4 h-4 shrink-0 text-gray-300" />
+      <div className={`shrink-0 p-2 rounded-full ${styles.icon}`}>
+        <Icon className="w-5 h-5" />
+      </div>
 
       {/* MESSAGE */}
-      <div className="flex-1 leading-snug">
+      <div className={`flex-1 leading-snug font-semibold text-[13px] ${styles.text}`}>
         {toast.message}
       </div>
 
       {/* CLOSE */}
       <button
         onClick={() => onRemove(toast.id)}
-        className="ml-1 rounded-full p-1 opacity-60 hover:opacity-100 hover:bg-white/20 transition"
+        className="ml-1 rounded-full p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
         aria-label="Close toast"
       >
         <X className="w-4 h-4" />
@@ -190,7 +206,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
           {/* ===== TOP TOASTS (SUCCESS / ERROR / WARNING SAME) ===== */}
           <div
             style={{ top: `${topOffset}px` }}
-            className="fixed left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3"
+            className="fixed right-4 z-[9999] flex flex-col gap-3 items-end"
           >
             {toasts
               .filter((t) => t.type !== "info")

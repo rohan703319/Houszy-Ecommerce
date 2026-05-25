@@ -53,12 +53,12 @@ export default function CouponModal({
         productIds: productIds ?? [],
         categoryIds: categoryIds ?? [],
       };
-// alert(
-//   "Payload:\n" +
-//   "Subtotal: " + payload.orderSubtotal +
-//   "\nProductIds: " + JSON.stringify(payload.productIds) +
-//   "\nCategoryIds: " + JSON.stringify(payload.categoryIds)
-// );
+      // alert(
+      //   "Payload:\n" +
+      //   "Subtotal: " + payload.orderSubtotal +
+      //   "\nProductIds: " + JSON.stringify(payload.productIds) +
+      //   "\nCategoryIds: " + JSON.stringify(payload.categoryIds)
+      // );
       console.log("Coupon Validate Payload:", payload);
 
       const res = await fetch(
@@ -73,12 +73,12 @@ export default function CouponModal({
       );
 
       const result = await res.json();
-// alert(
-//   "Response:\n" +
-//   "Success: " + result.success +
-//   "\nMessage: " + result.message +
-//   "\nDiscountAmount: " + result?.data?.discountAmount
-// );
+      // alert(
+      //   "Response:\n" +
+      //   "Success: " + result.success +
+      //   "\nMessage: " + result.message +
+      //   "\nDiscountAmount: " + result?.data?.discountAmount
+      // );
       if (!res.ok || !result.success) {
         toast.error(result?.message || "Coupon does not apply.");
         return;
@@ -137,7 +137,7 @@ export default function CouponModal({
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[#445D41]" />
+                <Sparkles className="h-5 w-5 text-[#f38918]" />
                 Offers & Coupons
               </h3>
               <p className="text-sm text-gray-600 mt-1">
@@ -162,13 +162,13 @@ export default function CouponModal({
               onChange={(e) => setCouponCode(e.target.value)}
               placeholder="Enter coupon code"
               className="flex-1 h-11 rounded-xl border border-gray-300 px-4 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-[#445D41]"
+                         focus:outline-none focus:ring-2 focus:ring-[#f38918]"
             />
 
             <Button
               onClick={() => validateAndApply()}
               disabled={loading}
-              className="h-11 px-6 rounded-xl bg-[#445D41] hover:bg-black text-white font-semibold"
+              className="h-11 px-6 rounded-xl bg-[#f38918] hover:bg-black text-white font-semibold"
             >
               {loading ? "Checking..." : "Apply"}
             </Button>
@@ -184,10 +184,9 @@ export default function CouponModal({
               <div
                 key={offer.id}
                 className={`rounded-2xl border p-4 transition-all
-                  ${
-                    applied
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 bg-white hover:border-[#445D41] hover:shadow-sm"
+                  ${applied
+                    ? "border-green-500 bg-green-50"
+                    : "border-gray-200 bg-white hover:border-[#f38918] hover:shadow-sm"
                   }
                 `}
               >
@@ -195,7 +194,7 @@ export default function CouponModal({
 
                   <div>
                     <div className="flex items-start gap-2">
-                      <Tag className="h-6 w-6 text-[#445D41] mt-0.5" />
+                      <Tag className="h-6 w-6 text-[#f38918] mt-0.5" />
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-gray-900">
@@ -209,7 +208,7 @@ export default function CouponModal({
                           )}
                         </div>
 
-                        <p className="mt-1 text-xs font-medium text-[#445D41]">
+                        <p className="mt-1 text-xs font-medium text-[#f38918]">
                           Use Code: {offer.couponCode}
                         </p>
                       </div>
@@ -230,7 +229,7 @@ export default function CouponModal({
                       size="sm"
                       disabled={loading}
                       onClick={() => validateAndApply(offer.couponCode)}
-                      className="rounded-lg bg-[#445D41] hover:bg-black text-white"
+                      className="rounded-lg bg-[#f38918] hover:bg-black text-white"
                     >
                       <Ticket className="h-4 w-4 mr-1" />
                       Apply

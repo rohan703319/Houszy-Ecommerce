@@ -94,7 +94,7 @@ export default function BackInStockModal({
         <Button
           onClick={submit}
           disabled={loading}
-          className="w-full bg-[#445D41] text-white"
+          className="w-full bg-[#f38918] text-white"
         >
           {loading ? "Submitting..." : "Notify Me"}
         </Button>

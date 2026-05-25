@@ -1,126 +1,187 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
 
-const faqs = [
+
+const categories = [
   {
-    question: "Who is Direct Care?",
-    answer:
-      "Direct Care is the UK’s leading online retailer specialising in baby and child care, skincare items, and a broad range of everyday essentials. We are the best in the digital marketplace, offering an extensive selection of products from reputable brands. Our customers enjoy the luxury of accessing a vast array of items from the comfort of their own homes, ensuring a convenient shopping experience. For more information about our products and services, please click here.",
+    id: 1,
+    title: "General Questions",
+    faqs: [
+      {
+        question: "What products do you offer on your site?",
+        answer:
+          "Houszy is a Big Brand, and we offer a wide range of kitchenware, homeware and gym equipment products, including cookware, glassware, and fitness accessories.",
+      },
+      {
+        question: "What are your delivery charges?",
+        answer:
+          "For all orders placed on the Houszy website, you can select either:\n\n• Standard Delivery: Free\n• Next Day Delivery: £3.99\n• Royal Mail Special Delivery Guaranteed 1PM: £10.99",
+      },
+      {
+        question: "My order arrived damaged - what should I do?",
+        answer:
+          "We always inspect and check all products before shipping, but in case the item is damaged during transit, kindly contact our friendly customer service team for assistance.",
+      },
+      {
+        question: "What is your return policy?",
+        answer:
+          "To learn more about our Return Policy, please visit our refund and return policy page.",
+      },
+      {
+        question: "Can I modify or cancel my order after it has been placed?",
+        answer:
+          "Sure, for order modification or cancellation, feel free to contact our customer service team at customersupport@houszy.co.uk or call +441214616837. They will assist you in every step.",
+      },
+    ],
   },
+
   {
-    question: "What is the best way to get in touch with your Customer Care team?",
-    answer:
-      "You can reach our Customer Care team through multiple channels:\n\nPhone: Call us at +441216616357/+441214616835 for immediate assistance.\nEmail: Send your queries to customersupport@direct-care.co.uk",
-  },
-  {
-    question: "What are the steps to place an order with Direct Care?",
-    answer:
-      "Placing an order with Direct Care is simple:\n\nBrowse: Visit our website and browse through our range of products.\n\nSelect: Choose the items you wish to purchase and add them to your cart.\n\nCheckout: Proceed to checkout, where you will need to provide your shipping and payment information.\n\nConfirm: Review your order and confirm the purchase.",
-  },
-  {
-    question: "How can I keep track of my order's status?",
-    answer:
-      "You can track your order status through the following methods:\n\nOrder Confirmation Email: Check the email you received after placing your order for tracking details.\n\nAccount Dashboard: Log in to your Direct Care account and navigate to the ‘Order History’ section.\n\nCustomer Care: Contact our Customer Care team for updates on your order status.",
-  },
-  {
-    question: "What is the usual time frame for refund processing?",
-    answer:
-      "Refunds are typically processed within 3-4 working days from the date of approval. The exact timeline may vary depending on your payment method and bank processing times. Please note that certain conditions or exceptions may apply, and our Customer Care team will provide detailed information during the refund process.",
-  },
-  {
-    question: "Which types of payment do you accept?",
-    answer:
-      "We accept a variety of payment methods to ensure a convenient shopping experience:\n\nCredit/Debit Cards: Visa, MasterCard, American Express\n\nDigital Wallets: PayPal, Google Pay",
-  },
-  {
-    question: "What should I do to qualify for free delivery?",
-    answer:
-      "To qualify for free delivery, you must meet the following criteria:\n\nMinimum Order Value: Orders over £35 qualify for free standard delivery.\n\nEligible Locations: Free delivery is available within the UK mainland. Additional charges may apply for remote areas.",
-  },
-  {
-    question: "How can I return my purchase?",
-    answer:
-      "You have the right to return your items within 30 days. For additional information, please refer to our complete returns policy.",
+    id: 2,
+    title: "Cookware",
+    faqs: [
+      {
+        question:
+          "Why Houszy Cookware sets are the must-have options in the market?",
+        answer:
+          "Houszy cookware sets are not only made of durable materials, but they are food-safe and feature an improved granite coating for unmatched non-stick capabilities. Also, these non-stick cookware sets feature a stainless steel base that promotes even-heat distribution.",
+      },
+      {
+        question:
+          "What cleaning and maintenance steps are recommended to prolong the lifespan of the cookware?",
+        answer:
+          "Houszy cookware sets are easy to clean and maintain. With the non-stick granite coating, all you need is just a gentle hand wash. Avoid using a dishwasher as it may damage the non-stick coating.",
+      },
+      {
+        question:
+          "Are the handles securely attached to the cookware, and are they comfortable to hold?",
+        answer:
+          "While you will have to drive the screws to attach the Bakelite Silicone handle with the pressed aluminium body, the easy DIY process makes the handles securely attached to the cookware, providing a sturdy and comfortable hold.",
+      },
+      {
+        question:
+          "Does the pressed aluminium used in the cookware contain any harmful chemicals such as PFOA or PFAS?",
+        answer:
+          "No, all the Houszy cookware products are non-toxic and food-safe, meaning there are no harmful chemicals including PFOA or PFAS that can leach into your meals.",
+      },
+      {
+        question:
+          "Can this cookware be used on all types of stovetops, including induction?",
+        answer:
+          "Yes, apart from being induction-ready, the Houszy cookware range can be used on almost all types of stovetops such as gas, ceramic, electric, and downdraft.",
+      },
+      {
+        question:
+          "How does the non-stick coating hold up over time, and is it safe to use metal utensils with it?",
+        answer:
+          "The granite coating on our cookware sets is scratch-resistant and requires the use of plastic, wooden, or silicone cooking utensils. Only clean with soap, water, a soft sponge, or wipe with a thin oil film for maximum durability.",
+      },
+    ],
   },
 ];
 
 export default function FAQPage() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
-const formatAnswer = (text: string) => {
-  // Phone numbers detect
-  const phoneRegex = /(\+?\d[\d\s\/\-]{7,})/g;
+  const [activeCategory, setActiveCategory] = useState(0);
+  const formatAnswer = (text: string) => {
+    const phoneRegex = /(\+?\d[\d\s\/\-]{7,})/g;
+    const emailRegex =
+      /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/g;
 
-  // Email detect
-  const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/g;
+    let formatted = text
+      .replace(
+        phoneRegex,
+        `<span class="font-semibold text-black">$1</span>`
+      )
+      .replace(
+        emailRegex,
+        `<span class="font-semibold text-black">$1</span>`
+      );
 
-  let formatted = text
-    .replace(phoneRegex, `<span class="font-semibold text-black">$1</span>`)
-    .replace(emailRegex, `<span class="font-semibold text-black">$1</span>`);
+    formatted = formatted
+      .replace(
+        "• Standard Delivery: Free",
+        `<div class="ml-1">• Standard Delivery: <span class="font-semibold text-black">Free</span></div>`
+      )
+      .replace(
+        "• Next Day Delivery: £3.99",
+        `<div class="ml-1">• Next Day Delivery: <span class="font-semibold text-black">£3.99</span></div>`
+      )
+      .replace(
+        "• Royal Mail Special Delivery Guaranteed 1PM: £10.99",
+        `<div class="ml-1">• Royal Mail Special Delivery Guaranteed 1PM: <span class="font-semibold text-black">£10.99</span></div>`
+      );
 
-  return formatted;
-};
-  const toggle = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
+    return formatted;
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-white min-h-screen">
 
       {/* 🔥 HERO */}
-      <div className="bg-[#445D41] text-white py-2 text-center">
+      <div className="bg-black text-[#f38918] py-2 text-center">
         <h1 className="text-xl md:text-3xl font-bold">
           Frequently Asked Questions
         </h1>
-       
+
       </div>
 
       {/* 🔥 FAQ LIST */}
-      <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="max-w-8xl mx-auto px-4 py-2 space-y-4 mb-5">
+        <div className="grid lg:grid-cols-[350px_1fr] gap-10">
 
-        <div className="bg-white rounded-xl border shadow-sm divide-y">
-
-          {faqs.map((faq, index) => (
-            <div key={index}>
-
-              {/* QUESTION */}
+          {/* LEFT SIDEBAR */}
+          <div className="bg-white border rounded-sm h-fit">
+            {categories.map((category, index) => (
               <button
-                onClick={() => toggle(index)}
-                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition"
+                key={category.id}
+                onClick={() => setActiveCategory(index)}
+                className={`w-full flex items-center gap-4 px-8 py-8 border-b text-left transition ${activeCategory === index
+                  ? "text-[#f38918]"
+                  : "text-black"
+                  }`}
               >
-                <span className="text-sm md:text-base font-semibold text-gray-900">
-                  {faq.question}
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${activeCategory === index
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-black"
+                    }`}
+                >
+                  {category.id}
+                </div>
+
+                <span className="text-xl font-medium">
+                  {category.title}
                 </span>
-
-                {openIndex === index ? (
-                  <ChevronUp className="text-[#445D41]" size={18} />
-                ) : (
-                  <ChevronDown className="text-[#445D41]" size={18} />
-                )}
               </button>
+            ))}
+          </div>
 
-              {/* ANSWER */}
-           <div
-  className={`grid transition-all duration-300 ${
-    openIndex === index
-      ? "grid-rows-[1fr] opacity-100"
-      : "grid-rows-[0fr] opacity-0"
-  }`}
->
-  <div className="overflow-hidden">
-   <div
-  className="px-5 pb-4 text-sm text-gray-600 leading-relaxed whitespace-pre-line"
-  dangerouslySetInnerHTML={{ __html: formatAnswer(faq.answer) }}
-/>
-  </div>
-</div>
+          {/* RIGHT CONTENT */}
+          <div>
+            <h2 className="text-2xl font-bold mb-2">
+              {categories[activeCategory].id}.{" "}
+              {categories[activeCategory].title}
+            </h2>
 
+            <div className="space-y-4">
+              {categories[activeCategory].faqs.map((faq, index) => (
+                <div key={index}>
+                  <h3 className="text-base font-semibold text-black mb-2">
+                    {faq.question}
+                  </h3>
+
+                  <div
+                    className="text-[16px] text-gray-600 leading-5 whitespace-pre-line"
+                    dangerouslySetInnerHTML={{
+                      __html: formatAnswer(faq.answer),
+                    }}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
 
         </div>
-
       </div>
     </div>
   );

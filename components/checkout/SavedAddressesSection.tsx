@@ -69,15 +69,14 @@ export default function SavedAddressesSection({ onSelect }: Props) {
   const AddressCard = (addr: Address) => (
     <label
       key={addr.id}
-      className={`relative border rounded-xl p-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
-        selectedId === addr.id
-          ? "border-[#445D41] bg-[#445D41]/5 ring-2 ring-[#445D41]/20"
-          : "border-gray-200"
-      }`}
+      className={`relative border rounded p-2 cursor-pointer transition-all duration-200 hover:shadow-md ${selectedId === addr.id
+        ? "border-[#f38918] bg-[#f38918]/5 ring-2 ring-[#f38918]/20"
+        : "border-gray-200"
+        }`}
     >
       {/* 🔥 Default badge top-right */}
       {addr.isDefault && (
-        <span className="absolute top-2 right-3 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+        <span className="absolute top-2 right-3 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
           Default
         </span>
       )}
@@ -91,27 +90,27 @@ export default function SavedAddressesSection({ onSelect }: Props) {
             onSelect(addr);
             setOpenModal(false);
           }}
-          className="mt-1"
+          className="mt-1 accent-[#f38918]"
         />
 
-       <div className="text-sm">
-  <div className="font-semibold mb-1">
-    {addr.firstName} {addr.lastName}
-  </div>
+        <div className="text-sm">
+          <div className="font-semibold mb-1">
+            {addr.firstName} {addr.lastName}
+          </div>
 
-  <div className="text-gray-700 text-xs leading-relaxed line-clamp-2">
-    {[
-      addr.addressLine1,
-      addr.addressLine2,
-      addr.city,
-      addr.state,
-      addr.postalCode,
-      addr.country,
-    ]
-      .filter(Boolean)
-      .join(", ")}
-  </div>
-</div>
+          <div className="text-gray-700 text-xs leading-relaxed line-clamp-2">
+            {[
+              addr.addressLine1,
+              addr.addressLine2,
+              addr.city,
+              addr.state,
+              addr.postalCode,
+              addr.country,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          </div>
+        </div>
 
       </div>
     </label>
@@ -126,7 +125,7 @@ export default function SavedAddressesSection({ onSelect }: Props) {
         {addresses.length > 2 && (
           <button
             onClick={() => setOpenModal(true)}
-            className="text-xs text-[#445D41] bg-green-50 border border-green-200 px-2 py-1 font-medium rounded"
+            className="text-xs text-[#f38918] bg-orange-50 border border-orange-200 px-2 py-1 font-medium rounded"
           >
             View all Addresses
           </button>
@@ -144,14 +143,14 @@ export default function SavedAddressesSection({ onSelect }: Props) {
           setSelectedId(null);
           onSelect(null);
         }}
-        className="text-xs text-[#445D41] font-medium underline"
+        className="text-xs text-[#f38918] font-medium underline"
       >
         + Add new address
       </button>
 
       {/* 🔥 VIEW ALL MODAL */}
       <Dialog open={openModal} onOpenChange={setOpenModal}>
-        <DialogContent className="w-[95vw] max-w-lg mx-auto rounded-xl p-4">
+        <DialogContent className="w-[95vw] max-w-lg mx-auto rounded p-4">
           <DialogHeader>
             <DialogTitle className="text-sm">Select Address</DialogTitle>
           </DialogHeader>

@@ -81,10 +81,10 @@ export default function CategorySlider({
             <SwiperSlide key={category.id}>
               <Link
                 href={`/category/${category.slug}`}
-                className="group relative block overflow-hidden rounded-[24px] transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
+                className="group relative block overflow-hidden rounded-[24px] transition-all duration-300 md:hover:shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
               >
                 {/* IMAGE */}
-                <div className="relative h-[340px] md:h-[380px] w-full overflow-hidden rounded-[24px]">
+                <div className="relative h-[240px] sm:h-[280px] md:h-[380px] w-full overflow-hidden rounded-[24px]">
                   <Image
                     src={imageSrc}
                     alt={category.name}
@@ -95,8 +95,8 @@ export default function CategorySlider({
                 </div>
 
                 {/* BUTTON */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-                  <span className="bg-[#f39a16] text-black font-bold uppercase tracking-wider text-[13px] md:text-[14px] h-[40px] min-w-[140px] md:min-w-[160px] px-5 rounded-[6px] inline-flex items-center justify-center shadow-sm transition-all duration-300 group-hover:bg-black group-hover:text-white whitespace-nowrap">
+                <div className="absolute bottom-8 md:bottom-4 left-1/2 -translate-x-1/2 z-20">
+                  <span className="bg-[#f39a16] text-black font-bold uppercase tracking-wider text-[10px] md:text-[14px] md:h-[40px] h-[30px] min-w-[120px] md:min-w-[160px] px-5 rounded-[6px] inline-flex items-center justify-center shadow-sm transition-all duration-300 group-hover:bg-black group-hover:text-white whitespace-nowrap">
                     {category.name}
                   </span>
                 </div>

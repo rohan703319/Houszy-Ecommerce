@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -53,22 +54,35 @@ export default function HomeBannerSlider({
         {banners.map((banner) => {
           // If imageUrl is relative (starts with /), use it directly — Next.js rewrites will proxy it
           // If absolute (starts with http), use as-is
+          const cleanBaseUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
           const desktopSrc = banner.imageUrl?.startsWith("http")
             ? banner.imageUrl
-            : banner.imageUrl; // relative path, e.g. /images/banners/x.jpg → proxied by next.config rewrites
-          const mobileSrc = banner.mobileImageUrl
-            ? banner.mobileImageUrl  // also relative, proxied the same way
-            : null;
+            : `${cleanBaseUrl}${banner.imageUrl?.startsWith('/') ? '' : '/'}${banner.imageUrl}`;
+          const mobileSrc = banner.mobileImageUrl?.startsWith("http")
+            ? banner.mobileImageUrl
+            : banner.mobileImageUrl ? `${cleanBaseUrl}${banner.mobileImageUrl.startsWith('/') ? '' : '/'}${banner.mobileImageUrl}` : null;
 
           const pictureEl = (
-            <picture className="block w-full">
-              {mobileSrc && <source media="(max-width: 767px)" srcSet={mobileSrc} />}
-              <img
+            <>
+              {mobileSrc && (
+                <Image
+                  src={mobileSrc}
+                  alt={banner.title || "Banner"}
+                  width={800}
+                  height={800}
+                  priority={true}
+                  className="w-full h-auto object-contain md:hidden"
+                />
+              )}
+              <Image
                 src={desktopSrc}
                 alt={banner.title || "Banner"}
-                className="w-full h-auto object-cover md:object-contain"
+                width={1920}
+                height={800}
+                priority={true}
+                className={`w-full h-auto object-contain ${mobileSrc ? "hidden md:block" : "block"}`}
               />
-            </picture>
+            </>
           );
 
           return (
@@ -89,10 +103,10 @@ export default function HomeBannerSlider({
       {enableAutoplay && (
         <button
           onClick={() => swiperInstance?.slidePrev()}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:bg-gray-50 active:scale-95 transition-all focus:outline-none"
+          className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:bg-gray-50 active:scale-95 transition-all focus:outline-none"
           aria-label="Previous slide"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
+          <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
         </button>
       )}
 
@@ -100,10 +114,10 @@ export default function HomeBannerSlider({
       {enableAutoplay && (
         <button
           onClick={() => swiperInstance?.slideNext()}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:bg-gray-50 active:scale-95 transition-all focus:outline-none"
+          className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:bg-gray-50 active:scale-95 transition-all focus:outline-none"
           aria-label="Next slide"
         >
-          <ChevronRight className="w-5 h-5 text-gray-700" />
+          <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-gray-700" />
         </button>
       )}
     </div>
