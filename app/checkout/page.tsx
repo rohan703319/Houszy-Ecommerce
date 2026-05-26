@@ -156,7 +156,7 @@ function CheckoutPayment({
         disabled={!stripe || processing}
         className={`w-full py-3 rounded flex items-center justify-center gap-2 transition ${processing
           ? "bg-gray-400 cursor-not-allowed"
-          : "bg-[#f38918] hover:bg-[#3a5037] text-white"
+          : "bg-[#f38918] hover:bg-black text-white"
           }`}
       >
         {processing ? (

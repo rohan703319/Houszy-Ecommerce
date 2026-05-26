@@ -465,7 +465,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
       <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200 inline-block">
         <img
           src="/logo/logo.png"
-          alt="Direct Care"
+          alt="Houszy"
           className="h-10 w-auto object-contain"
         />
       </div>
@@ -691,7 +691,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
     <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200">
       <img
         src="/logo/logo.png"
-        alt="Direct Care"
+        alt="Houszy"
         className="h-10 w-auto object-contain"
       />
     </div>

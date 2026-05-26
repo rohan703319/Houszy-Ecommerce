@@ -15,14 +15,14 @@ export default function CompanyInfoPage() {
 
         {/* ABOUT */}
         <div className="bg-white p-6 rounded-xl border shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">About Direct Care</h2>
+          <h2 className="text-lg font-semibold mb-3">About Houszy</h2>
 
           <p className="text-sm black leading-relaxed mb-3">
-            At Direct Care, we are dedicated to transforming the online shopping experience for our customers in the UK by offering high-quality personal care, health products, and more at affordable prices. Established in 2012, our mission is to provide a smooth shopping experience, catering to diverse needs from baby and child care to beauty, skincare, and health essentials.
+            At Houszy, we are dedicated to transforming the online shopping experience for our customers in the UK by offering high-quality personal care, health products, and more at affordable prices. Established in 2012, our mission is to provide a smooth shopping experience, catering to diverse needs from baby and child care to beauty, skincare, and health essentials.
           </p>
 
           <p className="text-sm black leading-relaxed">
-            Direct Care is a trusted platform designed to be your go-to destination for beauty and cosmetic products, skincare items, baby and child items, stop-smoking aids, incontinence products, and vitamin supplements. Our commitment to quality and convenience ensures that our customers receive the best products from brands they love, delivered quickly to their doorstep.
+            Houszy is a trusted platform designed to be your go-to destination for beauty and cosmetic products, skincare items, baby and child items, stop-smoking aids, incontinence products, and vitamin supplements. Our commitment to quality and convenience ensures that our customers receive the best products from brands they love, delivered quickly to their doorstep.
           </p>
         </div>
 
@@ -52,7 +52,7 @@ export default function CompanyInfoPage() {
           <p className="text-sm black mt-4">
             <strong>Drop us an email</strong> if you have any complaints, concerns, or feedback at{" "}
             <span className="font-semibold">
-              Suby@direct-care.co.uk
+              Suby@houszy.co.uk
             </span>
           </p>
           <p className="text-sm black mt-4 leading-relaxed">
@@ -65,7 +65,7 @@ export default function CompanyInfoPage() {
           <h2 className="text-lg font-semibold mb-3">Our Heritage</h2>
 
           <p className="text-sm black leading-relaxed">
-            Direct Care was born out of a vision to transform the way UK consumers access and purchase essential products. We continue to innovate and enhance our services, maintaining our dedication to extraordinary customer experience and satisfaction. Our goal is to simplify your shopping process, providing a reliable and user-friendly platform for all your personal care and health needs.
+            Houszy was born out of a vision to transform the way UK consumers access and purchase essential products. We continue to innovate and enhance our services, maintaining our dedication to extraordinary customer experience and satisfaction. Our goal is to simplify your shopping process, providing a reliable and user-friendly platform for all your personal care and health needs.
           </p>
         </div>
 

@@ -34,7 +34,6 @@ export default function CartPage() {
     })));
   }, [cart]);
   // ================= PHARMA SYNC =================
-  const [maxToastMap, setMaxToastMap] = useState<{ [key: string]: boolean }>({});
 
   const handleCheckout = async () => {
 
@@ -517,6 +516,32 @@ export default function CartPage() {
 
     return Math.min(mainStock, groupedMinStock);
   };
+
+  const getAllowedMaxQty = (item: any, bundleChildren: any[] = []) => {
+    const stock = getItemStock(item);
+    const orderMax = item.productData?.orderMaximumQuantity ?? Infinity;
+    const bundleMax =
+      item.isBundleParent && item.bundleId
+        ? getBundleMaxQty(item, bundleChildren)
+        : Infinity;
+
+    return Math.min(stock, orderMax, bundleMax);
+  };
+
+  const getMaxQtyMessage = (item: any, maxQty: number) => {
+    const stock = getItemStock(item);
+    const orderMax = item.productData?.orderMaximumQuantity ?? Infinity;
+
+    if (maxQty === stock) {
+      return `Only ${maxQty} items available in stock`;
+    }
+
+    if (maxQty === orderMax) {
+      return `Maximum order quantity is ${maxQty}`;
+    }
+
+    return `Only ${maxQty} items available in this bundle item`;
+  };
   // 🔹 Count only visible purchasable items (exclude bundle children)
   const purchasableItemCount = useMemo(() => {
     return cart.filter(
@@ -708,14 +733,22 @@ export default function CartPage() {
                               <input
                                 type="number"
                                 className="w-7 text-center bg-transparent outline-none font-bold text-xs text-gray-900"
+                                min={item.productData?.orderMinimumQuantity ?? 1}
+                                max={Number.isFinite(getAllowedMaxQty(item, bundleChildren)) ? getAllowedMaxQty(item, bundleChildren) : undefined}
                                 value={item.quantity}
                                 onChange={(e) => {
                                   let val = parseInt(e.target.value || "1", 10);
-                                  if (val < 1) return;
-                                  setMaxToastMap((prev) => ({ ...prev, [item.id]: false }));
-                                  if (item.isBundleParent && item.bundleId) {
-                                    const maxQty = getBundleMaxQty(item, bundleChildren);
-                                    if (val > maxQty) { toast.error(`Only ${maxQty} items available in bundle`); val = maxQty; }
+                                  const minQty = item.productData?.orderMinimumQuantity ?? 1;
+                                  const maxQty = getAllowedMaxQty(item, bundleChildren);
+
+                                  if (Number.isNaN(val)) return;
+                                  if (val < minQty) {
+                                    toast.error(`Minimum order quantity is ${minQty}`);
+                                    val = minQty;
+                                  }
+                                  if (val > maxQty) {
+                                    toast.error(getMaxQtyMessage(item, maxQty));
+                                    val = maxQty;
                                   }
                                   updateQuantity(item.id, val);
                                   if (item.isBundleParent && item.bundleId) bundleChildren.forEach((c) => updateQuantity(c.id, val));
@@ -723,21 +756,12 @@ export default function CartPage() {
                               />
                               <button
                                 onClick={() => {
-                                  const itemId = item.id;
                                   let newQty = (item.quantity ?? 1) + 1;
-                                  const stock = getItemStock(item);
-                                  if (newQty > stock) {
-                                    if (!maxToastMap[itemId]) {
-                                      toast.error(`Only ${stock} items available in stock`);
-                                      setMaxToastMap((prev) => ({ ...prev, [itemId]: true }));
-                                    }
+                                  const maxQty = getAllowedMaxQty(item, bundleChildren);
+                                  if (newQty > maxQty) {
+                                    toast.error(getMaxQtyMessage(item, maxQty));
                                     return;
                                   }
-                                  if (item.isBundleParent && item.bundleId) {
-                                    const maxQty = getBundleMaxQty(item, bundleChildren);
-                                    if (newQty > maxQty) { toast.error(`Only ${maxQty} items available in this bundle item`); return; }
-                                  }
-                                  setMaxToastMap((prev) => ({ ...prev, [itemId]: false }));
                                   updateQuantity(item.id, newQty);
                                   if (item.isBundleParent && item.bundleId) bundleChildren.forEach((c) => updateQuantity(c.id, newQty));
                                 }}

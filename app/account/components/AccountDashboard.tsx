@@ -140,7 +140,7 @@ export default function AccountDashboard() {
 
           {/* MAIN CONTENT AREA */}
           <main className="flex-1 bg-white relative overflow-x-hidden">
-            <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto h-full">
+            <div className="p-2 sm:p-4 md:p-6 lg:p-8 max-w-5xl mx-auto h-full">
               {activeTab === "profile" && <ProfileTab user={user} initials={initials} />}
               {activeTab === "orders" && <OrdersTab orders={user.orders ?? []} />}
               {activeTab === "subscriptions" && <SubscriptionsTab />}

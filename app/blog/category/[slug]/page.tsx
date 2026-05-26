@@ -39,14 +39,14 @@ export async function generateMetadata({
     }
 
     return {
-      title: category.metaTitle || `${category.name} Blog UK | Direct Care`,
+      title: category.metaTitle || `${category.name} Blog UK | Houszy`,
 
       description:
         category.metaDescription ||
         `Explore ${category.name} related health articles, medicine guides, and wellness tips in the UK.`,
 
       alternates: {
-        canonical: `https://www.direct-care.co.uk/blog/category/${category.slug}`,
+        canonical: `https://www.houszy.co.uk/blog/category/${category.slug}`,
       },
 
       openGraph: {
@@ -54,7 +54,7 @@ export async function generateMetadata({
         description:
           category.metaDescription ||
           `Browse ${category.name} health articles and guides.`,
-        url: `https://www.direct-care.co.uk/blog/category/${category.slug}`,
+        url: `https://www.houszy.co.uk/blog/category/${category.slug}`,
         type: "website",
 
         images: category.imageUrl
@@ -116,7 +116,7 @@ export default async function BlogCategoryPage({
               description:
                 category.metaDescription ||
                 `Articles related to ${category.name}`,
-              url: `https://www.direct-care.co.uk/blog/category/${category.slug}`,
+              url: `https://www.houszy.co.uk/blog/category/${category.slug}`,
             }),
           }}
         />

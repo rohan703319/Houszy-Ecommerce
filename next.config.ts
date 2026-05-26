@@ -23,7 +23,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'api.directcare.com', pathname: '/**' },
       { protocol: 'https', hostname: 'api.direct-care.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'direct-care.co.uk', pathname: '/**' },
-       { protocol: 'https', hostname: 'test.astircare.co.uk', pathname: '/**' },
+      { protocol: 'https', hostname: 'test.astircare.co.uk', pathname: '/**' },
+      { protocol: 'https', hostname: 'houszyapi.astircare.co.uk', pathname: '/**' },
 
       { protocol: 'https', hostname: 'testapi.knowledgemarkg.com', pathname: '/**' },
       { protocol: 'https', hostname: 'www.direct-care.co.uk', pathname: '/**' },
@@ -45,12 +46,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://testapi.knowledgemarkg.com/api/:path*',
+        destination: 'https://houszyapi.astircare.co.uk/api/:path*',
       },
       {
         // Proxy banner/product images that come as relative paths from the API
         source: '/images/:path*',
-        destination: 'https://testapi.knowledgemarkg.com/images/:path*',
+        destination: 'https://houszyapi.astircare.co.uk/images/:path*',
       },
     ];
   },

@@ -38,10 +38,10 @@ export async function generateMetadata({ params }: PageProps) {
     if (res.ok) {
       const json = await res.json();
       const d = json?.data;
-      if (d) return { title: `${d.name} | Offers | Direct Care`, description: `Save with ${d.name}` };
+      if (d) return { title: `${d.name} | Offers | Houszy`, description: `Save with ${d.name}` };
     }
   } catch { }
-  return { title: "Offer | Direct Care" };
+  return { title: "Offer | Houszy" };
 }
 
 export default async function DiscountProductsPage({ params, searchParams }: PageProps) {

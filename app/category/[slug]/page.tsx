@@ -152,8 +152,8 @@ export async function generateMetadata({ params, searchParams }: any) {
     openGraph: {
       title: category.metaTitle || category.name,
       description: category.metaDescription,
-      url: `https://direct-care.co.uk/category/${slug}`,
-      siteName: "Direct Care",
+      url: `https://houszy.co.uk/category/${slug}`,
+      siteName: "Houszy",
       images: [
         {
           url: category.imageUrl || "/fallback.jpg",
@@ -172,7 +172,7 @@ export async function generateMetadata({ params, searchParams }: any) {
     },
 
     alternates: {
-      canonical: `https://direct-care.co.uk/category/${slug}`,
+      canonical: `https://houszy.co.uk/category/${slug}`,
     },
   };
 }
@@ -295,7 +295,7 @@ export default async function CategoryPage({
             "@type": "CollectionPage",
             name: category.name,
             description: category.metaDescription || category.description,
-            url: `https://direct-care.co.uk/category/${category.slug}`,
+            url: `https://houszy.co.uk/category/${category.slug}`,
             mainEntity: {
               "@type": "ItemList",
             }
@@ -311,7 +311,7 @@ export default async function CategoryPage({
             itemListElement: breadcrumbs.map((item, index) => ({
               "@type": "ListItem",
               position: index + 1,
-              item: `https://direct-care.co.uk${item.href}`,
+              item: `https://houszy.co.uk${item.href}`,
             })),
           }),
         }}

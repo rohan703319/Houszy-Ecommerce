@@ -14,12 +14,13 @@ import CategoryOffersSlider from "@/components/CategoryOffersSlider";
 import { getActiveBanners } from "@/lib/bannerUtils";
 import Script from "next/script";
 import { TrendingUp, Zap, Gift, Shield, } from "lucide-react";
-import WhyChooseUs from "@/components/WhyChooseUs";
-import LatestBlogs from "@/components/LatestBlogs";
-import DiscountedProductsSlider from "@/components/DiscountedProductsSlider";
+import dynamic from "next/dynamic";
+const WhyChooseUs = dynamic(() => import("@/components/WhyChooseUs"));
+const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"));
+const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"));
 import type { Metadata } from "next";
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 // ✅ Static feature section
 const features = [
@@ -98,7 +99,7 @@ interface HomeBanner {
 async function getBanners(baseUrl: string): Promise<Banner[]> {
   try {
     const res = await fetch(`${baseUrl}/api/Banners`, {
-      next: { revalidate: 60 },
+      next: { revalidate: 3660 },
     });
     const result = await res.json();
     return result.success ? result.data : [];
@@ -112,7 +113,7 @@ async function getProducts(baseUrl: string) {
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=20&sortDirection=asc&isPublished=true&showOnHomepage=true&isDeleted=false`,
       {
-        next: { revalidate: 60 },
+        next: { revalidate: 3600 },
       }
     );
     const result = await res.json();
@@ -128,7 +129,7 @@ async function getCategories(baseUrl: string) {
     const res = await fetch(
       `${baseUrl}/api/Categories?includeInactive=false&includeSubCategories=true&isDeleted=false`,
       {
-        next: { revalidate: 60 },
+        next: { revalidate: 3600 },
       }
     );
 
@@ -154,7 +155,7 @@ async function getDiscountedProducts(baseUrl: string) {
     // No showOnHomepage filter — fetch ALL published products to find discounted ones
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=100&sortDirection=asc&isPublished=true&isDeleted=false`,
-      { cache: 'no-store' }
+      { next: { revalidate: 3600 } }
     );
     const result = await res.json();
     if (!result.success) return [];
@@ -170,7 +171,7 @@ async function getDiscountedProducts(baseUrl: string) {
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.direct-care.co.uk"),
+  metadataBase: new URL("https://www.houszy.co.uk"),
 
   title: "Shop Kitchenware, Fitness Equipment, Home Essentials & Toys - Houszy",
 
@@ -182,15 +183,15 @@ export const metadata: Metadata = {
     "online pharmacy UK",
     "healthcare products UK",
     "personal care UK",
-    "Direct Care UK",
+    "Houszy UK",
   ],
 
   openGraph: {
     title: "Shop Kitchenware, Fitness Equipment, Home Essentials & Toys - Houszy",
     description:
       "Order medicines and healthcare products online in the UK with fast delivery and trusted brands.",
-    url: "https://www.direct-care.co.uk",
-    siteName: "Direct Care",
+    url: "https://www.houszy.co.uk",
+    siteName: "Houszy",
     locale: "en_GB", // ✅ VERY IMPORTANT
     type: "website",
   },
@@ -201,7 +202,7 @@ export const metadata: Metadata = {
   },
 
   alternates: {
-    canonical: "https://www.direct-care.co.uk",
+    canonical: "https://www.houszy.co.uk",
   },
 };
 // ✅ MAIN PAGE
@@ -244,8 +245,8 @@ export default async function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Organization",
-            name: "Direct Care",
-            url: "https://www.direct-care.co.uk",
+            name: "Houszy",
+            url: "https://www.houszy.co.uk",
             address: {
               "@type": "PostalAddress",
               addressCountry: "GB",
@@ -263,19 +264,20 @@ export default async function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            url: "https://www.direct-care.co.uk",
-            name: "Direct Care",
+            url: "https://www.houszy.co.uk",
+            name: "Houszy",
             potentialAction: {
               "@type": "SearchAction",
-              target: "https://www.direct-care.co.uk/search?q={search_term_string}",
+              target: "https://www.houszy.co.uk/search?q={search_term_string}",
               "query-input": "required name=search_term_string",
             },
           }),
         }}
       />
+
       <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 overflow-x-hidden">
         <h1 className="sr-only">
-          Buy Medicines & Healthcare Products Online in the UK - Direct Care
+          Buy Medicines & Healthcare Products Online in the UK - Houszy
         </h1>
 
         {/* ===== HERO SLIDER ===== */}

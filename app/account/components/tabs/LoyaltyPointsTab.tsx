@@ -113,7 +113,7 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
                 <TrendingUp size={12} /> Progress to {nextTierName}
               </h3>
               <p className="text-[11px] font-medium text-gray-600">
-                Earn <strong className="text-black">{pointsToNextTier.toLocaleString()} more points</strong> to reach <strong className="text-black">{nextTierName} tier</strong>
+                Earn <strong className="text-black">{pointsToNextTier.toLocaleString()} more points</strong> to reach <strong className="text-[#f38918]">{nextTierName} tier</strong>
               </p>
             </div>
           )}

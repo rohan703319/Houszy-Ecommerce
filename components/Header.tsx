@@ -563,7 +563,7 @@ export default function Header({
             ) : (
               <button
                 onClick={() => router.push("/account")}
-                className="px-2 py-1 text-[10px] font-semibold text-white bg-[#f38918] rounded-full"
+                className="px-2 py-1 text-[10px] font-semibold text-white bg-[#f38918] rounded"
               >
                 Login
               </button>
@@ -845,7 +845,7 @@ export default function Header({
                         {/* STOCK */}
                         <div className="ml-auto flex-shrink-0 self-start">
                           {isInStock ? (
-                            <span className="text-[10px] px-2 py-1 rounded bg-green-100 text-orange-600 font-semibold">
+                            <span className="text-[10px] px-2 py-1 rounded bg-orange-100 text-orange-600 font-semibold">
                               In Stock
                             </span>
                           ) : (

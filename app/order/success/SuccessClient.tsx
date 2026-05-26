@@ -145,12 +145,12 @@ export default function SuccessClient() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* LEFT: Order confirmed */}
           <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded bg-green-100 flex items-center justify-center text-green-700 font-bold">
+            <div className="h-12 w-12 rounded bg-orange-50 flex items-center justify-center text-green-700 font-bold">
               ✓
             </div>
 
             <div>
-              <h1 className="text-2xl font-semibold text-[#f38918]">
+              <h1 className="text-2xl font-semibold text-black">
                 Order confirmed
               </h1>
               <p className="text-sm text-[#f38918]">
@@ -463,7 +463,7 @@ export default function SuccessClient() {
                               <>
                                 <span className="text-gray-300">•</span>
 
-                                <span className="text-green-700 font-medium">
+                                <span className="text-red-500 font-medium">
                                   You saved{" "}
                                   {formatCurrency(
                                     item.productSavingAmount ||

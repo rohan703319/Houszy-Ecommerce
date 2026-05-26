@@ -39,14 +39,14 @@ export async function generateMetadata({
       "Read the full article for more details.",
 
     alternates: {
-      canonical: `https://www.direct-care.co.uk/blog/${post.slug}`,
+      canonical: `https://www.houszy.co.uk/blog/${post.slug}`,
     },
 
     openGraph: {
       title: post.metaTitle || post.title,
       description:
         post.metaDescription || post.bodyOverview,
-      url: `https://www.direct-care.co.uk/blog/${post.slug}`,
+      url: `https://www.houszy.co.uk/blog/${post.slug}`,
       type: "article",
 
       images: post.featuredImageUrl
@@ -178,13 +178,13 @@ export default async function BlogDetailPage({
             },
             publisher: {
               "@type": "Organization",
-              name: "Direct Care",
+              name: "Houszy",
             },
             datePublished: post.publishedAt,
             dateModified: post.updatedAt || post.publishedAt,
             mainEntityOfPage: {
               "@type": "WebPage",
-              "@id": `https://www.direct-care.co.uk/blog/${post.slug}`,
+              "@id": `https://www.houszy.co.uk/blog/${post.slug}`,
             },
           }),
         }}
@@ -225,7 +225,7 @@ export default async function BlogDetailPage({
 
             {/* Meta */}
             <div className="mt-3 flex flex-wrap items-center gap-1 sm:gap-4 text-gray-600 text-xs md:text-sm">
-              <span>✍️ {post.authorName?.trim() || "Direct Care"}</span>
+              <span>✍️ {post.authorName?.trim() || "Houszy"}</span>
               <span>•</span>
               <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
               <span>•</span>

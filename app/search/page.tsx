@@ -181,7 +181,7 @@ export default async function SearchPage({ searchParams }: any) {
               <div className="flex items-center gap-1 min-h-[20px] mb-0 flex-nowrap overflow-hidden">
 
                 {/* ⭐ Rating badge */}
-                <div className="flex items-center bg-green-600 text-white px-1 py-0.5 rounded text-[10px] font-semibold flex-shrink-0">
+                <div className="flex items-center bg-orange-500 text-white px-1 py-0.5 rounded text-[10px] font-semibold flex-shrink-0">
                   <span>
                     {product.averageRating?.toFixed(1) ?? "0.0"}
                   </span>
@@ -196,7 +196,7 @@ export default async function SearchPage({ searchParams }: any) {
 
                 {/* Loyalty */}
                 {product.loyaltyPointsMessage && (
-                  <span className="inline-flex items-center text-[9px] font-semibold text-green-700 bg-green-50 border border-green-200 px-0.5 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
+                  <span className="inline-flex items-center text-[9px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-0.5 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
                     {product.loyaltyPointsMessage}
                   </span>
                 )}
@@ -233,8 +233,8 @@ export default async function SearchPage({ searchParams }: any) {
                 {/* STOCK */}
                 <span
                   className={`text-[10px] px-1 py-0.5 rounded font-semibold ${isInStock
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-600"
+                    ? "bg-orange-100 text-orange-700"
+                    : "bg-red-100 text-red-600"
                     }`}
                 >
                   {isInStock ? "In Stock" : "Out of Stock"}

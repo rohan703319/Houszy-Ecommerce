@@ -98,10 +98,10 @@ export default function OrdersTab({ orders }: any) {
   }, [orders, statusFilter, deliveryMethodFilter, dateFilter, targetOrderId]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-1 animate-in fade-in duration-500">
       
       {/* HEADER SECTION */}
-      <div className="border-b border-gray-100 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="border-b border-gray-100 pb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Order History</h1>
           <p className="text-sm font-medium text-gray-500 mt-2">

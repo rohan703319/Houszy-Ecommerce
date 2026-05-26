@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Navigation, Pagination } from 'swiper/modules';
+import { Navigation, Pagination } from 'swiper/modules';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import 'swiper/css';
@@ -20,6 +19,7 @@ interface BlogPost {
   publishedAt: string;
   thumbnailImageUrl?: string;
   featuredImageUrl?: string;
+  showOnHomePage?: boolean;
 }
 
 export default function LatestBlogs() {
@@ -33,7 +33,12 @@ export default function LatestBlogs() {
       try {
         setLoading(true);
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-        const response = await fetch(`${API_BASE}/api/BlogPosts`);
+        const query = new URLSearchParams({
+          includeUnpublished: 'false',
+          isActive: 'true',
+          onlyHomePage: 'true',
+        });
+        const response = await fetch(`${API_BASE}/api/BlogPosts?${query.toString()}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch blogs');
@@ -41,9 +46,10 @@ export default function LatestBlogs() {
 
         const json = await response.json();
 
-        if (json.success && Array.isArray(json.data)) {
-          // Filter out unpublished or inactive if needed, and take the first 7
-          setBlogs(json.data.slice(0, 7));
+        const items = Array.isArray(json.data) ? json.data : json.data?.items;
+
+        if (json.success && Array.isArray(items)) {
+          setBlogs(items.slice(0, 7));
         } else {
           throw new Error(json.message || 'Invalid API response format');
         }
@@ -138,7 +144,7 @@ export default function LatestBlogs() {
                     {blog.bodyOverview || 'Read the full article to learn more...'}
                   </p>
 
-                  <div className="mt-4 mt-auto">
+                  <div className="mt-4">
                     <Link href={`/blog/${blog.slug}`} className="text-[15px] font-bold text-black hover:text-[#f39a16] transition-colors">
                       Read more
                     </Link>

@@ -589,9 +589,9 @@ export default function OrderCard({
           <Link
             key={item.id}
             href={`/product/${item.productSlug}`}
-            className="flex items-center gap-4 border rounded-lg p-3 hover:bg-gray-50 transition"
+            className="flex items-center gap-4 rounded-lg p-3 hover:bg-gray-50 transition"
           >
-            <div className="w-16 h-16 flex-shrink-0 border rounded-md overflow-hidden bg-white">
+            <div className="w-16 h-16 flex-shrink-0 rounded overflow-hidden bg-white">
               <img
                 src={
                   item.productImageUrl?.startsWith("http")
@@ -603,7 +603,7 @@ export default function OrderCard({
               />
             </div>
             <div className="flex-1">
-              <p className="font-medium text-sm text-[#f38918] line-clamp-2">{item.productName}</p>
+              <p className="font-medium text-sm text-black hover:text-[#f38918] line-clamp-2">{item.productName}</p>
               <p className="text-xs text-black mt-1">Qty: {item.quantity}</p>
             </div>
             <div className="text-right text-sm font-semibold">

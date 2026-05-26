@@ -28,7 +28,7 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-semibold mb-1.5">Who We Are</h2>
 
           <p className="text-sm text-gray-700 leading-relaxed">
-            Houszy operates under <strong>Direct Care Ltd</strong>, located at
+            Houszy operates under <strong>Houszy Ltd</strong>, located at
             <strong> Unit 38A, Plume Street, Spacebox Business Park, Plume Street, Birmingham B6 7RT</strong>.
             As the Data Controller, we prioritise secure management of your information for legitimate business purposes.
           </p>

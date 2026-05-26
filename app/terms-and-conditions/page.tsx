@@ -160,7 +160,7 @@ export default function TermsPage() {
 
           <div className="text-base text-gray-700 space-y-2">
             <p>
-              <strong>Houszy</strong> is a trademark of Direct Care LTD
+              <strong>Houszy</strong> is a trademark of Houszy LTD
             </p>
 
             <p>Spacebox Business Park</p>

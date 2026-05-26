@@ -39,18 +39,18 @@ export default function CategorySlider({
       {/* ===== ARROWS ===== */}
       <button
         id="catPrev"
-        className="hidden md:block absolute left-[-15px] top-[40%] -translate-y-1/2 z-30
+        className="hidden md:block absolute left-[-35px] top-[50%] -translate-y-1/2 z-30
                    bg-white p-2 md:p-3 shadow-md rounded-full border"
       >
-        <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+        <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
       </button>
 
       <button
         id="catNext"
-        className="hidden md:block absolute right-[-15px] top-[40%] -translate-y-1/2 z-30
+        className="hidden md:block absolute right-[-35px] top-[50%] -translate-y-1/2 z-30
                    bg-white p-2 md:p-3 shadow-md rounded-full border"
       >
-        <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+        <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
       </button>
 
       {/* ===== SLIDER ===== */}
@@ -96,7 +96,7 @@ export default function CategorySlider({
 
                 {/* BUTTON */}
                 <div className="absolute bottom-8 md:bottom-4 left-1/2 -translate-x-1/2 z-20">
-                  <span className="bg-[#f39a16] text-black font-bold uppercase tracking-wider text-[10px] md:text-[14px] md:h-[40px] h-[30px] min-w-[120px] md:min-w-[160px] px-5 rounded-[6px] inline-flex items-center justify-center shadow-sm transition-all duration-300 group-hover:bg-black group-hover:text-white whitespace-nowrap">
+                  <span className="bg-[#f39a16] text-black font-bold uppercase tracking-wider text-[11px] md:text-[14px] h-[30px] md:h-[40px] min-w-[115px] md:min-w-[160px] px-4 md:px-5 rounded inline-flex items-center justify-center shadow-sm transition-all duration-300 group-hover:bg-black group-hover:text-white whitespace-nowrap">
                     {category.name}
                   </span>
                 </div>

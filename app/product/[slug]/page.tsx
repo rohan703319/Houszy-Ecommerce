@@ -112,7 +112,7 @@ export async function generateMetadata({
     : undefined;
 
 return {
-  title: `${product.name} | Direct Care`,
+  title: `${product.name} | Houszy`,
 
   description,
 
@@ -121,8 +121,8 @@ return {
   openGraph: {
     title: product.name,
     description: description || product.name,
-    url: `https://www.direct-care.co.uk/product/${product.slug}`,
-    siteName: "Direct Care",
+    url: `https://www.houszy.co.uk/product/${product.slug}`,
+    siteName: "Houszy",
     images: imageUrl
       ? [
           {
@@ -143,7 +143,7 @@ height: 630,
   },
 
   alternates: {
-    canonical: `https://www.direct-care.co.uk/product/${product.slug}`,
+    canonical: `https://www.houszy.co.uk/product/${product.slug}`,
   },
 };
 }
@@ -188,7 +188,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
       offers: {
         "@type": "Offer",
-      url: `https://www.direct-care.co.uk/product/${data.product.slug}`,
+      url: `https://www.houszy.co.uk/product/${data.product.slug}`,
         priceCurrency: "GBP",
         price: data.product.price,
         availability:

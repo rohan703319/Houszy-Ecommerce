@@ -31,26 +31,30 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | null>(null);
 
 /* ================= STYLES ================= */
-const toastStyles: Record<ToastType, { wrapper: string, icon: string, text: string }> = {
+const toastStyles: Record<ToastType, { wrapper: string, icon: string, text: string, bar: string }> = {
   success: {
-    wrapper: "bg-white border border-green-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
-    icon: "text-green-600 bg-green-50",
-    text: "text-gray-900"
+    wrapper: "bg-white border border-green-200 shadow-[0_12px_34px_rgba(22,163,74,0.18)] ring-1 ring-green-100",
+    icon: "text-green-700 bg-green-50",
+    text: "text-gray-950",
+    bar: "bg-green-600",
   },
   error: {
-    wrapper: "bg-white border border-red-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
-    icon: "text-red-500 bg-red-50",
-    text: "text-gray-900"
+    wrapper: "bg-white border border-red-200 shadow-[0_12px_34px_rgba(220,38,38,0.2)] ring-1 ring-red-100",
+    icon: "text-red-700 bg-red-50",
+    text: "text-gray-950",
+    bar: "bg-red-600",
   },
   info: {
-    wrapper: "bg-white border border-blue-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
-    icon: "text-blue-600 bg-blue-50",
-    text: "text-gray-900"
+    wrapper: "bg-white border border-blue-200 shadow-[0_12px_34px_rgba(37,99,235,0.18)] ring-1 ring-blue-100",
+    icon: "text-blue-700 bg-blue-50",
+    text: "text-gray-950",
+    bar: "bg-blue-600",
   },
   warning: {
-    wrapper: "bg-white border border-orange-100 shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
-    icon: "text-[#f38918] bg-orange-50",
-    text: "text-gray-900"
+    wrapper: "bg-white border border-orange-200 shadow-[0_12px_34px_rgba(243,137,24,0.22)] ring-1 ring-orange-100",
+    icon: "text-[#b85f00] bg-orange-50",
+    text: "text-gray-950",
+    bar: "bg-[#f38918]",
   },
 };
 
@@ -118,25 +122,27 @@ const ToastItem = ({
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl min-w-[320px] max-w-[420px] transition-all animate-toastInanimate-[slideInLeft_0.3s_ease] ${styles.wrapper}`}
+      className={`relative flex items-center gap-3 overflow-hidden px-3.5 py-2.5 rounded-lg w-[calc(100vw-32px)] sm:w-auto sm:min-w-[300px] sm:max-w-[390px] transition-all animate-[toastAttention_0.34s_cubic-bezier(0.16,1,0.3,1)] ${styles.wrapper}`}
     >
+      <div className={`absolute left-0 top-0 h-full w-1 ${styles.bar}`} />
+
       {/* ICON */}
-      <div className={`shrink-0 p-2 rounded-full ${styles.icon}`}>
-        <Icon className="w-5 h-5" />
+      <div className={`shrink-0 p-1.5 rounded-full ${styles.icon}`}>
+        <Icon className="w-[18px] h-[18px]" />
       </div>
 
       {/* MESSAGE */}
-      <div className={`flex-1 leading-snug font-semibold text-[13px] ${styles.text}`}>
+      <div className={`flex-1 leading-snug font-semibold text-[12px] sm:text-[13px] ${styles.text}`}>
         {toast.message}
       </div>
 
       {/* CLOSE */}
       <button
         onClick={() => onRemove(toast.id)}
-        className="ml-1 rounded-full p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+        className="ml-0.5 rounded-full p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
         aria-label="Close toast"
       >
-        <X className="w-4 h-4" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -203,6 +209,23 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       {/* Only render toasts on the client to avoid SSR hydration mismatches */}
       {mounted && (
         <>
+          <style>{`
+            @keyframes toastAttention {
+              0% {
+                opacity: 0;
+                transform: translateX(26px) translateY(-8px) scale(0.94);
+              }
+              60% {
+                opacity: 1;
+                transform: translateX(-4px) translateY(0) scale(1.02);
+              }
+              100% {
+                opacity: 1;
+                transform: translateX(0) translateY(0) scale(1);
+              }
+            }
+          `}</style>
+
           {/* ===== TOP TOASTS (SUCCESS / ERROR / WARNING SAME) ===== */}
           <div
             style={{ top: `${topOffset}px` }}

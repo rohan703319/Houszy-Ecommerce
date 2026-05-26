@@ -96,7 +96,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-xl px-3 py-2 shadow-md">
         <img
           src="/logo/logo.png"
-          alt="Direct Care"
+          alt="Houszy"
           className="h-12 w-auto object-contain"
         />
       </div>

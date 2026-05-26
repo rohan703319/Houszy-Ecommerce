@@ -4,22 +4,24 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import RatingReviews from "@/components/product/RatingReviews";
+import dynamic from "next/dynamic";
+const RatingReviews = dynamic(() => import("@/components/product/RatingReviews"));
+const RelatedProductCard = dynamic(() => import("@/components/product/RelatedProductCard"));
+const CrossSellProductCard = dynamic(() => import("@/components/product/CrossSellProductCard"));
+const RecentlyViewedSlider = dynamic(() => import("@/components/recently-viewed/RecentlyViewedSlider"));
+const BackInStockModal = dynamic(() => import("@/components/backorder/BackInStockModal"));
+
 import { Review, getRecentApprovedReviews } from "@/components/product/RatingReviews";
-import RelatedProductCard from "@/components/product/RelatedProductCard";
-import CrossSellProductCard from "@/components/product/CrossSellProductCard";
 import SubscriptionPurchaseCard from "@/components/product/SubscriptionPurchaseCard";
 import QuantitySelector from "@/components/shared/QuantitySelector";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
-import RecentlyViewedSlider from "@/components/recently-viewed/RecentlyViewedSlider";
 import { getBackorderUIState } from "@/app/lib/backorderHelpers";
-import BackInStockModal from "@/components/backorder/BackInStockModal";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { ShoppingCart, Heart, Star, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon } from "lucide-react";
-import ShareMenu from "@/components/share/ShareMenu";
+import { Heart, Star, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon } from "lucide-react";
+const ShareMenu = dynamic(() => import("@/components/share/ShareMenu"));
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,14 +31,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { addRecentlyViewed } from "@/app/hooks/useRecentlyViewed";
 import { normalizePrice } from "@/lib/price";
-import CouponModal from "@/components/product/CouponModal";
-import ProductImageModal from "@/components/product/ProductImageModal";
+const CouponModal = dynamic(() => import("@/components/product/CouponModal"));
+const ProductImageModal = dynamic(() => import("@/components/product/ProductImageModal"));
 import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers";
 import { usePathname } from "next/navigation";
 import { detectUKRegion } from "@/app/lib/region";
 import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
+const PharmaQuestionsModal = dynamic(() => import("@/components/pharma/PharmaQuestionsModal"));
 import { useCartActivity } from "@/context/CartContext";
 import { trackViewItem } from "@/lib/analytics";
 // ---------- Types ----------
@@ -1033,7 +1035,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       const final = +(basePrice - totalDiscount).toFixed(2);
 
       setFinalPrice(final);
-      setDiscountAmount(+totalDiscount.toFixed(2));
+      setDiscountAmount(+(basePrice - final).toFixed(2));
       return;
     }
 
@@ -1050,7 +1052,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       const autoFinal = +(basePrice - autoAmount).toFixed(2);
 
       setFinalPrice(autoFinal);
-      setDiscountAmount(+autoAmount.toFixed(2));
+      setDiscountAmount(+(basePrice - autoFinal).toFixed(2));
       return;
     }
 
@@ -1952,7 +1954,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             {/* end inner row */}
             {/* 🔥 GROUPED PRODUCTS + BUNDLE OFFER (SINGLE BOX) */}
             {purchaseType === "one" && isGroupedProduct && product.groupedProducts && (
-              <div className="mb-1 mt-0 border border-orange-100 bg-white rounded p-3">
+              <div className="hidden md:block mb-1 mt-0 border border-orange-100 bg-white rounded p-3">
                 <div className="flex items-center gap-3 mb-1">
                   <input
                     type="checkbox"
@@ -2748,6 +2750,131 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             </div>
                           </div>
                         </div>
+
+                        {/* 🔥 GROUPED PRODUCTS + BUNDLE OFFER (SINGLE BOX) */}
+                        {purchaseType === "one" && isGroupedProduct && product.groupedProducts && (
+                          <div className="block md:hidden mb-1 mt-0 border border-orange-100 bg-white rounded p-3">
+                            <div className="flex items-center gap-3 mb-1">
+                              <input
+                                type="checkbox"
+                                className="w-5 h-5 accent-black cursor-pointer"
+                                checked={groupEnabled}
+                                disabled={
+                                  product.automaticallyAddProducts || hasOutOfStockGroupedProduct
+                                }
+                                onChange={(e) => setGroupEnabled(e.target.checked)}
+                              />
+                              <span className="text-sm font-semibold text-gray-800 flex items-center gap-1">
+                                PAIR IT WITH :
+                                {product.automaticallyAddProducts && (
+                                  <span className="text-xs text-gray-500">(required)</span>
+                                )}
+                              </span>
+                            </div>
+                            {hasOutOfStockGroupedProduct && (
+                              <p className="text-xs text-red-600 mb-1">
+                                One or more required products are currently out of stock.
+                              </p>
+                            )}
+                            {/* 🔥 BUNDLE OFFER MESSAGE */}
+                            {product.groupBundleDiscountType &&
+                              product.groupBundleDiscountType !== "None" && (
+                                <div className="mb-2 bg-orange-50 border rounded p-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <Gift className="w-5 h-5 text-[#f38918] flex-shrink-0" />
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-bold text-[#f38918] leading-tight">
+                                        Bundle Offer: Save {product.savingsPercentage}% when purchased together
+                                      </span>
+                                      {product.totalSavings && (
+                                        <span className="text-[10px] font-semibold text-red-500 leading-tight">
+                                          You save £{product.totalSavings.toFixed(2)} on this bundle
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                            {/* GROUPED ITEMS */}
+                            <div className="space-y-2">
+                              {product.groupedProducts.map(gp => {
+                                const state = groupedSelections[gp.productId];
+                                if (!state) return null;
+                                return (
+                                  <div
+                                    key={gp.productId}
+                                    className="flex items-center justify-between gap-2 bg-white rounded p-2 border"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {/* PRODUCT INFO */}
+                                      {/* PRODUCT IMAGE */}
+                                      <div className="w-10 h-10 flex-shrink-0 rounded border bg-white overflow-hidden p-0.5">
+                                        <Link href={`/product/${gp.slug}`}>
+                                          <img
+                                            src={
+                                              gp.mainImageUrl
+                                                ? gp.mainImageUrl.startsWith("http")
+                                                  ? gp.mainImageUrl
+                                                  : `${process.env.NEXT_PUBLIC_API_URL}${gp.mainImageUrl}`
+                                                : "/placeholder-product.png"
+                                            }
+                                            alt={"no img"}
+                                            className="w-full h-full object-contain"
+                                            loading="lazy"
+                                          />
+                                        </Link>
+                                      </div>
+                                      <div className="min-w-0 pr-1">
+                                        <Link href={`/product/${gp.slug}`}>
+                                          <p className="text-xs font-semibold text-gray-900 truncate">{gp.name}</p>
+                                        </Link>
+                                        <p className="text-xs font-bold text-gray-900 mt-0.5">
+                                          £{((gp.bundlePrice ?? gp.price) * normalQty).toFixed(2)} GBP
+                                        </p>
+                                        {gp.hasBundleDiscount && (
+                                          <div className="flex items-center gap-1 mt-0.5">
+                                            <p className="text-[10px] text-gray-400 line-through">
+                                              £{(gp.price * normalQty).toFixed(2)}
+                                            </p>
+                                            {typeof gp.individualSavings === "number" && (
+                                              <p className="text-[10px] font-medium text-green-600">
+                                                Save £{(gp.individualSavings * normalQty).toFixed(2)}
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {/* QUANTITY */}
+                                    <div className="flex items-center justify-center border rounded px-2 py-1 bg-gray-50 flex-shrink-0">
+                                      <span className="text-[11px] font-bold text-gray-800 whitespace-nowrap">
+                                        Qty: {normalQty}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {/* 🔥 BUNDLE TOTAL SUMMARY */}
+                            <div className="mt-2 pt-2 border-t space-y-0.5">
+                              <div className="flex justify-between text-xs text-gray-600">
+                                <span>Individual total</span>
+                                <span>£{bundleIndividualTotal.toFixed(2)}</span>
+                              </div>
+                              {bundleTotalSavings > 0 && (
+                                <div className="flex justify-between text-xs text-orange-800 font-medium">
+                                  <span>You save</span>
+                                  <span>£{bundleTotalSavings.toFixed(2)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-sm font-bold text-red-500 pt-0.5">
+                                <span>Bundle price</span>
+                                <span>£{bundleTotalPrice.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Secure Checkout Box */}
                         <div className="border border-gray-200 rounded-lg p-4 bg-[#f9fafb] mt-4">

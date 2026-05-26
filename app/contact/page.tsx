@@ -204,7 +204,7 @@ export default function ContactPage() {
               <span className="text-sm font-medium text-gray-700">Unit 38A, Plume Street, Aston, Birmingham</span>
             </div>
             <iframe
-              title="Direct Care Warehouse Location"
+              title="Houszy Warehouse Location"
               src="https://www.openstreetmap.org/export/embed.html?bbox=-1.9012%2C52.4884%2C-1.8612%2C52.5084&layer=mapnik&marker=52.4984%2C-1.8812"
               width="100%"
               height="220"

@@ -834,7 +834,7 @@ export default function FeaturedProductsSlider({
                                         toast.clearAll();
                                         router.push("/cart");
                                       }}
-                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
+                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-[#f38918] text-black hover:bg-black hover:text-white transition shadow-sm"
                                     >
                                       Cart→
                                     </button>

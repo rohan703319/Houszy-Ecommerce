@@ -9,7 +9,7 @@ export default function CareersPage() {
       {/* HERO */}
       <div className="bg-[#f38918] text-white py-2 px-4 text-center">
         <h1 className="text-xl md:text-3xl font-bold">
-          Careers at Direct Care
+          Careers at Houszy
         </h1>
       </div>
 
@@ -25,7 +25,7 @@ export default function CareersPage() {
 
           <p className="text-sm text-gray-600 leading-relaxed">
             We are currently working on building our careers section.
-            Opportunities to join Direct Care will be available soon.
+            Opportunities to join Houszy will be available soon.
           </p>
 
 
