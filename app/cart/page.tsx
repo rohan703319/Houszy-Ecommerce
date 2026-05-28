@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import Link from "next/link";
-import { Trash2, GiftIcon, AwardIcon, Truck, ShoppingBag, Plus, Minus, Tag, ChevronRight, Info, ShieldCheck } from "lucide-react";
+import { Trash2, GiftIcon, AwardIcon, Truck, ShoppingBag, Plus, Minus, Tag, ChevronRight, Info, ShieldCheck, BadgePercent } from "lucide-react";
 import { useToast } from "@/components/toast/CustomToast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -134,18 +134,29 @@ export default function CartPage() {
   const oldPriceSummary = useMemo(() => {
     return cart.reduce(
       (acc, item) => {
+        // ❌ Skip items with coupon applied — those use discountAmount for discount, not oldPrice
+        if (item.couponCode && (item.discountAmount ?? 0) > 0) return acc;
+
+        // ❌ Skip items that require coupon code (even if not yet applied) — old price must not be used
+        const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
+          (d: any) => d?.requiresCouponCode === true && d?.isActive
+        );
+        if (hasCouponRequiredDiscount) return acc;
+
+        // ❌ Only process OldPrice type items
+        if (item.displayDiscountType !== "OldPrice") return acc;
+
         const price = item.price;
         const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
         const qty = item.quantity ?? 1;
 
-        const hasDiscount =
-          item.displayDiscountType === "System";
-
+        // hasDiscount is always false here — we only reach this for OldPrice items
+        // (System items and coupon items are skipped above)
         const pricing = getOrderSummaryPricing({
           price,
           oldPrice,
           quantity: qty,
-          hasDiscount,
+          hasDiscount: false,
         });
 
         acc.subtotal += pricing.subtotal;
@@ -203,8 +214,12 @@ export default function CartPage() {
 
       // 🟠 OLD PRICE
       const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+      const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
+        (d: any) => d?.requiresCouponCode === true && d?.isActive
+      );
       if (
         item.displayDiscountType === "OldPrice" &&
+        !hasCouponRequiredDiscount &&
         oldPrice &&
         oldPrice > item.price
       ) {
@@ -649,7 +664,11 @@ export default function CartPage() {
               const finalPrice = item.finalPrice ?? item.price;
               const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
 
-              const oldPricePercent = item.displayDiscountType === "OldPrice" && oldPrice && oldPrice > basePrice
+              const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
+                (d: any) => d?.requiresCouponCode === true && d?.isActive
+              );
+
+              const oldPricePercent = item.displayDiscountType === "OldPrice" && !hasCouponRequiredDiscount && oldPrice && oldPrice > basePrice
                 ? Math.round(((oldPrice - basePrice) / oldPrice) * 100) : null;
 
               if (isBundleChild(item)) return null;
@@ -660,7 +679,7 @@ export default function CartPage() {
                 <div key={item.id + (item.variantId ?? "") + (item.type ?? "")} className="bg-white rounded p-3 shadow-sm hover:shadow-md transition-all duration-300 relative group overflow-hidden">
                   <div className="flex flex-row gap-3">
                     {/* Image */}
-                    <div className="relative w-[72px] h-[72px] md:w-24 md:h-24 flex-shrink-0 bg-white rounded-lg border border-gray-200 p-1 overflow-hidden flex items-center justify-center">
+                    <div className="relative w-[72px] h-[72px] md:w-24 md:h-24 flex-shrink-0 bg-white rounded-lg p-1 overflow-hidden flex items-center justify-center">
                       <Link href={`/product/${item.slug}`} className="w-full h-full flex items-center justify-center">
                         <img src={item.image} alt="product" className="max-w-full max-h-full object-contain" />
                       </Link>
@@ -691,11 +710,14 @@ export default function CartPage() {
                             </span>
                             {(() => {
                               let comparePrice = null;
+                              const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
+                                (d: any) => d?.requiresCouponCode === true && d?.isActive
+                              );
                               if (item.displayDiscountType === "System" && (item.systemDiscountAmount ?? 0) > 0) {
                                 comparePrice = item.price + (item.discountAmount ?? 0);
                               } else if (item.couponCode && (item.discountAmount ?? 0) > 0) {
                                 comparePrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-                              } else if (item.displayDiscountType === "OldPrice") {
+                              } else if (item.displayDiscountType === "OldPrice" && !hasCouponRequiredDiscount) {
                                 const oldP = item.oldPrice ?? item.productData?.oldPrice;
                                 if (oldP && oldP > item.price) comparePrice = oldP;
                               }
@@ -800,18 +822,18 @@ export default function CartPage() {
                           </div>
 
                           {/* Extra info (Coupons, Errors) */}
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             {item.couponCode ? (
-                              <div className="flex items-center gap-1 bg-green-50 text-green-800 px-2 py-1 rounded border border-green-100">
+                              <div className="flex items-center gap-1 bg-orange-50 text-orange-800 px-2 py-1 rounded border border-orange-100">
                                 <span className="text-[10px] font-bold uppercase tracking-wide">{item.couponCode}</span>
-                                <button onClick={() => removeCouponFromItem(item.id, item.type)} className="flex items-center justify-center text-green-600 hover:text-red-600 transition-colors ml-1">
+                                <button onClick={() => removeCouponFromItem(item.id, item.type)} className="flex items-center justify-center text-red-600 hover:text-red-600 transition-colors ml-1">
                                   <Trash2 size={10} />
                                 </button>
                               </div>
                             ) : availableCoupons.some((c) => c.productIds.includes(item.id)) ? (
-                              <button onClick={() => { setSelectedItem(item); setShowOffers(true); }} className="flex items-center gap-1 text-[10px] font-bold text-gray-900 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded border border-gray-200 transition-colors">
-                                <GiftIcon size={12} />
-                                Offers
+                              <button onClick={() => { setSelectedItem(item); setShowOffers(true); }} className="flex items-center gap-1 text-[11px] font-bold text-[#d0021b] hover:text-[#b0011a] transition-colors hover:underline">
+                                <BadgePercent size={12} />
+                                Apply Coupon
                               </button>
                             ) : null}
 

@@ -87,7 +87,7 @@ export default function ProductOffersModal({
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center overflow-y-auto pb-10">
       <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden max-h-[85vh] pb-20 sm:pb-0">
 
-        <div className="px-6 py-5 border-b bg-green-50 flex justify-between">
+        <div className="px-6 py-5 border-b bg-orange-50 flex justify-between">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-[#f38918]" />
             Offers & Coupons
@@ -156,7 +156,7 @@ export default function ProductOffersModal({
                           </p>
 
                           {d.usePercentage && (
-                            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-md">
+                            <span className="text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md">
                               {d.discountPercentage}% OFF
                             </span>
                           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { LoyaltyPoints } from "@/context/AuthContext";
-import { Gift, Trophy, TrendingUp, ArrowUpRight, Crown, Medal, ShieldCheck, Wallet, Info, AwardIcon } from "lucide-react";
+import { Gift, TrendingUp, ArrowUpRight, Crown, Medal, ShieldCheck, Wallet, Info, AwardIcon } from "lucide-react";
 
 interface Props {
   loyalty?: LoyaltyPoints;
@@ -49,7 +49,7 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
-      
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-gray-100 pb-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight flex items-center gap-2">
@@ -74,7 +74,7 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
             <div className="text-[10px] font-bold opacity-80 mt-0.5 uppercase tracking-widest">Benefits unlocked</div>
           </div>
         </div>
-        
+
         {/* Value Card */}
         <div className="bg-gray-50 rounded-2xl p-4 flex flex-col justify-between">
           <div className="flex items-center gap-1.5 font-black uppercase tracking-widest text-[9px] text-gray-400">

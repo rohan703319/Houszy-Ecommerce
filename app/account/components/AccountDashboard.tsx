@@ -20,7 +20,6 @@ import {
   Truck,
   LogOut,
   Award,
-  ChevronRight,
   Menu,
 } from "lucide-react";
 
@@ -88,7 +87,7 @@ export default function AccountDashboard() {
       <div className="max-w-7xl mx-auto px-4 md:px-8">
 
         {/* UNIFIED APP LAYOUT */}
-        <div className="bg-white rounded shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row min-h-[75vh]">
+        <div className="bg-white rounded shadow-sm border border-gray-200 overflow-hidden md:overflow-visible flex flex-col md:flex-row min-h-[75vh]">
 
           {/* MOBILE HEADER */}
           <div className="md:hidden flex items-center justify-between p-4 border-b border-gray-100 bg-white sticky top-0 z-20">
@@ -112,12 +111,12 @@ export default function AccountDashboard() {
           {/* SIDEBAR (DESKTOP + MOBILE DROPDOWN) */}
           <aside className={`
             ${mobileMenuOpen ? "block" : "hidden"} 
-            md:block md:w-72 flex-shrink-0 bg-gray-50/50 border-r border-gray-100
+            md:block md:w-72 flex-shrink-0 bg-gray-50/50 border-r border-gray-100 md:rounded-l
           `}>
 
 
             {/* Navigation */}
-            <nav className="p-4 space-y-1">
+            <nav className="p-4 space-y-1 md:sticky md:top-24">
               {NAV_ITEMS.map(({ tab, label, icon }) => (
                 <SidebarButton
                   key={tab}
@@ -139,7 +138,7 @@ export default function AccountDashboard() {
           </aside>
 
           {/* MAIN CONTENT AREA */}
-          <main className="flex-1 bg-white relative overflow-x-hidden">
+          <main className="flex-1 bg-white relative overflow-x-hidden md:rounded-r">
             <div className="p-2 sm:p-4 md:p-6 lg:p-8 max-w-5xl mx-auto h-full">
               {activeTab === "profile" && <ProfileTab user={user} initials={initials} />}
               {activeTab === "orders" && <OrdersTab orders={user.orders ?? []} />}

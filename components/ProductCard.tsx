@@ -77,7 +77,7 @@ export default function ProductCard({
     const sorted = product.images
       ?.slice()
       ?.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-    
+
     if (sorted && sorted.length > 1 && sorted[1]?.imageUrl) {
       return sorted[1].imageUrl.startsWith("http")
         ? sorted[1].imageUrl
@@ -212,15 +212,17 @@ export default function ProductCard({
         ) === "System"
           ? +(basePrice - finalPrice).toFixed(2)
           : 0,
-      oldPrice:
-        defaultVariant?.oldPrice ??
-        product.oldPrice ??
-        undefined,
+      oldPrice: hasActiveCoupon
+        ? undefined
+        : (defaultVariant?.oldPrice ??
+          product.oldPrice ??
+          undefined),
 
-      displayDiscountType:
-        defaultVariant?.displayDiscountType ??
-        product.displayDiscountType ??
-        "None",
+      displayDiscountType: hasActiveCoupon
+        ? "None"
+        : (defaultVariant?.displayDiscountType ??
+          product.displayDiscountType ??
+          "None"),
 
       hasSystemDiscount:
         defaultVariant?.hasSystemDiscount ??
@@ -267,7 +269,7 @@ export default function ProductCard({
               toast.clearAll();
               router.push("/cart");
             }}
-            className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-black hover:bg-[#f39a16] hover:text-black transition shadow-sm"
+            className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-[#f38918] text-black hover:bg-[#f39a16] hover:text-black transition shadow-sm"
           >
             Cart→
           </button>

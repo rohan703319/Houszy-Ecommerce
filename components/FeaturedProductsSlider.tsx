@@ -769,15 +769,17 @@ export default function FeaturedProductsSlider({
                                 price: finalPrice,
                                 priceBeforeDiscount: basePrice,
                                 finalPrice: finalPrice,
-                                oldPrice:
-                                  (defaultVariant as any)?.compareAtPrice ?? defaultVariant?.oldPrice ??
-                                  oldPriceValue ??
-                                  (product as any).compareAtPrice ?? product.oldPrice ??
-                                  undefined,
-                                displayDiscountType:
-                                  defaultVariant?.displayDiscountType ??
-                                  product.displayDiscountType ??
-                                  "None",
+                                oldPrice: hasActiveCoupon
+                                  ? undefined
+                                  : ((defaultVariant as any)?.compareAtPrice ?? defaultVariant?.oldPrice ??
+                                    oldPriceValue ??
+                                    (product as any).compareAtPrice ?? product.oldPrice ??
+                                    undefined),
+                                displayDiscountType: hasActiveCoupon
+                                  ? "None"
+                                  : (defaultVariant?.displayDiscountType ??
+                                    product.displayDiscountType ??
+                                    "None"),
 
                                 hasSystemDiscount:
                                   defaultVariant?.hasSystemDiscount ??

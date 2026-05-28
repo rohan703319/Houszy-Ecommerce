@@ -207,10 +207,11 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       price: finalPrice,
       priceBeforeDiscount: basePrice,
       finalPrice,
-      oldPrice: oldPriceValue ?? null,
+      oldPrice: hasActiveCoupon ? null : (oldPriceValue ?? null),
 
-      displayDiscountType:
-        product.displayDiscountType ?? "None",
+      displayDiscountType: hasActiveCoupon
+        ? "None"
+        : (product.displayDiscountType ?? "None"),
 
       hasSystemDiscount:
         product.hasSystemDiscount ?? false,

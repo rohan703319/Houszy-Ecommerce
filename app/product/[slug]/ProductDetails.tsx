@@ -31,7 +31,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { addRecentlyViewed } from "@/app/hooks/useRecentlyViewed";
 import { normalizePrice } from "@/lib/price";
-const CouponModal = dynamic(() => import("@/components/product/CouponModal"));
+import CouponModal from "@/components/product/CouponModal";
 const ProductImageModal = dynamic(() => import("@/components/product/ProductImageModal"));
 import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers";
 import { usePathname } from "next/navigation";
@@ -939,8 +939,12 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     product.systemDiscountAmount ??
     0;
 
+  // 🔥 OLD PRICE DATA — null when:
+  // 1. displayDiscountType is not "OldPrice"
+  // 2. Product has requiresCouponCode discount (hasCouponAvailable) — coupon products must NEVER show old price
+  // 3. There is an active auto discount
   const oldPriceData =
-    currentDisplayType === "OldPrice"
+    currentDisplayType === "OldPrice" && !hasCouponAvailable
       ? getOldPriceDiscount(
         basePrice,
         oldPriceValue,
@@ -1363,9 +1367,10 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
           currentDisplayType === "System" || appliedCoupon
             ? discountAmount ?? 0
             : 0,
-        oldPrice: oldPriceValue ?? undefined,
+        // 🔥 Coupon products: never send oldPrice or OldPrice type to cart
+        oldPrice: hasCouponAvailable ? undefined : (oldPriceValue ?? undefined),
 
-        displayDiscountType: currentDisplayType,
+        displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
 
         hasSystemDiscount:
           selectedVariant?.hasSystemDiscount ??
@@ -1452,9 +1457,10 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
           currentDisplayType === "System" || appliedCoupon
             ? discountAmount ?? 0
             : 0,
-        oldPrice: oldPriceValue ?? undefined,
+        // 🔥 Coupon products: never send oldPrice or OldPrice type to cart
+        oldPrice: hasCouponAvailable ? undefined : (oldPriceValue ?? undefined),
 
-        displayDiscountType: currentDisplayType,
+        displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
 
         hasSystemDiscount:
           selectedVariant?.hasSystemDiscount ??
@@ -1506,7 +1512,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
             toast.clearAll();
             router.push("/cart");
           }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-black hover:bg-black hover:text-white transition shadow-sm"
+          className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-[#f38918] text-black hover:bg-black hover:text-white transition shadow-sm"
         >
           Cart→
         </button>
@@ -1592,9 +1598,10 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
         currentDisplayType === "System" || appliedCoupon
           ? discountAmount ?? 0
           : 0,
-      oldPrice: oldPriceValue ?? undefined,
+      // 🔥 Coupon products: never send oldPrice or OldPrice type to cart
+      oldPrice: hasCouponAvailable ? undefined : (oldPriceValue ?? undefined),
 
-      displayDiscountType: currentDisplayType,
+      displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
 
       hasSystemDiscount:
         selectedVariant?.hasSystemDiscount ??
@@ -1799,6 +1806,23 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
 
               {/* Main Image */}
               <div className="flex-1 relative bg-white overflow-hidden">
+                {/* 🎫 COUPON AVAILABLE BADGE — top-left on image (same style as FeaturedProductsSlider) */}
+                {hasCouponAvailable && !appliedCoupon && (
+                  <div className="absolute top-2 left-2 z-30">
+                    <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[12px] font-semibold px-2.5 py-1.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
+                      <div className="flex flex-col items-center text-center">
+                        <span className="flex items-center gap-1 text-[12px] font-bold">
+                          🎫 Coupon
+                        </span>
+                        <span className="text-[12px] opacity-90">Available</span>
+                      </div>
+                      {/* hole */}
+                      <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
+                      {/* string */}
+                      <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
+                    </div>
+                  </div>
+                )}
                 <div className="relative bg-white overflow-hidden h-[250px] md:h-[390px] lg:h-[460px] flex items-center justify-center">
 
                   {/* ✅ ONLY IMAGE AREA HAS ZOOM */}
@@ -1888,9 +1912,10 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
                             currentDisplayType === "System" || appliedCoupon
                               ? discountAmount ?? 0
                               : 0,
-                          oldPrice: oldPriceValue ?? null,
+                          // 🔥 Coupon products: never send oldPrice or OldPrice type
+                          oldPrice: hasCouponAvailable ? null : (oldPriceValue ?? null),
 
-                          displayDiscountType: currentDisplayType,
+                          displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
 
                           hasSystemDiscount:
                             selectedVariant?.hasSystemDiscount ??
@@ -2449,16 +2474,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               minQty={product.orderMinimumQuantity ?? 1}
                               maxQty={product.orderMaximumQuantity}
                             />
-                            {product.assignedDiscounts?.some(d => d.requiresCouponCode) && (
-                              <button
-                                type="button"
-                                onClick={() => { if (appliedCoupon) { handleRemoveCoupon(); } else { setShowCouponModal(true); } }}
-                                className={`text-xs font-bold flex items-center gap-1 ${appliedCoupon ? "text-red-600" : "text-black"}`}
-                              >
-                                <BadgePercent className="h-3.5 w-3.5" />
-                                {appliedCoupon ? "Remove coupon" : "Apply coupon"}
-                              </button>
-                            )}
+
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -2549,6 +2565,21 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 <span className="bg-[#d0021b] text-white text-sm font-extrabold px-3.5 py-1.5 rounded-full uppercase tracking-wider ml-1">
                                   {discountPercentage}% OFF
                                 </span>
+                              )}
+
+                              {/* 🎫 Apply Coupon inline button — shown in price row when coupon available */}
+                              {hasCouponAvailable && (
+                                <button
+                                  type="button"
+                                  onClick={() => { if (appliedCoupon) { handleRemoveCoupon(); } else { setShowCouponModal(true); } }}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm transition-all ${appliedCoupon
+                                    ? "bg-red-50 border-red-300 text-red-600 hover:bg-red-100"
+                                    : "bg-[#d0021b] border-[#d0021b] text-white hover:bg-[#b0011a] animate-pulse"
+                                    }`}
+                                >
+                                  <BadgePercent className="h-3.5 w-3.5" />
+                                  {appliedCoupon ? "Remove Coupon" : "Apply Coupon"}
+                                </button>
                               )}
                             </div>
 
@@ -2726,27 +2757,6 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 </div>
 
                               </div>
-                            </div>
-
-                            {/* Coupon triggers */}
-                            <div className="flex flex-wrap items-center gap-3">
-                              {product.assignedDiscounts?.some(d => d.requiresCouponCode) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (appliedCoupon) {
-                                      handleRemoveCoupon();
-                                    } else {
-                                      setShowCouponModal(true);
-                                    }
-                                  }}
-                                  className={`text-xs font-bold flex items-center gap-1 leading-none ${appliedCoupon ? "text-red-600 hover:text-red-800" : "text-black hover:text-gray-700"
-                                    }`}
-                                >
-                                  <BadgePercent className="h-4 w-4" />
-                                  {appliedCoupon ? "Remove coupon" : "Apply coupon"}
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>

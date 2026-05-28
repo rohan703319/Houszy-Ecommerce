@@ -213,7 +213,7 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
             </span>
           )}
           {d.requiresCouponCode && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-green-900 text-white px-2 py-1 rounded">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-[#f38918] text-white px-2 py-1 rounded">
               <Tag className="h-3 w-3" />
               Coupon
             </span>

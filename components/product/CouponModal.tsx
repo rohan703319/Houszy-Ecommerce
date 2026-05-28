@@ -133,7 +133,7 @@ export default function CouponModal({
       <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden">
 
         {/* HEADER */}
-        <div className="px-6 py-5 border-b bg-green-50">
+        <div className="px-6 py-5 border-b bg-orange-50">
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -185,7 +185,7 @@ export default function CouponModal({
                 key={offer.id}
                 className={`rounded-2xl border p-4 transition-all
                   ${applied
-                    ? "border-green-500 bg-green-50"
+                    ? "border-orange-500 bg-orange-50"
                     : "border-gray-200 bg-white hover:border-[#f38918] hover:shadow-sm"
                   }
                 `}
@@ -202,7 +202,7 @@ export default function CouponModal({
                           </p>
 
                           {offer.usePercentage && (
-                            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-md">
+                            <span className="text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md">
                               {offer.discountPercentage}% OFF
                             </span>
                           )}

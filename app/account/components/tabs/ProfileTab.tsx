@@ -3,8 +3,7 @@
 import { useRouter } from "next/navigation";
 import {
   Mail, Phone, User, Calendar, ShoppingBag, PoundSterling,
-  ShieldCheck, User2, Cake, BriefcaseBusiness, IdCard, AwardIcon, Pencil, CheckCircle2,
-  MapPin, Clock,
+  ShieldCheck, User2, Cake, BriefcaseBusiness, IdCard, AwardIcon, Pencil,
   PhoneCall
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

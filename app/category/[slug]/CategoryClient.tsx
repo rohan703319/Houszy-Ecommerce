@@ -775,6 +775,17 @@ export default function CategoryClient({
       // ⭐ ADD TO CART
       // ============================
 
+      const hasActiveCoupon = product.assignedDiscounts?.some((d: any) => {
+        if (!d.isActive) return false;
+        if (!d.requiresCouponCode) return false;
+
+        const now = new Date();
+        if (d.startDate && now < new Date(d.startDate)) return false;
+        if (d.endDate && now > new Date(d.endDate)) return false;
+
+        return true;
+      });
+
       addToCart({
         id: `${variantId ?? product.id}-one`,
         productId: product.id,
@@ -790,6 +801,16 @@ export default function CategoryClient({
         price: finalPrice,
         priceBeforeDiscount: basePrice,
         finalPrice: finalPrice,
+        oldPrice: hasActiveCoupon
+          ? undefined
+          : (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
+            product.compareAtPrice ?? product.oldPrice ??
+            undefined),
+        displayDiscountType: hasActiveCoupon
+          ? "None"
+          : (defaultVariant?.displayDiscountType ??
+            product.displayDiscountType ??
+            "None"),
         discountAmount: basePrice - finalPrice,
         quantity: finalQty,
         image: imageUrl,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Truck, Info } from "lucide-react";
+import { Info } from "lucide-react";
 
 export default function OrderTrackingTab() {
   const [trackingNumber, setTrackingNumber] = useState("");
