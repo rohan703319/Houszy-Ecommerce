@@ -99,7 +99,7 @@ interface HomeBanner {
 async function getBanners(baseUrl: string): Promise<Banner[]> {
   try {
     const res = await fetch(`${baseUrl}/api/Banners`, {
-      next: { revalidate: 3660 },
+      next: { revalidate: 3600 },
     });
     const result = await res.json();
     return result.success ? result.data : [];
@@ -113,7 +113,7 @@ async function getProducts(baseUrl: string) {
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=20&sortDirection=asc&isPublished=true&showOnHomepage=true&isDeleted=false`,
       {
-        next: { revalidate: 3600 },
+        next: { revalidate: 60 },
       }
     );
     const result = await res.json();
@@ -155,7 +155,7 @@ async function getDiscountedProducts(baseUrl: string) {
     // No showOnHomepage filter — fetch ALL published products to find discounted ones
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=100&sortDirection=asc&isPublished=true&isDeleted=false`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 60 } }
     );
     const result = await res.json();
     if (!result.success) return [];
@@ -179,10 +179,10 @@ export const metadata: Metadata = {
     "Buy quality homeware, kitchenware, fitness gear, and toys. Find glass containers, cookware, gym gear, bedding, and games for everyone. Explore our wide range today!",
 
   keywords: [
-    "buy medicines online UK",
-    "online pharmacy UK",
-    "healthcare products UK",
-    "personal care UK",
+    "buy homeware online UK",
+    "online kitchenware UK",
+    "buy fitness equipment UK",
+    "buy toys UK",
     "Houszy UK",
   ],
 
