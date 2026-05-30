@@ -47,7 +47,7 @@ import { useToast } from "@/app/admin/_components/CustomToast";
 import { Customer, CustomerQueryParams, customersService, CustomerStats } from "@/lib/services/customers";
 import ConfirmDialog from "../_components/ConfirmDialog";
 import { useDebounce } from "../_hooks/useDebounce";
-import { formatDate, getImageUrl, getOrderProductImage } from "../_utils/formatUtils";
+import { formatDate, getImageUrl  } from "../_utils/formatUtils";
 
 type CustomerTier = "all" | "gold" | "silver" | "bronze";
 
@@ -431,26 +431,14 @@ const modalTier = selectedCustomer
         <div className="flex items-center gap-2">
           <div className="relative" ref={exportMenuRef}>
             <button
-              onClick={() => setShowExportMenu(!showExportMenu)}
+               onClick={handleExportCurrentPage}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md text-[12px] transition-all"
-            >
+               title='Export Current Page'
+           >
               <Download className="h-3.5 w-3.5" />
-              Export
-              <ChevronDown className={`h-3 w-3 ${showExportMenu ? "rotate-180" : ""}`} />
+              Export            
             </button>
-            {showExportMenu && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg z-20 overflow-hidden">
-                  <button onClick={handleExportCurrentPage} className="w-full px-3 py-2 text-left text-white hover:bg-slate-800 text-[12px]">
-                    Current Page ({customers.length})
-                  </button>
-                  <button onClick={handleExportSelected} className="w-full px-3 py-2 text-left text-white hover:bg-slate-800 text-[12px]">
-                    Selected ({selectedCustomers.length})
-                  </button>
-                </div>
-              </>
-            )}
+       
           </div>
         </div>
       </div>
@@ -516,7 +504,9 @@ const modalTier = selectedCustomer
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={75}>75</option>
-              <option value={100}>100</option>
+              <option value={250}>100</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
             </select>
             <span className="text-[11px] text-slate-500">per page</span>
           </div>
@@ -544,7 +534,7 @@ const modalTier = selectedCustomer
           <select
             value={tierFilter}
             onChange={(e) => { setTierFilter(e.target.value as CustomerTier); setCurrentPage(1); }}
-            className={`px-3 py-2 bg-slate-800/90 border rounded-lg text-white text-xs font-medium ${tierFilter !== "all" ? "border-yellow-500 bg-yellow-500/10" : "border-slate-600"}`}
+            className={`px-3 py-2 bg-gray-800/60 border rounded-lg text-white text-xs font-medium ${tierFilter !== "all" ? "border-yellow-500 bg-yellow-500/10" : "border-slate-600"}`}
           >
             <option value="all">All Tiers</option>
             <option value="gold">Gold</option>
@@ -555,7 +545,7 @@ const modalTier = selectedCustomer
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value as "all" | "active" | "inactive"); setCurrentPage(1); }}
-            className={`px-3 py-2 bg-slate-800/90 border rounded-lg text-white text-xs font-medium ${statusFilter !== "all" ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50" : "border-slate-600"}`}
+            className={`px-3 py-2 bg-gray-800/60 border rounded-lg text-white text-xs font-medium ${statusFilter !== "all" ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50" : "border-slate-600"}`}
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>

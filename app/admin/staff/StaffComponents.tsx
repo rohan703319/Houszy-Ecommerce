@@ -233,7 +233,7 @@ export const StaffTable = React.memo(function StaffTable({
                   </td>
                   <td className="px-4 py-3 text-slate-100">
                     <div className="font-semibold">{row.fullName || `${row.firstName} ${row.lastName}`}</div>
-                    <div className="text-xs text-slate-500">📞{row.phoneNumber}</div>
+                    <div className="text-xs text-slate-500">{row.phoneNumber}</div>
                   </td>
                   <td className="px-4 py-3 text-slate-200"> {row.email}</td>
                   <td className="px-4 py-3 text-slate-200">

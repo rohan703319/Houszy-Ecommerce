@@ -23,6 +23,7 @@ import "swiper/css/pagination";
 import { Heart, Star, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon } from "lucide-react";
 const ShareMenu = dynamic(() => import("@/components/share/ShareMenu"));
 import { Card, CardContent } from "@/components/ui/card";
+import ProductFeatures from "@/components/product/ProductFeatures";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast/CustomToast";
@@ -194,6 +195,7 @@ interface Product {
   displayStockAvailability?: boolean;
   displayStockQuantity?: boolean;
   isPharmaProduct?: boolean;
+  features?: any[];
 }
 interface RelatedProduct {
   id: string;
@@ -2959,11 +2961,14 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   </div>
                 )}
               </div>
-            </div>
           </div>
         </div>
+      </div>
 
-        {/* CROSS-SELL PRODUCTS SLIDER */}
+      {/* Product Features Section */}
+      <ProductFeatures features={product.features} />
+
+      {/* CROSS-SELL PRODUCTS SLIDER */}
         {crossSellProducts.length > 0 && (
           <section className="w-full max-w-7xl mx-auto px-4 md:px-8 mt-6 md:mt-12">
             <div className="flex items-center justify-between mb-6 md:mb-8">

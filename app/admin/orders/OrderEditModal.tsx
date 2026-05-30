@@ -40,8 +40,8 @@ import {
 } from '@/lib/services/OrderEdit';
 import { Order } from '@/lib/services/orders';
 import { addressLookupService } from '@/lib/services/AddressLookup';
-import { API_BASE_URL } from '@/lib/api';
-import { getImageUrl, getProductImage, getThumbnailImage } from '../_utils/formatUtils';
+
+import { getImageUrl, getProductImage } from '../_utils/formatUtils';
 
 // ===========================
 // INTERFACES

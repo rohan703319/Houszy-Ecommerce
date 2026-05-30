@@ -1228,7 +1228,7 @@ useEffect(() => {
   </label>
 
   {desktopPreview ? (
-    <div className="rounded-xl overflow-hidden border border-green-500">
+    <div className="relative rounded-xl overflow-hidden border border-green-500 group">
       <img
         src={desktopPreview}
         className="w-full h-32 object-cover"
@@ -1236,6 +1236,14 @@ useEffect(() => {
       <p className="text-green-400 text-xs text-center mt-1">
         ✅ {desktopFile?.name}
       </p>
+      {/* ✅ DELETE BUTTON - Clear selected file */}
+      <button
+        type="button"
+        onClick={() => setDesktopFile(null)}
+        className="absolute top-2 right-2 bg-red-600/90 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
+      >
+        <Trash2 size={16} />
+      </button>
     </div>
 ) : formData.desktopBannerImageUrl ? (
   <div className="relative rounded-xl overflow-hidden border border-slate-600 group">
@@ -1290,7 +1298,7 @@ useEffect(() => {
   </label>
 
   {mobilePreview ? (
-    <div className="rounded-xl overflow-hidden border border-green-500">
+    <div className="relative rounded-xl overflow-hidden border border-green-500 group">
       <img
         src={mobilePreview}
         className="w-full h-32 object-cover"
@@ -1298,6 +1306,14 @@ useEffect(() => {
       <p className="text-green-400 text-xs text-center mt-1">
         ✅ {mobileFile?.name}
       </p>
+      {/* ✅ DELETE BUTTON - Clear selected file */}
+      <button
+        type="button"
+        onClick={() => setMobileFile(null)}
+        className="absolute top-2 right-2 bg-red-600/90 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition"
+      >
+        <Trash2 size={16} />
+      </button>
     </div>
 ) : formData.mobileBannerImageUrl ? (
   <div className="relative rounded-xl overflow-hidden border border-slate-600 group">

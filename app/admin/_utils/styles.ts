@@ -33,6 +33,10 @@ export function getSelectStyles(isDark: boolean) {
       overflow: 'hidden',
       zIndex: 9999,
     }),
+    menuPortal: (base: any) => ({
+      ...base,
+      zIndex: 9999,
+    }),
     menuList: (base: any) => ({ ...base, padding: 0, maxHeight: '300px' }),
     option: (base: any, state: any) => ({
       ...base,

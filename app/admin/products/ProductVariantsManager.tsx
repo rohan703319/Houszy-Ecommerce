@@ -247,13 +247,12 @@ const closeDeleteModal = () => {
         continue;
       }
 
-      const skuSuffix = combo.map(v => v.replace(/\s/g, '').toUpperCase()).join('-');
-      const baseSku = productSku || 'PROD';
+
 
       const newVariant: ProductVariant = {
         id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         name: `${productName || 'Product'} (${combo.join(', ')})`,
-        sku: `${baseSku}-${skuSuffix}`,
+        sku: '',
         price: null,
         compareAtPrice: null,
         weight: null,

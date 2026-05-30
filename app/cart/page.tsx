@@ -419,9 +419,20 @@ export default function CartPage() {
       }
 
       const assigns: any[] = item.productData?.assignedDiscounts ?? [];
+
+      // 🔥 THE CORRECT FIX:
+      // `priceBeforeDiscount` is always set to the original product price when
+      // adding to cart (e.g. £6.15), even when a coupon was already applied on
+      // the product page. We use this as the authoritative source.
+      //
+      // We CANNOT use `item.price` because when the product was added to cart
+      // with a coupon already applied, `price` was set to `final` (£5.54).
+      //
+      // We CANNOT safely use `finalPrice + discountAmount` due to floating
+      // point arithmetic producing values like 6.149999999...
       const basePrice = item.priceBeforeDiscount ?? item.price;
 
-      // 🔹 find auto discount
+      // 🔹 find auto discount (non-coupon) that may still apply after coupon removal
       const autoDiscount = assigns.find(
         (d: any) =>
           d &&
@@ -446,6 +457,10 @@ export default function CartPage() {
         couponCode: null,
         discountAmount: autoDiscountAmount,
         finalPrice: basePrice - autoDiscountAmount,
+        // ✅ CRITICAL: Restore item.price to original (it was set to discounted
+        // price when added to cart with coupon). correctSubtotal uses item.price
+        // for the normal (no-coupon) case.
+        price: basePrice,
         priceBeforeDiscount: basePrice,
       };
     });

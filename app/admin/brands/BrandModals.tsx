@@ -190,9 +190,6 @@ if (!brandName) {
   return;
 }
 
-
-
-
   if (!logoFile && !formData.logoUrl) {
     toast.error("❌ Brand logo is required");
     return;
@@ -468,14 +465,14 @@ if (!brandName) {
                       {/* Display Order */}
                   <div>
   <label className="block text-sm text-slate-300 font-semibold mb-2">
-    Display Order <span className="text-red-400">*</span>
+    Display Order
   </label>
 
   <input
     type="number"
     min="1"
     max="1000"
-    placeholder="Enter order Numer"
+    placeholder="Enter Display  Number"
     value={formData.displayOrder ?? ""}
     onChange={(e) => {
       const value = e.target.value;

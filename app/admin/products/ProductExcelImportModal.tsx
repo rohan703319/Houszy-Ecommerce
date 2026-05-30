@@ -67,7 +67,7 @@ export default function ProductExcelImportModal({
     ];
 
     if (!validTypes.includes(selected.type)) {
-      toast.error("Please upload a valid Excel or CSV file");
+      toast.error("Please upload a valid Excel  file");
       return;
     }
 
@@ -113,7 +113,7 @@ export default function ProductExcelImportModal({
   // ==============================
  const handleImport = async () => {
   if (!file) {
-    toast.error("Please select a file first");
+    toast.error("Please select a Excel file first");
     return;
   }
 

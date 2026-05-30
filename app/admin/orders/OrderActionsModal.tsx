@@ -27,7 +27,8 @@ import {
 } from '../../../lib/services/orders'; // ✅ FIXED PATH
 import { useToast } from '@/app/admin/_components/CustomToast';
 import ConfirmDialog from '../_components/ConfirmDialog';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../_context/auth-context';
+
 
 interface OrderActionsModalProps {
   isOpen: boolean;
@@ -452,7 +453,7 @@ useEffect(() => {
   if (user) {
     setCancelData((prev) => ({
       ...prev,
-      cancelledBy: user.fullName || `${user.firstName} ${user.lastName}`,
+      cancelledBy: `${user.firstName} ${user.lastName}`,
     }));
   }
 }, [user]);
@@ -506,9 +507,7 @@ useEffect(() => {
       cancellationReason: '',
       restoreInventory: true,
       initiateRefund: isPaid,
-      cancelledBy:
-        user?.fullName ||
-        `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
+      cancelledBy:`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
     });
   }
 }, [isOpen, action, order.status, order.shipments, isPaid, user]);

@@ -3,7 +3,7 @@
 import { useState, use, useEffect, useRef, JSX, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, Upload, X, History, Info, Image, Package, Tag, Globe, Settings, Truck, Users, PoundSterling, Link as LinkIcon, Video, Play, Clock, Send, Bell, Plus } from "lucide-react";
+import { ArrowLeft, Save, Upload, X, History, Info, Image, Package, Tag, Globe, Settings, Truck, Users, PoundSterling, Link as LinkIcon, Video, Play, Clock, Send, Bell, Plus, AlertCircle } from "lucide-react";
 
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { useToast } from "@/app/admin/_components/CustomToast";
@@ -27,6 +27,7 @@ import ProductNameInput from "../../ProductNameInput";
 import SKUInput from "../../SKUInput";
 import { categoriesService } from "@/lib/services/categories";
 import AdminCommentHistory from "../../_components/AdminCommentHistory";
+import FeaturesManager from "../../_components/FeaturesManager";
 import UnsavedChangesModal from "../../_components/UnsavedChangesModal";
 import ProductLockModal from "../../_components/ProductLockModal";
 import VatRateSelector from "../../VatRateSelector";
@@ -46,7 +47,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [pendingTakeoverRequests, setPendingTakeoverRequests] = useState<any[]>([]);
   const [takeoverTimeLeft, setTakeoverTimeLeft] = useState<number>(0);
   const [homepageCount, setHomepageCount] = useState<number | null>(null);
-  const MAX_HOMEPAGE = 50;
+  const MAX_HOMEPAGE = 51;
 
   const [quantityMode, setQuantityMode] = useState<'range' | 'fixed' | 'unlimited'>('range');
   // Unsaved Changes Modal
@@ -148,16 +149,16 @@ const frequencyPresets: Record<string, string> = {
     }
 
     // ✅ File validations
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+  const ALLOWED_TYPES = ['image/webp','image/avif'];
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.warning('⚠️ Unsupported image format (JPG, PNG, WebP only)');
+      toast.warning('⚠️ Unsupported image format (`WebP , Avif only)');
       return;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      toast.warning('⚠️ Image size must be under 5MB');
+      toast.warning('⚠️ Image size must be under 2MB');
       return;
     }
 
@@ -385,6 +386,7 @@ const frequencyPresets: Record<string, string> = {
     gtin: '',
     manufacturerPartNumber: '',
     adminComment: '',
+    features: [] as any[],
     categoryName: '', // For clean category name display
 
     // ===== RELATED PRODUCTS =====
@@ -942,6 +944,7 @@ useEffect(() => {
           gtin: productData.gtin || '',
           manufacturerPartNumber: productData.manufacturerPartNumber || '',
           adminComment: productData.adminComment || '',
+          features: productData.features || [],
           gender: productData.gender || '',
           isActive: productData.isActive ?? true,
           nextDayDeliveryCutoffTime: productData.nextDayDeliveryCutoffTime ?? '',
@@ -3578,6 +3581,15 @@ if (!isVariableProduct) {
         showOnHomepage: formData.showOnHomepage ?? false,
         displayOrder: parseInt(formData.displayOrder as any) || 0,
         adminComment: formData.adminComment?.trim() || null,
+        features: formData.features ? formData.features.map((feature: any, idx: number) => ({
+          id: (feature.id && typeof feature.id === 'string' && feature.id.startsWith('temp-'))
+            ? '00000000-0000-0000-0000-000000000000'
+            : feature.id,
+          icon: feature.icon || '',
+          title: feature.title || '',
+          description: feature.description || '',
+          sortOrder: feature.sortOrder ?? idx
+        })) : [],
         isPack: formData.isPack ?? false,
         gender: formData.gender?.trim() || null,
         brandId: brandIdsArray[0],
@@ -3730,10 +3742,22 @@ if (!isVariableProduct) {
         // Filter images that need to be updated (existing images with IDs)
         const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        const imagesToUpdate = formData.productImages.filter((img) => {
+        const imagesToUpdate = initialFormData ? formData.productImages.filter((img) => {
           // Only update images that have been saved (have valid GUID IDs)
-          return guidRegex.test(img.id);
-        });
+          if (!guidRegex.test(img.id)) return false;
+
+          // Check if any fields changed compared to initial load
+          const initialImg = initialFormData.productImages?.find((i: any) => i.id === img.id);
+          if (!initialImg) return false; // skip newly uploaded images
+
+          return (
+            img.altText !== initialImg.altText ||
+            img.sortOrder !== initialImg.sortOrder ||
+            img.isMain !== initialImg.isMain
+          );
+        }) : [];
+
+        console.log(`📸 Images to update metadata:`, imagesToUpdate);
 
         if (imagesToUpdate.length > 0) {
           console.log(`🖼️ Updating ${imagesToUpdate.length} product images...`);
@@ -3772,12 +3796,9 @@ if (!isVariableProduct) {
             }
           }
 
-          // ✅ Show summary toast
-          // if (updateSuccessCount > 0) {
-          //   toast.success(`✅ ${updateSuccessCount} image(s) updated successfully!`, { 
-          //     autoClose: 2000 
-          //   });
-          // }
+          // Delay to prevent DbContext thread collision on backend
+          console.log("⏱️ Waiting 1.5s for database saves to finalize...");
+          await new Promise((resolve) => setTimeout(resolve, 1500));
 
           if (updateFailCount > 0) {
             toast.warning(`⚠️ ${updateFailCount} image(s) failed to update`, {
@@ -4648,15 +4669,7 @@ if (name === "recurringCyclePeriod") {
   };
 
   // ✅ REPLACE existing handleImageUpload function:
-  const ALLOWED_TYPES = [
-    "image/webp",
-    "image/jpeg",
-    "image/jpg"
-  ];
-
-  // ✅ REPLACE existing handleImageUpload function:
-
-
+  const ALLOWED_TYPES = ['image/webp','image/avif'];
 
   const MAX_SIZE = 500 * 1024;     // 500 KB hard limit
   const WARN_SIZE = 300 * 1024;    // 300 KB recommended
@@ -4731,7 +4744,7 @@ if (name === "recurringCyclePeriod") {
     for (const file of Array.from(files)) {
       /* ================= FORMAT & MIME ================= */
       if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.error(`❌ ${file.name}: Only WebP or JPG images allowed`);
+        toast.error(`❌ ${file.name}: Only WebP or Avif images allowed`);
         continue;
       }
 
@@ -4811,7 +4824,7 @@ if (name === "recurringCyclePeriod") {
       }));
 
       toast.success(
-        `✅ ${uploadedImages.length} image(s) uploaded successfully`
+        `✅ ${uploadedImages.length} image uploaded successfully`
       );
 
       if (fileInputRef.current) {
@@ -4883,9 +4896,9 @@ if (name === "recurringCyclePeriod") {
       return [];
     }
 
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const MAX_FILE_SIZE = 2 * 1024 * 1024;
     const MAX_IMAGES = 10;
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const ALLOWED_TYPES = ['image/webp','image/avif'];
 
     const baseLength = formData.productImages.length;
 
@@ -4902,7 +4915,7 @@ if (name === "recurringCyclePeriod") {
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        toast.warning(`⚠️ ${file.name} exceeds 5MB`);
+        toast.warning(`⚠️ ${file.name} exceeds 2MB`);
         return;
       }
 
@@ -4917,7 +4930,7 @@ if (name === "recurringCyclePeriod") {
     if (validFiles.length === 0) return [];
 
     /* =======================
-       BUILD SINGLE FORM DATA (BATCH UPLOAD)
+       BUILD SINGLE FORM DATA 
     ======================= */
 
     const uploadFormData = new FormData();
@@ -5028,7 +5041,7 @@ if (name === "recurringCyclePeriod") {
                 </button>
 
                 {/* TITLE */}
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
 
                   <h1
                     className="truncate text-[18px] leading-none font-black tracking-tight"
@@ -5047,6 +5060,19 @@ if (name === "recurringCyclePeriod") {
                   </h1>
 
                 </div>
+
+                {/* ✅ TAKEOVER REQUEST BUTTON - Shows only when request exists */}
+                {takeoverRequest && (
+                  <button
+                    type="button"
+                    onClick={() => setIsTakeoverModalOpen(true)}
+                    className="shrink-0 h-9 px-3.5 rounded-xl border-2 border-orange-500/40 bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 hover:text-orange-200 text-[12px] font-bold transition-all flex items-center gap-2 animate-pulse"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    Review Takeover
+                  </button>
+                )}
+
               </div>
 
               {/* RIGHT */}
@@ -6026,6 +6052,14 @@ if (name === "recurringCyclePeriod") {
                 </div>
               </div>
 
+              {/* Features Section */}
+              <div className="space-y-4 mb-6">
+                <FeaturesManager
+                  features={formData.features || []}
+                  onChange={(newFeatures) => setFormData(prev => ({ ...prev, features: newFeatures }))}
+                />
+              </div>
+
               {/* Admin Comment */}
               <div className="space-y-3">
 
@@ -6077,7 +6111,7 @@ if (name === "recurringCyclePeriod") {
 
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <label className="block text-sm mb-2 font-semibold text-slate-700 dark:text-slate-200">
   Price (£)
   {formData.productType !== 'variable' && (
     <span className="text-red-500 ml-1">*</span>
@@ -6110,19 +6144,56 @@ if (name === "recurringCyclePeriod") {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Old Price (£)</label>
-                    <input
-                      type="number"
-                      name="oldPrice"
-                      value={formData.oldPrice}
-                      onChange={handleChange}
-                      placeholder="0.00"
-                      step="0.01"
-                      className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    />
-                    <p className="text-xs text-slate-400 mt-1">Shows as strikethrough</p>
-                  </div>
+                        <div>
+  <label className="block text-sm mb-2 font-semibold text-slate-700 dark:text-slate-200">
+    Old Price (£)
+    {formData.productType !== "variable" && (
+      <span className="text-red-500 ml-1">*</span>
+    )}
+  </label>
+
+  <input
+    type="number"
+    name="oldPrice"
+    disabled={formData.productType === "variable"}
+    title={
+      formData.productType === "variable"
+        ? "Variable product requires old price in variant tab"
+        : ""
+    }
+    value={
+      formData.productType === "variable"
+        ? ""
+        : formData.oldPrice
+    }
+    onChange={handleChange}
+    placeholder="0.00"
+    step="0.01"
+    className={`
+      w-full px-3 py-2
+      bg-slate-800/50
+      border border-slate-700
+      rounded-xl
+      text-white
+      placeholder-slate-500
+
+      focus:ring-2
+      focus:ring-violet-500
+      focus:border-transparent
+      transition-all
+
+      ${
+        formData.productType === "variable"
+          ? "opacity-50 cursor-not-allowed"
+          : ""
+      }
+    `}
+  />
+
+  <p className="text-xs text-slate-400 mt-1">
+    Shows as strikethrough
+  </p>
+</div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">Product Cost (£)</label>
@@ -7510,7 +7581,7 @@ if (name === "recurringCyclePeriod") {
                 <div>
                   <h3 className="text-lg font-semibold text-white">Product Images <span className="text-red-500">*</span></h3>
                   <p className="text-xs text-red-400">
-                    Upload product images (WebP or JPG). Recommended size under 300 KB, maximum 500 KB per image.
+                    Upload product images (WebP or Avif). Recommended size under 300 KB, maximum 500 KB per image.
                     Minimum resolution 800×800 (square preferred). You can upload up to 10 images.
                   </p>
 
@@ -7618,38 +7689,59 @@ if (name === "recurringCyclePeriod") {
                               className="w-full px-2 py-1 text-[11px] bg-slate-800/50 border border-slate-700 rounded text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
                             />
                             <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                placeholder="#"
-                                value={image.sortOrder}
-                                onChange={(e) => {
-                                  setFormData({
-                                    ...formData,
-                                    productImages: formData.productImages.map((img) =>
-                                      img.id === image.id
-                                        ? { ...img, sortOrder: parseInt(e.target.value) || 1 }
-                                        : img,
-                                    ),
-                                  });
-                                }}
-                                className="w-12 px-2 py-1 text-[11px] bg-slate-800/50 border border-slate-700 rounded text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
-                              />
+      <input
+  type="number"
+  placeholder="#"
+  value={image.sortOrder ?? ''}
+  onChange={(e) => {
+    const value = e.target.value;
+
+    setFormData({
+      ...formData,
+      productImages: formData.productImages.map((img) =>
+        img.id === image.id
+          ? {
+              ...img,
+              sortOrder:
+                value.trim() === ''
+                  ? 0
+                  : (parseInt(value) || 0),
+            }
+          : img,
+      ),
+    });
+  }}
+  className="w-12 px-2 py-1 text-[11px] bg-slate-800/50 border border-slate-700 rounded text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
+/>
                               <label className="flex items-center gap-1 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={image.isMain}
-                                  onChange={(e) => {
-                                    setFormData({
-                                      ...formData,
-                                      productImages: formData.productImages.map((img) =>
-                                        img.id === image.id
-                                          ? { ...img, isMain: e.target.checked }
-                                          : e.target.checked
-                                            ? { ...img, isMain: false }
-                                            : img,
-                                      ),
-                                    });
-                                  }}
+onChange={(e) => {
+  setFormData({
+    ...formData,
+    productImages: formData.productImages.map((img) => {
+      // clicked image
+      if (img.id === image.id) {
+        return {
+          ...img,
+          isMain: e.target.checked,
+          sortOrder: e.target.checked ? 1 : img.sortOrder,
+        };
+      }
+
+      // old main image only remove main flag
+      if (e.target.checked && img.isMain) {
+        return {
+          ...img,
+          isMain: false,
+        };
+      }
+
+      return img;
+    }),
+  });
+}}
                                   className="w-3 h-3 text-violet-500 rounded border-slate-700 bg-slate-900 focus:ring-1 focus:ring-violet-500"
                                 />
                                 <span className="text-[10px] text-slate-400">Main</span>

@@ -18,6 +18,14 @@ export interface AdminCommentHistory {
   changedAt: string;
 }
 
+export interface ProductFeature {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  sortOrder: number;
+}
+
 export interface ProductImage {
   id: string;
   imageUrl: string;
@@ -300,6 +308,7 @@ allowedSubscriptionFrequencies?: string;
   crossSellProducts?: RelatedProduct[];
   
   backInStockCount?: number; // ✅ ADD THIS
+  features?: ProductFeature[];
 }
 
 
@@ -373,6 +382,7 @@ export interface CreateProductDto {
   tags?: string;
   allowCustomerReviews?: boolean;  
   backInStockCount?: number; // ✅ ADD THIS
+  features?: ProductFeature[];
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

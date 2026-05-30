@@ -52,7 +52,7 @@ import {
   LoyaltyUsersApiResponse,
 } from '@/lib/services/loyaltyPoints';
 import { useDebounce } from "../_hooks/useDebounce";
-import { formatCurrency, getOrderProductImage } from "../_utils/formatUtils";
+import { formatCurrency, getImageUrl } from "../_utils/formatUtils";
 
 type SortField = 'currentBalance' | 'totalPointsEarned' | 'totalPointsRedeemed' | 'lastActivity';
 type SortDirection = 'asc' | 'desc';
@@ -1023,7 +1023,7 @@ setExpandedTx(null);
           className="flex items-center gap-3 bg-slate-800/50 p-2 rounded-lg"
         >
           <img
-            src={getOrderProductImage(p.productImageUrl)}
+            src={getImageUrl(p.productImageUrl)}
             className="w-10 h-10 rounded object-cover"
           />
 

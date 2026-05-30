@@ -1,21 +1,21 @@
 // app/not-found.tsx
 'use client';
-import { useState } from 'react';
+
 import { useRouter } from 'next/navigation';
-import { Home, ArrowLeft, Package, ShoppingCart, TrendingUp, PhoneCall, Gift, } from 'lucide-react';
+import { Home, ArrowLeft, Package, ShoppingCart, PhoneCall, Gift, } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NotFound() {
   const router = useRouter();
-  
+
 
 
   return (
     <div className="min-h-screen bg-white py-4 md:py-12">
       {/* Main Content */}
-      <div className="container mx-auto px-4 max-w-6xl">       
+      <div className="container mx-auto px-4 max-w-6xl">
         {/* 404 Hero - Compact */}
-        <div className="text-center mb-4">         
+        <div className="text-center mb-4">
           {/* 404 Number & Icon */}
           <div className="relative mb-3">
             {/* Background 404 */}
@@ -23,12 +23,12 @@ export default function NotFound() {
               <div className="text-[180px] font-black text-[#4a6f52] leading-none select-none">
                 404
               </div>
-            </div> 
+            </div>
             <div className="relative pt-4 ">
               {/* Icon */}
               <div className="inline-flex items-center justify-center w-20 h-20 bg-[#4a6f52]/10 rounded-full mb-2">
                 <Package className="w-10 h-10 text-[#4a6f52]" />
-              </div>            
+              </div>
               {/* Title */}
               <h1 className="text-3xl md:text-4xl font-black text-gray-800 mb-2">
                 Page Not Found
@@ -37,11 +37,11 @@ export default function NotFound() {
               <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto mb-1">
                 Sorry, we couldn't find the page you're looking for.
               </p>
-             
+
             </div>
           </div>
           {/* Search Bar - Compact */}
-        
+
           {/* Action Buttons - Compact */}
           <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
             <button
@@ -64,10 +64,10 @@ export default function NotFound() {
             </Link>
           </div>
         </div>
-      
+
         {/* Trust Features - Compact */}
         <div className="bg-gradient-to-br from-[#4a6f52]/5 to-emerald-50 rounded-2xl p-5">
-          <div className="grid md:grid-cols-3 gap-4">           
+          <div className="grid md:grid-cols-3 gap-4">
             {/* Fast Delivery */}
             <div className="flex flex-col items-center text-center">
               <div className="w-11 h-11 bg-[#4a6f52] rounded-full flex items-center justify-center mb-2">

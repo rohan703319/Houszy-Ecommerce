@@ -524,9 +524,13 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   } 
 
+  // ✅ FIX: Allow long comments that already exist during edit, only validate on create or if being modified
   if (formData.adminComment && formData.adminComment.length > 50) {
-  toast.error("Admin comment must be 50 characters or less");
-  return;
+    // Skip validation during edit if comment hasn't changed
+    if (!editingDiscount || formData.adminComment !== editingDiscount.adminComment) {
+      toast.error("Admin comment must be 50 characters or less");
+      return;
+    }
 }   
 
   if (!formData.discountPercentage) {
@@ -534,13 +538,9 @@ const handleSubmit = async (e: React.FormEvent) => {
     return;
   }
 
-
-if (!editingDiscount) {
-  if (!desktopFile || !mobileFile) {
-    toast.error("Desktop and Mobile banner images are required");
-    return;
-  }
-} else {
+// ✅ FIX: Make banner images optional during CREATE, required during EDIT
+if (editingDiscount) {
+  // EDIT mode: At least one image must exist (either new file or existing URL)
   if (
     (!desktopFile && !formData.desktopBannerImageUrl) ||
     (!mobileFile && !formData.mobileBannerImageUrl)
@@ -549,6 +549,7 @@ if (!editingDiscount) {
     return;
   }
 }
+// CREATE mode: Banners are optional - can be added after creation
 
 
   try {
@@ -561,6 +562,14 @@ if (!editingDiscount) {
     };
 
     if (editingDiscount) {
+      // ✅ EDIT: Upload new files if provided
+      if (desktopFile) {
+        await handleUploadBannerImage(editingDiscount.id, desktopFile, "desktop");
+      }
+      if (mobileFile) {
+        await handleUploadBannerImage(editingDiscount.id, mobileFile, "mobile");
+      }
+      
       await discountsService.update(editingDiscount.id, payload);
       toast.success("Discount updated successfully!");
     } else {
@@ -573,14 +582,13 @@ if (!editingDiscount) {
         return;
       }
 
-      // 🔥 upload after create
-if (!editingDiscount && desktopFile) {
-  await handleUploadBannerImage(discountId, desktopFile, "desktop");
-}
-
-if (!editingDiscount && mobileFile) {
-  await handleUploadBannerImage(discountId, mobileFile, "mobile");
-}
+      // ✅ CREATE: Upload banner images if provided (optional)
+      if (desktopFile) {
+        await handleUploadBannerImage(discountId, desktopFile, "desktop");
+      }
+      if (mobileFile) {
+        await handleUploadBannerImage(discountId, mobileFile, "mobile");
+      }
 
       toast.success("Discount created successfully!");
     }

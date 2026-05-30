@@ -69,10 +69,10 @@ import RefundHistorySection from '../RefundHistorySection';
 import EditHistorySection from '../EditHistorySection';
 import RefundModals from '../RefundModals';
 import PharmacyVerificationModal from '../PharmacyVerificationModal';
-
 import { API_BASE_URL } from '@/lib/api';
-import { getImageUrl, getOrderProductImage } from '../../_utils/formatUtils';
+import { getImageUrl} from '../../_utils/formatUtils';
 import PaymentModal from '../PaymentModal';
+import { useAuth } from '../../_context/auth-context';
 
 // Types
 type CollectionStatus = 'Pending' | 'Ready' | 'Collected' | 'Expired';
@@ -770,8 +770,9 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
+  const { user } = useAuth();
   const orderId = params.id as string;
-const [hasEditHistory, setHasEditHistory] = useState<boolean | null>(null);
+  const [hasEditHistory, setHasEditHistory] = useState<boolean | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionModalOpen, setActionModalOpen] = useState(false);
@@ -793,6 +794,10 @@ const [showId, setShowId] = useState(false);
 const [pharmaAction, setPharmaAction] = useState<'approve' | 'reject' | null>(null);
 const [isUpdatingPharma, setIsUpdatingPharma] = useState(false);
 const [showPharmaQA, setShowPharmaQA] = useState(false);
+const currentUser =
+  `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
+  user?.email ||
+  "Admin";
 
   // ✅ NEW: Invoice Regeneration Modal State
   const [showRegenerateInvoiceModal, setShowRegenerateInvoiceModal] = useState(false);
@@ -1045,6 +1050,7 @@ const handleFullRefund = async (notes: string, reason: RefundReason) => {
       adminNotes: notes,
       restoreInventory: true,
       sendCustomerNotification: true,
+      currentUser,
     });
 
     if (!result?.success) {
@@ -1083,6 +1089,7 @@ const handleShippingRefund = async (notes: string) => {
     const result = await orderEditService.refundShipping(order.id, {
       adminNotes: notes.trim(),
       sendCustomerNotification: true,
+      currentUser,
     });
 
     // ✅ backend decides success
@@ -1136,6 +1143,7 @@ const handlePartialRefund = async (
       reasonDetails: orderEditService.getRefundReasonLabel(reason),
       adminNotes: notes,
       sendCustomerNotification: true,
+      currentUser,
     });
 
     if (!result?.success) {
@@ -1801,6 +1809,32 @@ const allActions = getAllAvailableActions(
     </span>
   </div>
 )}
+
+{/* STRIPE FEES */}
+{(() => {
+  const stripePayment = order.payments?.find(p => p.stripeFee != null && p.stripeFee > 0);
+  if (!stripePayment) return null;
+  const netAfterFee = (stripePayment.netAmount ?? (stripePayment.amount - (stripePayment.stripeFee ?? 0)));
+  return (
+    <div className="mt-2 pt-2 border-t border-slate-700/60 space-y-1.5">
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-slate-400 flex items-center gap-1">
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Stripe Fee
+        </span>
+        <span className="text-xs text-red-400 font-medium">
+          -{formatCurrency(stripePayment.stripeFee ?? 0, order.currency)}
+        </span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-slate-400">Net Received</span>
+        <span className="text-xs text-green-400 font-semibold">
+          {formatCurrency(netAfterFee, order.currency)}
+        </span>
+      </div>
+    </div>
+  );
+})()}
             
           </div>
 
@@ -2491,7 +2525,7 @@ const allActions = getAllAvailableActions(
             {/* IMAGE */}
             <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center">
               <img
-                src={getOrderProductImage(orderItem?.productImageUrl) || '/placeholder.png'}
+                src={getImageUrl(orderItem?.productImageUrl) || '/placeholder.png'}
                 alt={orderItem?.productName || 'Product'}
                 className="w-full h-full object-cover"
                 onError={(e) => (e.currentTarget.src = "/placeholder.png")}

@@ -19,6 +19,7 @@
   import { categoriesService } from "@/lib/services/categories";
   import UnsavedChangesModal from "../_components/UnsavedChangesModal";
   import VatRateSelector from "../VatRateSelector";
+  import FeaturesManager from "../_components/FeaturesManager";
   import { scrollCls } from "../../_utils/styles";
   import { cn } from "@/lib/utils";
   import { getBackendMessage } from "../../_utils/errorUtils";
@@ -26,8 +27,6 @@
   export default function AddProductPage() {
     const router = useRouter();
     const toast = useToast();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchTermCross, setSearchTermCross] = useState('');
     const [productAttributes, setProductAttributes] = useState<ProductAttribute[]>([]);
     const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,7 +34,6 @@
   const [checkingVariantSku, setCheckingVariantSku] = useState<Record<string, boolean>>({});
   const [variantSkuErrors, setVariantSkuErrors] = useState<Record<string, string>>({});
 
-  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [quantityMode, setQuantityMode] = useState<'range' | 'fixed' | 'unlimited'>('unlimited');
 
   // ============================================================
@@ -111,7 +109,7 @@
   //   ADD THIS STATE FOR MODAL
     const [isGroupedModalOpen, setIsGroupedModalOpen] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
-  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+
   // ============================================================
   // ADD THIS NEW STATE (After other useState declarations)
   // ============================================================
@@ -125,8 +123,6 @@
   // Homepage Count State
   const [homepageCount, setHomepageCount] = useState<number | null>(null);
   const MAX_HOMEPAGE = 50;
-
-
 
   // ============================================================
   // ADD THIS useEffect AFTER YOUR OTHER useEffect HOOKS
@@ -288,12 +284,6 @@
       missing.push('At least 1 variant (go to Variants tab)');
     }
 
-    // 7. Shipping (if enabled)
-    // if (formData.isShipEnabled) {
-    //   if (!formData.weight || parseFloat(formData.weight.toString()) <= 0) {
-    //     missing.push('Weight (required for shipping)');
-    //   }
-    // }
 
     // 8. Grouped Product Requirements
     if (formData.productType === 'grouped' && formData.requireOtherProducts) {
@@ -303,11 +293,11 @@
     }
 
     // IMPORTANT: Jab vatExempt true hai, toh yeh condition execute nahi hogi
-    if (!formData.vatExempt) {
-      if (!formData.vatRateId || formData.vatRateId.trim() === '') {
-        missing.push('VAT Rate (required when product is taxable)');
-      }
-    }
+    // if (!formData.vatExempt) {
+    //   if (!formData.vatRateId || formData.vatRateId.trim() === '') {
+    //     missing.push('VAT Rate (required when product is taxable)');
+    //   }
+    // }
 
     // VAT Validation - Only if NOT exempt
   
@@ -521,6 +511,7 @@
     gtin: '',
     manufacturerPartNumber: '',
     adminComment: '',
+    features: [] as any[],
     categoryName: '', // For clean category name display
     // Delivery flags (charges managed via Shipping Methods)
     sameDayDeliveryEnabled: false,
@@ -1061,24 +1052,91 @@ setSubmitProgress({
   percentage: 20,
 });
 
-    // 1.5 PRICE VALIDATION
-    if (formData.price && parseFloat(formData.price.toString()) < 0) {
-      toast.error("Price cannot be negative.");
-      target.removeAttribute("data-submitting");
-      setIsSubmitting(false);
-      setSubmitProgress(null);
-      return;
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECTION 6: NUMBER PARSING HELPER
+    // ═══════════════════════════════════════════════════════════════════════
+    const parseNumber = (value: any, fieldName: string): number | null => {
+      if (value === null || value === undefined || value === '') return null;
+      const cleaned = String(value).trim().replace(/[^0-9.-]/g, '');
+      const parsed = parseFloat(cleaned);
+      if (isNaN(parsed)) {
+        console.warn(`⚠️ Invalid number for ${fieldName}:`, value);
+        return null;
+      }
+      return parsed;
+    };
+
+    // ✅ PROGRESS: 30% - Price Validation
+    setSubmitProgress({
+      step: 'Validating pricing...',
+      percentage: 30,
+    });
+
+    // ═══════════════════════════════════════
+    // SECTION 7: PRICE VALIDATIONS (FIXED)
+    // ═══════════════════════════════════════
+    const parsedPrice = parseNumber(formData.price, 'price');
+    const isVariableProduct = formData.productType === 'variable';
+
+    // ✅ Only validate in FINAL SAVE (NOT draft)
+    if (!isDraft) {
+      // ✅ Skip ALL price validations for variable products
+      if (!isVariableProduct) {
+        if (parsedPrice === null) {
+          toast.error('⚠️ Please enter a valid price');
+          target.removeAttribute("data-submitting");
+          setIsSubmitting(false);
+          setSubmitProgress(null);
+          return;
+        }
+
+        // 🚨 PRICE MUST BE GREATER THAN 0
+        if (parsedPrice <= 0) {
+          toast.error('❌ Price must be greater than 0');
+          target.removeAttribute("data-submitting");
+          setIsSubmitting(false);
+          setSubmitProgress(null);
+          return;
+        }
+
+        if (parsedPrice > 10000000) {
+          toast.error('⚠️ Price seems unusually high. Please verify.');
+          target.removeAttribute("data-submitting");
+          setIsSubmitting(false);
+          setSubmitProgress(null);
+          return;
+        }
+      }
     }
 
-    // 1.5 PRICE VALIDATION (REQUIRED FOR PUBLISH - skip for variable products)
-    if (!isDraft && formData.productType !== 'variable') {
-      const price = Number(formData.price);
-      if (isNaN(price) ) {
-        toast.error("Price is required");
+    // ✅ These can run for BOTH draft + publish
+    const parsedOldPrice = parseNumber(formData.oldPrice, 'oldPrice');
+    const parsedCost = parseNumber(formData.cost, 'cost');
+
+    // ✅ Skip old/cost validations for variable products
+    if (!isVariableProduct) {
+      if (parsedOldPrice !== null && parsedOldPrice < 0) {
+        toast.error('❌ Old price cannot be negative');
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
         setSubmitProgress(null);
         return;
+      }
+
+      if (parsedOldPrice !== null && parsedPrice !== null && parsedOldPrice < parsedPrice) {
+        toast.warning("⚠️ Old price is less than current price. Strikethrough won't show.");
+      }
+
+      if (parsedCost !== null && parsedCost < 0) {
+        toast.error('❌ Cost price cannot be negative');
+        target.removeAttribute("data-submitting");
+        setIsSubmitting(false);
+        setSubmitProgress(null);
+        return;
+      }
+
+      if (parsedCost !== null && parsedPrice !== null && parsedCost > parsedPrice) {
+        toast.warning('⚠️ Cost is higher than selling price. Profit will be negative.');
       }
     }
 
@@ -1306,55 +1364,8 @@ if (!formData.nextDayDeliveryEnabled) {
           return;
         }
       }
-
-      // 5.4 Check Against Database
-      try {
-        console.log("Validating variant SKUs against database...");
-        const allProductsResponse = await productsService.getAll({ pageSize: 100 });
-        const allProducts = allProductsResponse.data?.data?.items || [];
-
-        for (const variant of productVariants) {
-          const variantSkuUpper = variant.sku.toUpperCase();
-
-          // Check against product SKUs
-          const productSkuConflict = allProducts.find((p: any) => p.sku?.toUpperCase() === variantSkuUpper);
-          if (productSkuConflict) {
-            toast.error(`Variant "${variant.name}" SKU conflicts with product "${productSkuConflict.name}"`, {
-              autoClose: 8000,
-            });
-            target.removeAttribute("data-submitting");
-            setIsSubmitting(false);
-            setSubmitProgress(null);
-            return;
-          }
-
-          // Check against variant SKUs
-          for (const product of allProducts) {
-            if (product.variants && Array.isArray(product.variants)) {
-              const variantSkuConflict = product.variants.find((v: any) => v.sku?.toUpperCase() === variantSkuUpper);
-              if (variantSkuConflict) {
-                toast.error(
-                  `Variant "${variant.name}" SKU conflicts with "${product.name}" - Variant "${variantSkuConflict.name}"`,
-                  {
-                    autoClose: 8000,
-                  }
-                );
-                target.removeAttribute("data-submitting");
-                setIsSubmitting(false);
-                setSubmitProgress(null);
-                return;
-              }
-            }
-          }
-        }
-
-        console.log("  All variant SKUs are unique!");
-      } catch (error) {
-        console.warn("Failed to validate variant SKUs against database:", error);
-        toast.warning("Could not verify variant SKUs. Proceeding...", { autoClose: 3000 });
-      }
     }
-
+    
     setSubmitProgress({
       step: "Processing categories and brands...",
       percentage: 50,
@@ -1646,6 +1657,17 @@ allowedQuantities: cleanedCartData.allowedQuantities,
     if (formData.gtin?.trim()) productData.gtin = formData.gtin.trim();
     if (formData.manufacturerPartNumber?.trim()) productData.manufacturerPartNumber = formData.manufacturerPartNumber.trim();
     if (formData.adminComment?.trim()) productData.adminComment = formData.adminComment.trim();
+    if (formData.features && formData.features.length > 0) {
+      productData.features = formData.features.map((feature: any, idx: number) => ({
+        id: '00000000-0000-0000-0000-000000000000',
+        icon: feature.icon || '',
+        title: feature.title || '',
+        description: feature.description || '',
+        sortOrder: feature.sortOrder ?? idx
+      }));
+    } else {
+      productData.features = [];
+    }
     if (formData.gender?.trim()) productData.gender = formData.gender.trim();
     else productData.gender = "";
 
@@ -2643,8 +2665,8 @@ const uploadImagesToProduct = async (
   }
 
   const MAX_IMAGES = 10;
-  const MAX_FILE_SIZE = 1 * 1024 * 1024;
-  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const MAX_FILE_SIZE = 2 * 1024 * 1024;
+   const ALLOWED_TYPES = ['image/webp','image/avif'];
 
   const uploadFormData = new FormData();
   let validImageCount = 0;
@@ -2670,9 +2692,9 @@ const uploadImagesToProduct = async (
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      toast.warning(`${file.name}: exceeds 1MB`);
+      toast.warning(`${file.name}: exceeds 2MB`);
       return;
-    }
+    } 
 
     if (validImageCount >= MAX_IMAGES) {
       toast.warning(`Maximum ${MAX_IMAGES} images allowed`);
@@ -2774,8 +2796,8 @@ const uploadVariantImages = async (productResponse: any) => {
       return;
     }
 
-    const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    const ALLOWED_TYPES = ['image/webp','image/avif'];
 
     console.log(`  Found ${createdVariants.length} variants in response`);
 
@@ -2806,7 +2828,7 @@ const uploadVariantImages = async (productResponse: any) => {
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        toast.warning(`${file.name} exceeds 1MB`);
+        toast.warning(`${file.name} exceeds 2MB`);
         return null;
       }
 
@@ -2932,7 +2954,7 @@ useEffect(() => {
           {formData.name && (
             <div className="flex items-center gap-2">
               <span className="text-slate-600">-</span>
-              <span className="text-[15px] font-semibold text-white truncate max-w-xs" title={formData.name}>
+              <span className="text-[15px] font-semibold text-white truncate max-w-xl" title={formData.name}>
                 {formData.name}
               </span>
             </div>
@@ -2947,27 +2969,22 @@ useEffect(() => {
               </span>
             </div>
           )}
-
-          {/* Unsaved Changes Indicator */}
-          {/* {hasUnsavedChanges && isEditMode && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
-              <span className="text-xs font-medium text-amber-400">Unsaved changes</span>
-            </div>
-          )} */}
+         
         </div>
 
-        {missingFields.length > 0 && (
-          <div className="mt-1 flex items-center gap-2 rounded-xl border border-orange-500/10 bg-orange-500/5 px-2 py-1 overflow-hidden">
-            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400"></div>
-            <span className="shrink-0 text-[10px] font-semibold text-orange-300">
-              {missingFields.length} Required
-            </span>
-            <span className="truncate text-[10px] text-orange-200/80">
-              {missingFields.join(", ")}
-            </span>
-          </div>
-        )}
+{missingFields.length > 0 && (
+  <div className="mt-1 flex items-center gap-2 rounded-xl border border-orange-500/10 bg-orange-500/5 px-2 py-1 overflow-hidden max-w-[900px]">
+    <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-orange-400"></div>
+
+    <span className="shrink-0 text-[10px] font-semibold text-orange-300">
+      {missingFields.length} Required
+    </span>
+
+    <span className="truncate text-[10px] text-orange-200/80">
+      {missingFields.join(", ")}
+    </span>
+  </div>
+)}
       </div>
     </div>
 
@@ -3998,6 +4015,14 @@ useEffect(() => {
 
 </div>
   </div>
+  {/* Features Section */}
+  <div className="space-y-4">
+    <FeaturesManager
+      features={formData.features || []}
+      onChange={(newFeatures) => setFormData(prev => ({ ...prev, features: newFeatures }))}
+    />
+  </div>
+
   {/* Admin Comment */}
   <div className="space-y-4">
     <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">Admin Comment</h3>
@@ -4023,33 +4048,87 @@ useEffect(() => {
     <div className="grid md:grid-cols-3 gap-4">
       <div>
         <label className="block text-sm font-medium text-slate-300 mb-2">
-          Price (£) <span className="text-red-500">*</span>
+          Price (£)
+          {formData.productType !== 'variable' && (
+            <span className="text-red-500 ml-1">*</span>
+          )}
         </label>
         <input
           type="number"
           name="price"
-          value={formData.price}
+          disabled={formData.productType === 'variable'}
+          title={
+            formData.productType === 'variable'
+              ? "Variable product requires price in variable tab"
+              : ''
+          }
+          value={
+            formData.productType === 'variable'
+              ? ""
+              : formData.price
+          }
           onChange={handleChange}
           placeholder="0.00"
           step="0.01"
-          className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-          required
+          className={`w-full px-3 py-2 bg-slate-800/50 border rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all
+            ${formData.productType === 'variable'
+              ? 'opacity-50 border-slate-800 cursor-not-allowed'
+              : 'border-slate-700'
+            }`}
+          required={formData.productType !== 'variable'}
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Old Price (£)</label>
-        <input
-          type="number"
-          name="oldPrice"
-          value={formData.oldPrice}
-          onChange={handleChange}
-          placeholder="0.00"
-          step="0.01"
-          className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-        />
-        <p className="text-xs text-slate-400 mt-1">Shows as strikethrough</p>
-      </div>
+<div>
+  <label className="block text-sm font-medium text-slate-300 mb-2">
+    Old Price (£)
+    {formData.productType !== 'variable' && (
+      <span className="text-red-500 ml-1">*</span>
+    )}
+  </label>
+
+  <input
+    type="number"
+    name="oldPrice"
+    disabled={formData.productType === 'variable'}
+    title={
+      formData.productType === 'variable'
+        ? "Variable product requires old price in variable tab"
+        : ''
+    }
+    value={
+      formData.productType === 'variable'
+        ? ""
+        : formData.oldPrice
+    }
+    onChange={handleChange}
+    placeholder="0.00"
+    step="0.01"
+    className={`
+      w-full px-3 py-2
+      bg-slate-800/50
+      border rounded-xl
+      text-white
+      placeholder-slate-500
+
+      focus:ring-2
+      focus:ring-violet-500
+      focus:border-transparent
+      transition-all
+
+      ${
+        formData.productType === 'variable'
+          ? 'opacity-50 border-slate-800 cursor-not-allowed'
+          : 'border-slate-700'
+      }
+    `}
+    required={formData.productType !== 'variable'}
+  />
+
+  <p className="text-xs text-slate-400 mt-1">
+    Shows as strikethrough
+  </p>
+</div>
 
       <div>
         <label className="block text-sm font-medium text-slate-300 mb-2">Product Cost (  £)</label>
@@ -5029,10 +5108,9 @@ useEffect(() => {
     setFormData(prev => ({ ...prev, crossSellProducts: productIds }));
   }}
 />
-
       {/* Info Box */}
       <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-4">
-        <h4 className="font-semibold text-sm text-violet-400 mb-2">ðŸ’¡ Tips</h4>
+        <h4 className="font-semibold text-sm text-violet-400 mb-2">Tips</h4>
         <ul className="text-sm text-slate-300 space-y-1">
           <li>   Click on any input to show dropdown with multiple checkboxes</li>
           <li>   Use Brand and Category filters to narrow down products</li>
@@ -5508,7 +5586,7 @@ useEffect(() => {
     )}
 
     {!formData.name.trim() && (
-      <p className="text-xs text-amber-400">  š ï¸ Product name is required for image upload</p>
+      <p className="text-xs text-amber-400">Product name is required for image upload</p>
     )}
 
     {/* Image Grid */}

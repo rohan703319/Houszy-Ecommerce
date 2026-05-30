@@ -2,7 +2,7 @@
 'use client';
 
 import { extractFileName, deleteEditorImage, uploadEditorImage } from '@/lib/services/editorService';
-import React, { useEffect, useRef, useState, memo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from '@/app/admin/_context/theme-provider';
 
 interface SelfHostedTinyMCEProps {
@@ -39,7 +39,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
   const isUpdatingRef = useRef(false);
   const lastNotificationTimeRef = useRef<number>(0);
   const contentFromEditorRef = useRef<string>('');
- 
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [charCount, setCharCount] = useState(0);
@@ -225,7 +225,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
       const script = document.createElement('script');
       script.src = '/tinymce/tinymce.min.js';
       script.onload = () => {
-    
+        setIsLoaded(true);
         setTimeout(() => {
           initializeEditor();
         }, 100);
@@ -269,196 +269,156 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
         paste_tab_spaces: 4,
         smart_paste: true,
         
-content_style: `
-  html,
-  body {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(100, 116, 139, 0.75) rgba(51, 65, 85, 0.22);
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
-    background-color: ${isDark ? '#0f172a' : '#ffffff'} !important;
-    margin: 0;
-    padding: 12px 14px !important;
-    min-height: ${height - 100}px;
-    box-sizing: border-box;
-  }
-
-  /* =========================
-     Premium Compact Scrollbar
-  ========================= */
-
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: rgba(51, 65, 85, 0.22);
-    border-radius: 9999px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: linear-gradient(
-      180deg,
-      rgba(100, 116, 139, 0.82) 0%,
-      rgba(71, 85, 105, 0.92) 100%
-    );
-
-    border-radius: 9999px;
-
-    border: 1px solid rgba(15, 23, 42, 0.45);
-
-    transition:
-      background 0.2s ease,
-      opacity 0.2s ease,
-      box-shadow 0.2s ease;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(
-      180deg,
-      rgba(148, 163, 184, 0.95) 0%,
-      rgba(100, 116, 139, 1) 100%
-    );
-
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,0.04),
-      0 0 6px rgba(0,0,0,0.2);
-  }
-
-  ::-webkit-scrollbar-thumb:active {
-    background: linear-gradient(
-      180deg,
-      rgba(168, 85, 247, 0.9) 0%,
-      rgba(139, 92, 246, 0.95) 100%
-    );
-  }
-
-  ::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  body:empty::before {
-    content: "${placeholder}";
-    color: ${isDark ? '#ffffff' : '#94a3b8'};
-    opacity: 0.6;
-  }
-
-  * {
-    color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
-  }
-
-  p {
-    margin: 0 0 0.8em 0;
-    line-height: 1.6;
-    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
-    min-height: 1.4em;
-  }
-
-  p:first-child { margin-top: 0; }
-  p:last-child { margin-bottom: 0; }
-
-  h1, h2, h3, h4, h5, h6 {
-    color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
-    margin: 1em 0 0.5em 0;
-    font-weight: 600;
-    line-height: 1.4;
-  }
-
-  strong, b { color: ${isDark ? '#f8fafc' : '#0f172a'} !important; font-weight: 600; }
-  em, i { color: ${isDark ? '#e2e8f0' : '#334155'} !important; font-style: italic; }
-  u { color: ${isDark ? '#e2e8f0' : '#334155'} !important; text-decoration: underline; }
-  a { color: #a855f7 !important; text-decoration: underline; }
-  a:hover { color: #c084fc !important; }
-
-  ul, ol {
-    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
-    padding-left: 1.5em;
-    margin: 0.6em 0;
-  }
-
-  li {
-    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
-    margin: 0.3em 0;
-    line-height: 1.6;
-  }
-
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 0.8em 0;
-    background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
-    border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
-  }
-
-  th, td {
-    border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
-    padding: 6px 10px;
-    text-align: left;
-    color: ${isDark ? '#e2e8f0' : '#334155'} !important;
-  }
-
-  th {
-    background-color: ${isDark ? '#334155' : '#e2e8f0'} !important;
-    font-weight: 600;
-    color: ${isDark ? '#f1f5f9' : '#0f172a'} !important;
-  }
-
-  code {
-    background-color: ${isDark ? '#374151' : '#f1f5f9'} !important;
-    color: ${isDark ? '#fbbf24' : '#7c3aed'} !important;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-family: 'SF Mono', Monaco, Consolas, monospace;
-  }
-
-  pre {
-    background-color: ${isDark ? '#111827' : '#f8fafc'} !important;
-    color: ${isDark ? '#f3f4f6' : '#1e293b'} !important;
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    border: 1px solid ${isDark ? '#374151' : '#e2e8f0'};
-  }
-
-  blockquote {
-    border-left: 4px solid #8b5cf6;
-    margin: 0.8em 0;
-    padding: 0.4em 0.8em;
-    color: ${isDark ? '#cbd5e1' : '#475569'} !important;
-    background-color: ${isDark ? '#334155' : '#f1f5f9'} !important;
-    border-radius: 0 8px 8px 0;
-  }
-
-  hr {
-    border: none;
-    border-top: 2px solid ${isDark ? '#475569' : '#e2e8f0'};
-    margin: 1.2em 0;
-  }
-
-  img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  img:hover {
-    opacity: 0.8;
-    box-shadow: 0 0 0 2px #a855f7;
-  }
-
-  img[data-mce-selected] {
-    box-shadow: 0 0 0 3px #a855f7 !important;
-  }
-`,
+        content_style: `
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px; 
+            line-height: 1.6;
+            color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
+            background-color: ${isDark ? '#0f172a' : '#ffffff'} !important;
+            margin: 0;
+            padding: 12px 14px !important;
+            min-height: ${height - 100}px;
+            box-sizing: border-box;
+          }
+          
+          body:empty::before {
+            content: "${placeholder}";
+            color: ${isDark ? '#ffffff' : '#94a3b8'};
+            opacity: 0.6;
+          }
+          
+          * {
+            color: ${isDark ? '#f1f5f9' : '#1e293b'} !important;
+          }
+          
+          p {
+            margin: 0 0 0.8em 0;
+            line-height: 1.6;
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+            min-height: 1.4em;
+          }
+          
+          p:first-child {
+            margin-top: 0;
+          }
+          
+          p:last-child {
+            margin-bottom: 0;
+          }
+          
+          h1, h2, h3, h4, h5, h6 { 
+            color: ${isDark ? '#f8fafc' : '#0f172a'} !important; 
+            margin: 1em 0 0.5em 0;
+            font-weight: 600;
+            line-height: 1.4;
+          }
+          
+          strong, b {
+            color: ${isDark ? '#f8fafc' : '#0f172a'} !important;
+            font-weight: 600;
+          }
+          
+          em, i {
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+            font-style: italic;
+          }
+          
+          u {
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+            text-decoration: underline;
+          }
+          
+          a { 
+            color: #a855f7 !important; 
+            text-decoration: underline;
+          }
+          
+          a:hover {
+            color: #c084fc !important;
+          }
+          
+          ul, ol {
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+            padding-left: 1.5em;
+            margin: 0.6em 0;
+          }
+          
+          li {
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+            margin: 0.3em 0;
+            line-height: 1.6;
+          }
+          
+          table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin: 0.8em 0;
+            background-color: ${isDark ? '#1e293b' : '#f8fafc'} !important;
+            border: 1px solid ${isDark ? '#475569' : '#cbd5e1'};
+          }
+          
+          th, td { 
+            border: 1px solid ${isDark ? '#475569' : '#cbd5e1'}; 
+            padding: 6px 10px;
+            text-align: left; 
+            color: ${isDark ? '#e2e8f0' : '#334155'} !important;
+          }
+          
+          th { 
+            background-color: ${isDark ? '#334155' : '#e2e8f0'} !important; 
+            font-weight: 600;
+            color: ${isDark ? '#f1f5f9' : '#0f172a'} !important;
+          }
+          
+          code { 
+            background-color: ${isDark ? '#374151' : '#f1f5f9'} !important; 
+            color: ${isDark ? '#fbbf24' : '#7c3aed'} !important; 
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+          }
+          
+          pre {
+            background-color: ${isDark ? '#111827' : '#f8fafc'} !important;
+            color: ${isDark ? '#f3f4f6' : '#1e293b'} !important;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid ${isDark ? '#374151' : '#cbd5e1'};
+          }
+          
+          blockquote {
+            border-left: 4px solid #8b5cf6;
+            margin: 0.8em 0;
+            padding: 0.4em 0.8em;
+            color: ${isDark ? '#cbd5e1' : '#475569'} !important;
+            background-color: ${isDark ? '#334155' : '#f1f5f9'} !important;
+            border-radius: 0 8px 8px 0;
+          }
+          
+          hr {
+            border: none;
+            border-top: 2px solid ${isDark ? '#475569' : '#cbd5e1'};
+            margin: 1.2em 0;
+          }
+          
+          img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            cursor: pointer;
+          }
+          
+          img:hover {
+            opacity: 0.8;
+            box-shadow: 0 0 0 2px #a855f7;
+          }
+          
+          img[data-mce-selected] {
+            box-shadow: 0 0 0 3px #a855f7 !important;
+          }
+        `,
         
         branding: false,
         promotion: false,
@@ -541,26 +501,7 @@ content_style: `
           // ✅ BLOCK TYPING when limit reached
           editor.on('keydown', (e: any) => {
             const allowedKeys = [8, 46, 37, 38, 39, 40, 35, 36, 33, 34]; // Backspace, Delete, Arrows, Home, End, PgUp, PgDn
-            // ✅ CTRL + SHIFT + V = NORMAL PASTE
-if (
-  e.ctrlKey &&
-  !e.shiftKey &&
-  e.key.toLowerCase() === 'v'
-) {
-  e.preventDefault();
 
-  navigator.clipboard.readText()
-    .then((text) => {
-
-      // preserve line breaks
-      const formattedText = text
-        .replace(/\n/g, '<br>');
-
-      editor.insertContent(formattedText);
-    });
-
-  return;
-}
             if (allowedKeys.includes(e.keyCode) || e.ctrlKey || e.metaKey) {
               return;
             }
@@ -783,8 +724,8 @@ if (
             // ✅ Styling
             const container = editor.getContainer();
             if (container) {
-              container.style.backgroundColor = '#1e293b';
-              container.style.border = '1px solid #475569';
+              container.style.backgroundColor = isDark ? '#1e293b' : '#ffffff';
+              container.style.border = `1px solid ${isDark ? '#475569' : '#cbd5e1'}`;
               container.style.borderRadius = '12px';
               container.style.overflow = 'hidden';
               
@@ -796,8 +737,9 @@ if (
                 header.style.alignItems = 'center';
                 header.style.gap = '4px';
                 header.style.padding = '2px 6px';
-                header.style.borderBottom = '1px solid #475569';
+                header.style.borderBottom = `1px solid ${isDark ? '#475569' : '#cbd5e1'}`;
                 header.style.minHeight = 'auto';
+                header.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
               }
               
               const menubar = container.querySelector('.tox-menubar') as HTMLElement;
@@ -806,6 +748,7 @@ if (
                 menubar.style.padding = '2px 4px';
                 menubar.style.minHeight = 'auto';
                 menubar.style.borderBottom = 'none';
+                menubar.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
               }
               
               const toolbar = container.querySelector('.tox-toolbar__primary') as HTMLElement;
@@ -815,11 +758,14 @@ if (
                 toolbar.style.gap = '2px';
                 toolbar.style.borderTop = 'none';
                 toolbar.style.minHeight = 'auto';
+                toolbar.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
               }
               
               const statusbar = container.querySelector('.tox-statusbar') as HTMLElement;
               if (statusbar) {
                 statusbar.style.padding = '3px 8px';
+                statusbar.style.backgroundColor = isDark ? '#1e293b' : '#f8fafc';
+                statusbar.style.borderTop = `1px solid ${isDark ? '#475569' : '#cbd5e1'}`;
               }
               
               const mediaQuery = window.matchMedia('(max-width: 768px)');
@@ -833,7 +779,7 @@ if (
                     
                     const menubar = container.querySelector('.tox-menubar') as HTMLElement;
                     if (menubar) {
-                      menubar.style.borderBottom = '1px solid #475569';
+                      menubar.style.borderBottom = `1px solid ${isDark ? '#475569' : '#cbd5e1'}`;
                     }
                   } else {
                     header.style.flexDirection = 'row';
@@ -867,7 +813,7 @@ if (
       }
       editorRef.current = null;
     };
-  }, [isMounted, editorId, placeholder, height, minLength, maxLength]);
+  }, [isMounted, editorId, placeholder, height, minLength, maxLength, theme]);
 
   // ✅ Handle external value changes (only from outside, NOT from editor itself)
   useEffect(() => {
@@ -900,14 +846,14 @@ if (
     setTimeout(() => {
       isUpdatingRef.current = false;
     }, 100);
-}, [value, isReady, maxLength]);
+  }, [value, isReady, maxLength]);
 
   if (!isMounted) {
     return (
-      <div className={`border border-slate-700 rounded-xl bg-slate-800/50 p-4 ${className}`} style={{ height: height + 50 }}>
+      <div className={`border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'} rounded-xl p-4 ${className}`} style={{ height: height + 50 }}>
         <div className="flex items-center justify-center h-full">
-          <div className="flex items-center gap-2 text-violet-400">
-            <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+          <div className={`flex items-center gap-2 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>
+            <div className={`w-4 h-4 border-2 ${isDark ? 'border-violet-400' : 'border-violet-600'} border-t-transparent rounded-full animate-spin`}></div>
             <span>Initializing editor...</span>
           </div>
         </div>
@@ -917,38 +863,38 @@ if (
 
   const getCharCountColor = () => {
     if (minLength > 0 && charCount < minLength) {
-      return 'text-red-400';
+      return isDark ? 'text-red-400' : 'text-red-600';
     }
     if (maxLength !== Infinity) {
       const percentage = (charCount / maxLength) * 100;
-      if (percentage >= 95) return 'text-red-500';
-      if (percentage >= 90) return 'text-red-400';
-      if (percentage >= 75) return 'text-orange-400';
+      if (percentage >= 95) return isDark ? 'text-red-500' : 'text-red-600';
+      if (percentage >= 90) return isDark ? 'text-red-400' : 'text-red-500';
+      if (percentage >= 75) return isDark ? 'text-orange-400' : 'text-orange-600';
     }
-    return 'text-slate-400';
+    return isDark ? 'text-slate-400' : 'text-slate-500';
   };
 
   return (
     <div className={className}>
       {!isReady && (
         <div 
-          className="border border-slate-700 rounded-xl bg-slate-800/50 p-4 flex items-center justify-center" 
+          className={`border ${isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'} rounded-xl p-4 flex items-center justify-center`} 
           style={{ height: height }}
         >
-          <div className="flex items-center gap-2 text-violet-400">
-            <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+          <div className={`flex items-center gap-2 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>
+            <div className={`w-4 h-4 border-2 ${isDark ? 'border-violet-400' : 'border-violet-600'} border-t-transparent rounded-full animate-spin`}></div>
             <span>Loading editor...</span>
           </div>
         </div>
       )}
       
       <div
-        className="rounded-xl overflow-hidden border border-slate-700"
+        className={`rounded-xl overflow-hidden border ${isDark ? 'border-slate-700' : 'border-slate-200'}`}
         style={{
           visibility: isReady ? 'visible' : 'hidden',
           opacity: isReady ? 1 : 0,
           transition: 'opacity 0.3s ease',
-          backgroundColor: '#1e293b'
+          backgroundColor: isDark ? '#1e293b' : '#ffffff'
         }}
       >
         <textarea 
@@ -986,7 +932,7 @@ if (
           
           {maxLength !== Infinity && (
             <div className="flex items-center gap-2">
-              <div className="w-28 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className={`w-28 h-1.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'} rounded-full overflow-hidden`}>
                 <div 
                   className={`h-full transition-all duration-300 ${
                     charCount >= maxLength 
@@ -1002,7 +948,7 @@ if (
                   style={{ width: `${Math.min((charCount / maxLength) * 100, 100)}%` }}
                 />
               </div>
-              <span className={`text-xs font-medium ${charCount >= maxLength ? 'text-red-500' : 'text-slate-500'}`}>
+              <span className={`text-xs font-medium ${charCount >= maxLength ? 'text-red-500' : isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                 {Math.max(0, maxLength - charCount)} left
               </span>
             </div>
@@ -1013,7 +959,7 @@ if (
   );
 };
 
-export const ProductDescriptionEditor = memo(({
+export const ProductDescriptionEditor = ({ 
   label, 
   value, 
   onChange, 
@@ -1038,10 +984,12 @@ export const ProductDescriptionEditor = memo(({
   maxLength?: number;
   showCharCount?: boolean;
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   return (
     <div className={className}>
       {label && (
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+        <label className={`block text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'} mb-2`}>
           {label} {required && <span className="text-red-400">*</span>}
         </label>
       )}
@@ -1056,10 +1004,10 @@ export const ProductDescriptionEditor = memo(({
         showCharCount={showCharCount}
       />
       {showHelpText && (
-        <p className="text-xs text-slate-400 mt-1">
+        <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-1`}>
           {showHelpText}
         </p>
       )}
     </div>
   );
-});
+};

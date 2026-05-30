@@ -75,7 +75,7 @@ interface StoreSettingsDto {
 }
 
 const DEFAULT: StoreSettingsDto = {
-  id: '', storeName: 'Houszy', storeTagline: 'Your trusted healthcare store',
+  id: '', storeName: 'Direct Care', storeTagline: 'Your trusted healthcare store',
   storeEmail: '', storePhone: '', currency: 'GBP', timezone: 'Europe/London',
   adminPanelName: 'EcomPanel', logoUrl: null, faviconUrl: null,
   stripeEnabled: false, stripeTestMode: true, stripePublishableKey: null,
@@ -83,7 +83,7 @@ const DEFAULT: StoreSettingsDto = {
   payPalEnabled: false, payPalSandboxMode: true, payPalClientId: null, payPalClientSecret: null,
   codEnabled: true, bankTransferEnabled: false,
   smtpServer: 'smtp.gmail.com', smtpPort: 587, smtpUsername: '', smtpPassword: null,
-  emailFromName: 'Houszy', emailFromAddress: '', adminEmail: '', supportEmail: '',
+  emailFromName: 'Direct Care', emailFromAddress: '', adminEmail: '', supportEmail: '',
   smtpEnableSsl: true, accentColor: 'violet-cyan', showBreadcrumbs: true, compactMode: false,
   sessionTimeoutMinutes: 600, jwtExpiryMinutes: 600, maxLoginAttempts: 5,
   requireStrongPassword: true, twoFactorEnabled: false, ipWhitelist: null,

@@ -7,6 +7,8 @@ import {
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
   Package, AlertTriangle, CheckCircle2, Save, X, RefreshCcw,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { productsService } from "@/lib/services";
@@ -576,8 +578,8 @@ export default function InventoryPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
             <input type="text" placeholder="Search products..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-all" />
           </div>
-          <div className="w-[280px] flex-shrink-0"><Select instanceId="inv-category-select" styles={selectStyles} options={categories} value={selectedCategory} onChange={setSelectedCategory} placeholder="All Categories" isClearable /></div>
-          <div className="w-32 flex-shrink-0"><Select instanceId="inv-brand-select" styles={selectStyles} options={brands} value={selectedBrand} onChange={setSelectedBrand} placeholder="All Brands" isClearable /></div>
+          <div className="w-[280px] flex-shrink-0"><Select instanceId="inv-category-select" styles={selectStyles} options={categories} value={selectedCategory} onChange={setSelectedCategory} placeholder="All Categories" isClearable menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined} /></div>
+          <div className="w-44 flex-shrink-0"><Select instanceId="inv-brand-select" styles={selectStyles} options={brands} value={selectedBrand} onChange={setSelectedBrand} placeholder="All Brands" isClearable menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined} /></div>
           <div className="w-32 flex-shrink-0">
             <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="w-full px-2 py-[9px] bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500">
               <option value="all">All Status</option>
@@ -656,7 +658,48 @@ export default function InventoryPage() {
                               <a href={`/product/${p.variants?.[0]?.slug || p.slug}`} target="_blank" rel="noopener noreferrer" className="group block" title={p.name}>
                                 <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-cyan-400 max-w-[300px] lg:max-w-[550px]">{p.name}</p>
                               </a>
-                              {(p.variants?.length ?? 0) > 0 && <button onClick={() => toggleExpand(p.id)} className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white text-xs border border-slate-700 flex items-center justify-center">{expandedRows.has(p.id) ? "−" : "+"}</button>}
+                           {(p.variants?.length ?? 0) > 0 && (
+  <button
+    onClick={() => toggleExpand(p.id)}
+    title={
+      expandedRows.has(p.id)
+        ? "Hide Product"
+        : "Show Product"
+    }
+    className="
+      inline-flex items-center gap-1
+      h-7 px-2
+      rounded-lg
+
+      border border-slate-200
+      bg-white
+      hover:bg-slate-50
+
+      dark:bg-slate-800
+      dark:border-slate-700
+      dark:hover:bg-slate-700
+
+      text-[10px] font-medium
+      text-slate-700
+      dark:text-slate-200
+
+      transition-all duration-200
+      shadow-sm
+    "
+  >
+    {expandedRows.has(p.id) ? (
+      <>
+        <ChevronUp className="w-3.5 h-3.5" />
+        Hide
+      </>
+    ) : (
+      <>
+        <ChevronDown className="w-3.5 h-3.5" />
+        Show
+      </>
+    )}
+  </button>
+)}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               {p.brandName && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/10 text-violet-300 border border-violet-500/20">{p.brandName}</span>}
@@ -683,20 +726,48 @@ export default function InventoryPage() {
                       </td>
                       <td className="p-2.5 text-center"><StockBadge qty={p.stockQuantity} /></td>
                       <td className="p-2.5 text-center">
-                        <input type="number" min={0} value={p.newStock} onChange={(e) => handleChange(p.id, undefined, "newStock", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newStock !== p.stockQuantity ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <input type="number" min={0} value={p.newStock} onChange={(e) => handleChange(p.id, undefined, "newStock", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newStock !== p.stockQuantity ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
+                        )}
                       </td>
-                      <td className="p-2.5 text-center"><span className="text-sm font-bold text-emerald-400">£{p.price.toFixed(2)}</span></td>
-                      <td className="p-2.5 text-center relative">
-                        <input type="number" min={0} step="0.01" value={p.newPrice} onChange={(e) => handleChange(p.id, undefined, "newPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newPrice !== p.price ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
-                        {rowLoading === p.id && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-lg"><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}
+                      <td className="p-2.5 text-center">
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <span className="text-sm font-bold text-emerald-400">£{p.price.toFixed(2)}</span>
+                        )}
                       </td>
-                      <td className="p-2.5 text-center"><span className="text-sm text-slate-500 line-through">£{(p.oldPrice ?? 0).toFixed(2)}</span></td>
                       <td className="p-2.5 text-center relative">
-                        <input type="number" min={0} step="0.01" value={p.newOldPrice} onChange={(e) => handleChange(p.id, undefined, "newOldPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newOldPrice !== (p.oldPrice ?? 0) ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
-                        {priceInvalid && (
-                          <div className="absolute -top-1 right-0 translate-x-1/2 bg-red-600 text-white text-[8px] px-1 rounded shadow-lg z-10 font-bold" title="Old Price must be greater than New Price">
-                            ?
-                          </div>
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <>
+                            <input type="number" min={0} step="0.01" value={p.newPrice} onChange={(e) => handleChange(p.id, undefined, "newPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newPrice !== p.price ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
+                            {rowLoading === p.id && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-lg"><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}
+                          </>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <span className="text-sm text-slate-500 line-through">£{(p.oldPrice ?? 0).toFixed(2)}</span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-center relative">
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <>
+                            <input type="number" min={0} step="0.01" value={p.newOldPrice} onChange={(e) => handleChange(p.id, undefined, "newOldPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newOldPrice !== (p.oldPrice ?? 0) ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
+                            {priceInvalid && (
+                              <div className="absolute -top-1 right-0 translate-x-1/2 bg-red-600 text-white text-[8px] px-1 rounded shadow-lg z-10 font-bold" title="Old Price must be greater than New Price">
+                                ?
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
                       <td className="p-2.5 text-center">{changed ? <button disabled={priceInvalid} onClick={() => updateInventory([{ productId: p.id, newStock: p.newStock, newPrice: p.newPrice, newOldPrice: p.newOldPrice }])} className={`p-2 rounded-lg transition-colors ${priceInvalid ? "bg-slate-800 text-slate-600 cursor-not-allowed border-slate-700" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"}`} title={priceInvalid ? "Old Price must be > New Price" : "Save Changes"}><Save className="h-4 w-4" /></button> : <span className="text-slate-800">—</span>}</td>

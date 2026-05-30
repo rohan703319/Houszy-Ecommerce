@@ -58,6 +58,7 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   Monitor, // ✅ Added for Import/Export
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/app/admin/_context/theme-provider";
@@ -65,6 +66,7 @@ import { authService } from "@/lib/services/auth";
 import ErrorBoundary from "@/app/admin/_components/ErrorBoundary";
 import ScrollToTopButton from "./_components/ScrollToTopButton";
 import { useAdminLogoutShortcut } from "./_hooks/useAdminLogoutShortcut";
+import { useAuth } from "./_context/auth-context";
 
 interface NavigationItem {
   name: string;
@@ -95,6 +97,7 @@ const navigation: NavigationItem[] = [
     icon: TrendingUp,
     children: [
       { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+      { name: 'Payments', href: '/admin/payments', icon: CreditCard },
       { name: 'Customers', href: '/admin/customers', icon: Users },
     ],
   },
@@ -171,15 +174,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const toast = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
-
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<{ [key: string]: boolean }>({});
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
-  const [userInitial, setUserInitial] = useState<string>('A');
   const [isAnimating, setIsAnimating] = useState(false);
   
   const [changePwdOpen, setChangePwdOpen] = useState(false);
@@ -282,26 +282,26 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
 
   // Token refresh check
   useEffect(() => {
-    if (!authService.isAuthenticated()) return;
+    if (!isAuthenticated) return;
 
     const checkAndRefresh = async () => {
       if (authService.isTokenExpiringSoon(10)) {
         console.log("⚠️ Token expiring soon, refreshing...");
-        
+
         const refreshed = await authService.refreshToken();
-        
+
         if (refreshed) {
           toast.success("🔄 Session Extended -> Your session has been automatically renewed for 1 hour", {
             position: "top-center",
-            autoClose: 5000,      
+            autoClose: 5000,
           });
-          
+
           console.log("✅ Token refreshed successfully at", new Date().toLocaleTimeString());
         } else {
           toast.error("⏰ Session Expired -> Please login again to continue", {
             position: "top-center",
-            autoClose: 5000,   
-          });      
+            autoClose: 5000,
+          });
           router.replace("/login");
         }
       }
@@ -310,7 +310,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
     checkAndRefresh();
     const interval = setInterval(checkAndRefresh, 2 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [router, toast]);
+  }, [router, toast, isAuthenticated]);
 
   // Calculate time remaining
   const calculateTimeRemaining = () => {
@@ -346,71 +346,44 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
     });
   }, [pathname]);
 
-  // Load user data
-  useEffect(() => {
-    const email = localStorage.getItem('userEmail') || 'admin@ecom.com';
-    const storedUserData = localStorage.getItem('userData');
-
-    setUserEmail(email);
-
-    if (storedUserData) {
-      try {
-        const userData = JSON.parse(storedUserData);
-        let firstName = userData.firstName || '';
-        let lastName = userData.lastName || '';
-
-        if (!firstName || !lastName) {
-          const token = localStorage.getItem('authToken');
-          if (token) {
-            try {
-              const base64Url = token.split('.')[1];
-              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-              const jsonPayload = decodeURIComponent(
-                atob(base64)
-                  .split('')
-                  .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-                  .join('')
-              );
-              const tokenData = JSON.parse(jsonPayload);
-              firstName = firstName || tokenData.firstName || '';
-              lastName = lastName || tokenData.lastName || '';
-            } catch (err) {
-              console.error('Token decode error:', err);
-            }
-          }
-        }
-
-        const fullName = `${firstName} ${lastName}`.trim() || 'Admin User';
-        setUserName(fullName);
-        setUserInitial(firstName ? firstName[0].toUpperCase() : email[0].toUpperCase());
-      } catch (error) {
-        setUserName('Admin User');
-        setUserInitial(email[0].toUpperCase());
-      }
-    } else {
-      setUserName('Admin User');
-      setUserInitial(email[0].toUpperCase());
-    }
-  }, []);
+  // Compute user display values from context
+  const userEmail = user?.email || 'admin@ecom.com';
+  const userName = user?.firstName && user?.lastName
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : user?.firstName || user?.lastName || 'Admin User';
+  const userInitial = user?.firstName
+    ? user.firstName[0].toUpperCase()
+    : userEmail[0].toUpperCase();
 
   const handleLogout = () => {
-    authService.logout();
+    logout();
     toast.success("Logged out successfully!", {
       position: "top-center",
-      autoClose: 2000,
+      autoClose: 1000,
     });
   };
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      router.replace("/login");
-      return;
-    }
+useEffect(() => {
 
-    calculateTimeRemaining();
-    const interval = setInterval(calculateTimeRemaining, 1000);
-    return () => clearInterval(interval);
-  }, [router]);
+  if (isLoading) return;
+
+  if (!isAuthenticated) {
+
+    window.location.href = "/login";
+
+    return;
+  }
+
+  calculateTimeRemaining();
+
+  const interval = setInterval(
+    calculateTimeRemaining,
+    1000
+  );
+
+  return () => clearInterval(interval);
+
+}, [isAuthenticated, isLoading]);
 
   const isSidebarExpanded = !sidebarCollapsed || (sidebarCollapsed && isHovering);
   const sidebarWidth = sidebarCollapsed ? 'w-16' : 'w-64';
@@ -465,7 +438,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
       <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200 inline-block">
         <img
           src="/logo/logo.png"
-          alt="Houszy"
+          alt="Direct Care"
           className="h-10 w-auto object-contain"
         />
       </div>
@@ -691,7 +664,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
     <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200">
       <img
         src="/logo/logo.png"
-        alt="Houszy"
+        alt="Direct Care"
         className="h-10 w-auto object-contain"
       />
     </div>

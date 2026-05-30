@@ -157,7 +157,6 @@ export default function ProductCard({
     return product.orderMinimumQuantity ?? 1;
   };
 
-
   // ---------- Add to Cart ----------
   const handleAddToCart = () => {
     if (product.disableBuyButton) return;
@@ -307,7 +306,7 @@ export default function ProductCard({
           <GenderBadge gender={product.gender} />
           {/* DISCOUNT BADGE — smaller */}
           {product.displayDiscountType === "System" && discountBadge && (
-            <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
+            <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-2"}`}>
               <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                 <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                   -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
@@ -342,7 +341,7 @@ export default function ProductCard({
           {product.displayDiscountType === "OldPrice" &&
             !hasActiveCoupon &&
             oldPriceData && (
-              <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-1"}`}>
+              <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-2"}`}>
                 <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                   <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                     -{oldPriceData.discount}%
@@ -429,7 +428,7 @@ export default function ProductCard({
                 toast.success("Product added to wishlist!");
               }
             }}
-            className={`absolute z-20 right-2 top-2 p-1.5 rounded-full shadow-sm border transition-all
+            className={`absolute z-20 right-2 top-2 p-1.5 rounded shadow-sm border transition-all
     ${isInWishlist(defaultVariant?.id ?? product.id)
                 ? "bg-red-50 border-red-200"
                 : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"

@@ -136,6 +136,7 @@ export interface FullRefundRequest {
   adminNotes?: string | null;
   restoreInventory?: boolean;
   sendCustomerNotification?: boolean;
+  currentUser?: string;
 }
 
 /**
@@ -149,6 +150,7 @@ export interface PartialRefundRequest {
   reasonDetails?: string | null;
   adminNotes?: string | null;
   sendCustomerNotification?: boolean;
+  currentUser?: string;
 }
 
 /**
@@ -716,6 +718,7 @@ async refundShipping(
   data: {
     adminNotes?: string;
     sendCustomerNotification?: boolean;
+    currentUser?: string;
   }
 ): Promise<ShippingRefundResult> {
   try {
@@ -724,7 +727,8 @@ async refundShipping(
       {
         orderId,
         adminNotes: data.adminNotes?.trim() || "",
-        sendCustomerNotification: data.sendCustomerNotification ?? true
+        sendCustomerNotification: data.sendCustomerNotification ?? true,
+        currentUser: data.currentUser
       }
     );
 

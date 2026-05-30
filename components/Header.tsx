@@ -678,7 +678,7 @@ export default function Header({
               </button>
 
               {showSearchDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 shadow-2xl max-h-[55vh] overflow-y-auto z-[70] rounded-none">
+                <div className="absolute top-full left-0 right-8 mt-1 bg-white border border-gray-200 shadow-2xl max-h-[55vh] overflow-y-auto z-[70] rounded-none">
                   {searchLoading && <div className="p-4 text-sm text-gray-500">Searching...</div>}
                   {!searchLoading && results.length === 0 && (
                     <div className="p-4 text-sm text-gray-500">No products found</div>

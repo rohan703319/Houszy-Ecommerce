@@ -73,20 +73,7 @@ export const formatCurrencyWithSymbol = (value: number, currency: string = "£")
   })}`;
 };
 
-/**
- * Get order product image URL
- * @param imageUrl - Image URL string
- * @returns Complete image URL or fallback image
- */
-export const getOrderProductImage = (imageUrl?: string): string => {
-  if (!imageUrl) return "/no-image.png";
 
-  if (imageUrl.startsWith("http")) {
-    return imageUrl;
-  }
-
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
 
 /**
  * Get product main image from images array
@@ -94,21 +81,34 @@ export const getOrderProductImage = (imageUrl?: string): string => {
  * @returns Main image URL or empty string if no images
  */
 export const getProductImage = (images: any[]): string => {
-  if (!images || images.length === 0) return "";
+  if (!Array.isArray(images) || images.length === 0) {
+    return "";
+  }
 
-  const mainImage = images.find((img: any) => img.isMain) || images[0];
-  let imageUrl = mainImage.imageUrl || "";
+  const mainImage =
+    images.find((img: any) => img?.isMain) || images[0];
 
-  if (!imageUrl) return "";
+  // ✅ SAFE STRING EXTRACTION
+  const imageUrl =
+    typeof mainImage?.imageUrl === "string"
+      ? mainImage.imageUrl.trim()
+      : "";
 
-  // If already full URL → return directly
+  if (!imageUrl) {
+    return "";
+  }
+
+  // ✅ FULL URL
   if (imageUrl.startsWith("http")) {
     return imageUrl;
   }
 
-  // Otherwise attach base URL (for local uploads)
+  // ✅ LOCAL URL
   const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
-  const cleanPath = imageUrl.replace("~", "").replace(/^\//, "");
+  const cleanPath = imageUrl
+    .replace("~", "")
+    .replace(/^\//, "");
+
   return `${baseUrl}/${cleanPath}`;
 };
 
@@ -117,20 +117,7 @@ export const getProductImage = (images: any[]): string => {
  * @param images - Array of image objects
  * @returns Array of complete image URLs
  */
-export const getAllProductImages = (images: any[]): string[] => {
-  if (!images || images.length === 0) return [];
-  
-  return images.map(img => {
-    let imageUrl = img.imageUrl || "";
-    if (!imageUrl) return "";
-    
-    if (imageUrl.startsWith("http")) {
-      return imageUrl;
-    }
-    
-    return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-  }).filter(url => url !== "");
-};
+
 export const formatValue = (value: any) => {
   if (value === null || value === undefined) return "-";
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -147,7 +134,6 @@ export const generateSlug = (title: string) =>
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
-
   export const getImageUrl = (imageUrl?: string) => {
     if (!imageUrl) return "";
     if (imageUrl.startsWith("http")) return imageUrl;
@@ -158,6 +144,7 @@ export const generateSlug = (title: string) =>
     return `${baseUrl}/${cleanPath}`;
   };
 
+
   export const extractFilename = (imageUrl: string) => {
     if (!imageUrl) return "";
 
@@ -167,23 +154,8 @@ export const generateSlug = (title: string) =>
 
     return parts.pop() || "";
   };
-/**
- * Get thumbnail image (smaller version if available)
- * @param imageUrl - Original image URL
- * @returns Thumbnail URL or original if thumbnail not available
- */
-export const getThumbnailImage = (imageUrl?: string): string => {
-  if (!imageUrl) return "/no-image.png";
-  
-  // If it's already a full URL
-  if (imageUrl.startsWith("http")) {
-    // You can add logic here to transform to thumbnail if your API supports it
-    // Example: imageUrl.replace("/images/", "/thumbnails/")
-    return imageUrl;
-  }
-  
-  return API_BASE_URL.replace("/api", "") + imageUrl.replace("~", "");
-};
+
+
 
 /**
  * Format number with commas
@@ -225,21 +197,7 @@ export const formatFileSize = (bytes: number): string => {
  * @param status - Status string
  * @returns CSS class or color code
  */
-export const getStatusColor = (status: string): string => {
-  const statusColors: Record<string, string> = {
-    completed: "green",
-    pending: "orange",
-    cancelled: "red",
-    processing: "blue",
-    shipped: "purple",
-    delivered: "green",
-    paid: "green",
-    failed: "red",
-    refunded: "gray",
-  };
-  
-  return statusColors[status?.toLowerCase()] || "gray";
-};
+
 
 /**
  * Format phone number to readable format

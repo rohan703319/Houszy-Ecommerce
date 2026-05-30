@@ -426,7 +426,7 @@ const submitReset = useCallback(
     <div className="space-y-2">
       <BulkSelectionBar count={selectedIds.size} onExport={exportSelected} onClear={clearSelection} />
       <div
-        className="sticky z-30 -mx-4 px-4 py-3 border-b border-slate-800"
+        className="sticky z-20 -mx-4 px-4 py-3 border-b border-slate-800"
       >
         <div className="flex items-center justify-between">
           <div>

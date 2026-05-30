@@ -69,7 +69,7 @@ import {
   CancellationDecisionModal,
 } from './CancellationRequestManager';
 
-import { formatNumber, getImageUrl, getOrderProductImage } from '../_utils/formatUtils';
+import { formatNumber, getImageUrl} from '../_utils/formatUtils';
 import { useDebounce } from '../_hooks/useDebounce';
 import ImagePreviewModal from '../_components/ImagePreviewModal';
 import { scrollCls } from '../_utils/styles';
@@ -159,6 +159,25 @@ const selectedOrderPreview = selectedOrderObjects.map(o => ({
   id: o.id,
   orderNumber: o.orderNumber,
 }));
+
+const setRange = (days: number) => {
+  const today = new Date();
+
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - days);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(today);
+  endDate.setHours(23, 59, 59, 999);
+
+  setFilters(prev => ({
+    ...prev,
+    fromDate: startDate.toISOString(),
+    toDate: endDate.toISOString(),
+  }));
+
+  setShowDatePicker(false);
+};
 
 const allSameStatus =
   selectedOrderObjects.length > 0 &&
@@ -1027,8 +1046,8 @@ if (initialLoading) {
   {/* INPUT */}
   <input
     type="text"
-    placeholder="Search order by OrderID, name, email, phone..."
-    title="Search order by ID, name, email, phone"
+    placeholder="Search by OrderID, name, email, phone..."
+    title="Search by ID, name, email, phone"
     value={searchInput}
     onChange={(e) => setSearchInput(e.target.value)}
     className="w-full pl-10 pr-10 py-2 bg-slate-800/90 border border-slate-700 rounded-lg text-sm placeholder:text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
@@ -1196,149 +1215,111 @@ if (initialLoading) {
         )}
       </button>
 
-      {showDatePicker && (
-        <>
-          <div className="fixed inset-0 z-[100]" onClick={() => setShowDatePicker(false)} />
-          <div className="absolute top-full left-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-3 z-[110] min-w-[240px]">
-            {/* FROM DATE */}
-            <div className="mb-3">
-              <label className="block text-blue-400 text-xs font-semibold mb-1">From Date</label>
-              <input
-                type="date"
-                value={filters.fromDate}
-                onChange={(e) => setFilters(prev => ({ ...prev, fromDate: e.target.value }))}
-                max={filters.toDate || new Date().toISOString().split("T")[0]}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
-              />
-            </div>
+{showDatePicker && (
+  <>
+    <div
+      className="fixed inset-0 z-[100]"
+      onClick={() => setShowDatePicker(false)}
+    />
 
-            {/* TO DATE */}
-            <div className="mb-3">
-              <label className="block text-blue-400 text-xs font-semibold mb-1">To Date</label>
-              <input
-                type="date"
-                value={filters.toDate}
-                onChange={(e) => setFilters(prev => ({ ...prev, toDate: e.target.value }))}
-                min={filters.fromDate}
-                max={new Date().toISOString().split("T")[0]}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
-              />
-            </div>
+    <div className="absolute top-full left-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-3 z-[110] min-w-[240px]">
 
-            {/* QUICK BUTTONS */}
+      {/* FROM DATE */}
+      <div className="mb-3">
+        <label className="block text-blue-400 text-xs font-semibold mb-1">
+          From Date
+        </label>
+
+        <input
+          type="date"
+          value={filters.fromDate?.split("T")[0] || ""}
+          onChange={(e) =>
+            setFilters((prev) => ({
+              ...prev,
+              fromDate: new Date(e.target.value).toISOString(),
+            }))
+          }
+          max={
+            filters.toDate?.split("T")[0] ||
+            new Date().toISOString().split("T")[0]
+          }
+          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+        />
+      </div>
+
+      {/* TO DATE */}
+      <div className="mb-3">
+        <label className="block text-blue-400 text-xs font-semibold mb-1">
+          To Date
+        </label>
+
+        <input
+          type="date"
+          value={filters.toDate?.split("T")[0] || ""}
+          onChange={(e) =>
+            setFilters((prev) => ({
+              ...prev,
+              toDate: new Date(e.target.value).toISOString(),
+            }))
+          }
+          min={filters.fromDate?.split("T")[0] || ""}
+          max={new Date().toISOString().split("T")[0]}
+          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+        />
+      </div>
+
+      {/* QUICK BUTTONS */}
       <div className="grid grid-cols-5 gap-2 pt-2 border-t border-slate-700">
 
-  {/* 1 Day */}
-  <button
-    onClick={() => {
-      const today = new Date();
+        {/* 1 Day */}
+        <button
+          onClick={() => setRange(0)}
+          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-emerald-400 rounded-lg text-xs font-semibold"
+          title="Today"
+        >
+          1D
+        </button>
 
-      setFilters(prev => ({
-        ...prev,
-        fromDate: today.toISOString().split("T")[0],
-        toDate: today.toISOString().split("T")[0]
-      }));
+        {/* 1 Week */}
+        <button
+          onClick={() => setRange(7)}
+          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-xs font-semibold"
+          title="Last 1 Week"
+        >
+          1W
+        </button>
 
-      setShowDatePicker(false);
-    }}
-    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-emerald-400 rounded-lg text-xs font-semibold"
-    title="Today"
-  >
-    1D
-  </button>
+        {/* 2 Week */}
+        <button
+          onClick={() => setRange(14)}
+          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-violet-400 rounded-lg text-xs font-semibold"
+          title="Last 2 Weeks"
+        >
+          2W
+        </button>
 
-  {/* 1 Week */}
-  <button
-    onClick={() => {
-      const today = new Date();
-      const date = new Date(today);
+        {/* 3 Week */}
+        <button
+          onClick={() => setRange(21)}
+          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-amber-400 rounded-lg text-xs font-semibold"
+          title="Last 3 Weeks"
+        >
+          3W
+        </button>
 
-      date.setDate(today.getDate() - 7);
+        {/* 4 Week */}
+        <button
+          onClick={() => setRange(28)}
+          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-pink-400 rounded-lg text-xs font-semibold"
+          title="Last 4 Weeks"
+        >
+          4W
+        </button>
 
-      setFilters(prev => ({
-        ...prev,
-        fromDate: date.toISOString().split("T")[0],
-        toDate: today.toISOString().split("T")[0]
-      }));
-
-      setShowDatePicker(false);
-    }}
-    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-xs font-semibold"
-    title="Last 1 Week"
-  >
-    1W
-  </button>
-
-  {/* 2 Week */}
-  <button
-    onClick={() => {
-      const today = new Date();
-      const date = new Date(today);
-
-      date.setDate(today.getDate() - 14);
-
-      setFilters(prev => ({
-        ...prev,
-        fromDate: date.toISOString().split("T")[0],
-        toDate: today.toISOString().split("T")[0]
-      }));
-
-      setShowDatePicker(false);
-    }}
-    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-violet-400 rounded-lg text-xs font-semibold"
-    title="Last 2 Weeks"
-  >
-    2W
-  </button>
-
-  {/* 3 Week */}
-  <button
-    onClick={() => {
-      const today = new Date();
-      const date = new Date(today);
-
-      date.setDate(today.getDate() - 21);
-
-      setFilters(prev => ({
-        ...prev,
-        fromDate: date.toISOString().split("T")[0],
-        toDate: today.toISOString().split("T")[0]
-      }));
-
-      setShowDatePicker(false);
-    }}
-    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-amber-400 rounded-lg text-xs font-semibold"
-    title="Last 3 Weeks"
-  >
-    3W
-  </button>
-
-  {/* 4 Week */}
-  <button
-    onClick={() => {
-      const today = new Date();
-      const date = new Date(today);
-
-      date.setDate(today.getDate() - 28);
-
-      setFilters(prev => ({
-        ...prev,
-        fromDate: date.toISOString().split("T")[0],
-        toDate: today.toISOString().split("T")[0]
-      }));
-
-      setShowDatePicker(false);
-    }}
-    className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-pink-400 rounded-lg text-xs font-semibold"
-    title="Last 4 Weeks"
-  >
-    4W
-  </button>
-
-</div>
-          </div>
-        </>
-      )}
+      </div>
+    </div>
+  </>
+)}
     </div>
     {hasActiveFilters && (
       <button
@@ -1350,7 +1331,6 @@ if (initialLoading) {
       </button>
     )}
 
-    {/* CLEAR FILTERS BUTTON */}
   </div>
 
 
@@ -1661,16 +1641,15 @@ title="Select order"
 
                 {/* Hard-delete is shown ONLY when the payment is still Pending. Mirrors the
                     server-side rule so admins don't see a button that would always 409. */}
-                {order.paymentStatus === 'Pending' && (
-                  <button
-                    onClick={() => openHardDeleteModal(order)}
-                    className="p-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg transition-all"
-                    title="Permanently delete (only for unpaid orders)"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-
+{['Pending', 'Failed'].includes(order.paymentStatus || '') && (
+  <button
+    onClick={() => openHardDeleteModal(order)}
+    className="p-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg transition-all"
+    title="Permanently delete (only for unpaid/failed orders)"
+  >
+    <Trash2 className="h-4 w-4" />
+  </button>
+)}
                 </div>
 
 

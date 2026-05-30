@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { dashboardService, DashboardPeriod, DashboardStats } from "@/lib/services/dashboard";
 
-import { formatCurrency, getOrderProductImage } from "./_utils/formatUtils";
+import { formatCurrency, getImageUrl} from "./_utils/formatUtils";
 import { scrollCls } from "./_utils/styles";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -562,7 +562,7 @@ const d = data ?? ({} as DashboardStats);
 
                     {p.imageUrl ? (
                       <img
-                        src={getOrderProductImage(p.imageUrl)}
+                        src={getImageUrl(p.imageUrl)}
                         alt={p.name}
                         className="w-7 h-7 rounded-md object-cover flex-shrink-0 border border-slate-700"
                         onError={(e) => (e.currentTarget.src = "/placeholder.png")}

@@ -44,7 +44,7 @@ import {
   CreateReviewDto,
   ReviewFilters,
 } from "@/lib/services/productReviews";
-import { formatDate, getOrderProductImage } from "../_utils/formatUtils";
+import { formatDate, getImageUrl } from "../_utils/formatUtils";
 export default function ProductReviewsPage() {
   const router = useRouter();
   const toast = useToast();
@@ -751,35 +751,18 @@ const isPlayableVideoUrl = (url: string) => {
               className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-1.5 font-medium text-xs transition-all"
             >
               <Upload className="h-3.5 w-3.5" />
-              Import
+              Import Reviews
             </button>
             <div className="relative">
               <button
                 className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1.5 font-medium text-xs transition-all"
-                onClick={() => setDownloadMenuOpen(v => !v)}
+                 onClick={() => handleExportReviews('all')}
               >
                 <Download className="h-3.5 w-3.5" />
-                Export
-                <ChevronDown className={`h-3 w-3 transition-transform ${downloadMenuOpen ? 'rotate-180' : ''}`} />
+                Export Reviews
+        
               </button>
-              {downloadMenuOpen && (
-                <div className="absolute right-0 mt-1.5 w-52 rounded-xl bg-slate-900 border border-slate-700 shadow-xl z-50 overflow-hidden">
-                  <button
-                    className="w-full px-4 py-2.5 text-left hover:bg-blue-500/10 transition-all flex items-center justify-between border-b border-slate-800"
-                    onClick={() => handleExportReviews('all')}
-                  >
-                    <span className="text-white text-xs font-medium">All Reviews</span>
-                    <span className="text-blue-400 text-xs font-semibold bg-blue-500/10 px-2 py-0.5 rounded">{reviews.length}</span>
-                  </button>
-                  <button
-                    className="w-full px-4 py-2.5 text-left hover:bg-green-500/10 transition-all flex items-center justify-between"
-                    onClick={() => handleExportReviews('filtered')}
-                  >
-                    <span className="text-white text-xs font-medium">Current Page</span>
-                    <span className="text-green-400 text-xs font-semibold bg-green-500/10 px-2 py-0.5 rounded">{filteredReviews.length}</span>
-                  </button>
-                </div>
-              )}
+         
             </div>
           </div>
         </div>
@@ -962,7 +945,7 @@ const isPlayableVideoUrl = (url: string) => {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
             <img
-  src={getOrderProductImage(product.productImageUrl)}
+  src={getImageUrl(product.productImageUrl)}
   alt={product.productName}
   className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
   onError={(e) => (e.currentTarget.src = "/placeholder.png")}
@@ -1255,7 +1238,7 @@ const isPlayableVideoUrl = (url: string) => {
   className="flex items-center gap-2 text-left max-w-[220px]"
 >
   <img
-    src={getOrderProductImage(
+    src={getImageUrl(
       products.find(p => p.productId === review.productId)?.productImageUrl
     )}
     alt="product"

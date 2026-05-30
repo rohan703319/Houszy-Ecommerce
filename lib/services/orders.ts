@@ -133,6 +133,8 @@ export interface Payment {
   processedAt?: string;
   failureReason?: string;
   createdAt: string;
+  stripeFee?: number;
+  netAmount?: number;
 }
 
 export interface ShipmentItem {

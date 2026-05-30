@@ -365,6 +365,8 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
       .finally(() => setLoadingCats(false));
   }, []);
 
+  
+
   useEffect(() => {
     blogPostsService
       .getAll(true, false)
@@ -403,6 +405,43 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
     if (!slugTouched && title) setSlug(generateSlug(title));
   }, [title, slugTouched]);
 
+  useEffect(() => {
+  if (!initialData) return;
+
+  setTitle(initialData.title ?? "");
+  setSlug(initialData.slug ?? "");
+  setSummary(initialData.bodyOverview ?? initialData.summary ?? "");
+  setBody(initialData.body ?? initialData.content ?? "");
+  setIsPublished(initialData.isPublished ?? false);
+
+  setPublishedAt(
+    initialData.publishedAt
+      ? initialData.publishedAt.slice(0, 16)
+      : ""
+  );
+if ((initialData?.categoryIds?.length ?? 0) > 0) {
+  setBlogCategoryId(initialData.categoryIds ?? []);
+} else if ((initialData?.categories?.length ?? 0) > 0) {
+  setBlogCategoryId(
+    initialData.categories?.map((c: any) => c.categoryId) ?? []
+  );
+} else if (initialData?.blogCategoryId) {
+  setBlogCategoryId([initialData.blogCategoryId]);
+} else {
+  setBlogCategoryId([]);
+}
+  setRelatedBlogPostIds(initialData.relatedBlogPostIds ?? []);
+  setTags(initialData.tags ?? []);
+  setAllowComments(initialData.allowComments ?? true);
+  setShowOnHomePage(initialData.showOnHomePage ?? false);
+  setIncludeInSitemap(initialData.includeInSitemap ?? true);
+  setDisplayOrder(initialData.displayOrder ?? 0);
+  setMetaTitle(initialData.metaTitle ?? "");
+  setMetaDescription(initialData.metaDescription ?? "");
+  setMetaKeywords(initialData.metaKeywords ?? "");
+  setThumbnailUrl(initialData.thumbnailImageUrl ?? "");
+}, [initialData]);
+
   // ── Validation ────────────────────────────────────────────────────────────
   const validate = useCallback((): boolean => {
     const e: FormErrors = {};
@@ -425,95 +464,111 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
   }, [title, slug, body, metaTitle, metaDescription]);
 
   // ── Save ─────────────────────────────────────────────────────────────────
-  async function handleSave(publish?: boolean) {
-    if (!validate()) {
-      toast.error("Please fix the errors before saving.");
-      return;
-    }
-    
-    setSaving(true);
-const currentUser =
-  typeof window !== "undefined"
-    ? JSON.parse(localStorage.getItem("user") || "{}")
-    : {};
+async function handleSave(publish?: boolean) {
+  if (!validate()) {
+    toast.error("Please fix the errors before saving.");
+    return;
+  }
 
-const payload: Partial<BlogPost> = {
-  title: title.trim(),
-  slug: slug.trim(),
-  bodyOverview: summary || undefined,
-  body,
-  isPublished: publish !== undefined ? publish : isPublished,
-  publishedAt: publishedAt || undefined,
-  blogCategoryId: blogCategoryId.length > 0 ? blogCategoryId.join(",") : null,
-  relatedBlogPostIds,
-  tags,
-  allowComments,
-  showOnHomePage,
-  includeInSitemap,
-  displayOrder,
-  metaTitle: metaTitle || undefined,
-  metaDescription: metaDescription || undefined,
-  metaKeywords: metaKeywords || undefined,
-  thumbnailImageUrl: thumbnailUrl || undefined,
-  authorName: `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim(),
-  authorId: currentUser?.id || "",
-  };
-  
+  setSaving(true);
+
+  try {
+    const currentUser =
+      typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("user") || "{}")
+        : {};
+
     const finalPayload: any = {
-      ...payload,
       id: mode === "edit" ? initialData?.id : undefined,
+
+      title: title.trim(),
+      slug: slug.trim(),
+      bodyOverview: summary.trim(),
+      body,
+
+      isPublished:
+        publish !== undefined ? publish : isPublished,
+
+      publishedAt: publishedAt
+        ? new Date(publishedAt).toISOString()
+        : null,
+
       isActive: true,
-      blogCategoryId: blogCategoryId[0] || null,
+
+      blogCategoryId:
+        blogCategoryId.length > 0
+          ? blogCategoryId[0]
+          : null,
+
       categoryIds: blogCategoryId,
-      publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
+
+      relatedBlogPostIds,
+
+      tags,
+
+      allowComments,
+      showOnHomePage,
+      includeInSitemap,
+
+      displayOrder,
+
+      metaTitle: metaTitle?.trim() || undefined,
+      metaDescription:
+        metaDescription?.trim() || undefined,
+      metaKeywords:
+        metaKeywords?.trim() || undefined,
+
+      thumbnailImageUrl:
+        thumbnailUrl || undefined,
+
+      authorName:
+        `${currentUser?.firstName || ""} ${
+          currentUser?.lastName || ""
+        }`.trim(),
+
+      authorId: currentUser?.id || "",
     };
 
-    // Remove undefined fields
+    // remove undefined only
     const cleanPayload = Object.fromEntries(
-      Object.entries(finalPayload).filter(([_, v]) => v !== undefined)
+      Object.entries(finalPayload).filter(
+        ([_, value]) => value !== undefined
+      )
     );
 
-    try {
-      if (mode === "create") {
-        // POST is flat (confirmed working)
-        const finalPayload: any = {
-          ...payload,
-          isActive: true,
-          blogCategoryId: blogCategoryId[0] || null,
-          categoryIds: blogCategoryId,
-          publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
-        };
-        const r = await blogPostsService.create(finalPayload as any);
-        if (r.data?.success) {
-          toast.success("Blog post created!");
-          router.push("/admin/BlogPosts");
-        } else throw new Error(getBackendMessage(r.data));
-      } else {
-        // PUT might still need wrapping if flat causes Network Error
-        const wrappedPayload: any = {
-          id: initialData!.id,
-          command: {
-            ...payload,
-            id: initialData!.id,
-            isActive: true,
-            blogCategoryId: blogCategoryId[0] || null,
-            categoryIds: blogCategoryId,
-            publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
-          }
-        };
-        const r = await blogPostsService.update(initialData!.id, wrappedPayload as any);
-        if (r.data?.success) {
-          toast.success("Blog post updated!");
-          router.push("/admin/BlogPosts");
-        } else throw new Error(getBackendMessage(r.data));
-      }
-    } catch (e: any) {
-      console.error("Save Error:", e);
-      toast.error(getBackendMessage(e));
-    } finally {
-      setSaving(false);
+    console.log("Submitting Payload:", cleanPayload);
+
+    let response;
+
+    if (mode === "create") {
+      response = await blogPostsService.create(
+        cleanPayload as any
+      );
+    } else {
+      response = await blogPostsService.update(
+        initialData!.id,
+        cleanPayload as any
+      );
     }
+
+    if (response.data?.success) {
+      toast.success(
+        mode === "create"
+          ? "Blog post created!"
+          : "Blog post updated!"
+      );
+
+      router.push("/admin/BlogPosts");
+    } else {
+      throw new Error(getBackendMessage(response.data));
+    }
+  } catch (e: any) {
+    console.error("Save Error:", e);
+    toast.error(getBackendMessage(e));
+  } finally {
+    setSaving(false);
   }
+}
 
   // ── Thumbnail Upload ──────────────────────────────────────────────────────
   async function handleThumbUpload(file: File) {
@@ -912,7 +967,7 @@ const payload: Partial<BlogPost> = {
                     <>
                       <ImagePlus className="w-5 h-5 text-slate-500 mb-1.5" />
                       <span className="text-xs text-slate-500">Click to upload thumbnail</span>
-                      <span className="text-[10px] text-slate-600 mt-0.5">PNG, JPG, WebP — max 5MB</span>
+                      <span className="text-[10px] text-slate-600 mt-0.5">PNG, JPG, WebP — max 1MB</span>
                     </>
                   )}
                   <input
