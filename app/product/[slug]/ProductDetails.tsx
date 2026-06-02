@@ -525,9 +525,12 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       const diffMs = cutoff.getTime() - now.getTime();
       const hours = Math.floor(diffMs / (1000 * 60 * 60));
       const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
-      setNextDayTimeLeft(
-        `${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`
-      );
+      const seconds = Math.floor((diffMs / 1000) % 60);
+      const parts: string[] = [];
+      if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? "s" : ""}`);
+      if (minutes > 0 || hours > 0) parts.push(`${minutes} min${minutes !== 1 ? "s" : ""}`);
+      parts.push(`${seconds} sec${seconds !== 1 ? "s" : ""}`);
+      setNextDayTimeLeft(parts.join(" "));
       const ship = new Date();
       setShipDate(formatUKDate(ship));
       const deliver = new Date();
@@ -535,7 +538,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       setDeliveryDate(formatUKDate(deliver));
     };
     calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 60_000);
+    const interval = setInterval(calculateTimeLeft, 1000);
     return () => clearInterval(interval);
   }, [
     isUKUser,
@@ -2243,7 +2246,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             {/* 🔥 LIVE CART ACTIVITY BANNER */}
             <LiveCartActivityBanner activity={cartActivity?.productId === product.id ? cartActivity : null} />
             {isUKUser && product.nextDayDeliveryEnabled && nextDayTimeLeft && (
-              <div className="mt-2 mb-3 rounded-xl border border-[#fdecd2] bg-[#fdf8f0] px-4 py-2.5 shadow-sm">
+              <div className="mt-2 mb-3 rounded-md border border-[#fdecd2] bg-[#fdf8f0] px-4 py-2.5 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between">
                   {/* ORDER WITHIN */}
                   <div className="flex flex-col items-center text-center">
@@ -2287,6 +2290,19 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                     </p>
                   </div>
                 </div>
+
+                {/* 🎉 FREE Next Day Delivery Badge */}
+                {product.nextDayDeliveryFree && (
+                  <div className="mt-2.5 -mx-4 -mb-2.5 px-4 py-2 bg-black flex items-center justify-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
+                    </span>
+                    <p className="text-white text-[10px] md:text-[11px] font-bold tracking-wide uppercase">
+                      🎉 Next Day Delivery is FREE on this product!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {product.disableBuyButton && (
@@ -2586,10 +2602,12 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             </div>
 
                             {/* Delivery Truck Line */}
-                            <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
-                              <Truck className="h-5 w-5 text-[#e57e25]" />
-                              <span>Free Standard Delivery</span>
-                            </div>
+                            {(product.freeShippingThreshold === 0) && (
+                              <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
+                                <Truck className="h-5 w-5 text-[#e57e25]" />
+                                <span>Free Standard Delivery</span>
+                              </div>
+                            )}
 
                             {/* VAT, Loyalty and Stock */}
                             <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -2961,14 +2979,14 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   </div>
                 )}
               </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Product Features Section */}
-      <ProductFeatures features={product.features} />
+        {/* Product Features Section */}
+        <ProductFeatures features={product.features} />
 
-      {/* CROSS-SELL PRODUCTS SLIDER */}
+        {/* CROSS-SELL PRODUCTS SLIDER */}
         {crossSellProducts.length > 0 && (
           <section className="w-full max-w-7xl mx-auto px-4 md:px-8 mt-6 md:mt-12">
             <div className="flex items-center justify-between mb-6 md:mb-8">

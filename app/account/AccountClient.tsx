@@ -202,7 +202,7 @@ export default function AccountClient() {
   if (isAuthenticated && user) return <AccountDashboard />;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8 px-4">
+    <div className="min-h-[80vh] bg-gray-50 flex items-start md:items-center justify-center pt-8 pb-16 md:py-12 px-4">
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }

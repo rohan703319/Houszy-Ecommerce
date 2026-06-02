@@ -157,19 +157,19 @@ export default function LoyaltyPointsTab({ loyalty }: Props) {
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
-            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Value</span>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Points Value</span>
             <span className="font-bold text-xs">{loyalty.redemptionRateText}</span>
           </div>
           <div>
-            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Min</span>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Min Redeem Pts</span>
             <span className="font-bold text-xs">{loyalty.minimumRedemptionPoints} pts</span>
           </div>
           <div>
-            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Max/Order</span>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Max Redeem Pts/Order</span>
             <span className="font-bold text-xs">{loyalty.maxPointsPerRedemption} pts</span>
           </div>
           <div>
-            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Limit</span>
+            <span className="block text-[9px] uppercase tracking-widest font-black text-gray-400 mb-0.5">Redeemption Limit</span>
             <span className="font-bold text-xs">{loyalty.maxRedemptionPercentOfOrder}% <span className="text-gray-400 font-medium">of cart</span></span>
           </div>
         </div>

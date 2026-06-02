@@ -258,6 +258,9 @@ html:not(.dark) [data-admin] .bg-gray-900\/80 { background-color: rgba(255,255,2
 html:not(.dark) [data-admin] .bg-slate-900\/90,
 html:not(.dark) [data-admin] .bg-gray-900\/90 { background-color: rgba(255,255,255,0.97) !important; }
 
+html:not(.dark) [data-admin] .bg-slate-900\/95,
+html:not(.dark) [data-admin] .bg-gray-900\/95 { background-color: rgba(255,255,255,0.98) !important; }
+
 html:not(.dark) [data-admin] .bg-slate-800,
 html:not(.dark) [data-admin] .bg-gray-800 { background-color: #ffffff !important; }
 
@@ -279,8 +282,14 @@ html:not(.dark) [data-admin] .bg-gray-800\/70 { background-color: rgba(241,245,2
 html:not(.dark) [data-admin] .bg-slate-800\/80,
 html:not(.dark) [data-admin] .bg-gray-800\/80 { background-color: rgba(241,245,249,0.9) !important; }
 
+html:not(.dark) [data-admin] .bg-slate-800\/85,
+html:not(.dark) [data-admin] .bg-gray-800\/85 { background-color: rgba(255,255,255,0.96) !important; }
+
 html:not(.dark) [data-admin] .bg-slate-800\/90,
 html:not(.dark) [data-admin] .bg-gray-800\/90 { background-color: rgba(255,255,255,0.95) !important; }
+
+html:not(.dark) [data-admin] .bg-slate-800\/95,
+html:not(.dark) [data-admin] .bg-gray-800\/95 { background-color: rgba(255,255,255,0.98) !important; }
 
 html:not(.dark) [data-admin] .bg-slate-800\/10,
 html:not(.dark) [data-admin] .bg-gray-800\/10 { background-color: rgba(241,245,249,0.2) !important; }
@@ -303,8 +312,35 @@ html:not(.dark) [data-admin] .bg-gray-700\/60 { background-color: rgba(226,232,2
 html:not(.dark) [data-admin] .bg-slate-600,
 html:not(.dark) [data-admin] .bg-gray-600 { background-color: #cbd5e1 !important; }
 
+html:not(.dark) [data-admin] .bg-amber-500\/10,
+html:not(.dark) [data-admin] .bg-yellow-500\/10,
+html:not(.dark) [data-admin] .bg-orange-500\/10 { background-color: #fffbeb !important; }
+
+html:not(.dark) [data-admin] .bg-amber-500\/15,
+html:not(.dark) [data-admin] .bg-yellow-500\/15,
+html:not(.dark) [data-admin] .bg-orange-500\/15 { background-color: #fef3c7 !important; }
+
 html:not(.dark) [data-admin] .bg-black\/50 { background-color: rgba(0,0,0,0.2) !important; }
 html:not(.dark) [data-admin] .bg-black\/70 { background-color: rgba(0,0,0,0.3) !important; }
+
+/* Slate gradients are dark cards in admin pages; keep them light only in light mode. */
+html:not(.dark) [data-admin] .from-slate-950,
+html:not(.dark) [data-admin] .from-slate-900,
+html:not(.dark) [data-admin] .from-slate-900\/80,
+html:not(.dark) [data-admin] .from-slate-800,
+html:not(.dark) [data-admin] .from-slate-800\/80 {
+  --tw-gradient-from: rgba(255,255,255,0.96) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(255,255,255,0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+html:not(.dark) [data-admin] .to-slate-950,
+html:not(.dark) [data-admin] .to-slate-900,
+html:not(.dark) [data-admin] .to-slate-900\/80,
+html:not(.dark) [data-admin] .to-slate-800,
+html:not(.dark) [data-admin] .to-slate-800\/80 {
+  --tw-gradient-to: rgba(241,245,249,0.96) var(--tw-gradient-to-position) !important;
+}
 
 /* ── Border colours ─────────────────────────────────────────── */
 html:not(.dark) [data-admin] .border-slate-800,
@@ -319,6 +355,13 @@ html:not(.dark) [data-admin] .border-gray-700 { border-color: #cbd5e1 !important
 html:not(.dark) [data-admin] .border-slate-600,
 html:not(.dark) [data-admin] .border-gray-600 { border-color: #94a3b8 !important; }
 
+html:not(.dark) [data-admin] .border-amber-400\/40,
+html:not(.dark) [data-admin] .border-yellow-400\/40,
+html:not(.dark) [data-admin] .border-orange-400\/40,
+html:not(.dark) [data-admin] .border-amber-500\/40,
+html:not(.dark) [data-admin] .border-yellow-500\/40,
+html:not(.dark) [data-admin] .border-orange-500\/40 { border-color: #f59e0b !important; }
+
 /* ── Text colours ───────────────────────────────────────────── */
 html:not(.dark) [data-admin] .text-white { color: #1e293b !important; }
 html:not(.dark) [data-admin] .text-slate-100,
@@ -332,9 +375,98 @@ html:not(.dark) [data-admin] .text-gray-400 { color: #64748b !important; }
 html:not(.dark) [data-admin] .text-slate-500,
 html:not(.dark) [data-admin] .text-gray-500 { color: #6b7280 !important; }
 
+html:not(.dark) [data-admin] .text-violet-300,
+html:not(.dark) [data-admin] .text-violet-400 { color: #7c3aed !important; }
+html:not(.dark) [data-admin] .text-cyan-300,
+html:not(.dark) [data-admin] .text-cyan-400 { color: #0891b2 !important; }
+html:not(.dark) [data-admin] .text-blue-300,
+html:not(.dark) [data-admin] .text-blue-400 { color: #2563eb !important; }
+html:not(.dark) [data-admin] .text-indigo-300,
+html:not(.dark) [data-admin] .text-indigo-400 { color: #4f46e5 !important; }
+html:not(.dark) [data-admin] .text-amber-300,
+html:not(.dark) [data-admin] .text-amber-400 { color: #b45309 !important; }
+html:not(.dark) [data-admin] .text-yellow-300,
+html:not(.dark) [data-admin] .text-yellow-400 { color: #a16207 !important; }
+html:not(.dark) [data-admin] .text-green-300,
+html:not(.dark) [data-admin] .text-green-400 { color: #16a34a !important; }
+html:not(.dark) [data-admin] .text-emerald-300,
+html:not(.dark) [data-admin] .text-emerald-400 { color: #059669 !important; }
+html:not(.dark) [data-admin] .text-pink-300,
+html:not(.dark) [data-admin] .text-pink-400 { color: #db2777 !important; }
+html:not(.dark) [data-admin] .text-orange-300,
+html:not(.dark) [data-admin] .text-orange-400 { color: #c2410c !important; }
+html:not(.dark) [data-admin] .text-red-300,
+html:not(.dark) [data-admin] .text-red-400 { color: #dc2626 !important; }
+html:not(.dark) [data-admin] .text-rose-300,
+html:not(.dark) [data-admin] .text-rose-400 { color: #e11d48 !important; }
+
 /* Keep white text + icons inside gradient active nav items */
-html:not(.dark) [data-admin] [class*="from-violet-5"] * { color: #ffffff !important; }
-html:not(.dark) [data-admin] [class*="from-violet-4"] * { color: #ffffff !important; }
+html:not(.dark) [data-admin] [class*="from-violet-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-violet-4"].text-white,
+html:not(.dark) [data-admin] [class*="from-purple-6"].text-white,
+html:not(.dark) [data-admin] [class*="from-pink-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-rose-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-orange-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-red-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-blue-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-cyan-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-emerald-5"].text-white,
+html:not(.dark) [data-admin] [class*="from-green-5"].text-white { color: #ffffff !important; }
+
+html:not(.dark) [data-admin] [class*="from-violet-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-violet-4"].text-white *,
+html:not(.dark) [data-admin] [class*="from-purple-6"].text-white *,
+html:not(.dark) [data-admin] [class*="from-pink-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-rose-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-orange-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-red-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-blue-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-cyan-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-emerald-5"].text-white *,
+html:not(.dark) [data-admin] [class*="from-green-5"].text-white * { color: #ffffff !important; }
+
+html:not(.dark) [data-admin] [class*="from-violet-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-purple-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-pink-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-rose-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-orange-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-red-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-blue-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-cyan-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-emerald-500"]:not([class*="/"]) > .text-white,
+html:not(.dark) [data-admin] [class*="from-green-500"]:not([class*="/"]) > .text-white { color: #ffffff !important; }
+
+html:not(.dark) [data-admin] .bg-blue-600,
+html:not(.dark) [data-admin] .bg-blue-600 *,
+html:not(.dark) [data-admin] .bg-indigo-600,
+html:not(.dark) [data-admin] .bg-indigo-600 *,
+html:not(.dark) [data-admin] .bg-violet-600,
+html:not(.dark) [data-admin] .bg-violet-600 *,
+html:not(.dark) [data-admin] .bg-purple-600,
+html:not(.dark) [data-admin] .bg-purple-600 *,
+html:not(.dark) [data-admin] .bg-red-600,
+html:not(.dark) [data-admin] .bg-red-600 *,
+html:not(.dark) [data-admin] .bg-green-600,
+html:not(.dark) [data-admin] .bg-green-600 *,
+html:not(.dark) [data-admin] .bg-emerald-600,
+html:not(.dark) [data-admin] .bg-emerald-600 *,
+html:not(.dark) [data-admin] .bg-teal-600,
+html:not(.dark) [data-admin] .bg-teal-600 *,
+html:not(.dark) [data-admin] .bg-cyan-600,
+html:not(.dark) [data-admin] .bg-cyan-600 *,
+html:not(.dark) [data-admin] .bg-pink-600,
+html:not(.dark) [data-admin] .bg-pink-600 *,
+html:not(.dark) [data-admin] .bg-rose-600,
+html:not(.dark) [data-admin] .bg-rose-600 *,
+html:not(.dark) [data-admin] .bg-orange-600,
+html:not(.dark) [data-admin] .bg-orange-600 *,
+html:not(.dark) [data-admin] .bg-amber-600,
+html:not(.dark) [data-admin] .bg-amber-600 * { color: #ffffff !important; }
+
+/* Gradient headings become too pale on light backgrounds; use solid dark text in light mode only. */
+html:not(.dark) [data-admin] .bg-clip-text.text-transparent {
+  color: #0f172a !important;
+}
 
 /* ── Hover backgrounds ──────────────────────────────────────── */
 html:not(.dark) [data-admin] .hover\:bg-slate-900:hover,

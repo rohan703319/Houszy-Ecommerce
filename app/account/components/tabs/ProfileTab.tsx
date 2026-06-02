@@ -139,7 +139,7 @@ export default function ProfileTab({ user, initials }: any) {
               <h1 className="text-lg md:text-3xl font-black tracking-tight mb-0.5 md:mb-1 flex flex-nowrap items-center gap-1.5 md:gap-2">
                 <span className="truncate">{profile?.firstName} {profile?.lastName}</span>
                 {profile?.accountType && (
-                  <span className="px-1.5 py-0.5 md:px-2 md:py-0.5 bg-[#f38918]/20 border border-[#f38918]/30 text-[#f38918] text-[8px] md:text-[10px] font-black uppercase tracking-widest rounded flex items-center gap-1 shrink-0 whitespace-nowrap">
+                  <span className="px-1.5 py-[2px] md:px-2 md:py-0.5 bg-[#f38918]/20 border border-[#f38918]/30 text-[#f38918] text-[8px] md:text-[10px] font-black uppercase tracking-widest rounded flex items-center justify-center gap-1 shrink-0 whitespace-nowrap leading-none mt-px md:mt-0">
                     <ShieldCheck size={10} className="md:hidden" strokeWidth={3} />
                     <ShieldCheck size={14} className="hidden md:block" strokeWidth={3} />
                     {profile.accountType}

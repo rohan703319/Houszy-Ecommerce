@@ -498,7 +498,7 @@ export default function FeaturedProductsSlider({
                       {/* Offer badge — top right */}
                       {product.displayDiscountType === "System" &&
                         discountBadge && (
-                          <div className={`absolute z-20 left-3 ${hasGenderBadge ? "top-12" : "top-3"}`}>
+                          <div className={`absolute z-20 left-3 ${hasGenderBadge ? "top-12" : "top-2"}`}>
                             <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                               <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                                 -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
@@ -508,7 +508,7 @@ export default function FeaturedProductsSlider({
                         )}
 
                       {!discountBadge && !hasActiveCoupon && oldPriceData && (
-                        <div className={`absolute z-20 left-3 ${hasGenderBadge ? "top-12" : "top-3"}`}>
+                        <div className={`absolute z-20 left-3 ${hasGenderBadge ? "top-12" : "top-2"}`}>
                           <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                             <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                               -{oldPriceData.discount}%
@@ -903,7 +903,7 @@ export default function FeaturedProductsSlider({
                           {/* ADD TO CART DISABLED WITH TEXT */}
                           <Button
                             disabled
-                            className="w-full text-xs md:text-sm rounded-lg py-2 bg-red-500 cursor-not-allowed text-white"
+                            className="w-full text-xs mb-2 md:text-sm rounded py-2 bg-red-500 cursor-not-allowed text-white"
                           >
                             <PackageX className="h-4 w-4" />
                             Out of stock

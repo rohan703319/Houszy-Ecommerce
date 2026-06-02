@@ -629,6 +629,10 @@ export default function CheckoutPage() {
             if (name.includes("next")) return allSupportNextDay;
             if (name.includes("same")) return allSupportSameDay;
 
+            // 🚫 Agar next day delivery FREE hai sabke liye, toh standard delivery hide karo
+            const isStandard = !name.includes("next") && !name.includes("same") && !name.includes("collect");
+            if (isStandard && allNextDayFree) return false;
+
             return true;
           });
 
@@ -645,7 +649,7 @@ export default function CheckoutPage() {
       }
     }, 600);
     return () => clearTimeout(timer);
-  }, [billingPostalCode, shippingPostalCode, shippingSameAsBilling, deliveryMethod, allSupportNextDay, allSupportSameDay]);
+  }, [billingPostalCode, shippingPostalCode, shippingSameAsBilling, deliveryMethod, allSupportNextDay, allSupportSameDay, allNextDayFree]);
   useEffect(() => {
     if (deliveryMethod !== "ClickAndCollect") {
       setStores([]);

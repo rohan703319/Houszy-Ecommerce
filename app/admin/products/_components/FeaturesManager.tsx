@@ -41,7 +41,7 @@ export default function FeaturesManager({ features, onChange }: FeaturesManagerP
       while (newFeatures.length < 3) {
         newFeatures.push({
           id: `temp-${crypto.randomUUID()}`,
-          icon: '✨',
+          icon: '',
           title: '',
           description: '',
           sortOrder: newFeatures.length + 1,
@@ -103,7 +103,7 @@ export default function FeaturesManager({ features, onChange }: FeaturesManagerP
   const handleAdd = () => {
     const newFeature: ProductFeature = {
       id: `temp-${crypto.randomUUID()}`,
-      icon: '✨',
+      icon: '',
       title: '',
       description: '',
       sortOrder: features.length + 1,

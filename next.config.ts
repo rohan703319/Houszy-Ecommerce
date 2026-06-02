@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   // Strict Mode: OFF in dev (prevents double calls), ON in production
   reactStrictMode: !isDev,
 
+  compiler: {
+    removeConsole: !isDev ? { exclude: ['error', 'warn'] } : false,
+  },
+
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -17,6 +21,11 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
+    localPatterns: [
+      {
+        pathname: '/**',
+      },
+    ],
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost', pathname: '/**' },
       { protocol: 'http', hostname: '127.0.0.1', pathname: '/**' },

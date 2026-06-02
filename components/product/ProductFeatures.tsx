@@ -45,8 +45,12 @@ export function DynamicIcon({ icon, className = "h-12 w-12 text-[#f38918]" }: { 
 export default function ProductFeatures({ features }: ProductFeaturesProps) {
   if (!features || features.length === 0) return null;
 
+  // Only show features that have at least a title or icon filled in
+  const validFeatures = features.filter(f => (f.title?.trim()) || (f.icon?.trim()));
+  if (validFeatures.length === 0) return null;
+
   // Sort by sortOrder
-  const sortedFeatures = [...features].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const sortedFeatures = [...validFeatures].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
   return (
     <div className="w-full my-12 px-4 sm:px-6">

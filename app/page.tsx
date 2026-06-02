@@ -15,6 +15,7 @@ import { getActiveBanners } from "@/lib/bannerUtils";
 import Script from "next/script";
 import { TrendingUp, Zap, Gift, Shield, } from "lucide-react";
 import dynamic from "next/dynamic";
+import type { BlogPost } from "@/components/LatestBlogs";
 const WhyChooseUs = dynamic(() => import("@/components/WhyChooseUs"));
 const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"));
 const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"));
@@ -150,6 +151,23 @@ async function getCategories(baseUrl: string) {
   }
 }
 
+async function getHomeBlogs(baseUrl: string): Promise<BlogPost[]> {
+  try {
+    const res = await fetch(
+      `${baseUrl}/api/BlogPosts?includeUnpublished=false&isActive=true&onlyHomePage=true`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    const items: BlogPost[] = Array.isArray(json.data)
+      ? json.data
+      : (json.data?.items ?? []);
+    return json.success ? items.slice(0, 7) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function getDiscountedProducts(baseUrl: string) {
   try {
     // No showOnHomepage filter — fetch ALL published products to find discounted ones
@@ -209,11 +227,12 @@ export const metadata: Metadata = {
 export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL!;
 
-  const [products, categories, banners, discountedProducts] = await Promise.all([
+  const [products, categories, banners, discountedProducts, blogs] = await Promise.all([
     getProducts(baseUrl),
     getCategories(baseUrl),
     getBanners(baseUrl),
     getDiscountedProducts(baseUrl),
+    getHomeBlogs(baseUrl),
   ]);
   const activeBanners = getActiveBanners(banners);
 
@@ -356,18 +375,20 @@ export default async function Home() {
         </section>
 
         {/* ===== DISCOUNTED PRODUCTS (FITNESS HOT DEALS) ===== */}
-        <section className="w-full bg-white py-10">
+        <section className="w-full bg-white pt-0 pb-10">
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
             <DiscountedProductsSlider products={discountedProducts} baseUrl={baseUrl} />
           </div>
         </section>
 
         {/* ===== LATEST BLOGS ===== */}
-        <section className="w-full bg-white py-10 md:py-14">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
-            <LatestBlogs />
-          </div>
-        </section>
+        {blogs.length > 0 && (
+          <section className="w-full bg-white py-10 md:py-14">
+            <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+              <LatestBlogs blogs={blogs} />
+            </div>
+          </section>
+        )}
       </div>
     </>
   );

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, Search, Heart, ShoppingBag, User, X, ChevronDown, ChevronRight, Truck, Package, Bike, Star, BadgePercent, GiftIcon, TruckElectric, FastForward, Zap, MapPin, Store, LucideBike, BikeIcon, Mouse, MousePointer, MousePointer2, MousePointerClickIcon } from "lucide-react";
+import { Menu, Search, Heart, ShoppingBag, User, X, ChevronDown, ChevronRight, Truck, Star, BadgePercent, Zap, Store, BikeIcon, MousePointerClickIcon } from "lucide-react";
 import MegaMenu from "./MegaMenu";
 import { useToast } from "@/components/toast/CustomToast";
 import { useCart } from "@/context/CartContext";
@@ -23,6 +23,7 @@ const iconMap: Record<string, any> = {
   Truck: Truck,
   MousePointerClickIcon: MousePointerClickIcon,
   BikeIcon: BikeIcon,
+  Store: Store,
 };
 interface Category {
   id: string;
@@ -1061,6 +1062,60 @@ export default function Header({
               ))}
             </nav>
 
+            {/* Mobile Blog Categories Dropdown — before Quick Links */}
+            <div className="border-b border-gray-100">
+              <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-orange-50 transition">
+                <Link
+                  href="/blog"
+                  onClick={() => setMenuOpen(false)}
+                  className="font-medium text-gray-800 text-sm flex-1"
+                >
+                  Blogs
+                </Link>
+                {blogCategories.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMobileBlogsOpen(!mobileBlogsOpen);
+                    }}
+                    className="p-1"
+                  >
+                    <ChevronDown
+                      size={16}
+                      className={`text-[#f38918] transition-transform duration-300 ${mobileBlogsOpen ? "rotate-180" : "rotate-0"}`}
+                    />
+                  </button>
+                )}
+              </div>
+
+              {mobileBlogsOpen && blogCategories.length > 0 && (
+                <div className="bg-orange-50/60 pl-6 pr-4 pb-2">
+                  {blogCategories.map((blogCat) => {
+                    const cleanName = blogCat.name.replace(/&amp;/g, "&");
+                    return (
+                      <Link
+                        key={blogCat.id}
+                        href={`/blog/category/${blogCat.slug}`}
+                        onClick={() => setMenuOpen(false)}
+                        className="block py-2 text-sm text-gray-700 hover:text-[#f38918] transition"
+                      >
+                        {cleanName}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Bundle Deals — before Quick Links */}
+            <Link
+              href="/bundle-deals"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#f38918] transition border-b border-gray-100 font-medium"
+            >
+              Bundle Deals
+            </Link>
+
             {/* Quick Links */}
             <div className="px-4 pt-4 pb-1">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Quick Links</p>
@@ -1074,67 +1129,9 @@ export default function Header({
                 <BadgePercent size={18} />
                 Offers &amp; Deals
               </Link>
-              <Link
-                href="/brands"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#f38918] transition border-b border-gray-100"
-              >
-                <Star size={18} />
-                Shop by Brand
-              </Link>
 
-              {/* Mobile Blog Categories Dropdown */}
-              <div className="border-b border-gray-100">
-                <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-orange-50 transition">
-                  <Link
-                    href="/blog"
-                    onClick={() => setMenuOpen(false)}
-                    className="font-medium text-gray-800 text-sm flex-1"
-                  >
-                    Blogs
-                  </Link>
-                  {blogCategories.length > 0 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMobileBlogsOpen(!mobileBlogsOpen);
-                      }}
-                      className="p-1"
-                    >
-                      <ChevronDown
-                        size={16}
-                        className={`text-[#f38918] transition-transform duration-300 ${mobileBlogsOpen ? "rotate-180" : "rotate-0"
-                          }`}
-                      />
-                    </button>
-                  )}
-                </div>
 
-                {mobileBlogsOpen && blogCategories.length > 0 && (
-                  <div className="bg-orange-50/60 pl-6 pr-4 pb-2">
-                    {blogCategories.map((blogCat) => {
-                      const cleanName = blogCat.name.replace(/&amp;/g, "&");
-                      return (
-                        <Link
-                          key={blogCat.id}
-                          href={`/blog/category/${blogCat.slug}`}
-                          onClick={() => setMenuOpen(false)}
-                          className="block py-2 text-sm text-gray-700 hover:text-[#f38918] transition"
-                        >
-                          {cleanName}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              <Link
-                href="/bundle-deals"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-[#f38918] transition border-b border-gray-100 font-medium"
-              >
-                Bundle Deals
-              </Link>
+
               <Link
                 href="/cart"
                 onClick={() => setMenuOpen(false)}

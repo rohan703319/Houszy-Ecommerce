@@ -95,7 +95,7 @@ export default function CategorySlider({
                 </div>
 
                 {/* BUTTON */}
-                <div className="absolute bottom-8 md:bottom-4 left-1/2 -translate-x-1/2 z-20">
+                <div className="absolute bottom-6 md:bottom-4 left-1/2 -translate-x-1/2 z-20">
                   <span className="bg-[#f39a16] text-black font-bold uppercase tracking-wider text-[11px] md:text-[14px] h-[30px] md:h-[40px] min-w-[115px] md:min-w-[160px] px-4 md:px-5 rounded inline-flex items-center justify-center shadow-sm transition-all duration-300 group-hover:bg-black group-hover:text-white whitespace-nowrap">
                     {category.name}
                   </span>
