@@ -115,11 +115,6 @@ export default function ProductCard({
     return true;
   });
 
-  const hasGenderBadge = !!(
-    product.gender &&
-    ["male", "female", "unisex"].includes(product.gender.toLowerCase())
-  );
-
   // ---------- VAT ----------
   // Use vatRate directly from API response; fallback to null if not present
   const vatRate: number | null = product.vatRate ?? null;
@@ -303,10 +298,9 @@ export default function ProductCard({
               loading="lazy"
             />
           )}
-          <GenderBadge gender={product.gender} />
           {/* DISCOUNT BADGE — smaller */}
           {product.displayDiscountType === "System" && discountBadge && (
-            <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-2"}`}>
+            <div className="absolute z-20 left-2 top-2">
               <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                 <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                   -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
@@ -316,7 +310,7 @@ export default function ProductCard({
           )}
           {/* COUPON BADGE — smaller */}
           {!discountBadge && hasActiveCoupon && (
-            <div className={`absolute z-20 ${hasGenderBadge ? "top-12 left-2" : "top-1 md:top-2 left-1 md:left-2"}`}>
+            <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">
               <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
                 <div className="flex flex-col items-center text-center">
@@ -341,7 +335,7 @@ export default function ProductCard({
           {product.displayDiscountType === "OldPrice" &&
             !hasActiveCoupon &&
             oldPriceData && (
-              <div className={`absolute z-20 left-2 ${hasGenderBadge ? "top-12" : "top-2"}`}>
+              <div className="absolute z-20 left-2 top-2">
                 <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                   <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                     -{oldPriceData.discount}%
@@ -349,6 +343,7 @@ export default function ProductCard({
                 </div>
               </div>
             )}
+          <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
           {/* VAT Relief — bottom left on image */}
           {(product.vatExempt || product.vatRate === 0) && (
             <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
@@ -428,7 +423,7 @@ export default function ProductCard({
                 toast.success("Product added to wishlist!");
               }
             }}
-            className={`absolute z-20 right-2 top-2 p-1.5 rounded shadow-sm border transition-all
+            className={`absolute z-20 right-2 top-2 p-1 rounded shadow-sm border transition-all
     ${isInWishlist(defaultVariant?.id ?? product.id)
                 ? "bg-red-50 border-red-200"
                 : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"

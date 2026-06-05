@@ -7577,9 +7577,9 @@ if (name === "recurringCyclePeriod") {
             {/* Media Tab - Synced with Variants */}
             <TabsContent value="media" className="space-y-3 mt-2">
               {/* ========== PICTURES SECTION ========== */}
-              <div className="space-y-3 bg-slate-800/30 border border-slate-700 rounded-xl p-4">
+              <div className="space-y-3 bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Product Images <span className="text-red-500">*</span></h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Product Images <span className="text-red-500">*</span></h3>
                   <p className="text-xs text-red-400">
                     Upload product images (WebP or Avif). Recommended size under 300 KB, maximum 500 KB per image.
                     Minimum resolution 800×800 (square preferred). You can upload up to 10 images.
@@ -7600,7 +7600,7 @@ if (name === "recurringCyclePeriod") {
                 {uploadingImages ? (
                   <div className="flex items-center justify-center gap-2 py-4 border-2 border-dashed border-violet-500/50 rounded-lg bg-violet-500/5">
                     <div className="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-xs text-white">Uploading images...</p>
+                    <p className="text-xs text-slate-900 dark:text-white">Uploading images...</p>
                   </div>
                 ) : (
                   <button
@@ -7614,8 +7614,8 @@ if (name === "recurringCyclePeriod") {
                     }}
                     disabled={uploadingImages}
                     className={`w-full py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 ${!formData.name.trim() || uploadingImages
-                        ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border-2 border-dashed border-slate-600'
-                        : 'bg-slate-900/70 border-2 border-dashed border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-violet-500/50'
+                        ? 'bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500 cursor-not-allowed border-2 border-dashed border-slate-200 dark:border-slate-600'
+                        : 'bg-white dark:bg-slate-900/70 border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-violet-500/50 dark:hover:border-violet-500/50'
                       }`}
                   >
                     <Upload className="h-4 w-4" />
@@ -7625,7 +7625,7 @@ if (name === "recurringCyclePeriod") {
 
                 {formData.productImages.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-400">
+                    <h4 className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       {formData.productImages.length}{' '}
                       {formData.productImages.length === 1 ? 'Image' : 'Images'}
                     </h4>
@@ -7633,7 +7633,7 @@ if (name === "recurringCyclePeriod") {
                       {formData.productImages.map((image) => (
                         <div
                           key={image.id}
-                          className="bg-slate-800/30 border border-slate-700 rounded p-2 space-y-1 relative group"
+                          className="bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded p-2 space-y-1 relative group shadow-sm"
                         >
                           {image.isMain && (
                             <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-violet-500 text-white text-[10px] font-medium rounded z-10">
@@ -7641,7 +7641,7 @@ if (name === "recurringCyclePeriod") {
                             </div>
                           )}
 
-                          <div className="aspect-square bg-slate-700/50 rounded overflow-hidden relative">
+                          <div className="aspect-square bg-slate-100 dark:bg-slate-700/50 rounded overflow-hidden relative">
                             {image.imageUrl ? (
                               <img
                                 src={image.imageUrl.startsWith('http') ? image.imageUrl : `${API_BASE_URL}${image.imageUrl}`}
@@ -7686,65 +7686,65 @@ if (name === "recurringCyclePeriod") {
                                   ),
                                 });
                               }}
-                              className="w-full px-2 py-1 text-[11px] bg-slate-800/50 border border-slate-700 rounded text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
+                              className="w-full px-2 py-1 text-[11px] bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
                             />
                             <div className="flex items-center gap-1">
-      <input
-  type="number"
-  placeholder="#"
-  value={image.sortOrder ?? ''}
-  onChange={(e) => {
-    const value = e.target.value;
+                              <input
+                                type="number"
+                                placeholder="#"
+                                value={image.sortOrder ?? ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
 
-    setFormData({
-      ...formData,
-      productImages: formData.productImages.map((img) =>
-        img.id === image.id
-          ? {
-              ...img,
-              sortOrder:
-                value.trim() === ''
-                  ? 0
-                  : (parseInt(value) || 0),
-            }
-          : img,
-      ),
-    });
-  }}
-  className="w-12 px-2 py-1 text-[11px] bg-slate-800/50 border border-slate-700 rounded text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
-/>
+                                  setFormData({
+                                    ...formData,
+                                    productImages: formData.productImages.map((img) =>
+                                      img.id === image.id
+                                        ? {
+                                            ...img,
+                                            sortOrder:
+                                              value.trim() === ''
+                                                ? 0
+                                                : (parseInt(value) || 0),
+                                          }
+                                        : img,
+                                    ),
+                                  });
+                                }}
+                                className="w-12 px-2 py-1 text-[11px] bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
+                              />
                               <label className="flex items-center gap-1 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={image.isMain}
-onChange={(e) => {
-  setFormData({
-    ...formData,
-    productImages: formData.productImages.map((img) => {
-      // clicked image
-      if (img.id === image.id) {
-        return {
-          ...img,
-          isMain: e.target.checked,
-          sortOrder: e.target.checked ? 1 : img.sortOrder,
-        };
-      }
+                                  onChange={(e) => {
+                                    setFormData({
+                                      ...formData,
+                                      productImages: formData.productImages.map((img) => {
+                                        // clicked image
+                                        if (img.id === image.id) {
+                                          return {
+                                            ...img,
+                                            isMain: e.target.checked,
+                                            sortOrder: e.target.checked ? 1 : img.sortOrder,
+                                          };
+                                        }
 
-      // old main image only remove main flag
-      if (e.target.checked && img.isMain) {
-        return {
-          ...img,
-          isMain: false,
-        };
-      }
+                                        // old main image only remove main flag
+                                        if (e.target.checked && img.isMain) {
+                                          return {
+                                            ...img,
+                                            isMain: false,
+                                          };
+                                        }
 
-      return img;
-    }),
-  });
-}}
-                                  className="w-3 h-3 text-violet-500 rounded border-slate-700 bg-slate-900 focus:ring-1 focus:ring-violet-500"
+                                        return img;
+                                      }),
+                                    });
+                                  }}
+                                  className="w-3 h-3 text-violet-500 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-violet-500"
                                 />
-                                <span className="text-[10px] text-slate-400">Main</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">Main</span>
                               </label>
                             </div>
                             {/* {!image.file && image.imageUrl && (
@@ -7758,13 +7758,13 @@ onChange={(e) => {
                 )}
               </div>
 
-              <div className="border-t border-slate-800" />
+              <div className="border-t border-slate-200 dark:border-slate-800" />
 
               {/* ========== VIDEOS SECTION ========== */}
-              <div className="space-y-3 bg-slate-800/30 border border-slate-700 rounded-xl p-4">
+              <div className="space-y-3 bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Product Videos</h3>
-                  <p className="text-sm text-slate-400">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Product Videos</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Add video URLs (YouTube, Vimeo, etc.) to showcase your product
                   </p>
                 </div>
@@ -7774,7 +7774,7 @@ onChange={(e) => {
                     {formData.videoUrls.map((url, index) => (
                       <div
                         key={index}
-                        className="group bg-slate-800/30 rounded border border-slate-700 overflow-hidden hover:border-violet-500/50 transition-all"
+                        className="group bg-white dark:bg-slate-800/30 rounded border border-slate-200 dark:border-slate-700 overflow-hidden hover:border-violet-500/50 dark:hover:border-violet-500/50 transition-all shadow-sm"
                       >
                         <div className="relative aspect-video bg-slate-900 flex items-center justify-center">
                           {url && url.includes('youtube.com') ? (
@@ -7811,7 +7811,7 @@ onChange={(e) => {
                               setFormData({ ...formData, videoUrls: newUrls });
                             }}
                             placeholder="https://youtube.com/..."
-                            className="w-full px-2 py-1 bg-slate-800/50 border border-slate-700 rounded text-xs text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
+                            className="w-full px-2 py-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:border-transparent"
                           />
 
                           <button
@@ -7841,7 +7841,7 @@ onChange={(e) => {
                       videoUrls: [...formData.videoUrls, ''],
                     });
                   }}
-                  className="w-full py-2.5 bg-slate-900/70 border-2 border-dashed border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 hover:border-violet-500/50 transition-all text-xs font-medium flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-white dark:bg-slate-900/70 border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-violet-500/50 dark:hover:border-violet-500/50 transition-all text-xs font-medium flex items-center justify-center gap-2"
                 >
                   <Video className="h-4 w-4" />
                   Add Video URL

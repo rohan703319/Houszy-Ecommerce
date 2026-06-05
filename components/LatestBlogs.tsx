@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -22,6 +23,14 @@ export interface BlogPost {
 
 interface LatestBlogsProps {
   blogs: BlogPost[];
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+
+function getImageUrl(path?: string | null) {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `${API_BASE.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 // Format date to "Apr 13, 2026"
@@ -63,9 +72,8 @@ export default function LatestBlogs({ blogs }: LatestBlogsProps) {
           className="pb-4"
         >
           {blogs.map((blog, index) => {
-            const imgSrc =
-              blog.thumbnailImageUrl ||
-              blog.featuredImageUrl ||
+            const rawImg = blog.thumbnailImageUrl || blog.featuredImageUrl;
+            const imgSrc = getImageUrl(rawImg) ||
               `https://ui-avatars.com/api/?name=${encodeURIComponent(blog.title)}&background=f39a16&color=fff&size=600`;
 
             return (
@@ -77,14 +85,13 @@ export default function LatestBlogs({ blogs }: LatestBlogsProps) {
                     aria-label={`Read blog: ${blog.title}`}
                     className="block w-full aspect-[16/9] relative overflow-hidden bg-gray-100 rounded"
                   >
-                    <img
+                    <Image
                       src={imgSrc}
                       alt={blog.title}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                       loading={index === 0 ? 'eager' : 'lazy'}
-                      decoding="async"
-                      width={600}
-                      height={338}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   </Link>
 
@@ -123,9 +130,9 @@ export default function LatestBlogs({ blogs }: LatestBlogsProps) {
       </div>
 
       {/* Bottom Controls */}
-      <div className="flex flex-row items-center justify-center sm:justify-between mt-3 sm:mt-4 pt-1 sm:pt-2 gap-3 sm:gap-4 w-full">
+      <div className={`flex flex-row items-center mt-3 sm:mt-4 pt-1 sm:pt-2 gap-3 sm:gap-4 w-full ${blogs.length > 3 ? 'justify-center sm:justify-between' : 'justify-center sm:justify-end'}`}>
         {/* Custom Navigation */}
-        {blogs.length > 1 && (
+        {blogs.length > 3 && (
           <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 rounded-md px-1 sm:px-2 py-1 shadow-sm border border-gray-100">
             <button
               onClick={() => swiperInstance?.slidePrev()}

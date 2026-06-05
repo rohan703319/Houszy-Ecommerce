@@ -24,31 +24,42 @@ export function useNewsletter() {
       }
     }
 
-    if (!savedEmail) {
-      setIsOpen(true);
-      setChecked(true);
-      return;
-    }
+    let active = true;
+    let timerId: NodeJS.Timeout;
 
-    checkSubscription(savedEmail);
-  }, []);
+    async function checkSubscription(email: string) {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/Newsletter/check?email=${email}`
+        );
+        const data = await res.json();
 
-  async function checkSubscription(email: string) {
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/Newsletter/check?email=${email}`
-      );
-      const data = await res.json();
-
-      if (data?.data?.isSubscribed === false) {
-        setIsOpen(true);
+        if (active && data?.data?.isSubscribed === false) {
+          timerId = setTimeout(() => {
+            if (active) setIsOpen(true);
+          }, 5000); // 5 seconds delay
+        }
+      } catch (error) {
+        console.error("Check subscription error:", error);
+      } finally {
+        if (active) setChecked(true);
       }
-    } catch (error) {
-      console.error("Check subscription error:", error);
-    } finally {
-      setChecked(true);
     }
-  }
+
+    if (!savedEmail) {
+      setChecked(true);
+      timerId = setTimeout(() => {
+        if (active) setIsOpen(true);
+      }, 5000); // 5 seconds delay
+    } else {
+      checkSubscription(savedEmail);
+    }
+
+    return () => {
+      active = false;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, []);
 
   async function submitEmail(email: string) {
     try {

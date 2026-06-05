@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   // Strict Mode: OFF in dev (prevents double calls), ON in production
   reactStrictMode: !isDev,
 
+  // Increase static page generation timeout (default: 60s → 300s)
+  staticPageGenerationTimeout: 300,
+
   compiler: {
     removeConsole: !isDev ? { exclude: ['error', 'warn'] } : false,
   },

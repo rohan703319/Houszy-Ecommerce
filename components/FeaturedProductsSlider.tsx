@@ -449,19 +449,7 @@ export default function FeaturedProductsSlider({
           // Use vatRate directly from API response
           const vatRate: number | null = (product as any).vatRate ?? null;
 
-          const hasGenderBadge = !!(
-            product.gender &&
-            ["male", "female", "unisex"].includes(product.gender.toLowerCase())
-          );
-
-          const hasRightDiscountBadge = !!(
-            (product.displayDiscountType === "System" && discountBadge) ||
-            (!discountBadge && !hasActiveCoupon && oldPriceData)
-          );
-
-          const heartTopClass = hasRightDiscountBadge
-            ? (hasGenderBadge ? "top-2" : "top-2")
-            : "top-2";
+          const heartTopClass = "top-2";
 
           return (
             <SwiperSlide key={variantForCard?.id ?? product.id}>
@@ -473,9 +461,6 @@ export default function FeaturedProductsSlider({
 
                   {/* Product Image */}
                   <Link href={`/product/${cardSlug}`}>
-
-                    {/* UNISEX Badge */}
-                    <GenderBadge gender={product.gender} />
 
 
                     <div className="group h-[160px] sm:h-[220px] md:h-[290px] flex items-center justify-center overflow-hidden bg-white rounded-xl relative shadow-sm">
@@ -498,7 +483,7 @@ export default function FeaturedProductsSlider({
                       {/* Offer badge — top right */}
                       {product.displayDiscountType === "System" &&
                         discountBadge && (
-                          <div className={`absolute z-20 left-3 ${hasGenderBadge ? "top-12" : "top-2"}`}>
+                          <div className="absolute z-20 left-3 top-2">
                             <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                               <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                                 -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
@@ -508,7 +493,7 @@ export default function FeaturedProductsSlider({
                         )}
 
                       {!discountBadge && !hasActiveCoupon && oldPriceData && (
-                        <div className={`absolute z-20 left-3 ${hasGenderBadge ? "top-12" : "top-2"}`}>
+                        <div className="absolute z-20 left-3 top-2">
                           <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                             <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
                               -{oldPriceData.discount}%
@@ -518,7 +503,7 @@ export default function FeaturedProductsSlider({
                       )}
                       {/* Coupon badge — top right, smaller */}
                       {!discountBadge && hasActiveCoupon && (
-                        <div className={`absolute z-20 ${hasGenderBadge ? "top-12 left-2" : "top-1 md:top-2 left-1 md:left-2"}`}>
+                        <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">
                           <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
                             <div className="flex flex-col items-center text-center">
@@ -539,6 +524,7 @@ export default function FeaturedProductsSlider({
                           </div>
                         </div>
                       )}
+                      <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
                       {/* Wishlist — top right below badge */}
                       <button
                         onClick={(e) => {
@@ -605,7 +591,7 @@ export default function FeaturedProductsSlider({
                             toast.success("Product added to wishlist!");
                           }
                         }}
-                        className={`absolute z-20 right-2 p-1.5 rounded shadow-sm border transition-all ${heartTopClass} ${isInWishlist(defaultVariant?.id ?? product.id)
+                        className={`absolute z-20 right-2 p-1 rounded shadow-sm border transition-all ${heartTopClass} ${isInWishlist(defaultVariant?.id ?? product.id)
                           ? "bg-red-50 border-red-200"
                           : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
                           }`}

@@ -1,4 +1,6 @@
 // app/blog/page.tsx… working code hai search bar implement kr rha isliye isko alag save rkhta hu
+// ISR: page 1 ghante me ek baar regenerate hoga (static fast delivery)
+// unstable_cache use kiya: fetch data cache 2MB limit bypass + page ISR static rehta hai
 export const revalidate = 3600;
 import React from "react";
 import Link from "next/link";
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
 const API_BASE = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "";
 
 async function fetchJSON(url: string) {
-  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const res = await fetch(url, { cache: 'no-store' });
 
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);

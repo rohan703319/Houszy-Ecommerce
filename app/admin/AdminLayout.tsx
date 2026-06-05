@@ -59,6 +59,7 @@ import {
   FileSpreadsheet,
   Monitor, // ✅ Added for Import/Export
   CreditCard,
+  GiftIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/app/admin/_context/theme-provider";
@@ -123,38 +124,38 @@ const navigation: NavigationItem[] = [
       // { name: 'Shipping Zones', href: '/admin/shipping-zones', icon: MapPin }, // Optional future
     ],
   },
- 
+
   {
     name: 'Finance',
-    icon: Receipt,
+    icon: PoundSterling,
     children: [
       { name: 'VAT Rates', href: '/admin/vatRates', icon: PoundSterling },
     ],
-  }, 
+  },
   { name: 'Import / Export', href: '/admin/import-export', icon: FileSpreadsheet },
-{
-  name: 'Content',
-  icon: FileText,
-  children: [
-    { name: 'Banners', href: '/admin/banners', icon: ImageIcon },
-
-    // ✅ ADDED
-    { name: 'Homepage Preview', href: '/admin/HomepagePreview', icon: Monitor },
-
-    { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban },
-    { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText },
-    { name: 'Comments', href: '/admin/comments', icon: MessageSquare },
-    { name: 'Contacts', href: '/admin/contact', icon: Mail },
-  ],
-},
   {
-  name: 'Staff Management',
-  icon: Users,
-  children: [
-    { name: 'Staff', href: '/admin/staff', icon: User },
-    { name: 'Staff Roles', href: '/admin/staff-roles', icon: ShieldCheck },
-  ],
-},
+    name: 'Content',
+    icon: FileText,
+    children: [
+      { name: 'Banners', href: '/admin/banners', icon: ImageIcon },
+
+      // ✅ ADDED
+      { name: 'Homepage Preview', href: '/admin/HomepagePreview', icon: Monitor },
+
+      { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban },
+      { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText },
+      { name: 'Comments', href: '/admin/comments', icon: MessageSquare },
+      { name: 'Contacts', href: '/admin/contact', icon: Mail },
+    ],
+  },
+  {
+    name: 'Staff Management',
+    icon: Users,
+    children: [
+      { name: 'Staff', href: '/admin/staff', icon: User },
+      { name: 'Staff Roles', href: '/admin/staff-roles', icon: ShieldCheck },
+    ],
+  },
 
 
   {
@@ -181,7 +182,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isHovering, setIsHovering] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<{ [key: string]: boolean }>({});
   const [isAnimating, setIsAnimating] = useState(false);
-  
+
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
@@ -197,14 +198,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     total: number;
   } | null>(null);
 
-const isActiveRoute = (navHref: string, currentPath: string) => {
-  if (navHref === '/admin') return currentPath === '/admin';
+  const isActiveRoute = (navHref: string, currentPath: string) => {
+    if (navHref === '/admin') return currentPath === '/admin';
 
-  return (
-    currentPath === navHref ||
-    currentPath.startsWith(navHref + '/')
-  );
-};
+    return (
+      currentPath === navHref ||
+      currentPath.startsWith(navHref + '/')
+    );
+  };
 
   const isParentActive = (children?: NavigationItem[]) => {
     if (!children) return false;
@@ -213,13 +214,13 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
 
   const getGroupColor = (name: string) => {
     const map: Record<string, { icon: string; border: string; bg: string; dot: string }> = {
-      Catalog:   { icon: 'text-cyan-400',    border: 'border-cyan-500/50',    bg: 'bg-cyan-500/10',    dot: 'bg-cyan-400' },
-      Sales:     { icon: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-500/10', dot: 'bg-emerald-400' },
-      Marketing: { icon: 'text-pink-400',    border: 'border-pink-500/50',    bg: 'bg-pink-500/10',    dot: 'bg-pink-400' },
-      Shipping:  { icon: 'text-blue-400',    border: 'border-blue-500/50',    bg: 'bg-blue-500/10',    dot: 'bg-blue-400' },
-      Finance:   { icon: 'text-yellow-400',  border: 'border-yellow-500/50',  bg: 'bg-yellow-500/10',  dot: 'bg-yellow-400' },
-      Content:   { icon: 'text-amber-400',   border: 'border-amber-500/50',   bg: 'bg-amber-500/10',   dot: 'bg-amber-400' },
-      System:    { icon: 'text-slate-400',   border: 'border-slate-500/50',   bg: 'bg-slate-500/10',   dot: 'bg-slate-400' },
+      Catalog: { icon: 'text-cyan-400', border: 'border-cyan-500/50', bg: 'bg-cyan-500/10', dot: 'bg-cyan-400' },
+      Sales: { icon: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-500/10', dot: 'bg-emerald-400' },
+      Marketing: { icon: 'text-pink-400', border: 'border-pink-500/50', bg: 'bg-pink-500/10', dot: 'bg-pink-400' },
+      Shipping: { icon: 'text-blue-400', border: 'border-blue-500/50', bg: 'bg-blue-500/10', dot: 'bg-blue-400' },
+      Finance: { icon: 'text-yellow-400', border: 'border-yellow-500/50', bg: 'bg-yellow-500/10', dot: 'bg-yellow-400' },
+      Content: { icon: 'text-amber-400', border: 'border-amber-500/50', bg: 'bg-amber-500/10', dot: 'bg-amber-400' },
+      System: { icon: 'text-slate-400', border: 'border-slate-500/50', bg: 'bg-slate-500/10', dot: 'bg-slate-400' },
     };
     return map[name] ?? { icon: 'text-violet-400', border: 'border-violet-500/50', bg: 'bg-violet-500/10', dot: 'bg-violet-400' };
   };
@@ -247,7 +248,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
     setIsAnimating(true);
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    
+
     if (newTheme === "dark") {
       toast.success("🌙 Dark Mode Enabled", {
         autoClose: 2000,
@@ -259,7 +260,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
         position: "top-center"
       });
     }
-    
+
     setTimeout(() => setIsAnimating(false), 600);
   };
 
@@ -315,7 +316,7 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
   // Calculate time remaining
   const calculateTimeRemaining = () => {
     const expiryDate = authService.getTokenExpiry();
-    
+
     if (!expiryDate) {
       setTimeRemaining(null);
       return;
@@ -363,27 +364,27 @@ const isActiveRoute = (navHref: string, currentPath: string) => {
     });
   };
 
-useEffect(() => {
+  useEffect(() => {
 
-  if (isLoading) return;
+    if (isLoading) return;
 
-  if (!isAuthenticated) {
+    if (!isAuthenticated) {
 
-    window.location.href = "/login";
+      window.location.href = "/login";
 
-    return;
-  }
+      return;
+    }
 
-  calculateTimeRemaining();
+    calculateTimeRemaining();
 
-  const interval = setInterval(
-    calculateTimeRemaining,
-    1000
-  );
+    const interval = setInterval(
+      calculateTimeRemaining,
+      1000
+    );
 
-  return () => clearInterval(interval);
+    return () => clearInterval(interval);
 
-}, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading]);
 
   const isSidebarExpanded = !sidebarCollapsed || (sidebarCollapsed && isHovering);
   const sidebarWidth = sidebarCollapsed ? 'w-16' : 'w-64';
@@ -391,7 +392,7 @@ useEffect(() => {
   const getTimerColor = () => {
     if (!timeRemaining) return 'text-slate-400';
     const totalMinutes = timeRemaining.hours * 60 + timeRemaining.minutes;
-    
+
     if (totalMinutes < 5) return 'text-red-400 animate-pulse';
     if (totalMinutes < 15) return 'text-yellow-400';
     return 'text-green-400';
@@ -423,42 +424,42 @@ useEffect(() => {
             )}
           >
             {/* Logo */}
-<div
-  className={cn(
-    "border-b border-slate-800/60 flex-shrink-0 transition-all duration-150",
-    isSidebarExpanded
-      ? "px-3 py-2 flex flex-col items-start"
-      : "h-[60px] flex items-center justify-center"
-  )}
->
-  {/* Expanded */}
-  {isSidebarExpanded ? (
-    <div className="w-full">
-      {/* Logo */}
-      <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200 inline-block">
-        <img
-          src="/logo/logo.png"
-          alt="Direct Care"
-          className="h-10 w-auto object-contain"
-        />
-      </div>
+            <div
+              className={cn(
+                "border-b border-slate-800/60 flex-shrink-0 transition-all duration-150",
+                isSidebarExpanded
+                  ? "px-3 py-2 flex flex-col items-start"
+                  : "h-[60px] flex items-center justify-center"
+              )}
+            >
+              {/* Expanded */}
+              {isSidebarExpanded ? (
+                <div className="w-full">
+                  {/* Logo */}
+                  <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200 inline-block">
+                    <img
+                      src="/logo/logo.png"
+                      alt="Direct Care"
+                      className="h-10 w-auto object-contain"
+                    />
+                  </div>
 
-      {/* Text Below */}
-     <p className=" pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-violet-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
-  Admin Dashboard
-</p>
-    </div>
-  ) : (
-    /* Collapsed */
-    <div className="w-8 h-9  rounded-md bg-white  p-0.5 flex items-center justify-center shadow-lg border border-slate-200 overflow-hidden">
-      <img
-        src="/logo/logo.png"
-        alt="DC"
-        className="h-7 w-auto object-cover object-left"
-      />
-    </div>
-  )}
-</div>
+                  {/* Text Below */}
+                  <p className=" pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-violet-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
+                    Admin Dashboard
+                  </p>
+                </div>
+              ) : (
+                /* Collapsed */
+                <div className="w-8 h-9  rounded-md bg-white  p-0.5 flex items-center justify-center shadow-lg border border-slate-200 overflow-hidden">
+                  <img
+                    src="/logo/logo.png"
+                    alt="DC"
+                    className="h-7 w-auto object-cover object-left"
+                  />
+                </div>
+              )}
+            </div>
 
 
             {/* NAVIGATION WITH HOVER AUTO-EXPAND */}
@@ -578,34 +579,34 @@ useEffect(() => {
             </nav>
 
             {/* Bottom Links */}
-<div className="p-2 border-t border-slate-800/60 flex-shrink-0 space-y-0.5">
-<a
-  href="/"
-  onClick={(e) => {
-    e.preventDefault();
-    e.stopPropagation(); // ✅ IMPORTANT
-    setSidebarOpen(false);
-    window.open("/", "_blank");
-  }}
-  title="open store in new tab"
-  className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-150 group"
->
-    <div
-      className={cn(
-        "rounded-xl bg-slate-800/80 flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 transition-colors",
-        isSidebarExpanded ? "w-7 h-7" : "w-9 h-9"
-      )}
-    >
-      <Store className="h-4 w-4 text-cyan-400" />
-    </div>
+            <div className="p-2 border-t border-slate-800/60 flex-shrink-0 space-y-0.5">
+              <a
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation(); // ✅ IMPORTANT
+                  setSidebarOpen(false);
+                  window.open("/", "_blank");
+                }}
+                title="open store in new tab"
+                className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-150 group"
+              >
+                <div
+                  className={cn(
+                    "rounded-xl bg-slate-800/80 flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 transition-colors",
+                    isSidebarExpanded ? "w-7 h-7" : "w-9 h-9"
+                  )}
+                >
+                  <Store className="h-4 w-4 text-cyan-400" />
+                </div>
 
-    {isSidebarExpanded && (
-      <span className="text-xs font-medium whitespace-nowrap">
-        View Store
-      </span>
-    )}
-  </a>
-</div>
+                {isSidebarExpanded && (
+                  <span className="text-xs font-medium whitespace-nowrap">
+                    View Store
+                  </span>
+                )}
+              </a>
+            </div>
 
             {/* User Profile - Expanded */}
             {isSidebarExpanded && (
@@ -648,183 +649,183 @@ useEffect(() => {
             )}
           </aside>
 
-        
-        {/* Mobile Sidebar */}
-        <aside
-          className={cn(
-            "fixed lg:hidden h-full w-64 bg-slate-900/80 dark:bg-gray-900/90 backdrop-blur-xl border-r border-slate-800 dark:border-gray-800 flex flex-col transition-all duration-300 z-50",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          )}
-        >
-    {/* Mobile Sidebar Header */}
-<div className="p-3 border-b border-slate-800 dark:border-gray-800 flex-shrink-0 transition-colors duration-150">
-  <div className="flex flex-col items-start">
 
-    {/* Logo */}
-    <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200">
-      <img
-        src="/logo/logo.png"
-        alt="Direct Care"
-        className="h-10 w-auto object-contain"
-      />
-    </div>
+          {/* Mobile Sidebar */}
+          <aside
+            className={cn(
+              "fixed lg:hidden h-full w-64 bg-slate-900/80 dark:bg-gray-900/90 backdrop-blur-xl border-r border-slate-800 dark:border-gray-800 flex flex-col transition-all duration-300 z-50",
+              sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            )}
+          >
+            {/* Mobile Sidebar Header */}
+            <div className="p-3 border-b border-slate-800 dark:border-gray-800 flex-shrink-0 transition-colors duration-150">
+              <div className="flex flex-col items-start">
 
-    {/* Text */}
-    <p className="mt-2 pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-violet-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
-      Admin Dashboard
-    </p>
+                {/* Logo */}
+                <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200">
+                  <img
+                    src="/logo/logo.png"
+                    alt="Direct Care"
+                    className="h-10 w-auto object-contain"
+                  />
+                </div>
 
-  </div>
-</div>
+                {/* Text */}
+                <p className="mt-2 pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-violet-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
+                  Admin Dashboard
+                </p>
 
-          <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto custom-scrollbar">
-            {navigation.map((item) => {
-              const hasChildren = item.children && item.children.length > 0;
-              const isExpanded = expandedMenus[item.name];
-              const isParentItemActive = hasChildren && isParentActive(item.children);
-              const isActive = item.href ? isActiveRoute(item.href, pathname) : false;
-              const Icon = item.icon;
-              const gc = getGroupColor(item.name);
+              </div>
+            </div>
 
-              if (hasChildren) {
-                return (
-                  <div key={item.name} className="space-y-0.5">
-                    <button
-                      onClick={() => toggleMenu(item.name)}
-                      className={cn(
-                        "w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all duration-150 group",
-                        isParentItemActive ? `${gc.bg} text-white` : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-                      )}
-                    >
-                      <div className={cn("w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0", isParentItemActive ? `${gc.bg} ${gc.icon}` : "bg-slate-800/70 text-slate-400")}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <span className="font-semibold text-xs flex-1 text-left tracking-wide uppercase">{item.name}</span>
-                      {isParentItemActive && <div className={cn("w-1.5 h-1.5 rounded-full", gc.dot)} />}
-                      <ChevronDown className={cn("h-3.5 w-3.5 transition-all duration-200 text-slate-500", isExpanded && "rotate-180")} />
-                    </button>
+            <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto custom-scrollbar">
+              {navigation.map((item) => {
+                const hasChildren = item.children && item.children.length > 0;
+                const isExpanded = expandedMenus[item.name];
+                const isParentItemActive = hasChildren && isParentActive(item.children);
+                const isActive = item.href ? isActiveRoute(item.href, pathname) : false;
+                const Icon = item.icon;
+                const gc = getGroupColor(item.name);
 
-                    <div className={cn("overflow-hidden transition-all duration-200 ease-in-out", isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0")}>
-                      <div className={cn("ml-3 mt-0.5 space-y-0.5 border-l-2 pl-2 pb-1", gc.border)}>
-                        {item.children?.map((child) => {
-                          const ChildIcon = child.icon;
-                          const isChildActive = child.href ? isActiveRoute(child.href, pathname) : false;
-                          return (
-                            <Link
-                              key={child.name}
-                              href={child.href || '#'}
-                              onClick={() => setSidebarOpen(false)}
-                              className={cn(
-                                "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-150 group",
-                                isChildActive ? "bg-gradient-to-r from-violet-500/90 to-cyan-500/90 text-white shadow-md" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                              )}
-                            >
-                              <ChildIcon className={cn("h-3.5 w-3.5 flex-shrink-0", isChildActive ? "text-white" : gc.icon)} />
-                              <span className="text-xs font-medium">{child.name}</span>
-                              {isChildActive && <div className="ml-auto w-1 h-4 rounded-full bg-white/60" />}
-                            </Link>
-                          );
-                        })}
+                if (hasChildren) {
+                  return (
+                    <div key={item.name} className="space-y-0.5">
+                      <button
+                        onClick={() => toggleMenu(item.name)}
+                        className={cn(
+                          "w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all duration-150 group",
+                          isParentItemActive ? `${gc.bg} text-white` : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                        )}
+                      >
+                        <div className={cn("w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0", isParentItemActive ? `${gc.bg} ${gc.icon}` : "bg-slate-800/70 text-slate-400")}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="font-semibold text-xs flex-1 text-left tracking-wide uppercase">{item.name}</span>
+                        {isParentItemActive && <div className={cn("w-1.5 h-1.5 rounded-full", gc.dot)} />}
+                        <ChevronDown className={cn("h-3.5 w-3.5 transition-all duration-200 text-slate-500", isExpanded && "rotate-180")} />
+                      </button>
+
+                      <div className={cn("overflow-hidden transition-all duration-200 ease-in-out", isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0")}>
+                        <div className={cn("ml-3 mt-0.5 space-y-0.5 border-l-2 pl-2 pb-1", gc.border)}>
+                          {item.children?.map((child) => {
+                            const ChildIcon = child.icon;
+                            const isChildActive = child.href ? isActiveRoute(child.href, pathname) : false;
+                            return (
+                              <Link
+                                key={child.name}
+                                href={child.href || '#'}
+                                onClick={() => setSidebarOpen(false)}
+                                className={cn(
+                                  "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-150 group",
+                                  isChildActive ? "bg-gradient-to-r from-violet-500/90 to-cyan-500/90 text-white shadow-md" : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                                )}
+                              >
+                                <ChildIcon className={cn("h-3.5 w-3.5 flex-shrink-0", isChildActive ? "text-white" : gc.icon)} />
+                                <span className="text-xs font-medium">{child.name}</span>
+                                {isChildActive && <div className="ml-auto w-1 h-4 rounded-full bg-white/60" />}
+                              </Link>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href || '#'}
+                    onClick={() => setSidebarOpen(false)}
+                    className={cn(
+                      "flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all duration-150 group",
+                      isActive ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                    )}
+                  >
+                    <div className={cn("w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0", isActive ? "bg-white/20" : "bg-slate-800/70 text-violet-400")}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold text-xs flex-1 tracking-wide uppercase">{item.name}</span>
+                    {isActive && <ChevronRight className="h-3.5 w-3.5 animate-pulse" />}
+                  </Link>
                 );
-              }
+              })}
+            </nav>
 
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href || '#'}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn(
-                    "flex items-center gap-2.5 px-2 py-2 rounded-lg transition-all duration-150 group",
-                    isActive ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-                  )}
-                >
-                  <div className={cn("w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0", isActive ? "bg-white/20" : "bg-slate-800/70 text-violet-400")}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <span className="font-semibold text-xs flex-1 tracking-wide uppercase">{item.name}</span>
-                  {isActive && <ChevronRight className="h-3.5 w-3.5 animate-pulse" />}
-                </Link>
-              );
-            })}
-          </nav>
-
-<div className="p-2 border-t border-slate-800/60 flex-shrink-0 space-y-0.5">
-<a
-  href="/"
-  onClick={(e) => {
-    e.preventDefault(); // default navigation roko
-    setSidebarOpen(false); // sidebar close karo
-    window.open("/", "_blank"); // new tab me open karo
-  }}
-  title="open store in new tab"
-  className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-150 group"
->
-  <div className="w-7 h-7 rounded-md bg-slate-800/70 flex items-center justify-center flex-shrink-0">
-    <Store className="h-4 w-4 text-cyan-400" />
-  </div>
-  <span className="text-xs font-medium">View Store</span>
-</a>
-</div>
-
-          <div className="p-4 border-t border-slate-800 dark:border-gray-800 flex-shrink-0 transition-colors duration-150">
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-800/50 dark:bg-gray-800/70 transition-colors duration-150">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 dark:from-violet-600 dark:to-cyan-600 flex items-center justify-center text-white font-bold text-sm transition-all duration-150 shadow-lg dark:shadow-violet-500/30">
-                {userInitial}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate transition-colors duration-150">{userName}</p>
-                <p className="text-xs text-slate-400 dark:text-gray-500 truncate transition-colors duration-150">{userEmail}</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="text-slate-400 dark:text-gray-500 hover:text-red-400 dark:hover:text-red-500 transition-colors duration-150"
-                title="Logout"
+            <div className="p-2 border-t border-slate-800/60 flex-shrink-0 space-y-0.5">
+              <a
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault(); // default navigation roko
+                  setSidebarOpen(false); // sidebar close karo
+                  window.open("/", "_blank"); // new tab me open karo
+                }}
+                title="open store in new tab"
+                className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-150 group"
               >
-                <LogOut className="h-4 w-4" />
-              </button>
+                <div className="w-7 h-7 rounded-md bg-slate-800/70 flex items-center justify-center flex-shrink-0">
+                  <Store className="h-4 w-4 text-cyan-400" />
+                </div>
+                <span className="text-xs font-medium">View Store</span>
+              </a>
             </div>
-          </div>
-        </aside>
 
-        {/* Mobile Overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm lg:hidden z-40 transition-all duration-150"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+            <div className="p-4 border-t border-slate-800 dark:border-gray-800 flex-shrink-0 transition-colors duration-150">
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-800/50 dark:bg-gray-800/70 transition-colors duration-150">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 dark:from-violet-600 dark:to-cyan-600 flex items-center justify-center text-white font-bold text-sm transition-all duration-150 shadow-lg dark:shadow-violet-500/30">
+                  {userInitial}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate transition-colors duration-150">{userName}</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 truncate transition-colors duration-150">{userEmail}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="text-slate-400 dark:text-gray-500 hover:text-red-400 dark:hover:text-red-500 transition-colors duration-150"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* Mobile Overlay */}
+          {sidebarOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm lg:hidden z-40 transition-all duration-150"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
 
 
           {/* Main Content */}
-          <div 
+          <div
             className={cn(
               "flex-1 flex flex-col overflow-hidden transition-all duration-300",
               sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"
             )}
           >
-          <header className="flex-shrink-0 bg-slate-900/80 dark:bg-gray-900/90 backdrop-blur-xl border-b border-slate-800 dark:border-gray-800 z-30 transition-colors duration-150">
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1">
-                  <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="lg:hidden p-2 text-slate-400 dark:text-gray-500 hover:text-white hover:bg-slate-800 dark:hover:bg-gray-800/70 rounded-lg transition-all duration-150"
-                  >
-                    {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                  </button>
+            <header className="flex-shrink-0 bg-slate-900/80 dark:bg-gray-900/90 backdrop-blur-xl border-b border-slate-800 dark:border-gray-800 z-30 transition-colors duration-150">
+              <div className="px-6 py-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <button
+                      onClick={() => setSidebarOpen(!sidebarOpen)}
+                      className="lg:hidden p-2 text-slate-400 dark:text-gray-500 hover:text-white hover:bg-slate-800 dark:hover:bg-gray-800/70 rounded-lg transition-all duration-150"
+                    >
+                      {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                    </button>
 
-                  <button
-                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className="hidden lg:block p-2 text-slate-400 dark:text-gray-500 hover:text-white hover:bg-slate-800 dark:hover:bg-gray-800/70 rounded-lg transition-all duration-150"
-                    title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                  >
-                    <Menu className="h-5 w-5" />
-                  </button>
+                    <button
+                      onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                      className="hidden lg:block p-2 text-slate-400 dark:text-gray-500 hover:text-white hover:bg-slate-800 dark:hover:bg-gray-800/70 rounded-lg transition-all duration-150"
+                      title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                    >
+                      <Menu className="h-5 w-5" />
+                    </button>
 
-                  {/* <div className="flex-1 max-w-xl">
+                    {/* <div className="flex-1 max-w-xl">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-gray-600 transition-colors duration-150" />
                       <input
@@ -834,132 +835,132 @@ useEffect(() => {
                       />
                     </div>
                   </div> */}
-                </div>
+                  </div>
 
-                <div className="flex items-center gap-3">
-                  {timeRemaining && (
-                    <div 
-                      className={cn(
-                        "hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150",
-                        "bg-slate-800/50 dark:bg-gray-800/70 border border-slate-700 dark:border-gray-700",
-                        timeRemaining.total < 5 * 60 * 1000 && "border-red-500/50 bg-red-500/10 animate-pulse"
-                      )}
-                      title="Session expires in"
-                    >
-                      <Clock className={cn("h-4 w-4", getTimerColor())} />
-                      <span className={cn("text-xs font-mono font-semibold", getTimerColor())}>
-                        {String(timeRemaining.hours).padStart(2, '0')}:
-                        {String(timeRemaining.minutes).padStart(2, '0')}:
-                        {String(timeRemaining.seconds).padStart(2, '0')}
-                      </span>
-                    </div>
-                  )}
-<button
-  onClick={() => {
-    toast.success("No Notifications Right Now");;
-  }}
-  className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all duration-150"
->
-  <Bell className="h-5 w-5" />
-</button>
-
-
-                  <button
-                    onClick={handleThemeToggle}
-                    className={cn(
-                      "relative p-2 rounded-lg transition-all duration-150 group",
-                      "bg-slate-800/50 dark:bg-gray-800/70 hover:bg-slate-800 dark:hover:bg-gray-800",
-                      "text-slate-400 dark:text-gray-400 hover:text-white",
-                      isAnimating && "scale-110 rotate-180"
-                    )}
-                    title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                  >
-                    <div className="relative w-5 h-5">
-                      <Sun 
+                  <div className="flex items-center gap-3">
+                    {timeRemaining && (
+                      <div
                         className={cn(
-                          "absolute inset-0 h-5 w-5 transition-all duration-500 text-yellow-500",
-                          theme === "dark" 
-                            ? "rotate-90 scale-0 opacity-0" 
-                            : "rotate-0 scale-100 opacity-100"
-                        )} 
-                      />
-                      <Moon 
-                        className={cn(
-                          "absolute inset-0 h-5 w-5 transition-all duration-500 text-blue-400",
-                          theme === "dark" 
-                            ? "rotate-0 scale-100 opacity-100" 
-                            : "-rotate-90 scale-0 opacity-0"
-                        )} 
-                      />
-                    </div>
-                    
-                    {isAnimating && (
-                      <span className="absolute inset-0 rounded-lg bg-violet-500/30 dark:bg-violet-600/40 animate-ping" />
+                          "hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150",
+                          "bg-slate-800/50 dark:bg-gray-800/70 border border-slate-700 dark:border-gray-700",
+                          timeRemaining.total < 5 * 60 * 1000 && "border-red-500/50 bg-red-500/10 animate-pulse"
+                        )}
+                        title="Session expires in"
+                      >
+                        <Clock className={cn("h-4 w-4", getTimerColor())} />
+                        <span className={cn("text-xs font-mono font-semibold", getTimerColor())}>
+                          {String(timeRemaining.hours).padStart(2, '0')}:
+                          {String(timeRemaining.minutes).padStart(2, '0')}:
+                          {String(timeRemaining.seconds).padStart(2, '0')}
+                        </span>
+                      </div>
                     )}
-                  </button>
-
-                  {/* Profile Dropdown */}
-                  <div className="hidden lg:block relative" ref={dropdownRef}>
                     <button
-                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                      className="flex items-center gap-2.5 pl-3 ml-3 border-l border-slate-800 dark:border-gray-800 transition-colors duration-150 hover:opacity-80"
+                      onClick={() => {
+                        toast.success("No Notifications Right Now");;
+                      }}
+                      className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all duration-150"
                     >
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 dark:from-violet-600 dark:to-cyan-600 flex items-center justify-center text-white font-bold text-sm transition-all duration-150 shadow-lg dark:shadow-violet-500/30">
-                        {userInitial}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white leading-tight transition-colors duration-150">{userName}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <div className="w-1.5 h-1.5 bg-green-400 dark:bg-green-500 rounded-full transition-colors duration-150"></div>
-                          <p className="text-xs text-slate-400 dark:text-gray-500 transition-colors duration-150">Online</p>
-                        </div>
-                      </div>
-                      <ChevronDown 
-                        className={cn(
-                          "h-4 w-4 text-slate-400 transition-transform duration-200",
-                          profileDropdownOpen && "rotate-180"
-                        )} 
-                      />
+                      <Bell className="h-5 w-5" />
                     </button>
 
-                    {/* Dropdown Menu */}
-                    {profileDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-slate-900 dark:bg-gray-900 border border-slate-800 dark:border-gray-800 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-50">
-                        <div className="p-3 border-b border-slate-800 dark:border-gray-800">
-                          <p className="text-sm font-semibold text-slate-800 dark:text-white">{userName}</p>
-                          <p className="text-xs text-slate-500 dark:text-gray-500 mt-0.5">{userEmail}</p>
-                        </div>
 
-                        <div className="p-2">
-                          <button
-                            onClick={() => {
-                              setProfileDropdownOpen(false);
-                              setChangePwdOpen(true);
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/70 dark:hover:bg-gray-800/70 transition-all duration-150 group"
-                          >
-                            <LockKeyhole className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform" />
-                            <span className="text-sm font-medium">Change Password</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setProfileDropdownOpen(false);
-                              handleLogout();
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-red-400 dark:hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 group mt-1"
-                          >
-                            <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                            <span className="text-sm font-medium">Logout</span>
-                          </button>
-                        </div>
+                    <button
+                      onClick={handleThemeToggle}
+                      className={cn(
+                        "relative p-2 rounded-lg transition-all duration-150 group",
+                        "bg-slate-800/50 dark:bg-gray-800/70 hover:bg-slate-800 dark:hover:bg-gray-800",
+                        "text-slate-400 dark:text-gray-400 hover:text-white",
+                        isAnimating && "scale-110 rotate-180"
+                      )}
+                      title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    >
+                      <div className="relative w-5 h-5">
+                        <Sun
+                          className={cn(
+                            "absolute inset-0 h-5 w-5 transition-all duration-500 text-yellow-500",
+                            theme === "dark"
+                              ? "rotate-90 scale-0 opacity-0"
+                              : "rotate-0 scale-100 opacity-100"
+                          )}
+                        />
+                        <Moon
+                          className={cn(
+                            "absolute inset-0 h-5 w-5 transition-all duration-500 text-blue-400",
+                            theme === "dark"
+                              ? "rotate-0 scale-100 opacity-100"
+                              : "-rotate-90 scale-0 opacity-0"
+                          )}
+                        />
                       </div>
-                    )}
+
+                      {isAnimating && (
+                        <span className="absolute inset-0 rounded-lg bg-violet-500/30 dark:bg-violet-600/40 animate-ping" />
+                      )}
+                    </button>
+
+                    {/* Profile Dropdown */}
+                    <div className="hidden lg:block relative" ref={dropdownRef}>
+                      <button
+                        onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                        className="flex items-center gap-2.5 pl-3 ml-3 border-l border-slate-800 dark:border-gray-800 transition-colors duration-150 hover:opacity-80"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 dark:from-violet-600 dark:to-cyan-600 flex items-center justify-center text-white font-bold text-sm transition-all duration-150 shadow-lg dark:shadow-violet-500/30">
+                          {userInitial}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-white leading-tight transition-colors duration-150">{userName}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="w-1.5 h-1.5 bg-green-400 dark:bg-green-500 rounded-full transition-colors duration-150"></div>
+                            <p className="text-xs text-slate-400 dark:text-gray-500 transition-colors duration-150">Online</p>
+                          </div>
+                        </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 text-slate-400 transition-transform duration-200",
+                            profileDropdownOpen && "rotate-180"
+                          )}
+                        />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {profileDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-56 bg-slate-900 dark:bg-gray-900 border border-slate-800 dark:border-gray-800 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-50">
+                          <div className="p-3 border-b border-slate-800 dark:border-gray-800">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white">{userName}</p>
+                            <p className="text-xs text-slate-500 dark:text-gray-500 mt-0.5">{userEmail}</p>
+                          </div>
+
+                          <div className="p-2">
+                            <button
+                              onClick={() => {
+                                setProfileDropdownOpen(false);
+                                setChangePwdOpen(true);
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/70 dark:hover:bg-gray-800/70 transition-all duration-150 group"
+                            >
+                              <LockKeyhole className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform" />
+                              <span className="text-sm font-medium">Change Password</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setProfileDropdownOpen(false);
+                                handleLogout();
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-red-400 dark:hover:text-red-500 hover:bg-red-500/10 transition-all duration-150 group mt-1"
+                            >
+                              <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                              <span className="text-sm font-medium">Logout</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </header>
+            </header>
 
             <main className="flex-1 overflow-y-auto p-6 custom-scrollbar transition-colors duration-500">
               <div className="transition-all duration-150">

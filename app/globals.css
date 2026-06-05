@@ -32,6 +32,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -524,6 +525,16 @@ html:not(.dark) [data-admin] select option {
   color: #1e293b !important;
 }
 
+/* ── Native <select> & <option> in dark mode ────────────────── */
+html.dark [data-admin] select {
+  background-color: #1e293b !important; /* bg-slate-800 */
+  color: #ffffff !important;
+}
+html.dark [data-admin] select option {
+  background-color: #0f172a !important; /* bg-slate-900 */
+  color: #ffffff !important;
+}
+
 /* ── Input / Textarea background in light mode ───────────────── */
 html:not(.dark) [data-admin] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html:not(.dark) [data-admin] textarea {
@@ -542,3 +553,20 @@ html:not(.dark) [data-admin] .bg-slate-950 { background-color: #f1f5f9 !importan
 html:not(.dark) [data-admin] .text-slate-400 { color: #475569 !important; }
 html:not(.dark) [data-admin] .placeholder-slate-500::placeholder { color: #94a3b8 !important; }
 html:not(.dark) [data-admin] .placeholder-slate-400::placeholder { color: #94a3b8 !important; }
+
+/* ── Product Image Animation ────────────────────────────────── */
+@keyframes productImageSlideIn {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-image-swipe {
+  animation: productImageSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

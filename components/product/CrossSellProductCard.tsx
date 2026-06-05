@@ -73,7 +73,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
     product.variants?.find((v: any) => v.isDefault) ??
     product.variants?.[0] ??
     null;
-  
+
   useEffect(() => {
     if (qty < minQty) {
       setQty(minQty);
@@ -88,7 +88,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
   const discountBadge = getDiscountBadge(product);
   const finalPrice = getDiscountedPrice(product, basePrice);
-  
+
   // 🔥 NEW: oldPrice fallback logic
   const oldPriceValue =
     defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
@@ -97,12 +97,12 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
   const oldPriceData =
     (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
       ? getOldPriceDiscount(
-          basePrice,
-          oldPriceValue,
-          false
-        )
+        basePrice,
+        oldPriceValue,
+        false
+      )
       : null;
-      
+
   // ---------- Active Coupon Indicator ----------
   const hasActiveCoupon = (product as any).assignedDiscounts?.some((d: any) => {
     if (!d.isActive) return false;
@@ -114,7 +114,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
     return true;
   });
-  
+
   // 🎁 Loyalty Points Logic (NEW – production safe)
   const getLoyaltyPoints = () => {
     // ❌ excluded from loyalty
@@ -143,7 +143,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
   // 🔒 double-submit protection
   const pharmaApprovedRef = useRef(false);
-  
+
   const handlePharmaGuard = (action: "cart") => {
     // ✅ already approved in this flow
     if (pharmaApprovedRef.current) return true;
@@ -156,7 +156,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
     return true;
   };
-  
+
   const handleAddToCart = () => {
     if (product.disableBuyButton) return;
 
@@ -198,10 +198,10 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       productId: product.id,
       name: defaultVariant
         ? `${product.name} (${[
-            defaultVariant.option1Value,
-            (defaultVariant as any)?.option2Value,
-            (defaultVariant as any)?.option3Value,
-          ].filter(Boolean).join(", ")})`
+          defaultVariant.option1Value,
+          (defaultVariant as any)?.option2Value,
+          (defaultVariant as any)?.option3Value,
+        ].filter(Boolean).join(", ")})`
         : product.name,
 
       price: finalPrice,
@@ -263,7 +263,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
   const wishlistId = defaultVariant?.id ?? product.id;
   const inWishlist = isInWishlist(wishlistId);
-  
+
   const handleToggleWishlist = () => {
     toggleWishlist({
       id: wishlistId,
@@ -272,10 +272,10 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
       name: defaultVariant
         ? `${product.name} (${[
-            defaultVariant.option1Value,
-            (defaultVariant as any)?.option2Value,
-            (defaultVariant as any)?.option3Value,
-          ].filter(Boolean).join(", ")})`
+          defaultVariant.option1Value,
+          (defaultVariant as any)?.option2Value,
+          (defaultVariant as any)?.option3Value,
+        ].filter(Boolean).join(", ")})`
         : product.name,
 
       slug: product.slug,
@@ -317,18 +317,15 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       orderMinimumQuantity: product.orderMinimumQuantity ?? null,
     });
   };
-  
+
   return (
     <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 rounded-xl 
                     h-[330px] md:h-[355px] flex flex-col justify-between">
       <CardContent className="p-2 mt-0 flex flex-col h-full">
-        
-        {/* BADGES - सभी badges LEFT side */}
-        <GenderBadge gender={product.gender} />
-        
+
         {/* IMAGE SECTION */}
         <div className="h-[176px] sm:h-[200px] md:h-[224px] flex items-center justify-center overflow-hidden bg-white rounded-t-xl pt-2 relative">
-          
+
           {/* ✅ DISCOUNT BADGE - LEFT SIDE (Top Left) */}
           {product.displayDiscountType === "System" && discountBadge && (
             <div className="absolute top-1 left-2 z-20">
@@ -339,7 +336,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               </div>
             </div>
           )}
-          
+
           {/* 🔥 OLD PRICE BADGE - LEFT SIDE */}
           {!discountBadge && !hasActiveCoupon && oldPriceData && (
             <div className="absolute top-1 left-2 z-20">
@@ -350,7 +347,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               </div>
             </div>
           )}
-          
+
           {/* Coupon badge - LEFT SIDE (below discount or at top if no discount) */}
           {!discountBadge && hasActiveCoupon && (
             <div className="absolute top-1 left-2 z-20">
@@ -370,7 +367,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               </div>
             </div>
           )}
-          
+
           {/* VAT Relief — bottom left on image */}
           {(product.vatExempt || (product as any).vatRate === 0) && (
             <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
@@ -378,7 +375,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               VAT Relief
             </span>
           )}
-          
+
           {/* ✅ WISHLIST BUTTON - RIGHT SIDE (Top Right) */}
           <button
             onClick={(e) => {
@@ -392,21 +389,20 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
                 toast.success("Product added to wishlist!");
               }
             }}
-            className={`absolute z-20 right-2 p-1.5 rounded-full shadow-sm border transition-all top-1 ${
-              inWishlist
+            className={`absolute z-20 right-2 p-1 rounded-md shadow-sm border transition-all top-1 ${inWishlist
                 ? "bg-red-50 border-red-200"
                 : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
-            }`}
+              }`}
           >
             <Heart
-              className={`h-4 w-4 ${
-                inWishlist
+              className={`h-4 w-4 ${inWishlist
                   ? "fill-red-500 text-red-500"
                   : "text-gray-400 hover:text-red-400"
-              }`}
+                }`}
             />
           </button>
-          
+          <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
+
           <Link href={`/product/${product.slug}`}>
             <Image
               src={getCrossSellProductImage(product, defaultVariant)}
@@ -423,10 +419,10 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
             <h3 className="font-semibold text-xs md:text-sm text-gray-800 line-clamp-2 hover:text-[#f39a16] transition-colors">
               {defaultVariant
                 ? `${product.name} (${[
-                    defaultVariant.option1Value,
-                    (defaultVariant as any).option2Value,
-                    (defaultVariant as any).option3Value
-                  ].filter(Boolean).join(", ")})`
+                  defaultVariant.option1Value,
+                  (defaultVariant as any).option2Value,
+                  (defaultVariant as any).option3Value
+                ].filter(Boolean).join(", ")})`
                 : product.name}
             </h3>
           </Link>
@@ -459,7 +455,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
           <span className="text-base font-bold text-[#f38918]">
             £{(product.displayDiscountType === "System" ? finalPrice : basePrice).toFixed(2)}
           </span>
-          
+
           {/* 🔥 CASE 1: REAL DISCOUNT */}
           {product.displayDiscountType === "System" && discountBadge && (
             <span className="line-through text-xs text-gray-400">
@@ -473,7 +469,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               £{oldPriceData.oldPrice.toFixed(2)}
             </span>
           )}
-          
+
           {vatRate !== null && vatRate > 0 && !product.vatExempt && (
             <span className="text-[10px] font-semibold text-black bg-gray-50 border border-gray-200 px-1 py-0.5 rounded whitespace-nowrap">
               {vatRate}% VAT
@@ -496,11 +492,10 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
           <Button
             disabled={stock === 0 || product.disableBuyButton === true}
             onClick={handleAddToCart}
-            className={`flex-1 h-[30px] text-[9px] px-1 rounded-lg font-bold ${
-              stock === 0
+            className={`flex-1 h-[30px] text-[9px] px-1 rounded-lg font-bold ${stock === 0
                 ? "bg-red-700 text-white cursor-not-allowed"
                 : "bg-black text-white hover:bg-[#f39a16] hover:text-black transition-colors duration-300"
-            }`}
+              }`}
           >
             {stock === 0 ? "Out of Stock" : "Add to Cart"}
           </Button>

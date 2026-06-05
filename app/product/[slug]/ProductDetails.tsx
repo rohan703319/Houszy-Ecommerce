@@ -1231,6 +1231,12 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     return getImageUrl(sortedImages[selectedImage]?.imageUrl);
   }, [sortedImages, selectedImage, getImageUrl]);
 
+  // Track previous image to prevent flash/jerk during transition
+  const prevImageRef = useRef(activeMainImage);
+  useEffect(() => {
+    prevImageRef.current = activeMainImage;
+  }, [activeMainImage]);
+
   useEffect(() => {
     if (selectedVariant?.imageUrl) {
       setSelectedImage(0);
@@ -1858,14 +1864,27 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
                         ></iframe>
                       </div>
                     ) : (
-                      <Image
-                        src={activeMainImage}
-                        alt={product.name}
-                        fill
-                        className="object-contain p-1 pointer-events-none"
-                        priority
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
+                      <>
+                        {/* Background (old/previous) image to prevent flash/jerk */}
+                        {prevImageRef.current && prevImageRef.current !== activeMainImage && (
+                          <Image
+                            src={prevImageRef.current}
+                            alt=""
+                            fill
+                            className="object-contain p-1 pointer-events-none opacity-80"
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                          />
+                        )}
+                        <Image
+                          key={activeMainImage}
+                          src={activeMainImage}
+                          alt={product.name}
+                          fill
+                          className="object-contain p-1 pointer-events-none animate-image-swipe"
+                          priority
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
+                      </>
                     )}
 
                     {/* 🔥 ZOOM OVERLAY */}
@@ -2113,7 +2132,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
           <div>
             {/* TITLE */}
             <div className="mb-2">
-              <h1 className="text-xl md:text-2xl lg:text-[28px] font-bold text-gray-900 leading-tight tracking-tight">
+              <h1 className="text-xl md:text-2xl lg:text-[26px] font-bold text-gray-900 leading-tight tracking-tight">
                 {selectedVariant
                   ? `${product.name} (${[
                     selectedOptions.option1,

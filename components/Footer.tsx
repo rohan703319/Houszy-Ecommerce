@@ -43,19 +43,31 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-black w-full text-white pt-12 pb-4 border-t border-gray-900">
+    <footer className="bg-black w-full text-white pt-8 pb-3 border-t border-gray-900">
       <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-4 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-4 pb-6">
 
           {/* Column 1: INSPIRATION */}
           <div className="lg:col-span-2">
+            {/* Logo */}
+            <div className="mb-4">
+              <Link href="/" className="inline-block bg-white px-3 py-2 rounded-xl shadow-md border border-gray-800 hover:scale-105 transition-all">
+                <Image
+                  src="/logo/logo.png"
+                  alt="Houszy Logo"
+                  width={130}
+                  height={48}
+                  className="h-9 w-auto object-contain"
+                />
+              </Link>
+            </div>
             <button className="w-full flex items-center justify-between md:justify-start" onClick={() => toggle("inspiration")}>
-              <h4 className="text-[17px] font-bold tracking-wider mb-0 md:mb-4">INSPIRATION</h4>
+              <h4 className="text-[16px] font-bold tracking-wider mb-0 md:mb-2.5">INSPIRATION</h4>
               <ChevronDown className={`${open.inspiration ? "rotate-180" : "rotate-0"} md:hidden transition-transform h-4 w-4`} />
             </button>
-            <ul className={`text-[13px] md:text-[14px] text-gray-300 mt-3 space-y-3 ${open.inspiration ? "block" : "hidden md:block"}`}>
+            <ul className={`text-[13px] md:text-[14px] text-gray-300 mt-2 space-y-2 ${open.inspiration ? "block" : "hidden md:block"}`}>
               <li><Link href="/blog" className="hover:text-white transition">Blog</Link></li>
 
               <li><Link href="/reviews" className="hover:text-white transition">Reviews</Link></li>
@@ -65,10 +77,10 @@ export default function Footer() {
           {/* Column 2: INFORMATION */}
           <div className="lg:col-span-3">
             <button className="w-full flex items-center justify-between md:justify-start" onClick={() => toggle("information")}>
-              <h4 className="text-[17px] font-bold tracking-wider mb-0 md:mb-4">INFORMATION</h4>
+              <h4 className="text-[16px] font-bold tracking-wider mb-0 md:mb-2.5">INFORMATION</h4>
               <ChevronDown className={`${open.information ? "rotate-180" : "rotate-0"} md:hidden transition-transform h-4 w-4`} />
             </button>
-            <ul className={`text-[13px] md:text-[14px] text-gray-300 mt-3 space-y-3 ${open.information ? "block" : "hidden md:block"}`}>
+            <ul className={`text-[13px] md:text-[14px] text-gray-300 mt-2 space-y-2 ${open.information ? "block" : "hidden md:block"}`}>
               <li><Link href="/about" className="hover:text-white transition">About Us</Link></li>
               <li><Link href="/contact" className="hover:text-white transition">Contact Us</Link></li>
               <li><Link href="/faq" className="hover:text-white transition">FAQ</Link></li>
@@ -82,18 +94,18 @@ export default function Footer() {
           {/* Column 3: FIND US AT */}
           <div className="lg:col-span-3">
             <button className="w-full flex items-center justify-between md:justify-start" onClick={() => toggle("findus")}>
-              <h4 className="text-[17px] font-bold tracking-wider mb-0 md:mb-4">FIND US AT</h4>
+              <h4 className="text-[16px] font-bold tracking-wider mb-0 md:mb-2.5">FIND US AT</h4>
               <ChevronDown className={`${open.findus ? "rotate-180" : "rotate-0"} md:hidden transition-transform h-4 w-4`} />
             </button>
-            <div className={`text-[13px] md:text-[14px] text-white font-medium mt-3 space-y-1.5 ${open.findus ? "block" : "hidden md:block"}`}>
+            <div className={`text-[13px] md:text-[14px] text-white font-medium mt-2 space-y-1 ${open.findus ? "block" : "hidden md:block"}`}>
               <p>Address: Spacebox Business Park</p>
               <p>Unit 38A, Plume Street</p>
               <p>Birmingham B6 7RT</p>
               <p>United Kingdom</p>
-              <p className="mt-4">Email: <a href="mailto:customersupport@houszy.co.uk" className="hover:underline font-semibold">customersupport@houszy.co.uk</a></p>
+              <p className="mt-3">Email: <a href="mailto:customersupport@houszy.co.uk" className="hover:underline font-semibold">customersupport@houszy.co.uk</a></p>
               <p>Phone: <span className="font-semibold">+44 121 461 6837</span></p>
 
-              <div className="mt-3 inline-block">
+              <div className="mt-2 inline-block">
                 <a href="https://maps.app.goo.gl/2bkJtoFb5xJCUqFe9" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-white font-semibold hover:text-gray-300 border-b-2 border-white pb-0.5 transition">
                   Get Direction <ArrowUpRight className="h-3.5 w-3.5" />
                 </a>
@@ -103,31 +115,31 @@ export default function Footer() {
 
           {/* Column 4: SUBSCRIBE & SAVE */}
           <div className="lg:col-span-4">
-            <h3 className="text-[22px] md:text-[26px] font-semibold mb-3">Subscribe & Save</h3>
-            <p className="text-[13px] md:text-[14px] text-gray-400 mb-6 leading-relaxed pr-0 md:pr-10">
+            <h3 className="text-[20px] md:text-[22px] font-semibold mb-2">Subscribe & Save</h3>
+            <p className="text-[13px] md:text-[14px] text-gray-400 mb-4 leading-relaxed pr-0 md:pr-10">
               Subscribe to Houszy Newsletter and instantly receive an extra <strong className="text-white">5% off</strong> coupon on your email address.
             </p>
 
-            <form onSubmit={handleSubscribe} className="relative mb-8 max-w-sm">
+            <form onSubmit={handleSubscribe} className="relative mb-4 max-w-sm">
               <input
                 type="email"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#2A2A2A] text-white px-4 py-3 rounded-full text-sm outline-none border border-transparent focus:border-gray-500 transition-colors"
+                className="w-full bg-[#2A2A2A] text-white px-4 py-2.5 rounded-full text-sm outline-none border border-transparent focus:border-gray-500 transition-colors"
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="absolute right-1 top-1 bottom-1 bg-black text-white px-5 rounded-full text-sm font-semibold flex items-center gap-1 hover:bg-gray-900 transition disabled:opacity-60"
+                className="absolute right-1 top-1 bottom-1 bg-black text-white px-4 rounded-full text-sm font-semibold flex items-center gap-0.5 hover:bg-gray-900 transition disabled:opacity-60"
               >
-                {loading ? "..." : "Subscribe"} <ArrowUpRight className="h-3.5 w-3.5" />
+                {loading ? "..." : "Subscribe"} <ArrowUpRight className="h-3 w-3" />
               </button>
             </form>
 
-            {localError && <p className="text-xs text-red-400 -mt-6 mb-4">{localError}</p>}
-            {error && <p className="text-xs text-red-400 -mt-6 mb-4">{error}</p>}
-            {success && <p className="text-xs text-green-400 -mt-6 mb-4">{success}</p>}
+            {localError && <p className="text-xs text-red-400 -mt-3 mb-3">{localError}</p>}
+            {error && <p className="text-xs text-red-400 -mt-3 mb-3">{error}</p>}
+            {success && <p className="text-xs text-green-400 -mt-3 mb-3">{success}</p>}
 
             {/* Social Icons */}
             <div className="flex gap-3 flex-wrap">
@@ -159,17 +171,15 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Payments Strip */}
-        <div className="flex justify-end pb-4 pt-2">
-          {/* Using next/image for better performance and caching control */}
-          <Image src="/payments/visa.png" unoptimized alt="Payments" width={300} height={46} className="h-9 md:h-[46px] w-auto object-contain" />
-        </div>
-
-        {/* Bottom Copyright */}
-        <div className="py-5 text-center border-t border-[#f38918]">
-          <p className="text-[14px] text-gray-300 font-semibold tracking-wide">
+        {/* Bottom Copyright & Payments Strip combined */}
+        <div className="pt-4 pb-2 border-t border-[#f38918] flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-[14px] text-gray-300 font-semibold tracking-wide text-center md:text-left">
             Copyright © 2026 <span className="text-[#f39a16]">Houszy</span> Designed by <a href="https://www.mezzex.com/" target="_blank" rel="noopener noreferrer" className="text-[#f39a16] hover:underline">Mezzex</a>
           </p>
+          <div className="flex items-center">
+            {/* Using next/image for better performance and caching control */}
+            <Image src="/payments/visa.png" unoptimized alt="Payments" width={220} height={34} className="h-7 w-auto object-contain" />
+          </div>
         </div>
 
       </div>

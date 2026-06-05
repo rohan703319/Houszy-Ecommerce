@@ -5,7 +5,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.direct-care.co.u
 
 async function fetchSlugs<T>(url: string, extract: (item: T) => string): Promise<string[]> {
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } })
+    // no-store: avoids Next.js 2MB data cache limit on large API responses
+    const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) return []
     const json = await res.json()
     const items: T[] = json?.data?.items ?? json?.data ?? []

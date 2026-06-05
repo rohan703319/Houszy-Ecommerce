@@ -39,20 +39,20 @@ export default function GenderBadge({
 
   return (
     <div
-  className={`
-    ${absolute ? "absolute top-1 left-1 sm:top-2 sm:left-2 z-20" : ""}
-    bg-white/70 px-2 py-1 rounded-md shadow
-    flex items-center gap-1
-    ${className}
-  `}
->
+      className={`
+        ${absolute ? "absolute top-1 left-1 sm:top-2 sm:left-2 z-20" : ""}
+        bg-white/80 px-1.5 py-0.5 rounded shadow-sm
+        flex items-center gap-1
+        ${className}
+      `}
+    >
       <img
         src={config.icon}
         alt={config.label}
-        className="h-3 w-3 sm:h-5 sm:w-5"
+        className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5"
         loading="lazy"
       />
-      <span className="text-[8px] sm:text-[10px] font-semibold text-gray-700">
+      <span className="text-[7px] sm:text-[9px] font-semibold text-gray-700">
         {config.label}
       </span>
     </div>

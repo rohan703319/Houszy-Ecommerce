@@ -1441,7 +1441,7 @@ export default function OrdersListPage() {
                         <div className="flex items-center justify-center gap-2.5">
 
                           {/* IMAGE */}
-                          {order.orderItems?.length > 0 ? (
+                          {order.orderItems?.length > 0 && order.orderItems[0]?.productImageUrl ? (
                             <img
                               src={getImageUrl(order.orderItems[0]?.productImageUrl)}
                               alt={order.orderItems[0]?.productName}

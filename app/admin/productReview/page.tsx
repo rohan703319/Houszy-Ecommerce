@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Star,
@@ -132,12 +132,12 @@ useEffect(() => {
   return () => clearTimeout(t);
 }, [searchTerm]);
 
-  // ✅ Fetch Products that have reviews (for filter dropdown)
+  // ✅ Fetch Products that have reviews (for filter dropdown + image map)
 const fetchProducts = async (searchTerm?: string) => {
   setLoadingProducts(true);
   try {
     const response = await productReviewsService.getProductsWithReviews({
-      pageSize: 100,
+      pageSize: 1000, // load all reviewed products so image map is complete
       searchTerm,
     });
     if (response.data?.success && Array.isArray(response.data?.data?.items)) {
@@ -153,10 +153,11 @@ const fetchProducts = async (searchTerm?: string) => {
   }
 };
 
-// Fetch all products for the create-review form (needs price/sku, all products not just reviewed ones)
+// Fetch all products for the create-review form — lazy loaded only when modal opens
 const fetchFormProducts = async () => {
+  if (formProducts.length > 0) return; // already loaded, skip
   try {
-    const response = await productReviewsService.getAllProducts(1, 5000);
+    const response = await productReviewsService.getAllProducts(1, 500);
     if (response.data?.success && Array.isArray(response.data?.data?.items)) {
       setFormProducts(response.data.data.items.map((p: any) => ({
         id: p.id,
@@ -233,10 +234,11 @@ if (res.data?.success) {
 }, [currentPage,verifiedOnlyFilter, itemsPerPage, statusFilter, ratingFilter, debouncedSearch, productFilter]);
 
   // ✅ Initial load — fetch products (for dropdown) and reviews simultaneously
+  // Note: fetchFormProducts is NOT called here — it is lazy-loaded when the create modal opens
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([fetchProducts(), fetchFormProducts()]);
+      await fetchProducts();
       setLoading(false);
     };
     init();
@@ -407,6 +409,12 @@ const filteredProducts = products.filter(product =>
 const filteredFormProducts = formProducts.filter(product =>
   product.name.toLowerCase().includes(productSearch.toLowerCase())
 );
+
+// ✅ Fast O(1) image URL lookup: productId → productImageUrl
+const productImageMap = useMemo(() => products.reduce<Record<string, string>>((acc, p) => {
+  if (p.productId && p.productImageUrl) acc[p.productId] = p.productImageUrl;
+  return acc;
+}, {}), [products]);
 
 // ✅ Get selected product title
 const getSelectedProductTitle = () => {
@@ -1237,14 +1245,21 @@ const isPlayableVideoUrl = (url: string) => {
  
   className="flex items-center gap-2 text-left max-w-[220px]"
 >
-  <img
-    src={getImageUrl(
-      products.find(p => p.productId === review.productId)?.productImageUrl
-    )}
-    alt="product"
-    className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
-    onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-  />
+{(() => {
+  const imgSrc = getImageUrl(review.productImageUrl || productImageMap[review.productId]);
+  return imgSrc ? (
+    <img
+      src={imgSrc}
+      alt="product"
+      className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
+      onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
+    />
+  ) : (
+    <div className="h-8 w-8 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0">
+      <Package className="h-4 w-4 text-slate-500" />
+    </div>
+  );
+})()}
 
   <div className="min-w-0">
     {/* Product Name */}

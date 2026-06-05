@@ -19,6 +19,7 @@ export interface ProductReview {
   productName?: string;
   productSlug?: string;
   productSku?: string;
+  productImageUrl?: string;  // ✅ returned by API alongside review data
   customerId: string;
   customerName: string;
   customerEmail?: string;
