@@ -130,6 +130,14 @@ export default function SubscriptionPurchaseCard({
     }
 
 
+    const nextDayDeliveryEnabled = selectedVariant
+      ? selectedVariant.nextDayDeliveryEnabled === true
+      : !!product.nextDayDeliveryEnabled;
+
+    const nextDayDeliveryFree = selectedVariant
+      ? selectedVariant.nextDayDeliveryFree === true
+      : !!product.nextDayDeliveryFree;
+
     addToCart({
       id: `${selectedVariant?.id ?? product.id}-subscription`,
       type: "subscription",
@@ -167,7 +175,10 @@ export default function SubscriptionPurchaseCard({
         ...(selectedVariant?.option2Name && { [selectedVariant.option2Name]: selectedVariant.option2Value }),
         ...(selectedVariant?.option3Name && { [selectedVariant.option3Name]: selectedVariant.option3Value }),
       },
-      maxStock: selectedVariant?.stockQuantity ?? product.stockQuantity
+      maxStock: selectedVariant?.stockQuantity ?? product.stockQuantity,
+      nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryFree: nextDayDeliveryFree ?? false,
+      sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
     });
     toast.success(
       <div className="flex items-center justify-between gap-2">

@@ -13,7 +13,7 @@ import NewsletterWrapper from "@/components/NewsletterWrapper";
 import CategoryOffersSlider from "@/components/CategoryOffersSlider";
 import { getActiveBanners } from "@/lib/bannerUtils";
 import Script from "next/script";
-import { TrendingUp, Zap, Gift, Shield, } from "lucide-react";
+import { TrendingUp, Zap, Gift, Shield, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { BlogPost } from "@/components/LatestBlogs";
 const WhyChooseUs = dynamic(() => import("@/components/WhyChooseUs"));
@@ -343,10 +343,21 @@ export default async function Home() {
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
 
             {/* Heading */}
-            <div className="text-center mb-1 md:mb-8">
-              <h2 className="text-[15px] md:text-[22px] font-bold text-black">
+            <div className="relative flex items-center justify-center mb-1 md:mb-8 min-h-[40px] w-full px-1">
+              <h2 className="text-[15px] md:text-[22px] font-bold text-black text-center">
                 Our Popular Collections
               </h2>
+              <div className="absolute right-1">
+                <Link href="/category">
+                  <Button
+                    variant="outline"
+                    className="text-[11px] md:text-[13px] font-bold border border-gray-300 text-gray-700 hover:bg-black hover:text-white hover:border-black transition-all duration-300 rounded-xl px-3 py-1.5 md:px-4 md:py-2 flex items-center gap-1 shadow-sm bg-white"
+                  >
+                    View All Collections
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </div>
             </div>
 
             {/* Category Slider for dynamic Swiper support across devices */}

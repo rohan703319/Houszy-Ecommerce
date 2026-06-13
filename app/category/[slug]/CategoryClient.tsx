@@ -786,6 +786,14 @@ export default function CategoryClient({
         return true;
       });
 
+      const nextDayDeliveryEnabled = defaultVariant
+        ? defaultVariant.nextDayDeliveryEnabled === true
+        : !!product.nextDayDeliveryEnabled;
+
+      const nextDayDeliveryFree = defaultVariant
+        ? defaultVariant.nextDayDeliveryFree === true
+        : !!product.nextDayDeliveryFree;
+
       addToCart({
         id: `${variantId ?? product.id}-one`,
         productId: product.id,
@@ -826,7 +834,8 @@ export default function CategoryClient({
           option3: defaultVariant?.option3Value ?? null,
         },
         shipSeparately: product.shipSeparately,
-        nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+        nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+        nextDayDeliveryFree: nextDayDeliveryFree ?? false,
         sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
         productData: JSON.parse(JSON.stringify(product)),
       });
@@ -1218,21 +1227,29 @@ export default function CategoryClient({
             {/* Load more trigger + skeleton cards */}
             {hasMore && <div ref={loadMoreRef} />}
             {isLoadingMore && (
-              <div className={`grid grid-cols-2 ${gridCols === 3 ? "md:grid-cols-3" : "md:grid-cols-2"} gap-2 md:gap-6 mb-8 min-h-[400px]`}>
-                {Array.from({ length: gridCols === 3 ? 3 : 2 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-gray-200 overflow-hidden bg-white animate-pulse">
-                    {/* Image skeleton */}
-                    <div className="bg-gray-200 h-44 md:h-56 w-full" />
-                    <div className="p-3 space-y-2">
-                      {/* Name */}
-                      <div className="h-3 bg-gray-200 rounded w-4/5" />
-                      <div className="h-3 bg-gray-200 rounded w-3/5" />
-                      {/* Rating */}
-                      <div className="h-3 bg-gray-200 rounded w-1/3" />
+              <div className={`grid grid-cols-2 ${gridCols === 3 ? "md:grid-cols-4" : "md:grid-cols-2"} gap-2 md:gap-4 mb-8`}>
+                {Array.from({ length: gridCols === 3 ? 4 : 2 }).map((_, i) => (
+                  <div key={i} className="rounded-lg bg-white animate-pulse overflow-hidden">
+                    {/* Image — matches h-44 md:h-56 */}
+                    <div className="h-44 md:h-56 bg-gray-200 rounded-t-lg" />
+
+                    {/* Content — matches p-2 md:p-4 */}
+                    <div className="p-2 md:p-4 space-y-2">
+                      {/* Title 2 lines */}
+                      <div className="h-3 bg-gray-200 rounded w-full" />
+                      <div className="h-3 bg-gray-200 rounded w-4/5 mb-1" />
+
+                      {/* Rating + badge row */}
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-3 w-16 bg-gray-200 rounded" />
+                        <div className="h-3 w-8 bg-gray-200 rounded" />
+                      </div>
+
                       {/* Price */}
-                      <div className="h-4 bg-gray-200 rounded w-2/5 mt-1" />
-                      {/* Button */}
-                      <div className="h-8 bg-gray-200 rounded-lg w-full mt-2" />
+                      <div className="h-4 bg-gray-200 rounded w-2/5" />
+
+                      {/* Add to Cart button */}
+                      <div className="h-9 bg-gray-200 rounded-md w-full mt-1" />
                     </div>
                   </div>
                 ))}

@@ -163,7 +163,7 @@ export default async function DeliveryPage({
 
           case "support":
             return (
-              <div key={i} className="border-t pt-6 mt-6">
+              <div key={i} className="border-t pt-6 mt-6 mb-10">
                 <h2 className="text-xl font-bold mb-2">
                   {section.heading}
                 </h2>

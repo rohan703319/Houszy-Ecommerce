@@ -30,7 +30,7 @@ import { useDebounce } from '../_hooks/useDebounce';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'orders-export' | 'products-bulk-update' | 'travelbook-export' | 'create-shipment';
+type Tab = 'orders-export' | 'travelbook-export' | 'products-bulk-update' | 'categories-bulk-update' | 'create-shipment';
 
 type OrderStatus =
   | 'Pending' | 'Confirmed' | 'Processing' | 'Shipped'
@@ -285,7 +285,7 @@ function OrdersExportTab() {
     try {
       const response = await orderService.exportOrders(filters);
       const blob = response.data as Blob;
-      
+
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `orders-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -448,32 +448,32 @@ function OrdersExportTab() {
 // ─── Products Bulk Update Tab ─────────────────────────────────────────────────
 
 function ProductsBulkUpdateTab() {
-   const DEFAULT_SELECTED_FIELDS = [
-  'productId',
-  'productType',
-  'sku',
-  'name',
-  'stock',
-  'status',
-  'isActive',
-  'isPublished',
-  'price',
-  'oldPrice',
-  'nextDayDeliveryEnabled',
-  'nextDayDeliveryCutoffTime',
-  'brandNames',
-  'categoryIds',
-  'gtin',
-  'orderMaximumQuantity',
-  'vatRateName',
-];
+  const DEFAULT_SELECTED_FIELDS = [
+    'productId',
+    'productType',
+    'sku',
+    'name',
+    'stock',
+    'status',
+    'isActive',
+    'isPublished',
+    'price',
+    'oldPrice',
+    'nextDayDeliveryEnabled',
+    'nextDayDeliveryCutoffTime',
+    'brandNames',
+    'categoryIds',
+    'gtin',
+    'orderMaximumQuantity',
+    'vatRateName',
+  ];
   const [templateFilters, setTemplateFilters] = useState({ searchTerm: '', isPublished: '', stockStatus: '', categoryIds: [] as string[] });
   const [categories, setCategories] = useState<{ id: string; name: string; path: string; isParent: boolean }[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState('');
-const [selectedFields, setSelectedFields] = useState<string[]>(
-  DEFAULT_SELECTED_FIELDS
-);
+  const [selectedFields, setSelectedFields] = useState<string[]>(
+    DEFAULT_SELECTED_FIELDS
+  );
   const [categorySearch, setCategorySearch] = useState('');
   const debouncedCategorySearch = useDebounce(categorySearch, 350);
   const [fieldSearch, setFieldSearch] = useState('');
@@ -530,14 +530,14 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
   const filteredFields = debouncedFieldSearch.trim().length === 0
     ? EDITABLE_FIELDS
     : EDITABLE_FIELDS.filter(f => f.label.toLowerCase().includes(debouncedFieldSearch.trim().toLowerCase()));
-    const sortedFields = [
-  ...filteredFields.filter(f =>
-    DEFAULT_SELECTED_FIELDS.includes(f.key)
-  ),
-  ...filteredFields.filter(f =>
-    !DEFAULT_SELECTED_FIELDS.includes(f.key)
-  ),
-];
+  const sortedFields = [
+    ...filteredFields.filter(f =>
+      DEFAULT_SELECTED_FIELDS.includes(f.key)
+    ),
+    ...filteredFields.filter(f =>
+      !DEFAULT_SELECTED_FIELDS.includes(f.key)
+    ),
+  ];
   useEffect(() => {
     let alive = true;
 
@@ -553,11 +553,11 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
           ? payload.data
           : Array.isArray((payload.data as any)?.items)
             ? (payload.data as any).items
-          : Array.isArray((payload as any)?.items)
-            ? (payload as any).items
-          : Array.isArray(payload)
-            ? payload
-            : []) as CategoryOption[];
+            : Array.isArray((payload as any)?.items)
+              ? (payload as any).items
+              : Array.isArray(payload)
+                ? payload
+                : []) as CategoryOption[];
 
         if (alive) setCategories(items.some(item => item.parentCategoryId !== undefined) ? buildCategoryPaths(items) : flattenCategories(items));
       } catch (err: any) {
@@ -626,28 +626,28 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
           { n: '2', icon: <FileSpreadsheet className="h-5 w-5" />, title: 'Edit Blue Columns', desc: 'Price, stock, name — leave blank to skip a field', grad: 'from-violet-500/20 to-purple-500/20 border-violet-500/30', iconCol: 'text-violet-400' },
           { n: '3', icon: <UploadCloud className="h-5 w-5" />, title: 'Upload & Apply', desc: 'Re-upload the file to push changes live', grad: 'from-emerald-500/20 to-green-500/20 border-emerald-500/30', iconCol: 'text-emerald-400' },
         ].map(({ n, icon, title, desc, grad, iconCol }) => (
-       <div key={n} className={`relative rounded-xl border bg-gradient-to-br ${grad} p-4`}>
-  
-  <div className="flex items-start justify-between">
-    
-    {/* LEFT SIDE */}
-    <div className="flex items-start gap-3">
-      <div className={`inline-flex items-center justify-center rounded-lg bg-slate-800/60 p-2 ${iconCol}`}>
-        {icon}
-      </div>
+          <div key={n} className={`relative rounded-xl border bg-gradient-to-br ${grad} p-4`}>
 
-      <div>
-        <p className="text-sm font-semibold text-slate-200">{title}</p>
-        <p className="text-xs text-slate-400 mt-1 leading-relaxed">{desc}</p>
-      </div>
-    </div>
+            <div className="flex items-start justify-between">
 
-    {/* RIGHT SIDE (01) */}
-    <span className="text-xs font-bold text-slate-600">0{n}</span>
+              {/* LEFT SIDE */}
+              <div className="flex items-start gap-3">
+                <div className={`inline-flex items-center justify-center rounded-lg bg-slate-800/60 p-2 ${iconCol}`}>
+                  {icon}
+                </div>
 
-  </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-200">{title}</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">{desc}</p>
+                </div>
+              </div>
 
-</div>
+              {/* RIGHT SIDE (01) */}
+              <span className="text-xs font-bold text-slate-600">0{n}</span>
+
+            </div>
+
+          </div>
         ))}
       </div>
 
@@ -684,12 +684,12 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
             </Field>
           </div>
 
-            <div className="rounded-xl border border-slate-700/60 bg-slate-950/30 overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-4 py-3">
-                <div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Filter by Categories</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Select one or more categories. Leave empty to include products from every category.</p>
-                </div>
+          <div className="rounded-xl border border-slate-700/60 bg-slate-950/30 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-4 py-3">
+              <div>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Filter by Categories</p>
+                <p className="text-xs text-slate-500 mt-0.5">Select one or more categories. Leave empty to include products from every category.</p>
+              </div>
               <div className="flex items-center gap-2">
                 {templateFilters.categoryIds.length > 0 && (
                   <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">
@@ -699,7 +699,7 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
 
                 <div className="relative">
                   <input
-                  type='search'
+                    type='search'
                     value={categorySearch}
                     onChange={(e) => setCategorySearch(e.target.value)}
                     placeholder="Search categories..."
@@ -724,58 +724,57 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
                 <button onClick={selectAllCategories} className="text-xs font-medium text-slate-300 hover:text-slate-200">All categories</button>
                 <button onClick={clearCategories} className="text-xs font-medium text-slate-500 hover:text-slate-300">Clear</button>
               </div>
-            </div>  
+            </div>
             <div className="p-4">
               {categoriesLoading ? (
-              <div className="flex min-h-24 items-center gap-2 text-xs text-slate-400">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading categories
-              </div>
-            ) : categoriesError ? (
-              <p className="text-xs text-amber-400">{categoriesError}</p>
-             ) : categories.length === 0 ? (
-               <p className="text-xs text-slate-500">No categories found.</p>
-             ) : (
+                <div className="flex min-h-24 items-center gap-2 text-xs text-slate-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading categories
+                </div>
+              ) : categoriesError ? (
+                <p className="text-xs text-amber-400">{categoriesError}</p>
+              ) : categories.length === 0 ? (
+                <p className="text-xs text-slate-500">No categories found.</p>
+              ) : (
                 <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1 ${scrollCls}`}>
-                {filteredCategories.map(category => {
-                  const checked = templateFilters.categoryIds.includes(category.id);
-                  return (
-                    <label
-                      key={category.id}
-                      className={`flex min-h-11 items-center gap-2 cursor-pointer rounded-lg px-3 py-2 text-xs transition-colors border ${
-                        checked
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-slate-100'
-                          : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-                      }`}
-                      title={category.path}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCategory(category.id)}
-                        className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/50 focus:ring-offset-0"
-                      />
-                      <span className="min-w-0 flex-1 truncate font-medium leading-5">
-                        {category.path}
-                      </span>
-                      {category.isParent && (
-                        <span className="rounded-md border border-slate-600/80 bg-slate-800/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          Main
+                  {filteredCategories.map(category => {
+                    const checked = templateFilters.categoryIds.includes(category.id);
+                    return (
+                      <label
+                        key={category.id}
+                        className={`flex min-h-11 items-center gap-2 cursor-pointer rounded-lg px-3 py-2 text-xs transition-colors border ${checked
+                            ? 'bg-emerald-500/10 border-emerald-500/40 text-slate-100'
+                            : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                          }`}
+                        title={category.path}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCategory(category.id)}
+                          className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/50 focus:ring-offset-0"
+                        />
+                        <span className="min-w-0 flex-1 truncate font-medium leading-5">
+                          {category.path}
                         </span>
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
+                        {category.isParent && (
+                          <span className="rounded-md border border-slate-600/80 bg-slate-800/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                            Main
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
-            <div className="rounded-xl border border-slate-700/60 bg-slate-950/30 overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-4 py-3">
-                <div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Fields to Include</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Checked fields will appear in Excel. Leave all unchecked to export every available field.</p>
-                </div>
+          <div className="rounded-xl border border-slate-700/60 bg-slate-950/30 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/50 px-4 py-3">
+              <div>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Fields to Include</p>
+                <p className="text-xs text-slate-500 mt-0.5">Checked fields will appear in Excel. Leave all unchecked to export every available field.</p>
+              </div>
               <div className="flex items-center gap-2 text-xs">
                 <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 font-semibold text-cyan-300">
                   {selectedFields.length || 'All'} fields
@@ -807,17 +806,16 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
                 <button onClick={clearAllFields} className="text-slate-400 hover:text-slate-300 font-medium">All fields</button>
               </div>
             </div>
-        <div className={`p-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-2 max-h-72 overflow-y-auto ${scrollCls}`}>
-                {sortedFields.map(f => {
+            <div className={`p-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-2 max-h-72 overflow-y-auto ${scrollCls}`}>
+              {sortedFields.map(f => {
                 const checked = selectedFields.includes(f.key);
                 return (
                   <label
                     key={f.key}
-                    className={`flex min-h-10 items-center gap-2 cursor-pointer rounded-lg px-3 py-2 text-xs transition-colors border ${
-                      checked
+                    className={`flex min-h-10 items-center gap-2 cursor-pointer rounded-lg px-3 py-2 text-xs transition-colors border ${checked
                         ? 'bg-cyan-500/10 border-cyan-500/40 text-slate-100'
                         : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -938,11 +936,11 @@ const [selectedFields, setSelectedFields] = useState<string[]>(
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[
-                { label: 'Total Rows',        value: result.totalRows,       grad: 'from-slate-800 to-slate-700',     text: 'text-slate-200' },
-                { label: 'Products Updated',  value: result.productsUpdated, grad: 'from-emerald-900/60 to-green-900/40',   text: 'text-emerald-300' },
-                { label: 'Variants Updated',  value: result.variantsUpdated, grad: 'from-cyan-900/60 to-blue-900/40',       text: 'text-cyan-300' },
-                { label: 'Skipped',           value: result.skipped,         grad: 'from-amber-900/60 to-yellow-900/40',   text: 'text-amber-300' },
-                { label: 'Failed',            value: result.failed,          grad: 'from-red-900/60 to-rose-900/40',       text: 'text-red-300' },
+                { label: 'Total Rows', value: result.totalRows, grad: 'from-slate-800 to-slate-700', text: 'text-slate-200' },
+                { label: 'Products Updated', value: result.productsUpdated, grad: 'from-emerald-900/60 to-green-900/40', text: 'text-emerald-300' },
+                { label: 'Variants Updated', value: result.variantsUpdated, grad: 'from-cyan-900/60 to-blue-900/40', text: 'text-cyan-300' },
+                { label: 'Skipped', value: result.skipped, grad: 'from-amber-900/60 to-yellow-900/40', text: 'text-amber-300' },
+                { label: 'Failed', value: result.failed, grad: 'from-red-900/60 to-rose-900/40', text: 'text-red-300' },
               ].map(({ label, value, grad, text }) => (
                 <div key={label} className={`rounded-xl p-4 text-center bg-gradient-to-br ${grad} border border-slate-700/40`}>
                   <p className={`text-2xl font-bold ${text}`}>{value}</p>
@@ -1081,11 +1079,10 @@ function TravelbookExportTab() {
               <button
                 key={opt.id}
                 onClick={() => setRange(opt.id)}
-                className={`relative rounded-lg border px-3 py-2.5 text-left transition-all ${
-                  active
+                className={`relative rounded-lg border px-3 py-2.5 text-left transition-all ${active
                     ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
                     : 'bg-slate-800/40 border-slate-700/50 text-slate-300 hover:border-slate-600'
-                }`}
+                  }`}
               >
                 <p className="text-sm font-semibold">{opt.label}</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">{opt.hint}</p>
@@ -1301,11 +1298,11 @@ function CreateShipmentTab() {
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[
-                { label: 'Total Rows',  value: result.totalRows, grad: 'from-slate-800 to-slate-700',              text: 'text-slate-200' },
-                { label: 'Shipped',     value: result.shipped,   grad: 'from-emerald-900/60 to-green-900/40',      text: 'text-emerald-300' },
-                { label: 'Skipped',     value: result.skipped,   grad: 'from-amber-900/60 to-yellow-900/40',       text: 'text-amber-300' },
-                { label: 'Failed',      value: result.failed,    grad: 'from-red-900/60 to-rose-900/40',           text: 'text-red-300' },
-                { label: 'Warnings',    value: result.warnings?.length ?? 0, grad: 'from-orange-900/60 to-amber-900/40', text: 'text-orange-300' },
+                { label: 'Total Rows', value: result.totalRows, grad: 'from-slate-800 to-slate-700', text: 'text-slate-200' },
+                { label: 'Shipped', value: result.shipped, grad: 'from-emerald-900/60 to-green-900/40', text: 'text-emerald-300' },
+                { label: 'Skipped', value: result.skipped, grad: 'from-amber-900/60 to-yellow-900/40', text: 'text-amber-300' },
+                { label: 'Failed', value: result.failed, grad: 'from-red-900/60 to-rose-900/40', text: 'text-red-300' },
+                { label: 'Warnings', value: result.warnings?.length ?? 0, grad: 'from-orange-900/60 to-amber-900/40', text: 'text-orange-300' },
               ].map(({ label, value, grad, text }) => (
                 <div key={label} className={`rounded-xl p-4 text-center bg-gradient-to-br ${grad} border border-slate-700/40`}>
                   <p className={`text-2xl font-bold ${text}`}>{value}</p>
@@ -1333,6 +1330,222 @@ function CreateShipmentTab() {
   );
 }
 
+// ─── Categories Bulk Update Tab ───────────────────────────────────────────────
+
+interface CategoryBulkResult {
+  updatedCount: number;
+  skippedCount: number;
+  clearedCount: number;
+  failedCount: number;
+  errors: string[];
+}
+
+function CategoriesBulkUpdateTab() {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadDone, setDownloadDone] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<CategoryBulkResult | null>(null);
+  const [uploadError, setUploadError] = useState('');
+  const [dragging, setDragging] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true); setDownloadDone(false);
+    try {
+      const response = await productsService.exportCategoriesExcel();
+      const blob = response.data as Blob;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `product-categories-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setDownloadDone(true);
+    } catch (err: any) {
+      alert(`Download failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) return;
+    setUploading(true); setResult(null); setUploadError('');
+    try {
+      const response = await productsService.importCategoriesExcel(uploadFile);
+      const payload = response.data;
+      if (payload?.success) {
+        setResult(payload.data);
+      } else {
+        throw new Error(payload?.message || 'Upload failed');
+      }
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.message || err?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.name.endsWith('.xlsx')) {
+      setUploadFile(file); setResult(null); setUploadError('');
+    }
+  }, []);
+
+  return (
+    <div className="space-y-5">
+      {/* Info banner */}
+      <div className="rounded-xl border border-teal-500/30 bg-teal-500/5 px-5 py-3 flex items-start gap-3">
+        <FileSpreadsheet className="h-4 w-4 text-teal-400 mt-0.5 flex-shrink-0" />
+        <div className="text-xs text-slate-300 space-y-1">
+          <p className="font-semibold text-teal-400">Category Hierarchy Import/Export Guidelines:</p>
+          <ul className="list-disc pl-4 space-y-0.5 text-slate-400">
+            <li>File format must be <strong>.xlsx</strong>.</li>
+            <li>Categories must be specified as a hierarchical path, e.g. <code className="text-teal-300 font-mono">Beauty & Cosmetics &gt; Makeup &gt; Eyes Makeup &gt; Eye Shadow</code>.</li>
+            <li>Supports up to 10 categories per product (columns: <em>PrimaryCategory, Category2, ..., Category10</em>).</li>
+            <li>Category paths are case-insensitive.</li>
+            <li>If <code className="text-teal-300 font-mono">PrimaryCategory</code> is blank, the product category map is skipped.</li>
+            <li>If <code className="text-teal-300 font-mono">PrimaryCategory</code> is set to <code className="text-amber-400 font-mono">CLEAR</code>, all categories are removed from that product.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Step 1 — Download */}
+      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-700/60">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-400 border border-teal-500/30 flex-shrink-0">1</span>
+          <div>
+            <p className="text-sm font-semibold text-slate-200">Export Product Categories</p>
+            <p className="text-xs text-slate-400">Download current product IDs, names, SKUs, and category hierarchy paths to an Excel file</p>
+          </div>
+        </div>
+        <div className="p-5 flex items-center gap-4">
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-500/20 hover:from-teal-500 hover:to-emerald-500 disabled:opacity-50 transition-all"
+          >
+            {downloading
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Exporting Category Excel…</>
+              : <><ArrowDownToLine className="h-4 w-4" /> Export Categories Excel</>}
+          </button>
+          {downloadDone && !downloading && (
+            <span className="flex items-center gap-2 text-sm font-medium text-emerald-400">
+              <CheckCircle className="h-4 w-4" /> Export downloaded successfully
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Step 2 — Upload */}
+      <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-700/60">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-400 border border-teal-500/30 flex-shrink-0">2</span>
+          <div>
+            <p className="text-sm font-semibold text-slate-200">Upload Category Spreadsheet</p>
+            <p className="text-xs text-slate-400">Upload the updated Excel template to apply category modifications</p>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <label
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed cursor-pointer transition-all py-10
+              ${dragging
+                ? 'border-teal-500/60 bg-teal-500/10'
+                : uploadFile
+                  ? 'border-emerald-500/50 bg-emerald-500/10'
+                  : 'border-slate-600 hover:border-teal-500/50 hover:bg-slate-800/60'
+              }`}
+          >
+            {uploadFile ? (
+              <>
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-emerald-500/20 border border-emerald-500/30">
+                  <FileSpreadsheet className="h-6 w-6 text-emerald-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-emerald-300">{uploadFile.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{(uploadFile.size / 1024).toFixed(0)} KB · click to change</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-slate-700/60 border border-slate-600">
+                  <UploadCloud className="h-6 w-6 text-slate-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-slate-300">Drop your file here, or <span className="text-teal-400 font-medium">browse</span></p>
+                  <p className="text-xs text-slate-500 mt-0.5">.xlsx files only</p>
+                </div>
+              </>
+            )}
+            <input type="file" accept=".xlsx" className="sr-only"
+              onChange={e => { setUploadFile(e.target.files?.[0] || null); setResult(null); setUploadError(''); }} />
+          </label>
+
+          {uploadFile && (
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/20 hover:from-teal-500 hover:to-emerald-500 disabled:opacity-50 transition-all"
+            >
+              {uploading
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Applying categories…</>
+                : <><UploadCloud className="h-4 w-4" /> Upload &amp; Apply Categories</>
+              }
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Upload error */}
+      {uploadError && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
+          <div className="text-sm">
+            <p className="font-semibold text-red-300">Upload failed</p>
+            <p className="text-red-400 mt-0.5">{uploadError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {result && (
+        <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 overflow-hidden">
+          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-700/60">
+            <CheckCircle className="h-5 w-5 text-emerald-400" />
+            <p className="text-sm font-semibold text-slate-200">Import Complete</p>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Products Updated', value: result.updatedCount, grad: 'from-emerald-900/60 to-green-900/40', text: 'text-emerald-300' },
+                { label: 'Skipped', value: result.skippedCount, grad: 'from-slate-800 to-slate-700', text: 'text-slate-300' },
+                { label: 'Cleared', value: result.clearedCount, grad: 'from-cyan-900/60 to-blue-900/40', text: 'text-cyan-300' },
+                { label: 'Failed', value: result.failedCount, grad: 'from-red-900/60 to-rose-900/40', text: 'text-red-300' },
+              ].map(({ label, value, grad, text }) => (
+                <div key={label} className={`rounded-xl p-4 text-center bg-gradient-to-br ${grad} border border-slate-700/40`}>
+                  <p className={`text-2xl font-bold ${text}`}>{value}</p>
+                  <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wide">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {result.errors && result.errors.length > 0 && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 max-h-40 overflow-y-auto">
+                <p className="text-xs font-semibold text-red-300 mb-2">Errors ({result.errors.length})</p>
+                {result.errors.map((e, i) => <p key={i} className="text-xs text-red-400">{e}</p>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ImportExportPage() {
@@ -1343,18 +1556,18 @@ export default function ImportExportPage() {
       {/* Page header */}
       <div className="mb-3 flex flex-wrap items-end justify-between gap-4">
         <div>
-        <div className="flex items-center gap-3 mb-1">
-          <Sparkles className="h-5 w-5 text-cyan-400" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-400 bg-clip-text text-transparent">
-            Import / Export
-          </h1>
-        </div>
-        <p className="text-sm text-slate-400 ml-8">Export orders and bulk update products via Excel</p>
+          <div className="flex items-center gap-3 mb-1">
+            <Sparkles className="h-5 w-5 text-cyan-400" />
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-400 bg-clip-text text-transparent">
+              Import / Export
+            </h1>
+          </div>
+          <p className="text-sm text-slate-400 ml-8">Export orders and bulk update products via Excel</p>
         </div>
       </div>
 
       {/* Tab selector cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 mb-2">
         {([
           {
             id: 'orders-export' as Tab,
@@ -1393,6 +1606,18 @@ export default function ImportExportPage() {
             dot: 'bg-violet-400',
           },
           {
+            id: 'categories-bulk-update' as Tab,
+            icon: <FileSpreadsheet className="h-6 w-6" />,
+            label: 'Categories-Bulk update',
+            desc: 'Export & import category hierarchy',
+            grad: activeTab === 'categories-bulk-update'
+              ? 'from-teal-500/25 to-emerald-500/15 border-teal-500/50'
+              : 'from-slate-800/60 to-slate-800/40 border-slate-700/50 hover:border-slate-600',
+            iconGrad: 'from-teal-500 to-emerald-500',
+            activeText: 'text-teal-400',
+            dot: 'bg-teal-400',
+          },
+          {
             id: 'create-shipment' as Tab,
             icon: <Truck className="h-6 w-6" />,
             label: 'Create Shipment',
@@ -1427,10 +1652,11 @@ export default function ImportExportPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'orders-export'        && <OrdersExportTab />}
-      {activeTab === 'travelbook-export'    && <TravelbookExportTab />}
+      {activeTab === 'orders-export' && <OrdersExportTab />}
+      {activeTab === 'travelbook-export' && <TravelbookExportTab />}
       {activeTab === 'products-bulk-update' && <ProductsBulkUpdateTab />}
-      {activeTab === 'create-shipment'      && <CreateShipmentTab />}
+      {activeTab === 'categories-bulk-update' && <CategoriesBulkUpdateTab />}
+      {activeTab === 'create-shipment' && <CreateShipmentTab />}
     </div>
   );
 }

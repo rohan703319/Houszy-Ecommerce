@@ -86,7 +86,7 @@ export default function ChangePasswordTab() {
             {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-4 gap-0">
             <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${passwordChecks.length ? "text-green-600" : "text-gray-400"}`}>
               <CheckCircle2 size={12} className={passwordChecks.length ? "opacity-100" : "opacity-30"} /> 8+ chars
             </span>

@@ -44,16 +44,14 @@ export default function WhyChooseUs() {
             <div key={idx} className="flex flex-col items-center text-center group">
 
               {/* Icon Image */}
-              <div className="w-12 h-12 md:w-18 md:h-18 relative mb-2 md:mb-3 flex items-center justify-center">
-                {/* Fallback styling in case image doesn't exist yet */}
-                <div className="w-full h-full relative">
-                  <Image
-                    src={item.iconSrc}
-                    alt={item.title}
-                    fill
-                    className="object-contain"
-                  />
-                </div>
+              <div className="w-12 h-12 md:w-16 md:h-16 mb-2 md:mb-3 flex items-center justify-center flex-shrink-0">
+                <Image
+                  src={item.iconSrc}
+                  alt={item.title}
+                  width={64}
+                  height={64}
+                  className="object-contain w-full h-full"
+                />
               </div>
 
               {/* Title */}

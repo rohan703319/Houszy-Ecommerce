@@ -106,9 +106,10 @@ function CheckoutPayment({
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
+  const [paymentElementReady, setPaymentElementReady] = useState(false);
 
   const handlePay = async () => {
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || !paymentElementReady) return;
 
     setProcessing(true);
 
@@ -148,14 +149,16 @@ function CheckoutPayment({
     setProcessing(false);
   };
 
+  const isButtonDisabled = !stripe || !elements || !paymentElementReady || processing;
+
   return (
     <div className="space-y-3">
-      <PaymentElement />
+      <PaymentElement onReady={() => setPaymentElementReady(true)} />
       <button
         onClick={handlePay}
-        disabled={!stripe || processing}
-        className={`w-full py-3 rounded flex items-center justify-center gap-2 transition ${processing
-          ? "bg-gray-400 cursor-not-allowed"
+        disabled={isButtonDisabled}
+        className={`w-full py-3 rounded flex items-center justify-center gap-2 transition ${isButtonDisabled
+          ? "bg-gray-400 cursor-not-allowed opacity-75 text-white"
           : "bg-[#f38918] hover:bg-black text-white"
           }`}
       >
@@ -182,6 +185,30 @@ function CheckoutPayment({
               />
             </svg>
             Processing payment
+          </>
+        ) : !paymentElementReady ? (
+          <>
+            <svg
+              className="animate-spin h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            Loading payment methods...
           </>
         ) : (
           `Pay ${formatCurrency(payAmount)}`

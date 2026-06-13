@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X, Upload, Package, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Plus, X, Upload, Package, ChevronDown, ChevronUp, AlertTriangle, Truck } from 'lucide-react';
 import { ProductVariant, ProductOption, productsService } from '@/lib/services';
 import { useToast } from '@/app/admin/_components/CustomToast';
 
@@ -18,6 +18,10 @@ interface ProductVariantsManagerProps {
   disabled?: boolean;
   variantSkuErrors?: Record<string, string>;
   onVariantImageUpload?: (variantId: string, file: File) => Promise<void>;
+  parentNextDayDeliveryEnabled?: boolean;
+  parentNextDayDeliveryFree?: boolean;
+  parentNextDayDeliveryCutoffTime?: string | null;
+  parentFakeSaleCount?: number | string | null;
 }
 
 export default function ProductVariantsManager({
@@ -30,10 +34,14 @@ export default function ProductVariantsManager({
   disabled = false,
   variantSkuErrors = {},
   onVariantImageUpload,
+  parentNextDayDeliveryEnabled = false,
+  parentNextDayDeliveryFree = false,
+  parentNextDayDeliveryCutoffTime = null,
+  parentFakeSaleCount = 0,
 }: ProductVariantsManagerProps) {
   const toast = useToast();
   const [collapsedVariants, setCollapsedVariants] = useState<Set<string>>(new Set());
-  
+
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     variantId: string | null;
@@ -55,28 +63,28 @@ export default function ProductVariantsManager({
       return newSet;
     });
   };
-const handleDeleteVariantImage = async (variant: any) => {
-  try {
-    if (variant.imageUrl?.startsWith("blob:")) {
-      URL.revokeObjectURL(variant.imageUrl);
-    } else if (variant.imageUrl) {
-      const fileName = extractFilename(variant.imageUrl);
+  const handleDeleteVariantImage = async (variant: any) => {
+    try {
+      if (variant.imageUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(variant.imageUrl);
+      } else if (variant.imageUrl) {
+        const fileName = extractFilename(variant.imageUrl);
 
-      console.log("Deleting file:", fileName);
+        console.log("Deleting file:", fileName);
 
-      await productsService.deleteVariantImage(variant.id);
+        await productsService.deleteVariantImage(variant.id);
+      }
+
+      updateProductVariant(variant.id, "imageUrl", null);
+      updateProductVariant(variant.id, "imageFile", undefined);
+
+      toast.success("Variant image deleted"); // ✅ better
+
+    } catch (error) {
+      console.error("Delete variant image failed:", error);
+      toast.error("Failed to delete image"); // ✅ better
     }
-
-    updateProductVariant(variant.id, "imageUrl", null);
-    updateProductVariant(variant.id, "imageFile", undefined);
-
-    toast.success("Variant image deleted"); // ✅ better
-
-  } catch (error) {
-    console.error("Delete variant image failed:", error);
-    toast.error("Failed to delete image"); // ✅ better
-  }
-};
+  };
 
   // ✅ Open delete modal
   const openDeleteModal = (id: string, name: string) => {
@@ -98,7 +106,7 @@ const handleDeleteVariantImage = async (variant: any) => {
 
 
 
-const closeDeleteModal = () => {
+  const closeDeleteModal = () => {
     setDeleteModal({ isOpen: false, variantId: null, variantName: null });
   };
   // Add variant with options
@@ -129,6 +137,11 @@ const closeDeleteModal = () => {
       isActive: true,
       gtin: null,
       barcode: null,
+      nextDayDeliveryEnabled: parentNextDayDeliveryEnabled ? parentNextDayDeliveryEnabled : false,
+      nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
+      nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
+      fakeSaleCount: null,
+      saleCount: 0,
     };
 
     onVariantsChange([...variants, newVariant]);
@@ -169,6 +182,11 @@ const closeDeleteModal = () => {
       isActive: true,
       gtin: null,
       barcode: null,
+      nextDayDeliveryEnabled: parentNextDayDeliveryEnabled ? parentNextDayDeliveryEnabled : false,
+      nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
+      nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
+      fakeSaleCount: null,
+      saleCount: 0,
     };
 
     onVariantsChange([...variants, newVariant]);
@@ -197,11 +215,11 @@ const closeDeleteModal = () => {
   // Auto-generate variant name from option values
   const autoGenerateVariantName = (variant: ProductVariant) => {
     const optionVals = variant.optionValues?.filter(v => v && v.trim()) || [];
-    
+
     if (optionVals.length === 0) {
       return productName || '';
     }
-    
+
     return `${productName || 'Product'} (${optionVals.join(', ')})`;
   };
 
@@ -271,7 +289,12 @@ const closeDeleteModal = () => {
         displayOrder: variants.length + newVariants.length,
         isActive: true,
         gtin: null,
-        barcode: null
+        barcode: null,
+        nextDayDeliveryEnabled: parentNextDayDeliveryEnabled ? parentNextDayDeliveryEnabled : false,
+        nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
+        nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
+        fakeSaleCount: null,
+        saleCount: 0
       };
 
       newVariants.push(newVariant);
@@ -477,13 +500,13 @@ const closeDeleteModal = () => {
                   {/* ✅ Delete Button (FIXED) */}
                   {!isCollapsed && (
                     <button
-        type="button"
-        onClick={() => openDeleteModal(variant.id, variant.name || `Variant #${index + 1}`)}
-        disabled={disabled}
-        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
-      >
-        <X className="h-4 w-4" />
-      </button>
+                      type="button"
+                      onClick={() => openDeleteModal(variant.id, variant.name || `Variant #${index + 1}`)}
+                      disabled={disabled}
+                      className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
 
@@ -556,11 +579,10 @@ const closeDeleteModal = () => {
                           }
                           placeholder="e.g., PROD-RED-L"
                           disabled={disabled}
-                          className={`w-full px-3 py-2 text-sm bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:ring-2 ${
-                            variantSkuErrors[variant.id]
+                          className={`w-full px-3 py-2 text-sm bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:ring-2 ${variantSkuErrors[variant.id]
                               ? 'border-red-500 focus:ring-red-500'
                               : 'border-slate-600 focus:ring-violet-500'
-                          } disabled:opacity-50`}
+                            } disabled:opacity-50`}
                         />
                         {variantSkuErrors[variant.id] && (
                           <p className="mt-1 text-xs text-red-400">
@@ -590,8 +612,8 @@ const closeDeleteModal = () => {
                       </div>
                     </div>
 
-                    {/* Row 2: Compare Price, Stock, Weight */}
-                    <div className="grid grid-cols-4 gap-3">
+                    {/* Row 2: Compare Price, Stock, Weight, Barcode, Fake Sale Count */}
+                    <div className="grid grid-cols-5 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                           Compare Price
@@ -653,24 +675,49 @@ const closeDeleteModal = () => {
                         />
                       </div>
                       <div>
-  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-    Barcode
-  </label>
-  <input
-    type="text"
-    value={variant.barcode || ''}
-    onChange={(e) =>
-      updateProductVariant(
-        variant.id,
-        'barcode',
-        e.target.value
-      )
-    }
-    placeholder="e.g., 8901234567890"
-    disabled={disabled}
-    className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
-  />
-</div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Barcode
+                        </label>
+                        <input
+                          type="text"
+                          value={variant.barcode || ''}
+                          onChange={(e) =>
+                            updateProductVariant(
+                              variant.id,
+                              'barcode',
+                              e.target.value
+                            )
+                          }
+                          placeholder="e.g., 8901234567890"
+                          disabled={disabled}
+                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Fake Sale Count
+                        </label>
+                        <input
+                          type="number"
+                          value={variant.fakeSaleCount ?? parentFakeSaleCount ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateProductVariant(
+                              variant.id,
+                              'fakeSaleCount',
+                              val === '' ? '' : parseInt(val) || 0
+                            );
+                          }}
+                          placeholder={
+                            parentFakeSaleCount !== undefined && parentFakeSaleCount !== null && parentFakeSaleCount !== ''
+                              ? `Inherit (${parentFakeSaleCount})`
+                              : 'Inherit (0)'
+                          }
+                          min="0"
+                          disabled={disabled}
+                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                        />
+                      </div>
                     </div>
 
                     {/* Row 3: Checkboxes + Display Order (4 Columns) */}
@@ -681,6 +728,15 @@ const closeDeleteModal = () => {
                           type="checkbox"
                           checked={variant.isDefault}
                           onChange={(e) => {
+                            if (!e.target.checked && variant.isDefault) {
+                              const defaultCount = variants.filter(v => v.isDefault).length;
+
+                              if (defaultCount === 1) {
+                                toast.error("At least one default variant is required");
+                                return;
+                              }
+                            }
+
                             onVariantsChange(
                               variants.map((v) => ({
                                 ...v,
@@ -749,6 +805,77 @@ const closeDeleteModal = () => {
                       </label>
                     </div>
 
+                    {/* Row 3.5: Next-Day Delivery Settings */}
+                    <div className="pt-3 border-t border-slate-700/50 space-y-3">
+                      {/* Enable Next-Day Delivery Checkbox */}
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={variant.nextDayDeliveryEnabled || false}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            onVariantsChange(
+                              variants.map((v) =>
+                                v.id === variant.id
+                                  ? {
+                                      ...v,
+                                      nextDayDeliveryEnabled: checked,
+                                      ...(!checked && {
+                                        nextDayDeliveryFree: false,
+                                        nextDayDeliveryCutoffTime: '',
+                                      }),
+                                    }
+                                  : v
+                              )
+                            );
+                          }}
+                          disabled={disabled}
+                          className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                        />
+                        <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                          🚀 Enable Next-Day Delivery
+                        </span>
+                      </label>
+
+                      {variant.nextDayDeliveryEnabled && (
+                        <div className="pl-6 space-y-3">
+                          {/* Next-Day Delivery Free Checkbox */}
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={variant.nextDayDeliveryFree || false}
+                              onChange={(e) => {
+                                updateProductVariant(variant.id, 'nextDayDeliveryFree', e.target.checked);
+                              }}
+                              disabled={disabled}
+                              className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                            />
+                            <span className="text-sm text-slate-300">
+                              🎁 Next-Day Delivery Free
+                            </span>
+                          </label>
+
+                          {/* Cutoff Time Input */}
+                          <div className="max-w-[200px]">
+                            <label className="block text-xs text-slate-400 mb-1.5">
+                              Cutoff Time (UK Time)<span className="text-red-400">*</span>
+                            </label>
+                            <input
+                              type="time"
+                              value={variant.nextDayDeliveryCutoffTime || ''}
+                              onChange={(e) => {
+                                updateProductVariant(variant.id, 'nextDayDeliveryCutoffTime', e.target.value || '');
+                              }}
+                              disabled={disabled}
+                              className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Enter UK local cutoff time for next-day delivery</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+
                     {/* Row 4: Variant Image (Full Width) */}
                     <div className="pt-3 border-t border-slate-700/50">
                       <label className="block text-xs font-semibold text-slate-300 mb-2">
@@ -756,29 +883,29 @@ const closeDeleteModal = () => {
                       </label>
                       <div className="flex items-center gap-3">
                         {/* Image Preview */}
-                      {variant.imageUrl && (
-  <div className="relative">
-    <img
-      src={
-        variant.imageUrl?.startsWith("blob:")
-          ? variant.imageUrl
-          : `${getImageUrl(variant.imageUrl)}?t=${Date.now()}`
-      }
-      alt={variant?.name || "Variant"}
-      className="w-16 h-16 object-cover rounded-lg border-2 border-slate-700"
-      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-    />
+                        {variant.imageUrl && (
+                          <div className="relative">
+                            <img
+                              src={
+                                variant.imageUrl?.startsWith("blob:")
+                                  ? variant.imageUrl
+                                  : `${getImageUrl(variant.imageUrl)}?t=${Date.now()}`
+                              }
+                              alt={variant?.name || "Variant"}
+                              className="w-16 h-16 object-cover rounded-lg border-2 border-slate-700"
+                              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                            />
 
-    <button
-      type="button"
-      onClick={() => handleDeleteVariantImage(variant)}
-      disabled={disabled}
-      className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full disabled:opacity-50"
-    >
-      <X className="h-3 w-3" />
-    </button>
-  </div>
-)}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteVariantImage(variant)}
+                              disabled={disabled}
+                              className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 hover:bg-red-600 text-white rounded-full disabled:opacity-50"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
 
                         {/* Upload Button */}
                         <div className="flex-1">
@@ -795,18 +922,17 @@ const closeDeleteModal = () => {
                           />
                           <label
                             htmlFor={`variant-img-${variant.id}`}
-                            className={`inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg transition-colors ${
-                              disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                            }`}
+                            className={`inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                              }`}
                           >
                             <Upload className="h-4 w-4" />
                             {variant.imageUrl ? 'Change Image' : 'Upload Image'}
                           </label>
                         </div>
-                        
+
                       </div>
                     </div>
-                    
+
                   </div>
                 )}
               </div>

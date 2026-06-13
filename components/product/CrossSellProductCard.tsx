@@ -193,6 +193,14 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       return;
     }
 
+    const nextDayDeliveryEnabled = defaultVariant
+      ? defaultVariant.nextDayDeliveryEnabled === true
+      : !!product.nextDayDeliveryEnabled;
+
+    const nextDayDeliveryFree = defaultVariant
+      ? defaultVariant.nextDayDeliveryFree === true
+      : !!product.nextDayDeliveryFree;
+
     addToCart({
       id: `${variantId ?? product.id}-one`,
       productId: product.id,
@@ -236,7 +244,8 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
         option3: (defaultVariant as any)?.option3Value ?? null,
       },
       shipSeparately: product.shipSeparately,
-      nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryFree: nextDayDeliveryFree ?? false,
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
       productData: JSON.parse(JSON.stringify(product)),
     });
@@ -390,14 +399,14 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               }
             }}
             className={`absolute z-20 right-2 p-1 rounded-md shadow-sm border transition-all top-1 ${inWishlist
-                ? "bg-red-50 border-red-200"
-                : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
+              ? "bg-red-50 border-red-200"
+              : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
               }`}
           >
             <Heart
               className={`h-4 w-4 ${inWishlist
-                  ? "fill-red-500 text-red-500"
-                  : "text-gray-400 hover:text-red-400"
+                ? "fill-red-500 text-red-500"
+                : "text-gray-400 hover:text-red-400"
                 }`}
             />
           </button>
@@ -493,8 +502,8 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
             disabled={stock === 0 || product.disableBuyButton === true}
             onClick={handleAddToCart}
             className={`flex-1 h-[30px] text-[9px] px-1 rounded-lg font-bold ${stock === 0
-                ? "bg-red-700 text-white cursor-not-allowed"
-                : "bg-black text-white hover:bg-[#f39a16] hover:text-black transition-colors duration-300"
+              ? "bg-red-700 text-white cursor-not-allowed"
+              : "bg-black text-white hover:bg-[#f39a16] hover:text-black transition-colors duration-300"
               }`}
           >
             {stock === 0 ? "Out of Stock" : "Add to Cart"}

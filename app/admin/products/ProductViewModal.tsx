@@ -647,6 +647,21 @@ url: getImageUrl(variant.imageUrl || undefined),
                       <InfoField label="Allowed Quantities" value={product.allowedQuantities || 'Any'} />
                     </div>
                   </div>
+
+                  {/* Sales Tracking */}
+                  <div className="p-4 bg-violet-500/10 rounded-lg border border-violet-500/30 mt-4">
+                    <p className="text-xs text-violet-400 font-bold mb-3 flex items-center gap-1">
+                      <Activity className="w-3.5 h-3.5 animate-pulse" />
+                      Sales Tracking
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <InfoField label="Fake Sale Count" value={product.fakeSaleCount?.toString() ?? '0'} />
+                      <InfoField label="Real Sale Count" value={product.saleCount?.toString() ?? '0'} />
+                      <InfoField label="Display Sale Count" value={product.displaySaleCount?.toString() ?? '0'} />
+                      <InfoField label="Weekly Sale Count" value={product.weeklySaleCount?.toString() ?? '0'} />
+                      <InfoField label="Monthly Sale Count" value={product.monthlySaleCount?.toString() ?? '0'} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* TAB 4: SHIPPING */}
@@ -1012,6 +1027,66 @@ url: getImageUrl(variant.imageUrl || undefined),
                             </p>
                           </div>
                         </div>
+
+                        {/* Sales Override/Stats Info */}
+                        <div className="mt-3 pt-3 border-t border-purple-500/20 text-xs flex flex-wrap gap-x-4 gap-y-2">
+                          <div className="text-slate-400 flex items-center gap-1">
+                            <span className="font-bold text-purple-300">Fake Sale Count: </span>
+                            <span className="text-white font-semibold">
+                              {variant.fakeSaleCount === null || variant.fakeSaleCount === undefined
+                                ? `${product.fakeSaleCount ?? 0} (Inherited)`
+                                : variant.fakeSaleCount}
+                            </span>
+                          </div>
+                          <div className="text-slate-400 flex items-center gap-1">
+                            <span className="font-bold text-purple-300">Real Sales: </span>
+                            <span className="text-white font-semibold">
+                              {variant.saleCount ?? 0}
+                            </span>
+                          </div>
+                          <div className="text-slate-400 flex items-center gap-1">
+                            <span className="font-bold text-purple-300">Display Sales: </span>
+                            <span className="text-white font-semibold">
+                              {variant.displaySaleCount ?? 0}
+                            </span>
+                          </div>
+                          <div className="text-slate-400 flex items-center gap-1">
+                            <span className="font-bold text-purple-300">Weekly: </span>
+                            <span className="text-white font-semibold">
+                              {variant.weeklySaleCount ?? 0}
+                            </span>
+                          </div>
+                          <div className="text-slate-400 flex items-center gap-1">
+                            <span className="font-bold text-purple-300">Monthly: </span>
+                            <span className="text-white font-semibold">
+                              {variant.monthlySaleCount ?? 0}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Next-Day Delivery Override Info */}
+                        {((variant as any).nextDayDeliveryEnabled !== null && (variant as any).nextDayDeliveryEnabled !== undefined) && (
+                          <div className="mt-3 pt-3 border-t border-purple-500/20 text-xs flex flex-wrap gap-x-4 gap-y-2">
+                            <div className="text-slate-400 flex items-center gap-1">
+                              <span className="font-bold text-purple-300">Next-Day Delivery: </span>
+                              <span className={(variant as any).nextDayDeliveryEnabled ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
+                                {(variant as any).nextDayDeliveryEnabled ? 'Enabled Override' : 'Disabled Override'}
+                              </span>
+                            </div>
+                            {(variant as any).nextDayDeliveryEnabled && (
+                              <>
+                                <div className="text-slate-400">
+                                  <span className="font-bold text-purple-300">Free Next-Day: </span>
+                                  {(variant as any).nextDayDeliveryFree === null ? 'Inherit' : (variant as any).nextDayDeliveryFree ? 'Yes' : 'No'}
+                                </div>
+                                <div className="text-slate-400">
+                                  <span className="font-bold text-purple-300">Cutoff: </span>
+                                  {(variant as any).nextDayDeliveryCutoffTime || 'Inherit'}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

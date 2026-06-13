@@ -746,7 +746,7 @@ export default function CartPage() {
                           </div>
 
                           {/* QTY & BADGES IN ONE ROW */}
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                             {/* Quantity Controls */}
                             <div className="flex items-center bg-gray-50 border border-gray-200 rounded p-0.5 shadow-sm h-7">
                               {(item.quantity ?? 1) === 1 ? (
@@ -810,27 +810,27 @@ export default function CartPage() {
 
                             {/* Badges */}
                             {typeof item.vatRate === "number" && item.vatRate > 0 ? (
-                              <span className="text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              <span className="text-[9px] sm:text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 {item.vatRate}% VAT
                               </span>
                             ) : (item.vatIncluded === false || item.vatRate === 0 || item.vatRate === null) ? (
-                              <span className="text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              <span className="text-[9px] sm:text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 VAT Exempt
                               </span>
                             ) : null}
                             {getItemLoyaltyPoints(item) > 0 && (
-                              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 <AwardIcon className="w-3 h-3" />
                                 Earn {getItemLoyaltyPoints(item)} pts
                               </div>
                             )}
                             {item.shipSeparately === true && purchasableItemCount > 1 && (
-                              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              <span className="text-[9px] sm:text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 📦 Ships separately
                               </span>
                             )}
                             {item.type === "subscription" && (
-                              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 Sub • {item.frequency && !isNaN(Number(item.frequency)) ? `${item.frequency} ` : ""}{item.frequencyPeriod}
                               </span>
                             )}
@@ -893,7 +893,7 @@ export default function CartPage() {
                                   <>
                                     <span className="text-xs font-bold text-gray-900">£{(gp.price * gp.quantity).toFixed(2)}</span>
                                     {(gp.individualSavings ?? 0) > 0 && (
-                                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                                      <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
                                         Save £{(gp.individualSavings * gp.quantity).toFixed(2)}
                                       </span>
                                     )}
@@ -994,13 +994,13 @@ export default function CartPage() {
                 </div>
 
                 {bundleSavings > 0 && (
-                  <div className="flex justify-between items-center text-sm font-bold text-green-600">
+                  <div className="flex justify-between items-center text-sm font-bold text-orange-600">
                     <span>Bundle Savings</span>
                     <span>-£{bundleSavings.toFixed(2)}</span>
                   </div>
                 )}
                 {finalDiscount > 0 && (
-                  <div className="flex justify-between items-center text-sm font-bold text-green-600">
+                  <div className="flex justify-between items-center text-sm font-bold text-orange-600">
                     <span>Discounts</span>
                     <span>-£{finalDiscount.toFixed(2)}</span>
                   </div>

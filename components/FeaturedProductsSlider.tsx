@@ -41,6 +41,8 @@ interface Variant {
   imageUrl?: string;
   loyaltyPointsEarnable?: number;
   loyaltyPointsMessage?: string;
+  nextDayDeliveryEnabled?: boolean | null;
+  nextDayDeliveryFree?: boolean | null;
 }
 interface Product {
   orderMinimumQuantity?: number;
@@ -237,6 +239,14 @@ export default function FeaturedProductsSlider({
 
     const maxQty = (product as any).orderMaximumQuantity ?? Infinity;
 
+    const nextDayDeliveryEnabled = defaultVariant
+      ? defaultVariant.nextDayDeliveryEnabled === true
+      : !!product.nextDayDeliveryEnabled;
+
+    const nextDayDeliveryFree = defaultVariant
+      ? defaultVariant.nextDayDeliveryFree === true
+      : !!product.nextDayDeliveryFree;
+
     // 🔥 STOCK CHECK
     if (finalQty > stockQty) {
       toast.error(`Only ${stockQty} items available`);
@@ -294,6 +304,10 @@ export default function FeaturedProductsSlider({
           option2: (defaultVariant as any)?.option2Value ?? null,
           option3: (defaultVariant as any)?.option3Value ?? null,
         },
+        shipSeparately: product.shipSeparately,
+        nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+        nextDayDeliveryFree: nextDayDeliveryFree ?? false,
+        sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
         productData: JSON.parse(JSON.stringify(product)),
       })
     );
@@ -386,6 +400,10 @@ export default function FeaturedProductsSlider({
             variantForCard ??
             (product as any).variants?.find((v: any) => v.isDefault);
 
+          const isNextDayFree = defaultVariant
+            ? defaultVariant.nextDayDeliveryFree === true
+            : !!product.nextDayDeliveryFree;
+
           // 🎁 LOYALTY POINTS (PRODUCT + VARIANT AWARE)
           const loyaltyPoints = (() => {
             if (product.excludeFromLoyaltyPoints) return null;
@@ -473,19 +491,19 @@ export default function FeaturedProductsSlider({
                       />
 
 
-                      {/* VAT Relief — bottom left on image */}
-                      {(product.vatExempt || (product as any).vatRate === 0) && (
-                        <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
-                          <BadgePercent className="h-2.5 w-2.5" />
-                          VAT Relief
+                      {/* Loyalty points — bottom left on image */}
+                      {loyaltyPoints && (
+                        <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[7px] md:text-[9px] font-semibold text-white bg-[#f38918] border border-orange-500/20 px-0.5 py-0.5 md:px-1.5 md:py-0.5 rounded shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
+                          <AwardIcon className="h-2.5 w-2.5 text-white" />
+                          Earn {loyaltyPoints} pts
                         </span>
                       )}
                       {/* Offer badge — top right */}
                       {product.displayDiscountType === "System" &&
                         discountBadge && (
                           <div className="absolute z-20 left-3 top-2">
-                            <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                              <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
+                            <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
+                              <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
                                 -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
                               </span>
                             </div>
@@ -494,8 +512,8 @@ export default function FeaturedProductsSlider({
 
                       {!discountBadge && !hasActiveCoupon && oldPriceData && (
                         <div className="absolute z-20 left-3 top-2">
-                          <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                            <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
+                          <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
+                            <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
                               -{oldPriceData.discount}%
                             </span>
                           </div>
@@ -591,13 +609,13 @@ export default function FeaturedProductsSlider({
                             toast.success("Product added to wishlist!");
                           }
                         }}
-                        className={`absolute z-20 right-2 p-1 rounded shadow-sm border transition-all ${heartTopClass} ${isInWishlist(defaultVariant?.id ?? product.id)
+                        className={`absolute z-20 right-2 p-0.5 md:p-1 rounded shadow-sm border transition-all ${heartTopClass} ${isInWishlist(defaultVariant?.id ?? product.id)
                           ? "bg-red-50 border-red-200"
                           : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
                           }`}
                       >
                         <Heart
-                          className={`h-4 w-4 transition-colors ${isInWishlist(defaultVariant?.id ?? product.id) ? "fill-red-500 text-red-500" : "text-gray-400 hover:text-red-400"
+                          className={`h-3 w-3 md:h-4 md:w-4 transition-colors ${isInWishlist(defaultVariant?.id ?? product.id) ? "fill-red-500 text-red-500" : "text-gray-400 hover:text-red-400"
                             }`}
                         />
                       </button>
@@ -609,20 +627,36 @@ export default function FeaturedProductsSlider({
 
                     {/* RATING + REVIEW */}
                     <div className="flex items-center justify-center gap-1 min-h-[20px] mb-2 flex-nowrap overflow-hidden w-full">
-                      <div className="flex items-center gap-0.5">
+                      {/* Desktop: 5 Stars */}
+                      <div className="hidden md:flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map((_, i) => {
                           const rating = product.averageRating || 0;
                           if (rating >= i + 1) {
-                            return <Star key={i} className="h-3.5 w-3.5 fill-[#ffc107] text-[#ffc107]" />;
+                            return <Star key={i} className="h-4 w-4 fill-[#ffc107] text-[#ffc107]" />;
                           } else if (rating > i && rating < i + 1) {
-                            return <StarHalf key={i} className="h-3.5 w-3.5 fill-[#ffc107] text-[#ffc107]" />;
+                            return <StarHalf key={i} className="h-4 w-4 fill-[#ffc107] text-[#ffc107]" />;
                           }
-                          return <Star key={i} className="h-3.5 w-3.5 fill-gray-200 text-gray-200" />;
+                          return <Star key={i} className="h-4 w-4 fill-gray-200 text-gray-200" />;
                         })}
                       </div>
-                      <span className="text-xs text-gray-500 ml-1">
+                      {/* Mobile: Single Star + Rating Number */}
+                      <div className="flex md:hidden items-center flex-shrink-0">
+                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                        <span className="text-[11px] ml-0.5 font-semibold text-gray-700">
+                          {(product.averageRating ?? 0).toFixed(1)}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-gray-500 ml-0.5 flex-shrink-0">
                         ({product.reviewCount ?? 0})
                       </span>
+                      {/* ⚡ Next Day Free badge */}
+                      {isNextDayFree && (
+                        <span className="inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-2 py-0.5 md:py-1 rounded whitespace-nowrap leading-none flex-shrink-0 shadow-sm">
+                          <Zap className="inline-block h-2 w-2 md:h-2.5 md:w-2.5 fill-white" />
+                          <span className="inline md:hidden text-[8px]">Free Next Day</span>
+                          <span className="hidden md:inline text-[9px]">Free Next Day Delivery</span>
+                        </span>
+                      )}
                     </div>
 
                     {/* TITLE */}
@@ -655,27 +689,37 @@ export default function FeaturedProductsSlider({
                                 ? finalPrice
                                 : basePrice
                             ).toFixed(2)
-                          } GBP
+                          }
+                          <span className="hidden md:inline ml-0.5">GBP</span>
                         </span>
 
                         {/* 🔥 CASE 1: REAL DISCOUNT */}
                         {product.displayDiscountType === "System" &&
                           discountBadge && (
                             <span className="text-xs text-gray-500 line-through leading-none">
-                              £{basePrice.toFixed(2)} GBP
+                              £{basePrice.toFixed(2)}
+                              <span className="hidden md:inline ml-0.5">GBP</span>
                             </span>
                           )}
 
                         {/* 🔥 CASE 2: OLD PRICE (NO DISCOUNT) */}
                         {!discountBadge && !hasActiveCoupon && oldPriceData && (
                           <span className="text-xs text-gray-500 line-through leading-none">
-                            £{oldPriceData.oldPrice.toFixed(2)} GBP
+                            £{oldPriceData.oldPrice.toFixed(2)}
+                            <span className="hidden md:inline ml-0.5">GBP</span>
                           </span>
                         )}
 
-                        {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-                          <span className="hidden"></span>
-                        )}
+                        {vatRate !== null && vatRate > 0 && !product.vatExempt ? (
+                          <span className="text-[9px] md:text-xs font-semibold text-black bg-gray-50 border border-gray-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap">
+                            {vatRate}% VAT
+                          </span>
+                        ) : (product.vatExempt || (product as any).vatRate === 0) ? (
+                          <span className="text-[7px] md:text-[10px] font-semibold text-black bg-white border border-gray-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap inline-flex items-center gap-0.5">
+                            <BadgePercent className="h-2 w-2 md:h-3 md:w-3 text-black" />
+                            VAT Relief
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -739,6 +783,14 @@ export default function FeaturedProductsSlider({
                                 return;
                               }
 
+                              const nextDayDeliveryEnabled = defaultVariant
+                                ? defaultVariant.nextDayDeliveryEnabled === true
+                                : !!product.nextDayDeliveryEnabled;
+
+                              const nextDayDeliveryFree = defaultVariant
+                                ? defaultVariant.nextDayDeliveryFree === true
+                                : !!product.nextDayDeliveryFree;
+
                               addToCart({
                                 id: defaultVariant ? `${defaultVariant.id}-one` : product.id,
                                 type: "one-time",
@@ -790,10 +842,9 @@ export default function FeaturedProductsSlider({
                                 image: getProductDisplayImage(product, defaultVariant),
                                 sku: defaultVariant?.sku ?? product.sku,
                                 shipSeparately: product.shipSeparately,
-                                nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+                                nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
                                 // 🔥🔥🔥 MAIN FIX
-                                nextDayDeliveryFree:
-                                  (product as any).nextDayDeliveryFree ?? false,
+                                nextDayDeliveryFree: nextDayDeliveryFree ?? false,
                                 sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
                                 variantId: defaultVariant?.id ?? null,
                                 slug: cardSlug,
@@ -848,7 +899,7 @@ export default function FeaturedProductsSlider({
                             onClick={() => { }}
                             className="hidden"
                           >
-                            <Zap className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <Zap className="h-2 w-2 md:h-3 md:w-3" />
                             Buy
                           </Button>
                         </div>
@@ -972,6 +1023,14 @@ export default function FeaturedProductsSlider({
               const modalVatRate: number | null =
                 !product.vatExempt ? ((product as any).vatRate ?? null) : null;
 
+              const nextDayDeliveryEnabled = variant
+                ? variant.nextDayDeliveryEnabled === true
+                : !!product.nextDayDeliveryEnabled;
+
+              const nextDayDeliveryFree = variant
+                ? variant.nextDayDeliveryFree === true
+                : !!product.nextDayDeliveryFree;
+
               addToCart({
                 id: variant ? `${variant.id}-one` : product.id,
                 type: "one-time",
@@ -994,10 +1053,8 @@ export default function FeaturedProductsSlider({
                 image: getProductDisplayImage(product, variant),
                 sku: variant?.sku ?? product.sku,
                 shipSeparately: product.shipSeparately,
-                nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
-                // 🔥🔥🔥 MAIN FIX
-                nextDayDeliveryFree:
-                  (product as any).nextDayDeliveryFree ?? false,
+                nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+                nextDayDeliveryFree: nextDayDeliveryFree ?? false,
                 sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
                 variantId: variant?.id ?? null,
                 slug: cardSlug,

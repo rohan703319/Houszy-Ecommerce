@@ -2229,6 +2229,14 @@ onClick={async (e) => {
     {product.brandName}
   </span>
 
+  {/* SALES (displaySaleCount) */}
+  <span
+    className="text-[10px] text-purple-300 bg-purple-500/20 border border-purple-400/40 px-2 py-0.5 rounded-md font-medium whitespace-nowrap"
+    title={`Total Sales: ${((product as any).displaySaleCount) || 0} (${((product as any).saleCount) || 0} real + ${((product as any).fakeSaleCount) || 0} fake)`}
+  >
+    Sales: {((product as any).displaySaleCount) || 0}
+  </span>
+
 </div>
                           </div>
                         </div>

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast/CustomToast";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import {
   Dialog,
   DialogContent,
@@ -33,13 +33,13 @@ const MIN_OTHER_REASON_LENGTH = 10;
 function StripePaymentForm({
   clientSecret,
   amount,
-  orderId,
+  order,
   accessToken,
   onSuccess,
 }: {
   clientSecret: string;
   amount: number;
-  orderId: string;
+  order: any;
   accessToken: string | null;
   onSuccess: () => void;
 }) {
@@ -48,23 +48,42 @@ function StripePaymentForm({
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentElementReady, setPaymentElementReady] = useState(false);
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || !paymentElementReady) return;
 
     setLoading(true);
     setError(null);
 
-    const card = elements.getElement(CardElement);
-    if (!card) return;
-
-    const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: { card },
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/account?tab=orders&orderId=${order.orderNumber}`,
+        payment_method_data: {
+          billing_details: {
+            name: `${order.billingFirstName || ""} ${order.billingLastName || ""}`.trim() || undefined,
+            email: order.customerEmail || undefined,
+            address: {
+              line1: order.billingAddressLine1 || undefined,
+              postal_code: order.billingPostalCode || undefined,
+              country: "GB",
+            },
+          },
+        },
+      },
+      redirect: "if_required",
     });
 
-    if (stripeError) {
-      setError(stripeError.message ?? "Payment failed");
+    if (result.error) {
+      setError(result.error.message ?? "Payment failed");
+      setLoading(false);
+      return;
+    }
+
+    if (!result.paymentIntent?.id) {
+      setError("Payment failed");
       setLoading(false);
       return;
     }
@@ -72,7 +91,7 @@ function StripePaymentForm({
     // Tell backend to mark pending payment as cleared
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/confirm/${paymentIntent?.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/confirm/${result.paymentIntent.id}`,
         {
           method: "POST",
           headers: {
@@ -89,25 +108,16 @@ function StripePaymentForm({
     onSuccess();
   };
 
+  const isButtonDisabled = !stripe || !elements || !paymentElementReady || loading;
+
   return (
     <form onSubmit={handlePay} className="space-y-4">
       <div className="border rounded-lg p-4 bg-gray-50">
-        <CardElement
+        <PaymentElement
           options={{
-            hidePostalCode: true,
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#1a202c",
-                "::placeholder": {
-                  color: "#a0aec0",
-                },
-              },
-              invalid: {
-                color: "#e53e3e",
-              },
-            },
+            layout: "tabs",
           }}
+          onReady={() => setPaymentElementReady(true)}
         />
       </div>
 
@@ -119,10 +129,38 @@ function StripePaymentForm({
 
       <Button
         type="submit"
-        disabled={loading || !stripe}
-        className="w-full bg-[#f38918] hover:bg-green-800 text-white font-semibold"
+        disabled={isButtonDisabled}
+        className="w-full bg-[#f38918] hover:bg-black text-white font-semibold flex items-center justify-center gap-2"
       >
-        {loading ? "Processing…" : `Pay £${amount.toFixed(2)}`}
+        {loading ? (
+          "Processing…"
+        ) : !paymentElementReady ? (
+          <>
+            <svg
+              className="animate-spin h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            Loading payment methods...
+          </>
+        ) : (
+          `Pay £${amount.toFixed(2)}`
+        )}
       </Button>
     </form>
   );
@@ -149,6 +187,13 @@ function PayNowModal({
   const [initError, setInitError] = useState<string | null>(null);
   const [paid, setPaid] = useState(false);
 
+  const amountToPay = order.pendingPaymentAmount && order.pendingPaymentAmount > 0
+    ? order.pendingPaymentAmount
+    : (order.totalAmount - (order.totalPaidAmount ?? 0));
+
+  const isAdditionalPayment = (order.totalPaidAmount ?? 0) > 0;
+  const modalTitle = isAdditionalPayment ? "Additional Payment" : "Complete Payment";
+
   useEffect(() => {
     let mounted = true;
 
@@ -170,11 +215,11 @@ function PayNowModal({
               ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             },
             body: JSON.stringify({
-              amount: order.pendingPaymentAmount,
+              amount: amountToPay,
               currency: "GBP",
               orderId: order.id,
               customerEmail: customerEmail,
-              metadata: { type: "additional_payment" },
+              metadata: { type: isAdditionalPayment ? "additional_payment" : "full_payment" },
             }),
           }
         );
@@ -193,7 +238,7 @@ function PayNowModal({
 
     init();
     return () => { mounted = false; };
-  }, [order.id, order.pendingPaymentAmount, accessToken]);
+  }, [order.id, amountToPay, accessToken]);
 
   const handleSuccess = () => {
     setPaid(true);
@@ -208,11 +253,11 @@ function PayNowModal({
       ?.reduce((sum: number, p: any) => sum + p.amount, 0) ?? 0;
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto custom-scrollbar">
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Additional Payment</h3>
+            <h3 className="text-lg font-bold text-gray-900">{modalTitle}</h3>
             <p className="text-sm text-gray-500">Order #{order.orderNumber}</p>
           </div>
           <button
@@ -227,7 +272,7 @@ function PayNowModal({
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-5 flex justify-between items-center">
           <span className="text-sm text-orange-700 font-medium">Amount Due</span>
           <span className="text-xl font-bold text-orange-800">
-            £{order.pendingPaymentAmount?.toFixed(2)}
+            £{amountToPay?.toFixed(2)}
           </span>
         </div>
 
@@ -247,8 +292,8 @@ function PayNowModal({
           <Elements stripe={stripePromise} options={{ clientSecret }}>
             <StripePaymentForm
               clientSecret={clientSecret}
-              amount={order.pendingPaymentAmount}
-              orderId={order.id}
+              amount={amountToPay}
+              order={order}
               accessToken={accessToken}
               onSuccess={handleSuccess}
             />
@@ -288,6 +333,10 @@ export default function OrderCard({
   useEffect(() => {
     setPendingAmount(order.pendingPaymentAmount ?? null);
   }, [order.pendingPaymentAmount]);
+
+  const amountToPay = pendingAmount && pendingAmount > 0
+    ? pendingAmount
+    : (order.totalAmount - (order.totalPaidAmount ?? 0));
 
 
   // Order History
@@ -614,26 +663,37 @@ export default function OrderCard({
       </div>
 
       {/* PENDING PAYMENT BANNER */}
-      {pendingAmount !== null && pendingAmount > 0 && (
-        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <span className="text-2xl">⚠️</span>
-          <div className="flex-1">
-            <p className="font-semibold text-orange-800 text-sm">
-              Additional Payment Required
-            </p>
-            <p className="text-orange-700 text-sm mt-0.5">
-              Your order was updated. Please pay the remaining{" "}
-              <strong>£{pendingAmount.toFixed(2)}</strong> to proceed.
-            </p>
+      {(order.paymentStatus?.toLowerCase() === "pending" || order.paymentStatus?.toLowerCase() === "unpaid") &&
+        amountToPay > 0 &&
+        order.payment?.paymentMethod?.toLowerCase() === "stripe" && (
+          <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <p className="font-semibold text-orange-800 text-sm">
+                {(order.totalPaidAmount ?? 0) > 0 ? "Additional Payment Required" : "Complete Payment"}
+              </p>
+              <p className="text-orange-700 text-sm mt-0.5">
+                {(order.totalPaidAmount ?? 0) > 0 ? (
+                  <>
+                    Your order was updated. Please pay the remaining{" "}
+                    <strong>£{amountToPay.toFixed(2)}</strong> to proceed.
+                  </>
+                ) : (
+                  <>
+                    Your order is pending payment. Please complete your payment of{" "}
+                    <strong>£{amountToPay.toFixed(2)}</strong> to place your order.
+                  </>
+                )}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowPayModal(true)}
+              className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            >
+              Pay Now →
+            </button>
           </div>
-          <button
-            onClick={() => setShowPayModal(true)}
-            className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-          >
-            Pay Now →
-          </button>
-        </div>
-      )}
+        )}
 
       {/* SUMMARY */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-0 pt-3 border-t text-sm">
@@ -903,9 +963,7 @@ export default function OrderCard({
         )}
       </div>
 
-      {/* ACTIONS */}
       <div className="flex flex-wrap justify-end items-center gap-2 pt-3 border-t">
-
 
         <Button
           onClick={handleDownloadInvoice}
@@ -954,7 +1012,10 @@ export default function OrderCard({
           accessToken={accessToken}
           customerEmail={user?.email ?? ""}
           onClose={() => setShowPayModal(false)}
-          onPaid={() => setPendingAmount(null)}
+          onPaid={() => {
+            setPendingAmount(null);
+            router.refresh();
+          }}
         />
       )}
 

@@ -21,7 +21,7 @@ export default function DiscountedProductsSlider({
     <FeaturedProductsSlider
       products={discountedProducts}
       baseUrl={baseUrl}
-      title="Fitness Hot Deals !"
+      title="Houszy Hot Deals !"
     />
   );
 }

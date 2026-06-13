@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Star, BadgePercent, AwardIcon, PackageX, Heart, ShoppingBag } from "lucide-react";
+import { Star, BadgePercent, AwardIcon, PackageX, Heart, ShoppingBag, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 
@@ -40,6 +40,10 @@ export default function ProductCard({
     product.variants?.find((v: any) => v.isDefault) ??
     product.variants?.[0] ??
     null;
+
+  const isNextDayFree = defaultVariant
+    ? defaultVariant.nextDayDeliveryFree === true
+    : !!product.nextDayDeliveryFree;
 
   // ---------- Image ----------
   const mainImage = (() => {
@@ -184,6 +188,14 @@ export default function ProductCard({
       return;
     }
 
+    const nextDayDeliveryEnabled = defaultVariant
+      ? defaultVariant.nextDayDeliveryEnabled === true
+      : !!product.nextDayDeliveryEnabled;
+
+    const nextDayDeliveryFree = defaultVariant
+      ? defaultVariant.nextDayDeliveryFree === true
+      : !!product.nextDayDeliveryFree;
+
     addToCart({
       id: `${variantId ?? product.id}-one`,
       productId: product.id,
@@ -240,7 +252,8 @@ export default function ProductCard({
         option3: defaultVariant?.option3Value ?? null,
       },
       shipSeparately: product.shipSeparately,
-      nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryFree: nextDayDeliveryFree ?? false,
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
       productData: JSON.parse(JSON.stringify(product)),
     });
@@ -301,8 +314,8 @@ export default function ProductCard({
           {/* DISCOUNT BADGE — smaller */}
           {product.displayDiscountType === "System" && discountBadge && (
             <div className="absolute z-20 left-2 top-2">
-              <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
+              <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
+                <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
                   -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
                 </span>
               </div>
@@ -336,8 +349,8 @@ export default function ProductCard({
             !hasActiveCoupon &&
             oldPriceData && (
               <div className="absolute z-20 left-2 top-2">
-                <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                  <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
+                <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
+                  <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
                     -{oldPriceData.discount}%
                   </span>
                 </div>
@@ -423,14 +436,14 @@ export default function ProductCard({
                 toast.success("Product added to wishlist!");
               }
             }}
-            className={`absolute z-20 right-2 top-2 p-1 rounded shadow-sm border transition-all
+            className={`absolute z-20 right-2 top-2 p-0.5 md:p-1 rounded shadow-sm border transition-all
     ${isInWishlist(defaultVariant?.id ?? product.id)
                 ? "bg-red-50 border-red-200"
                 : "bg-white border-gray-200 hover:bg-red-50 hover:border-red-200"
               }`}
           >
             <Heart
-              className={`h-4 w-4 transition-colors ${isInWishlist(defaultVariant?.id ?? product.id)
+              className={`h-3 w-3 md:h-4 md:w-4 transition-colors ${isInWishlist(defaultVariant?.id ?? product.id)
                 ? "fill-red-500 text-red-500"
                 : "text-gray-400 hover:text-red-400"
                 }`}
@@ -467,8 +480,16 @@ export default function ProductCard({
           <span className="text-[10px] text-gray-500 flex-shrink-0">
             ({product.reviewCount || 0})
           </span>
+          {/* ⚡ Next Day Free badge */}
+          {isNextDayFree && (
+            <span className="inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-0.5 md:px-1.5 py-0.5 md:py-1 rounded-md whitespace-nowrap leading-none flex-shrink-0 shadow-sm">
+              <Zap className="hidden md:inline-block h-2.5 w-2.5 fill-white" />
+              <span className="inline md:hidden text-[7px]">Free Next Day</span>
+              <span className="hidden md:inline text-[9px] md:text-[10px]">Free Next Day Delivery</span>
+            </span>
+          )}
           {loyaltyPoints && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#f38918] bg-orange-50 border border-orange-200 px-1 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
+            <span className="inline-flex items-center gap-0.5 text-[8px] md:text-[10px] font-semibold text-[#f38918] bg-orange-50 border border-orange-200 px-1 py-0.5 rounded whitespace-nowrap leading-none flex-shrink-0">
               <AwardIcon className="h-2.5 w-2.5 text-[#f38918] flex-shrink-0" />
               Earn {loyaltyPoints} pts
             </span>

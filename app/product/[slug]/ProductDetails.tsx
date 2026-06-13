@@ -75,6 +75,15 @@ interface Variant {
   hasSystemDiscount?: boolean;
 
   systemDiscountAmount?: number;
+  nextDayDeliveryEnabled?: boolean | null;
+  nextDayDeliveryFree?: boolean | null;
+  nextDayDeliveryCutoffTime?: string | null;
+
+  fakeSaleCount?: number | null;
+  saleCount?: number;
+  displaySaleCount?: number;
+  monthlySaleCount?: number;
+  weeklySaleCount?: number;
 }
 interface AssignedDiscount {
   id: string;
@@ -196,6 +205,11 @@ interface Product {
   displayStockQuantity?: boolean;
   isPharmaProduct?: boolean;
   features?: any[];
+  fakeSaleCount?: number;
+  saleCount?: number;
+  displaySaleCount?: number;
+  monthlySaleCount?: number;
+  weeklySaleCount?: number;
 }
 interface RelatedProduct {
   id: string;
@@ -497,14 +511,52 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+
+  const effectiveNextDayEnabled = selectedVariant
+    ? selectedVariant.nextDayDeliveryEnabled === true
+    : !!product.nextDayDeliveryEnabled;
+
+  const effectiveNextDayCutoff = selectedVariant
+    ? selectedVariant.nextDayDeliveryCutoffTime
+    : product.nextDayDeliveryCutoffTime;
+
+  const effectiveNextDayFree = selectedVariant
+    ? selectedVariant.nextDayDeliveryFree === true
+    : !!product.nextDayDeliveryFree;
+
+  const hasVariantFakeOverride = !!selectedVariant && selectedVariant.fakeSaleCount !== null && selectedVariant.fakeSaleCount !== undefined;
+
+  const activeWeeklySaleCount = selectedVariant
+    ? (selectedVariant.weeklySaleCount || 0)
+    : (product.weeklySaleCount || 0);
+
+  const activeMonthlySaleCount = selectedVariant
+    ? (selectedVariant.monthlySaleCount || 0)
+    : (product.monthlySaleCount || 0);
+
+  const activeDisplaySaleCount = selectedVariant
+    ? (((hasVariantFakeOverride ? selectedVariant.fakeSaleCount : (product.fakeSaleCount || 0)) as number) + (selectedVariant.saleCount || 0))
+    : (product.displaySaleCount || 0);
+
+  const soldText = hasVariantFakeOverride
+    ? (activeDisplaySaleCount > 0 ? `${activeDisplaySaleCount} sold` : null)
+    : activeWeeklySaleCount > 0
+      ? `${activeWeeklySaleCount} sold this week`
+      : activeMonthlySaleCount > 0
+        ? `${activeMonthlySaleCount} sold this month`
+        : activeDisplaySaleCount > 0
+          ? `${activeDisplaySaleCount} sold`
+          : null;
+
   const [shipDate, setShipDate] = useState<string | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<string | null>(null);
   const [nextDayTimeLeft, setNextDayTimeLeft] = useState<string | null>(null);
   useEffect(() => {
     if (
       !isUKUser ||
-      !product.nextDayDeliveryEnabled ||
-      !product.nextDayDeliveryCutoffTime
+      !effectiveNextDayEnabled ||
+      !effectiveNextDayCutoff
     ) {
       setNextDayTimeLeft(null);
       setShipDate(null);
@@ -513,7 +565,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     }
     const calculateTimeLeft = () => {
       const now = new Date();
-      const [h, m] = product.nextDayDeliveryCutoffTime!.split(":").map(Number);
+      const [h, m] = effectiveNextDayCutoff.split(":").map(Number);
       const cutoff = new Date();
       cutoff.setHours(h, m, 0, 0);
       if (now >= cutoff) {
@@ -534,7 +586,18 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       const ship = new Date();
       setShipDate(formatUKDate(ship));
       const deliver = new Date();
-      deliver.setDate(deliver.getDate() + 1);
+      const todayDay = deliver.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      if (todayDay === 6) {
+        // Saturday → next delivery is Monday (+2 days, skip Sunday)
+        deliver.setDate(deliver.getDate() + 2);
+      } else {
+        // All other days → add 1 day
+        deliver.setDate(deliver.getDate() + 1);
+        // If that lands on Sunday, push to Monday
+        if (deliver.getDay() === 0) {
+          deliver.setDate(deliver.getDate() + 1);
+        }
+      }
       setDeliveryDate(formatUKDate(deliver));
     };
     calculateTimeLeft();
@@ -542,8 +605,8 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     return () => clearInterval(interval);
   }, [
     isUKUser,
-    product.nextDayDeliveryEnabled,
-    product.nextDayDeliveryCutoffTime,
+    effectiveNextDayEnabled,
+    effectiveNextDayCutoff,
   ]);
   // 🔥 PHARMA MODAL STATE
   const [showPharmaModal, setShowPharmaModal] = useState(false);
@@ -606,7 +669,6 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
   const [appliedCoupon, setAppliedCoupon] = useState<AssignedDiscount | null>(null);
   const [finalPrice, setFinalPrice] = useState<number>(() => product?.price ?? 0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
-  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const viewItemTrackedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -674,7 +736,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     if (!product?.variants || product.variants.length === 0) return;
 
     // current slug from URL
-    const currentSlug = pathname.split("/products/")[1];
+    const currentSlug = pathname.split("/product/")[1];
 
     if (!currentSlug) return;
 
@@ -760,7 +822,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
   // Update URL WITHOUT re-triggering auto-select
   const updateVariantInUrl = useCallback(
     (variant: Variant) => {
-      const newPath = `/products/${variant.slug}`;
+      const newPath = `/product/${variant.slug}`;
       if (pathname !== newPath) {
         window.history.pushState(null, '', newPath);
       }
@@ -1347,7 +1409,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
         .join(", ")})`
       : "";
     const allowNextDay =
-      isUKUser && product.nextDayDeliveryEnabled === true;
+      isUKUser && effectiveNextDayEnabled === true;
     // 🔥 SPLIT QTY BETWEEN BUNDLE & STANDALONE
     const bundleQty =
       isGroupedProduct && groupEnabled
@@ -1414,7 +1476,8 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
             [selected.option3Name]: selected.option3Value,
           }),
         },
-        nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+        nextDayDeliveryEnabled: effectiveNextDayEnabled ?? false,
+        nextDayDeliveryFree: effectiveNextDayFree ?? false,
         sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
         isBundleParent: true,
         bundleId,
@@ -1505,7 +1568,8 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
           }),
         },
         shipSeparately: product.shipSeparately,
-        nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+        nextDayDeliveryEnabled: effectiveNextDayEnabled ?? false,
+        nextDayDeliveryFree: effectiveNextDayFree ?? false,
         sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
 
         productData: JSON.parse(JSON.stringify(product)),
@@ -1587,7 +1651,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     const basePrice = resolveBasePrice(product, selected);
     const final = finalPrice;
     const allowNextDay =
-      isUKUser && product.nextDayDeliveryEnabled === true;
+      isUKUser && effectiveNextDayEnabled === true;
     const buyNowItem = {
       id: `${product.id}-${selected?.id ?? "base"}-one`,
       type: "one-time",
@@ -1641,11 +1705,11 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
           [selected.option3Name]: selected.option3Value,
         }),
       },
-      nextDayDeliveryEnabled: product.nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryEnabled: effectiveNextDayEnabled ?? false,
       // 🔥🔥🔥 MOST IMPORTANT FIX
       // 🔥 FINAL CORRECT
       nextDayDeliveryFree:
-        product.nextDayDeliveryFree ?? false,
+        effectiveNextDayFree ?? false,
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
       productData: JSON.parse(JSON.stringify(product)),
     };
@@ -2141,11 +2205,24 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   ].filter(Boolean).join(", ")})`
                   : product.name}
               </h1>
-              {/* SKU */}
-              {product.sku && (
-                <p className="text-xs md:text-sm text-gray-500 mt-1">
-                  Sku: {selectedVariant?.sku ?? product.sku}
-                </p>
+              {/* SKU & Sold Badge */}
+              {(product.sku || soldText) && (
+                <div className="flex flex-wrap items-center gap-3 mt-1">
+                  {product.sku && (
+                    <p className="text-xs md:text-sm text-gray-500">
+                      Sku: {selectedVariant?.sku ?? product.sku}
+                    </p>
+                  )}
+                  {soldText && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[#e17b07] bg-orange-50 border border-orange-200/60 rounded-full text-xs font-semibold shadow-sm">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
+                      </span>
+                      <span>{soldText}</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -2241,8 +2318,8 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               <div className="flex flex-wrap items-center gap-2 sm:ml-3">
                 {/* VAT Exempt / Relief */}
                 {(product.vatExempt || (product as any).vatRate === 0) && (
-                  <div className="flex items-center gap-1 text-[#f38918] bg-orange-50 border border-orange-200 px-2 py-1 rounded text-xs font-semibold">
-                    <BadgePercent className="h-3 w-3" />
+                  <div className="flex items-center gap-1 text-[#f38918] bg-orange-50 border border-orange-200 px-1 py-1 rounded text-[9px] font-semibold">
+                    <BadgePercent className="h-2.5 w-2.5" />
                     VAT Relief
                   </div>
                 )}
@@ -2264,7 +2341,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
             {/* 🔥 LIVE CART ACTIVITY BANNER */}
             <LiveCartActivityBanner activity={cartActivity?.productId === product.id ? cartActivity : null} />
-            {isUKUser && product.nextDayDeliveryEnabled && nextDayTimeLeft && (
+            {isUKUser && effectiveNextDayEnabled && nextDayTimeLeft && (
               <div className="mt-2 mb-3 rounded-md border border-[#fdecd2] bg-[#fdf8f0] px-4 py-2.5 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between">
                   {/* ORDER WITHIN */}
@@ -2305,13 +2382,20 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                       Delivers
                     </p>
                     <p className="text-xs font-extrabold text-amber-900">
-                      Tomorrow • {deliveryDate}
+                      {(() => {
+                        const today = new Date().getDay(); // 0=Sun, 6=Sat
+                        if (today === 6) return `Monday • ${deliveryDate}`;
+                        const deliverDay = new Date();
+                        deliverDay.setDate(deliverDay.getDate() + 1);
+                        if (deliverDay.getDay() === 0) return `Monday • ${deliveryDate}`;
+                        return `Tomorrow • ${deliveryDate}`;
+                      })()}
                     </p>
                   </div>
                 </div>
 
                 {/* 🎉 FREE Next Day Delivery Badge */}
-                {product.nextDayDeliveryFree && (
+                {effectiveNextDayFree && (
                   <div className="mt-2.5 -mx-4 -mb-2.5 px-4 py-2 bg-black flex items-center justify-center gap-2">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />

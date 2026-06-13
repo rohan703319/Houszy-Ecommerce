@@ -51,13 +51,13 @@ export async function generateMetadata({
         type: "article",
         images: post.featuredImageUrl
           ? [
-              {
-                url: absoluteUrl(post.featuredImageUrl),
-                width: 1200,
-                height: 630,
-                alt: post.title,
-              },
-            ]
+            {
+              url: absoluteUrl(post.featuredImageUrl),
+              width: 1200,
+              height: 630,
+              alt: post.title,
+            },
+          ]
           : [],
       },
 
@@ -132,21 +132,24 @@ async function BlogSidebar({
     .filter((x) => x && x.isPublished);
 
   return (
-    <div className="w-full self-start lg:sticky lg:top-28 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto pr-2">
+    <div className="w-full">
       {/* TABLE OF CONTENTS */}
       {postBody && (
-        <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
+        <div className="bg-white shadow-xl rounded-2xl p-6 border mb-2">
           <TableOfContents content={postBody} />
         </div>
       )}
 
       {/* RECENT ARTICLES CARD */}
       <div className="bg-white shadow-xl rounded-2xl p-6 border mb-8">
-        <h3 className="text-xl font-semibold mb-5">🕗 Recent Articles</h3>
+        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <LucideIcons.Clock3 className="w-4 h-4" />
+          Recent Articles
+        </h3>
         <div className="space-y-5">
           {recentPosts.map((blog: any) => (
             <Link key={blog.id} href={`/blog/${blog.slug}`} className="flex gap-4 group">
-              <div className="relative w-24 h-16 shrink-0">
+              <div className="relative w-20 h-16 shrink-0">
                 <Image
                   src={
                     absoluteUrl(blog.thumbnailImageUrl) ??
@@ -154,7 +157,7 @@ async function BlogSidebar({
                     "/placeholder-blog.png"
                   }
                   fill
-                  className="rounded-lg object-cover shadow-sm group-hover:opacity-90"
+                  className="rounded-lg object-contain shadow-sm group-hover:opacity-90"
                   alt={blog.title || "Blog Article"}
                 />
               </div>
@@ -310,7 +313,7 @@ export default async function BlogDetailPage({
   }
 
   return (
-    <main className="bg-white py-3 lg:h-screen lg:overflow-hidden">
+    <main className="bg-white py-3">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -331,10 +334,10 @@ export default async function BlogDetailPage({
           }),
         }}
       />
-      <div className="max-w-full mx-4 grid grid-cols-1 lg:grid-cols-3 gap-4 px-0 md:px-12 lg:h-full">
+      <div className="max-w-full mx-4 grid grid-cols-1 lg:grid-cols-3 gap-4 px-0 md:px-12 items-start">
 
         {/* LEFT ARTICLE CARD — renders immediately */}
-        <div className="blog-scroll-container lg:col-span-2 ml-0 mr-0 md:ml-[-20px] md:mr-[-40px] lg:ml-[-55px] lg:mr-[-119px] lg:h-full lg:overflow-y-auto pr-2">
+        <div className="lg:col-span-2 ml-0 mr-0 md:ml-[-20px] md:mr-[-40px] lg:ml-[-55px] lg:mr-[-119px]">
           <div className="bg-white shadow-lg rounded-2xl p-4 md:p-8 border min-h-full">
 
             {/* Breadcrumb */}
@@ -488,7 +491,7 @@ export default async function BlogDetailPage({
         </div>
 
         {/* RIGHT SIDEBAR — streams in separately via Suspense */}
-        <aside className="lg:col-span-1 mt-10 lg:mt-0 order-last lg:order-none ml-0 mr-0 md:ml-[10px] md:mr-[10px] lg:ml-[118px] lg:mr-[-55px] self-start">
+        <aside className="lg:col-span-1 mt-10 lg:mt-0 order-last lg:order-none ml-0 mr-0 md:ml-[10px] md:mr-[10px] lg:ml-[118px] lg:mr-[-55px] sticky top-24">
           <Suspense fallback={<SidebarSkeleton />}>
             <BlogSidebar
               slug={slug}

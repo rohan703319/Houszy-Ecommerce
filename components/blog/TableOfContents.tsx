@@ -58,31 +58,17 @@ export default function TableOfContents({
 
   const handleScroll = (id: string) => {
     const el = document.getElementById(id);
-
     if (!el) return;
 
-    const scrollContainer = document.querySelector(
-      ".blog-scroll-container"
-    ) as HTMLElement | null;
+    // Page now scrolls naturally — use window scroll with navbar offset
+    const NAVBAR_OFFSET = 100;
+    const elementTop =
+      el.getBoundingClientRect().top + window.scrollY - NAVBAR_OFFSET;
 
-    if (scrollContainer) {
-      const containerTop =
-        scrollContainer.getBoundingClientRect().top;
-
-      const elementTop =
-        el.getBoundingClientRect().top;
-
-      const scrollOffset =
-        elementTop -
-        containerTop +
-        scrollContainer.scrollTop -
-        100;
-
-      scrollContainer.scrollTo({
-        top: scrollOffset,
-        behavior: "smooth",
-      });
-    }
+    window.scrollTo({
+      top: elementTop,
+      behavior: "smooth",
+    });
   };
 
   return (

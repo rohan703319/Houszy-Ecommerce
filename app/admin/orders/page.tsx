@@ -146,10 +146,12 @@ export default function OrdersListPage() {
     fromDate: "",
     toDate: "",
     deliveryMethod: "",
+    shippingMethodName: "",
     paymentMethod: "",
     paymentStatus: "",
     pharmacyVerificationStatus: "" as PharmacyVerificationStatus | "",
     isGuestOrder: "",
+    isPharmaProduct: "",
   });
   const selectedOrderObjects = orders.filter(o =>
     selectedOrders.includes(o.id)
@@ -281,48 +283,43 @@ export default function OrdersListPage() {
         searchTerm: debouncedSearch.trim() !== "" ? debouncedSearch : undefined,
         pharmacyVerificationStatus:
           filters.pharmacyVerificationStatus || undefined,
-
-        // ✅ CORRECT PARAM NAME
         includeGuestOrders:
           filters.isGuestOrder !== ""
             ? filters.isGuestOrder === "true"
+            : undefined,
+        isClickAndCollect:
+          filters.deliveryMethod !== ""
+            ? filters.deliveryMethod === "ClickAndCollect"
+            : undefined,
+        shippingMethodName: filters.shippingMethodName || undefined,
+        isPharmaProduct:
+          filters.isPharmaProduct !== ""
+            ? filters.isPharmaProduct === "true"
             : undefined,
       });
 
       const responseData = response?.data;
 
       if (responseData) {
-        let filteredOrders = responseData.items || [];
+        let items = responseData.items || [];
 
-        if (filters.deliveryMethod) {
-          filteredOrders = filteredOrders.filter(
-            (o) => o.deliveryMethod === filters.deliveryMethod
-          );
-        }
-
+        // Client-side filter for paymentMethod
         if (filters.paymentMethod) {
-          filteredOrders = filteredOrders.filter((o) => {
-            const method =
-              o.paymentMethod || o.payments?.[0]?.paymentMethod || "";
-
-            return method.toLowerCase().includes(
-              filters.paymentMethod.toLowerCase()
-            );
+          items = items.filter((o) => {
+            const method = o.paymentMethod || o.payments?.[0]?.paymentMethod || "";
+            return method.toLowerCase().includes(filters.paymentMethod.toLowerCase());
           });
         }
 
+        // Client-side filter for paymentStatus
         if (filters.paymentStatus) {
-          filteredOrders = filteredOrders.filter((o) => {
-            const status =
-              o.paymentStatus ||
-              (o.payments && o.payments.length > 0
-                ? o.payments[0]?.status
-                : null);
+          items = items.filter((o) => {
+            const status = o.paymentStatus || (o.payments && o.payments.length > 0 ? o.payments[0]?.status : null) || "";
             return status === filters.paymentStatus;
           });
         }
 
-        setOrders(filteredOrders);
+        setOrders(items);
         setStats(responseData.stats);
         setTotalCount(responseData.totalCount || 0);
         setTotalPages(responseData.totalPages || 0);
@@ -342,11 +339,13 @@ export default function OrdersListPage() {
     filters.fromDate,
     filters.toDate,
     filters.deliveryMethod,
+    filters.shippingMethodName,
     filters.paymentMethod,
     filters.paymentStatus,
-    filters.pharmacyVerificationStatus, // ✅ ADD THIS
+    filters.pharmacyVerificationStatus,
+    filters.isPharmaProduct,
     debouncedSearch,
-    filters.isGuestOrder, // ✅ NEW
+    filters.isGuestOrder,
   ]);
 
 
@@ -545,10 +544,12 @@ export default function OrdersListPage() {
       fromDate: "",
       toDate: "",
       deliveryMethod: "",
+      shippingMethodName: "",
       paymentMethod: "",
       paymentStatus: "",
       pharmacyVerificationStatus: "",
-      isGuestOrder: "", // ✅ NEW FILTER RESET
+      isGuestOrder: "",
+      isPharmaProduct: "",
     });
     setCurrentPage(1); // ✅ Optional but recommended
   };
@@ -1034,11 +1035,11 @@ export default function OrdersListPage() {
       {/* FILTERS */}
       <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-2 space-y-3">
 
-        {/* ✅ SINGLE ROW - ALL FILTERS INLINE */}
-        <div className="flex flex-wrap items-center gap-1 w-full">
+        {/* ✅ WRAP ROW - ALL FILTERS WITH SPACING */}
+        <div className="flex flex-wrap items-center gap-3 w-full">
 
-          {/* SEARCH - Flexible width */}
-          <div className="relative flex-1 min-w-[220px]">
+          {/* SEARCH - Spacious width */}
+          <div className="relative flex-1 min-w-[320px] md:min-w-[420px]">
 
             {/* ICON */}
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -1050,7 +1051,7 @@ export default function OrdersListPage() {
               title="Search by ID, name, email, phone"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 bg-slate-800/90 border border-slate-700 rounded-lg text-sm placeholder:text-xs text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+              className="w-full pl-10 pr-10 py-2 bg-slate-800/90 border border-slate-700 rounded-lg text-sm placeholder:text-slate-400 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
             />
 
             {/* RIGHT ICON */}
@@ -1078,10 +1079,10 @@ export default function OrdersListPage() {
                 isGuestOrder: e.target.value,
               }))
             }
-            className={`px-2 py-2 rounded-lg text-sm text-white border bg-gray-800 min-w-[100px]
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
         ${filters.isGuestOrder !== "" ? "border-violet-500 bg-violet-500/10" : "border-slate-700"}`}
           >
-            <option value="">Customer Type</option>
+            <option value="">Customer Type: All</option>
             <option value="false">Registered</option>
             <option value="true">Guest</option>
           </select>
@@ -1095,10 +1096,10 @@ export default function OrdersListPage() {
                 status: e.target.value,
               }))
             }
-            className={`px-2 py-2 rounded-lg text-sm text-white border bg-slate-800 max-w-[150px]
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
         ${filters.status ? "border-blue-500 bg-blue-500/10" : "border-slate-700"}`}
           >
-            <option value="">Order Status</option>
+            <option value="">Order Status: All</option>
             <option value="Pending">Pending</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Processing">Processing</option>
@@ -1120,12 +1121,29 @@ export default function OrdersListPage() {
                 deliveryMethod: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[110px]
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
         ${filters.deliveryMethod ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
           >
-            <option value="">Delivery Method</option>
+            <option value="">Delivery Method: All</option>
             <option value="HomeDelivery">Home Delivery</option>
             <option value="ClickAndCollect">Click & Collect</option>
+          </select>
+
+          {/* SHIPPING METHOD */}
+          <select
+            value={filters.shippingMethodName}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                shippingMethodName: e.target.value,
+              }))
+            }
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+        ${filters.shippingMethodName ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
+          >
+            <option value="">Shipping Method: All</option>
+            <option value="Next Day Delivery">Next Day Delivery</option>
+            <option value="Standard Delivery">Standard Delivery</option>
           </select>
 
           {/* PAYMENT METHOD */}
@@ -1137,12 +1155,13 @@ export default function OrdersListPage() {
                 paymentMethod: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[20px]
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[190px] flex-shrink-0
         ${filters.paymentMethod ? "border-amber-500 bg-amber-500/10" : "border-slate-700"}`}
           >
-            <option value="">Payment Status</option>
+            <option value="">Payment Method: All</option>
             <option value="Stripe">Stripe</option>
             <option value="PayPal">PayPal</option>
+            <option value="Card">Card</option>
             <option value="Apple Pay">Apple Pay</option>
             <option value="Google Pay">Google Pay</option>
             <option value="Credit">Credit Card</option>
@@ -1159,14 +1178,31 @@ export default function OrdersListPage() {
                 paymentStatus: e.target.value,
               }))
             }
-            className={`px-2 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[110px]
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
         ${filters.paymentStatus ? "border-green-500 bg-green-500/10" : "border-slate-700"}`}
           >
-            <option value="">Pay Status</option>
+            <option value="">Payment Status: All</option>
             <option value="Successful">Successful</option>
             <option value="Pending">Pending</option>
             <option value="Failed">Failed</option>
             <option value="Refunded">Refunded</option>
+          </select>
+
+          {/* IS PHARMA PRODUCT */}
+          <select
+            value={filters.isPharmaProduct}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                isPharmaProduct: e.target.value,
+              }))
+            }
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+        ${filters.isPharmaProduct !== "" ? "border-emerald-500 bg-emerald-500/10" : "border-slate-700"}`}
+          >
+            <option value="">Order Type: All</option>
+            <option value="true">Pharma Orders</option>
+            <option value="false">Non-Pharma Orders</option>
           </select>
 
           {/* PHARMACY STATUS */}
@@ -1178,17 +1214,17 @@ export default function OrdersListPage() {
                 pharmacyVerificationStatus: e.target.value === "" ? "" : e.target.value as PharmacyVerificationStatus,
               }))
             }
-            className={`px-2 py-2 rounded-lg text-sm text-white border bg-slate-800 min-w-[110px]
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
         ${filters.pharmacyVerificationStatus ? "border-purple-500 bg-purple-500/10" : "border-slate-700"}`}
           >
-            <option value="">Pharmacy</option>
+            <option value="">Pharmacy Status: All</option>
             <option value="Pending">Pending</option>
             <option value="Approved">Approved</option>
             <option value="Rejected">Rejected</option>
           </select>
 
           {/* DATE RANGE */}
-          <div className="relative min-w-[130px]" ref={datePickerRef}>
+          <div className="relative w-[210px] flex-shrink-0" ref={datePickerRef}>
             <button
               onClick={() => setShowDatePicker(!showDatePicker)}
               className={`w-full pl-9 pr-8 py-2 rounded-lg text-sm text-left

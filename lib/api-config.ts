@@ -36,6 +36,8 @@ export const API_ENDPOINTS = {
   inventorySampleExcel: "/api/Products/inventory/sample-excel",
   bulkUpdateTemplate: "/api/Products/bulk-update-template",
   bulkUpdateExcel: "/api/Products/bulk-update-excel",
+  exportCategoriesExcel: "/api/products/export-categories-excel",
+  importCategoriesExcel: "/api/products/import-categories-excel",
   PharmacyQuestions: '/api/pharmacy-questions',
 
   deliveryStrip: "/api/DeliveryStrip",

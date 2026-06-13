@@ -130,6 +130,18 @@ export interface ProductVariant {
   // Loyalty Points (calculated)
   loyaltyPointsEarnable?: number;   // ✅ ADD THIS (from your API response)
   loyaltyPointsMessage?: string;    // ✅ ADD THIS (from your API response)
+
+  // Next Day Delivery overrides (null = inherit from parent product)
+  nextDayDeliveryEnabled?: boolean | null;
+  nextDayDeliveryFree?: boolean | null;
+  nextDayDeliveryCutoffTime?: string | null;
+
+  // Sale Count overrides
+  fakeSaleCount?: number | null;
+  saleCount?: number;
+  displaySaleCount?: number;
+  monthlySaleCount?: number;
+  weeklySaleCount?: number;
 }
 
 
@@ -309,6 +321,13 @@ allowedSubscriptionFrequencies?: string;
   
   backInStockCount?: number; // ✅ ADD THIS
   features?: ProductFeature[];
+
+  // Sale Count fields
+  fakeSaleCount?: number;
+  saleCount?: number;
+  displaySaleCount?: number;
+  monthlySaleCount?: number;
+  weeklySaleCount?: number;
 }
 
 
@@ -383,6 +402,7 @@ export interface CreateProductDto {
   allowCustomerReviews?: boolean;  
   backInStockCount?: number; // ✅ ADD THIS
   features?: ProductFeature[];
+  fakeSaleCount?: number;
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}
@@ -854,6 +874,27 @@ bulkUpdateWithExcel: async (file: File) => {
 
   return apiClient.post<ApiResponse<any>>(
     API_ENDPOINTS.bulkUpdateExcel,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+},
+
+exportCategoriesExcel: async () => {
+  return apiClient.get(API_ENDPOINTS.exportCategoriesExcel, {
+    responseType: "blob",
+  });
+},
+
+importCategoriesExcel: async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiClient.post<ApiResponse<any>>(
+    API_ENDPOINTS.importCategoriesExcel,
     formData,
     {
       headers: {

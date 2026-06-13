@@ -53,6 +53,18 @@ export default function WishlistPage() {
       return;
     }
 
+    const variant = item.variantId && Array.isArray(productData?.variants)
+      ? productData.variants.find((v: any) => v.id === item.variantId)
+      : null;
+
+    const nextDayDeliveryEnabled = variant
+      ? variant.nextDayDeliveryEnabled === true
+      : !!productData?.nextDayDeliveryEnabled;
+
+    const nextDayDeliveryFree = variant
+      ? variant.nextDayDeliveryFree === true
+      : !!productData?.nextDayDeliveryFree;
+
     // ✅ ADD TO CART (FULL DATA)
     addToCart({
       id: item.variantId
@@ -90,6 +102,11 @@ export default function WishlistPage() {
 
       vatRate: item.vatRate ?? null,
       vatIncluded: item.vatRate != null,
+
+      shipSeparately: productData?.shipSeparately ?? false,
+      nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
+      nextDayDeliveryFree: nextDayDeliveryFree ?? false,
+      sameDayDeliveryEnabled: productData?.sameDayDeliveryEnabled ?? false,
 
       // 🔥🔥🔥 MOST IMPORTANT
       productData: productData,
