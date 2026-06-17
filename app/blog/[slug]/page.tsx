@@ -73,7 +73,19 @@ export async function generateMetadata({
 
 function absoluteUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
+  
+  if (path.startsWith("http")) {
+    try {
+      const urlObj = new URL(path);
+      if (urlObj.pathname.startsWith("/images/")) {
+        return `${API_BASE.replace(/\/$/, "")}${urlObj.pathname}`;
+      }
+      return path;
+    } catch (e) {
+      return path;
+    }
+  }
+
   return `${API_BASE.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
@@ -402,11 +414,7 @@ export default async function BlogDetailPage({
             {(post.featuredImageUrl || post.thumbnailImageUrl) && (
               <div className="mt-2 mb-2 w-full rounded-xl overflow-hidden relative aspect-[16/9]">
                 <Image
-                  src={
-                    (post.featuredImageUrl || post.thumbnailImageUrl)?.startsWith("http")
-                      ? (post.featuredImageUrl || post.thumbnailImageUrl)
-                      : `${process.env.NEXT_PUBLIC_API_URL || ""}${post.featuredImageUrl || post.thumbnailImageUrl}`
-                  }
+                  src={absoluteUrl(post.featuredImageUrl || post.thumbnailImageUrl) || "/placeholder-blog.png"}
                   alt={post.title || "Blog Image"}
                   fill
                   className="object-contain"

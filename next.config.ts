@@ -50,12 +50,13 @@ const nextConfig: NextConfig = {
       { protocol: 'http', hostname: 'localhost', pathname: '/**' },
       { protocol: 'http', hostname: '127.0.0.1', pathname: '/**' },
       { protocol: 'https', hostname: 'api.directcare.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'api.direct-care.co.uk', pathname: '/**' },
+      { protocol: 'https', hostname: 'api.athlits.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'direct-care.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'test.astircare.co.uk', pathname: '/**' },
-      { protocol: 'https', hostname: 'houszyapi.astircare.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'api.athlits.co.uk', pathname: '/**' },
       { protocol: 'http', hostname: 'api.athlits.co.uk', pathname: '/**' },
+      { protocol: 'https', hostname: 'houszyapi.astircare.co.uk', pathname: '/**' },
+      { protocol: 'http', hostname: 'houszyapi.astircare.co.uk', pathname: '/**' },
 
       { protocol: 'https', hostname: 'testapi.knowledgemarkg.com', pathname: '/**' },
       { protocol: 'https', hostname: 'www.direct-care.co.uk', pathname: '/**' },
@@ -64,9 +65,9 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'i.ytimg.com', pathname: '/**' },
       ...(envApiHostname
         ? [
-            { protocol: 'http' as const, hostname: envApiHostname, pathname: '/**' },
-            { protocol: 'https' as const, hostname: envApiHostname, pathname: '/**' },
-          ]
+          { protocol: 'http' as const, hostname: envApiHostname, pathname: '/**' },
+          { protocol: 'https' as const, hostname: envApiHostname, pathname: '/**' },
+        ]
         : []),
     ],
   },
@@ -80,7 +81,7 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://houszyapi.astircare.co.uk';
+    const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.athlits.co.uk';
     return [
       {
         source: '/api/:path*',

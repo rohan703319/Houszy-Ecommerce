@@ -59,7 +59,7 @@ export default async function OffersPage() {
   return (
     <div className="min-h-screen bg-gray-50/50">
       {/* COMPACT CLEAN HERO BANNER */}
-      <div className="bg-white border-b border-gray-200 py-6 md:py-8 relative overflow-hidden">
+      <div className="bg-white border-b border-gray-200 py-4 md:py-8 relative overflow-hidden">
         {/* Subtle Background Pattern */}
         <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
 
@@ -74,42 +74,42 @@ export default async function OffersPage() {
             <span className="text-gray-900 font-bold">Offers</span>
           </nav>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3.5 md:gap-6">
             <div className="max-w-xl">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#f38918]/10 text-[#f38918] rounded-md mb-4 border border-[#f38918]/20">
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 md:px-3 md:py-1 bg-[#f38918]/10 text-[#f38918] rounded-md mb-1 md:mb-2 border border-[#f38918]/20">
                 <Gift className="h-3.5 w-3.5" />
                 <span className="font-bold text-[10px] uppercase tracking-wider">Exclusive Deals</span>
               </div>
 
-              <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-1 tracking-tight">
+              <h1 className="text-2xl md:text-4xl font-black text-gray-900 mb-1 tracking-tight">
                 Houszy <span className="text-[#f38918]">Offers</span> & Deals
               </h1>
 
-              <p className="text-gray-500 text-sm font-medium leading-relaxed">
+              <p className="text-gray-500 text-xs md:text-sm font-medium leading-relaxed">
                 Shop exclusive discounts across Kitchenware, Homeware, Fitness and Everyday Essentials. Don't miss our latest deals and special offers available for a limited time.
               </p>
             </div>
 
             {/* Stats Cards */}
-            <div className="flex items-center gap-3 sm:gap-4 mt-2 md:mt-0">
-              <div className="flex flex-col justify-center bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 min-w-[130px] shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-50">
-                    <BadgePercent className="h-4 w-4 text-[#f38918]" />
+            <div className="flex items-center gap-2 md:gap-4 mt-1 md:mt-0">
+              <div className="flex flex-col justify-center bg-gray-50 border border-gray-100 rounded-xl md:rounded-2xl px-3 py-2.5 md:px-5 md:py-4 min-w-[110px] md:min-w-[130px] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-1 md:mb-1.5">
+                  <div className="p-1 bg-white rounded-lg shadow-sm border border-gray-50">
+                    <BadgePercent className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#f38918]" />
                   </div>
-                  <span className="text-2xl font-black text-gray-900 leading-none">{discounts.length}</span>
+                  <span className="text-lg md:text-2xl font-black text-gray-900 leading-none">{discounts.length}</span>
                 </div>
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Active Deals</span>
+                <span className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Active Deals</span>
               </div>
 
-              <div className="flex flex-col justify-center bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 min-w-[130px] shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-50">
-                    <ShoppingBag className="h-4 w-4 text-[#f38918]" />
+              <div className="flex flex-col justify-center bg-gray-50 border border-gray-100 rounded-xl md:rounded-2xl px-3 py-2.5 md:px-5 md:py-4 min-w-[110px] md:min-w-[130px] shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-1 md:mb-1.5">
+                  <div className="p-1 bg-white rounded-lg shadow-sm border border-gray-50">
+                    <ShoppingBag className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#f38918]" />
                   </div>
-                  <span className="text-2xl font-black text-gray-900 leading-none">{discounts.reduce((acc, d) => acc + (d.productCount ?? 0), 0)}+</span>
+                  <span className="text-lg md:text-2xl font-black text-gray-900 leading-none">{discounts.reduce((acc, d) => acc + (d.productCount ?? 0), 0)}+</span>
                 </div>
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Products</span>
+                <span className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Products</span>
               </div>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default async function OffersPage() {
 
         {discounts.length === 0 ? (
           <div className="text-center py-24 bg-white rounded-2xl shadow-sm border border-gray-100">
-            <Gift className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <Gift className="h-16 w-16 text-gray-300 mx-auto mb-2" />
             <h2 className="text-2xl font-bold text-gray-900">No active offers right now</h2>
             <p className="text-gray-500 mt-2">Check back soon — new deals are added regularly!</p>
             <Link href="/" className="mt-8 inline-block px-8 py-3 bg-[#111827] text-white rounded-lg font-bold hover:bg-black transition-colors">
@@ -129,8 +129,8 @@ export default async function OffersPage() {
           </div>
         ) : (
           <>
-            <section className="mt-1">
-              <div className="flex items-center justify-between mb-6 mt-2 border-b  border-gray-200 pb-4">
+            <section className="mt-0">
+              <div className="flex items-center justify-between mb-2 mt-2 border-b  border-gray-200 pb-2">
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-6 bg-[#f38918] rounded-full"></div>
                   <h2 className="text-xl md:text-2xl font-black text-gray-900">All Offers</h2>

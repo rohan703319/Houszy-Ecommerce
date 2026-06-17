@@ -40,6 +40,7 @@ import { detectUKRegion } from "@/app/lib/region";
 import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
 const PharmaQuestionsModal = dynamic(() => import("@/components/pharma/PharmaQuestionsModal"));
+const APlusContentRenderer = dynamic(() => import("@/components/aplus/APlusContentRenderer"));
 import { useCartActivity } from "@/context/CartContext";
 import { trackViewItem } from "@/lib/analytics";
 // ---------- Types ----------
@@ -49,6 +50,13 @@ interface ProductImage {
   altText: string;
   sortOrder: number;
   isMain: boolean;
+}
+interface FreeShippingThresholdDto {
+  deliveryOptionId: string;
+  name: string;
+  displayName: string;
+  threshold: number;
+  displayOrder: number;
 }
 interface Variant {
   id: string;
@@ -72,6 +80,7 @@ interface Variant {
   oldPrice?: number;
   displayDiscountType?: "None" | "OldPrice" | "System";
   freeShippingThreshold?: number;
+  freeShippingThresholds?: FreeShippingThresholdDto[];
   hasSystemDiscount?: boolean;
 
   systemDiscountAmount?: number;
@@ -130,6 +139,7 @@ interface Product {
 
   hasSystemDiscount?: boolean;
   freeShippingThreshold?: number;
+  freeShippingThresholds?: FreeShippingThresholdDto[];
   systemDiscountAmount?: number;
   compareAtPrice?: number | null;
   notReturnable?: boolean;
@@ -167,6 +177,8 @@ interface Product {
   allowCustomerReviews?: boolean;
   allowBackorder?: boolean;
   backorderMode?: string;
+  aPlusTemplateId?: string | null;
+  aPlusContent?: string | null;
   attributes?: {
     id: string;
     name: string;
@@ -243,6 +255,8 @@ interface CrossSellProduct {
 interface ProductDetailsProps {
   product: Product | null;
   initialVariantId?: string | null;
+  aplusTemplate?: any | null;
+  aplusContent?: string | null;
 }
 type BreadcrumbCategory = {
   name: string;
@@ -403,7 +417,12 @@ const LiveCartActivityBanner = ({ activity }: { activity: { message: string, tim
   );
 };
 
-export default function ProductDetails({ product, initialVariantId }: ProductDetailsProps & { initialVariantId?: string }) {
+export default function ProductDetails({
+  product,
+  initialVariantId,
+  aplusTemplate,
+  aplusContent,
+}: ProductDetailsProps & { initialVariantId?: string }) {
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -540,13 +559,13 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     : (product.displaySaleCount || 0);
 
   const soldText = hasVariantFakeOverride
-    ? (activeDisplaySaleCount > 0 ? `${activeDisplaySaleCount} sold` : null)
+    ? (activeDisplaySaleCount > 0 ? `${activeDisplaySaleCount} qty sold` : null)
     : activeWeeklySaleCount > 0
-      ? `${activeWeeklySaleCount} sold this week`
+      ? `${activeWeeklySaleCount} qty sold this week`
       : activeMonthlySaleCount > 0
-        ? `${activeMonthlySaleCount} sold this month`
+        ? `${activeMonthlySaleCount} qty sold this month`
         : activeDisplaySaleCount > 0
-          ? `${activeDisplaySaleCount} sold`
+          ? `${activeDisplaySaleCount} qty sold`
           : null;
 
   const [shipDate, setShipDate] = useState<string | null>(null);
@@ -565,16 +584,67 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
     }
     const calculateTimeLeft = () => {
       const now = new Date();
-      const [h, m] = effectiveNextDayCutoff.split(":").map(Number);
-      const cutoff = new Date();
-      cutoff.setHours(h, m, 0, 0);
-      if (now >= cutoff) {
-        setNextDayTimeLeft(null);
-        setShipDate(null);
-        setDeliveryDate(null);
+      let cutoffHour = 14;
+      let cutoffMinute = 0;
+      if (effectiveNextDayCutoff && effectiveNextDayCutoff.includes(":")) {
+        const parsed = effectiveNextDayCutoff.split(":").map(Number);
+        if (parsed.length >= 2 && !isNaN(parsed[0]) && !isNaN(parsed[1])) {
+          cutoffHour = parsed[0];
+          cutoffMinute = parsed[1];
+        }
+      }
+
+      const cutoffToday = new Date(now);
+      cutoffToday.setHours(cutoffHour, cutoffMinute, 0, 0);
+
+      const isBeforeCutoff = now < cutoffToday;
+      let targetCutoff = new Date(cutoffToday);
+      let shipDateObj = new Date(now);
+
+      const todayDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+
+      if (todayDay === 6) { // Saturday
+        if (isBeforeCutoff) {
+          // Ships today (Saturday), target is today cutoff
+          shipDateObj = new Date(now);
+          targetCutoff = new Date(cutoffToday);
+        } else {
+          // Ships Monday, target is Monday cutoff
+          shipDateObj = new Date(now);
+          shipDateObj.setDate(shipDateObj.getDate() + 2); // Monday
+          targetCutoff = new Date(shipDateObj);
+          targetCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
+        }
+      } else if (todayDay === 0) { // Sunday
+        // Ships Monday, target is Monday cutoff
+        shipDateObj = new Date(now);
+        shipDateObj.setDate(shipDateObj.getDate() + 1); // Monday
+        targetCutoff = new Date(shipDateObj);
+        targetCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
+      } else { // Monday to Friday
+        if (isBeforeCutoff) {
+          // Ships today, target is today cutoff
+          shipDateObj = new Date(now);
+          targetCutoff = new Date(cutoffToday);
+        } else {
+          // Ships tomorrow (next working day)
+          shipDateObj = new Date(now);
+          shipDateObj.setDate(shipDateObj.getDate() + 1);
+          // If tomorrow is Sunday, ships Monday
+          if (shipDateObj.getDay() === 0) {
+            shipDateObj.setDate(shipDateObj.getDate() + 1);
+          }
+          targetCutoff = new Date(shipDateObj);
+          targetCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
+        }
+      }
+
+      const diffMs = targetCutoff.getTime() - now.getTime();
+      if (diffMs <= 0) {
+        setNextDayTimeLeft("0 sec");
         return;
       }
-      const diffMs = cutoff.getTime() - now.getTime();
+
       const hours = Math.floor(diffMs / (1000 * 60 * 60));
       const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
       const seconds = Math.floor((diffMs / 1000) % 60);
@@ -583,22 +653,39 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
       if (minutes > 0 || hours > 0) parts.push(`${minutes} min${minutes !== 1 ? "s" : ""}`);
       parts.push(`${seconds} sec${seconds !== 1 ? "s" : ""}`);
       setNextDayTimeLeft(parts.join(" "));
-      const ship = new Date();
-      setShipDate(formatUKDate(ship));
-      const deliver = new Date();
-      const todayDay = deliver.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-      if (todayDay === 6) {
-        // Saturday → next delivery is Monday (+2 days, skip Sunday)
-        deliver.setDate(deliver.getDate() + 2);
+
+      const todayString = now.toDateString();
+      const tomorrowObj = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const tomorrowString = tomorrowObj.toDateString();
+
+      const shipString = shipDateObj.toDateString();
+      let shipPrefix = "";
+      if (shipString === todayString) {
+        shipPrefix = "Today";
+      } else if (shipString === tomorrowString) {
+        shipPrefix = "Tomorrow";
       } else {
-        // All other days → add 1 day
-        deliver.setDate(deliver.getDate() + 1);
-        // If that lands on Sunday, push to Monday
-        if (deliver.getDay() === 0) {
-          deliver.setDate(deliver.getDate() + 1);
-        }
+        shipPrefix = shipDateObj.toLocaleDateString("en-GB", { weekday: "long" });
       }
-      setDeliveryDate(formatUKDate(deliver));
+      setShipDate(`${shipPrefix} • ${formatUKDate(shipDateObj)}`);
+
+      let deliverDateObj = new Date(shipDateObj);
+      deliverDateObj.setDate(deliverDateObj.getDate() + 1);
+      // If delivery is Sunday, push to Monday
+      if (deliverDateObj.getDay() === 0) {
+        deliverDateObj.setDate(deliverDateObj.getDate() + 1);
+      }
+
+      const deliverString = deliverDateObj.toDateString();
+      let deliverPrefix = "";
+      if (deliverString === todayString) {
+        deliverPrefix = "Today";
+      } else if (deliverString === tomorrowString) {
+        deliverPrefix = "Tomorrow";
+      } else {
+        deliverPrefix = deliverDateObj.toLocaleDateString("en-GB", { weekday: "long" });
+      }
+      setDeliveryDate(`${deliverPrefix} • ${formatUKDate(deliverDateObj)}`);
     };
     calculateTimeLeft();
     const interval = setInterval(calculateTimeLeft, 1000);
@@ -1820,7 +1907,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
           {/* LEFT: Image Gallery */}
           <div className="flex flex-col gap-3 w-full lg:sticky lg:top-24 lg:self-start">
             {/* Inner row: vertical thumbnails LEFT + main image RIGHT */}
-            <div className="flex gap-4 md:gap-6 items-start">
+            <div className="flex gap-4 md:gap-6 items-center md:items-start">
 
               {/* Vertical Thumbnail Strip */}
               <div className="flex flex-col items-center gap-2.5 w-[76px] md:w-[100px] flex-shrink-0">
@@ -1898,7 +1985,7 @@ export default function ProductDetails({ product, initialVariantId }: ProductDet
                     </div>
                   </div>
                 )}
-                <div className="relative bg-white overflow-hidden h-[250px] md:h-[390px] lg:h-[460px] flex items-center justify-center">
+                <div className="relative bg-white overflow-hidden h-[310px] md:h-[390px] lg:h-[460px] flex items-center justify-center">
 
                   {/* ✅ ONLY IMAGE AREA HAS ZOOM */}
                   <div
@@ -2219,7 +2306,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
                       </span>
-                      <span>{soldText}</span>
+                      <span>{soldText} this month</span>
                     </div>
                   )}
                 </div>
@@ -2367,7 +2454,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                       Ships
                     </p>
                     <p className="text-xs font-extrabold text-amber-900">
-                      Today • {shipDate}
+                      {shipDate}
                     </p>
                   </div>
                   {/* LINE */}
@@ -2382,14 +2469,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                       Delivers
                     </p>
                     <p className="text-xs font-extrabold text-amber-900">
-                      {(() => {
-                        const today = new Date().getDay(); // 0=Sun, 6=Sat
-                        if (today === 6) return `Monday • ${deliveryDate}`;
-                        const deliverDay = new Date();
-                        deliverDay.setDate(deliverDay.getDate() + 1);
-                        if (deliverDay.getDay() === 0) return `Monday • ${deliveryDate}`;
-                        return `Tomorrow • ${deliveryDate}`;
-                      })()}
+                      {deliveryDate}
                     </p>
                   </div>
                 </div>
@@ -2705,12 +2785,28 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             </div>
 
                             {/* Delivery Truck Line */}
-                            {(product.freeShippingThreshold === 0) && (
-                              <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
-                                <Truck className="h-5 w-5 text-[#e57e25]" />
-                                <span>Free Standard Delivery</span>
-                              </div>
-                            )}
+                            {(() => {
+                              const standardThresholdOpt = product.freeShippingThresholds?.find((x: any) => {
+                                const name = (x.name || x.displayName || "").toLowerCase();
+                                return name.includes("standard");
+                              });
+                              const isFree = !standardThresholdOpt || standardThresholdOpt.threshold === 0;
+                              if (isFree) {
+                                return (
+                                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
+                                    <Truck className="h-5 w-5 text-[#e57e25]" />
+                                    <span>Free Standard Delivery</span>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
+                                    <Truck className="h-5 w-5 text-[#e57e25]" />
+                                    <span>Free Standard Delivery over £{standardThresholdOpt.threshold}</span>
+                                  </div>
+                                );
+                              }
+                            })()}
 
                             {/* VAT, Loyalty and Stock */}
                             <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -3215,8 +3311,15 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             <div className="p-4 sm:p-6">
               {activeTab === "description" && (
                 <div>
-
                   <div className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5" dangerouslySetInnerHTML={{ __html: product.description }} />
+                  {(product.aPlusTemplateId || aplusTemplate) && aplusContent && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <APlusContentRenderer
+                        aPlusTemplateId={product.aPlusTemplateId || aplusTemplate?.id}
+                        aPlusContent={aplusContent}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
               {activeTab === "specifications" && (

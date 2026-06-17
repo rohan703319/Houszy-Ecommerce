@@ -21,7 +21,7 @@ const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"));
 const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"));
 import type { Metadata } from "next";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 // ✅ Static feature section
 const features = [
@@ -100,7 +100,7 @@ interface HomeBanner {
 async function getBanners(baseUrl: string): Promise<Banner[]> {
   try {
     const res = await fetch(`${baseUrl}/api/Banners`, {
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
     });
     const result = await res.json();
     return result.success ? result.data : [];
@@ -130,7 +130,7 @@ async function getCategories(baseUrl: string) {
     const res = await fetch(
       `${baseUrl}/api/Categories?includeInactive=false&includeSubCategories=true&isDeleted=false`,
       {
-        next: { revalidate: 3600 },
+        next: { revalidate: 60 },
       }
     );
 
@@ -155,7 +155,7 @@ async function getHomeBlogs(baseUrl: string): Promise<BlogPost[]> {
   try {
     const res = await fetch(
       `${baseUrl}/api/BlogPosts?includeUnpublished=false&isActive=true&onlyHomePage=true`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 60 } }
     );
     if (!res.ok) return [];
     const json = await res.json();
@@ -347,14 +347,15 @@ export default async function Home() {
               <h2 className="text-[15px] md:text-[22px] font-bold text-black text-center">
                 Our Popular Collections
               </h2>
-              <div className="absolute right-1">
+              <div className="absolute right-0 md:right-1">
                 <Link href="/category">
                   <Button
                     variant="outline"
-                    className="text-[11px] md:text-[13px] font-bold border border-gray-300 text-gray-700 hover:bg-black hover:text-white hover:border-black transition-all duration-300 rounded-xl px-3 py-1.5 md:px-4 md:py-2 flex items-center gap-1 shadow-sm bg-white"
+                    className="text-[9px] md:text-[13px] font-bold border border-gray-300 text-gray-700 hover:bg-black hover:text-white hover:border-black transition-all duration-300 rounded px-1 py-0 md:px-4 md:py-2 flex items-center gap-1 shadow-sm bg-white"
                   >
-                    View All Collections
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <span className="md:hidden">View All</span>
+                    <span className="hidden md:inline">View All Collections</span>
+                    <ChevronRight className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
                   </Button>
                 </Link>
               </div>

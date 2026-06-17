@@ -6,9 +6,20 @@ const API_BASE = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 
 
 function absoluteUrl(path?: string | null) {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
-  return `${API_BASE.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`
-    }`;
+  
+  if (path.startsWith("http")) {
+    try {
+      const urlObj = new URL(path);
+      if (urlObj.pathname.startsWith("/images/")) {
+        return `${API_BASE.replace(/\/$/, "")}${urlObj.pathname}`;
+      }
+      return path;
+    } catch (e) {
+      return path;
+    }
+  }
+
+  return `${API_BASE.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 async function fetchJSON(url: string) {

@@ -24,7 +24,9 @@ export default function BrandsClient({
 }: BrandsClientProps) {
   const vatRates = useVatRates();
 
-  const [products, setProducts] = useState<any[]>(initialItems);
+  const [products, setProducts] = useState<any[]>(() =>
+    (initialItems ?? []).map((p) => ({ ...p, pageIndex: 1 }))
+  );
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(totalPages > 1);
 
@@ -33,7 +35,7 @@ export default function BrandsClient({
   const fetchCbRef = useRef<() => void>(() => { });
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    setProducts(initialItems ?? []);
+    setProducts((initialItems ?? []).map((p) => ({ ...p, pageIndex: 1 })));
     setPage(1);
     setHasMore(totalPages > 1);
     setHasInitializedPrice(false);
@@ -191,9 +193,23 @@ export default function BrandsClient({
 
     // 4. Sort the filtered cards
     const sorted = [...unique].sort((a, b) => {
+      // PAGE INDEX PRIORITY
+      const pageA = a.productData.pageIndex ?? 1;
+      const pageB = b.productData.pageIndex ?? 1;
+      if (pageA !== pageB) return pageA - pageB;
+
       // STOCK PRIORITY
-      const stockA = a.variantForCard?.stockQuantity ?? a.productData?.stockQuantity ?? 0;
-      const stockB = b.variantForCard?.stockQuantity ?? b.productData?.stockQuantity ?? 0;
+      const getStock = (item: any) => {
+        const defaultVariant =
+          item.variantForCard ??
+          item.productData.variants?.find((v: any) => v.isDefault) ??
+          item.productData.variants?.[0] ??
+          null;
+        return defaultVariant?.stockQuantity ?? item.productData.stockQuantity ?? 0;
+      };
+
+      const stockA = getStock(a);
+      const stockB = getStock(b);
       const isOutA = stockA <= 0;
       const isOutB = stockB <= 0;
 
@@ -235,7 +251,12 @@ export default function BrandsClient({
 
       const data = await res.json();
 
-      setProducts((prev) => [...prev, ...(data.data.items ?? [])]);
+      const newItems = (data.data.items ?? []).map((p: any) => ({
+        ...p,
+        pageIndex: nextPage,
+      }));
+
+      setProducts((prev) => [...prev, ...newItems]);
       setPage(nextPage);
       setHasMore(nextPage < data.data.totalPages);
     } catch (err) {

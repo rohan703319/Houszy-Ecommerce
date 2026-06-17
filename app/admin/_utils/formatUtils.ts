@@ -136,12 +136,16 @@ export const generateSlug = (title: string) =>
     .replace(/^-|-$/g, "");
   export const getImageUrl = (imageUrl?: string) => {
     if (!imageUrl) return "";
+    // Full URL — return as-is
     if (imageUrl.startsWith("http")) return imageUrl;
+    // Relative path (e.g. /images/products/...) — return as-is so that
+    // Next.js rewrites can proxy it to the correct API server.
+    // This avoids any dependency on NEXT_PUBLIC_API_URL being set correctly.
+    if (imageUrl.startsWith("/")) return imageUrl;
     
+    // Relative path without leading slash — prepend base URL
     const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
-    const cleanPath = imageUrl.split('?')[0].replace(/^\//, "");
-    
-    return `${baseUrl}/${cleanPath}`;
+    return `${baseUrl}/${imageUrl}`;
   };
 
 

@@ -77,14 +77,14 @@ export default function UnifiedRefundModal({
   const [notes, setNotes] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [partialAmount, setPartialAmount] = useState<number>(0);
-const isStripe = order.paymentMethod?.toLowerCase() === 'stripe';
+
   const refundedAmount = refundHistory?.totalRefunded ?? 0;
   const remainingRefundable = Math.max(0, paidAmountCap - refundedAmount);
-useEffect(() => {
-  if (!processingRefund && confirmOpen) {
-    setConfirmOpen(false);
-  }
-}, [processingRefund]);
+  useEffect(() => {
+    if (!processingRefund && confirmOpen) {
+      setConfirmOpen(false);
+    }
+  }, [processingRefund]);
   // Reset state every time modal opens
   useEffect(() => {
     if (isOpen) {
@@ -107,11 +107,11 @@ useEffect(() => {
     if (!processingRefund) onClose();
   };
 
-const handleConfirmRefund = () => {
-  if (activeTab === 'full') onFullRefund(reason, notes);
-  else if (activeTab === 'partial') onPartialRefund(partialAmount, reason, notes);
-  else if (activeTab === 'shipping') onShippingRefund(notes);
-};
+  const handleConfirmRefund = () => {
+    if (activeTab === 'full') onFullRefund(reason, notes);
+    else if (activeTab === 'partial') onPartialRefund(partialAmount, reason, notes);
+    else if (activeTab === 'shipping') onShippingRefund(notes);
+  };
   const isSubmitDisabled = (() => {
     if (processingRefund || !notes.trim()) return true;
     if (activeTab === 'partial' && partialAmount <= 0) return true;
@@ -162,7 +162,7 @@ const handleConfirmRefund = () => {
           </div>
 
           {/* Tabs */}
-          {isStripe && (
+
           <div className="flex gap-1 bg-slate-900/50 rounded-xl p-1 border border-slate-700/40">
             {availableTabs.map((tab) => {
               const cfg = TAB_CONFIG[tab];
@@ -172,11 +172,10 @@ const handleConfirmRefund = () => {
                   key={tab}
                   onClick={() => { setActiveTab(tab); setNotes(''); setPartialAmount(0); }}
                   disabled={processingRefund}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    isActive
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-semibold transition-all ${isActive
                       ? `bg-slate-700 ${cfg.color} shadow-sm`
                       : 'text-slate-500 hover:text-slate-300'
-                  }`}
+                    }`}
                 >
                   {cfg.icon}
                   <span>{cfg.label}</span>
@@ -184,33 +183,11 @@ const handleConfirmRefund = () => {
               );
             })}
           </div>
-          )}
+
         </div>
 
         {/* ── Content ── */}
-  <div className="p-5 space-y-4">
-
-  {!isStripe ? (
-    // 🔥 NON-STRIPE BLOCK UI
-    <div className="flex flex-col items-center justify-center text-center py-6 space-y-3">
-      
-      <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
-        <AlertTriangle className="h-6 w-6 text-red-400" />
-      </div>
-
-      <h4 className="text-white font-semibold text-sm">
-        Refund Not Available
-      </h4>
-
-      <p className="text-xs text-slate-400 max-w-xs">
-        Refund not supported for <span className="text-white font-medium">{order.paymentMethod}</span> payments. 
-        Only Stripe refunds are allowed.
-      </p>
-
-    </div>
-  ) : (
-    <>
-      {/* ✅ EXISTING TABS CONTENT (NO CHANGE) */}
+        <div className="p-5 space-y-4">
           {/* FULL REFUND tab */}
           {activeTab === 'full' && (
             <div className="space-y-4">
@@ -306,20 +283,12 @@ const handleConfirmRefund = () => {
               <WarningBox lines={['Only the shipping charge will be refunded', 'Product amounts remain unchanged', 'This action cannot be undone']} />
             </div>
           )}
-
-    </>
-  )}
-
-</div>
+        </div>
 
         {/* ── Footer ── */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-slate-700/60 bg-slate-900/40">
-         <div>
-  {!isStripe ? (
-    <p className="text-sm text-red-400 font-medium">
-      Refund not supported for this payment method
-    </p>
-  ) : activeTab === 'partial' && partialAmount > 0 ? (
+          <div>
+            {activeTab === 'partial' && partialAmount > 0 ? (
               <div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-wide">Refunding</p>
                 <p className="text-lg font-bold text-orange-400 leading-tight">
@@ -344,14 +313,13 @@ const handleConfirmRefund = () => {
             </button>
             <button
               onClick={() => setConfirmOpen(true)}
-             disabled={!isStripe || isSubmitDisabled}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
-                activeTab === 'full'
+              disabled={isSubmitDisabled}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'full'
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 shadow-red-900/30 text-white'
                   : activeTab === 'partial'
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-900/30 text-white'
-                  : 'bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 shadow-cyan-900/30 text-white'
-              }`}
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-900/30 text-white'
+                    : 'bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 shadow-cyan-900/30 text-white'
+                }`}
             >
               {processingRefund ? (
                 <>
@@ -379,41 +347,41 @@ const handleConfirmRefund = () => {
         </div>
 
       </div>
-<ConfirmDialog
-  isOpen={confirmOpen}
-  isLoading={processingRefund}
-  onClose={() => setConfirmOpen(false)}
-  onConfirm={handleConfirmRefund}
-  title={
-    activeTab === 'full'
-      ? "Confirm Full Refund"
-      : activeTab === 'partial'
-      ? "Confirm Partial Refund"
-      : "Confirm Shipping Refund"
-  }
-  message={
-    activeTab === 'full'
-      ? "Full refund will be issued. This action is irreversible and money will be returned to the customer."
-      : activeTab === 'partial'
-      ? `You are about to refund ${formatCurrency(partialAmount, order.currency)}. This cannot be undone.`
-      : "Shipping charges will be refunded only. This action cannot be undone."
-  }
-  confirmText="Yes, Refund"
-  iconColor={
-    activeTab === 'full'
-      ? "text-red-400"
-      : activeTab === 'partial'
-      ? "text-orange-400"
-      : "text-cyan-400"
-  }
-  confirmButtonStyle={
-    activeTab === 'full'
-      ? "bg-red-600 hover:bg-red-700"
-      : activeTab === 'partial'
-      ? "bg-orange-500 hover:bg-orange-600"
-      : "bg-cyan-600 hover:bg-cyan-700"
-  }
-/>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        isLoading={processingRefund}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmRefund}
+        title={
+          activeTab === 'full'
+            ? "Confirm Full Refund"
+            : activeTab === 'partial'
+              ? "Confirm Partial Refund"
+              : "Confirm Shipping Refund"
+        }
+        message={
+          activeTab === 'full'
+            ? "Full refund will be issued. This action is irreversible and money will be returned to the customer."
+            : activeTab === 'partial'
+              ? `You are about to refund ${formatCurrency(partialAmount, order.currency)}. This cannot be undone.`
+              : "Shipping charges will be refunded only. This action cannot be undone."
+        }
+        confirmText="Yes, Refund"
+        iconColor={
+          activeTab === 'full'
+            ? "text-red-400"
+            : activeTab === 'partial'
+              ? "text-orange-400"
+              : "text-cyan-400"
+        }
+        confirmButtonStyle={
+          activeTab === 'full'
+            ? "bg-red-600 hover:bg-red-700"
+            : activeTab === 'partial'
+              ? "bg-orange-500 hover:bg-orange-600"
+              : "bg-cyan-600 hover:bg-cyan-700"
+        }
+      />
     </div>
   );
 }

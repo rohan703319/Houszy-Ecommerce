@@ -663,9 +663,11 @@ export default function OrderCard({
       </div>
 
       {/* PENDING PAYMENT BANNER */}
-      {(order.paymentStatus?.toLowerCase() === "pending" || order.paymentStatus?.toLowerCase() === "unpaid") &&
+      {(order.paymentStatus?.toLowerCase() === "pending" ||
+        order.paymentStatus?.toLowerCase() === "unpaid" ||
+        order.paymentStatus?.toLowerCase() === "partiallypaid") &&
         amountToPay > 0 &&
-        order.payment?.paymentMethod?.toLowerCase() === "stripe" && (
+        ["stripe", "card"].includes(order.payment?.paymentMethod?.toLowerCase() || "") && (
           <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg p-4">
             <span className="text-2xl">⚠️</span>
             <div className="flex-1">

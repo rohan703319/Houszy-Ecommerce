@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-
-
+import * as LucideIcons from "lucide-react";
 
 async function getDeliveryData(slug: string) {
   try {
@@ -44,17 +43,42 @@ export default async function DeliveryPage({
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-2">
+    <div className="max-w-6xl mx-auto px-4 py-8">
 
       {/* 🔥 HERO */}
-      <div className="mb-10 text-center">
-        <h1 className="text-xl md:text-3xl font-bold text-[#f38918]">
+      <div className="mb-12 text-center">
+        <h1 className="text-3xl md:text-5xl font-black text-gray-900 mb-4 tracking-tight">
           {data.pageTitle}
         </h1>
-        <p className="text-gray-600 mt-2 text-lg max-w-2xl mx-auto">
+        <p className="text-gray-600 text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
           {data.pageSubtitle}
         </p>
       </div>
+
+      {/* 🔥 FEATURE CARDS */}
+      {data.featureCards?.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {data.featureCards.map((card: any, idx: number) => {
+            const IconComponent = (LucideIcons as any)[card.icon] || LucideIcons.Sparkles;
+            return (
+              <div
+                key={idx}
+                className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col items-center text-center group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-[#f38918] mb-4 group-hover:bg-[#f38918] group-hover:text-white transition-colors duration-300">
+                  <IconComponent className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 mb-2">
+                  {card.heading}
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {card.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
 
       {/* 🔥 INFO POINTS */}

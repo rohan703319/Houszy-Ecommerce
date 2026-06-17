@@ -142,6 +142,7 @@ const navigation: NavigationItem[] = [
       // ✅ ADDED
       { name: 'Homepage Preview', href: '/admin/HomepagePreview', icon: Monitor },
 
+      { name: 'A+ Templates', href: '/admin/aplus-templates', icon: Sparkles },
       { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban },
       { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText },
       { name: 'Comments', href: '/admin/comments', icon: MessageSquare },
@@ -451,11 +452,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </div>
               ) : (
                 /* Collapsed */
-                <div className="w-8 h-9  rounded-md bg-white  p-0.5 flex items-center justify-center shadow-lg border border-slate-200 overflow-hidden">
+                <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-md border border-slate-200 overflow-hidden">
                   <img
                     src="/logo/logo.png"
                     alt="DC"
-                    className="h-7 w-auto object-cover object-left"
+                    className="max-w-full max-h-full object-contain"
                   />
                 </div>
               )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Star,
@@ -65,25 +65,25 @@ export default function ProductReviewsPage() {
     null
   );
   // ✅ Add these state variables with other states
-const [dateRange, setDateRange] = useState<{
-  startDate: string;
-  endDate: string;
-}>({
-  startDate: "",
-  endDate: ""
-});
-const [showDatePicker, setShowDatePicker] = useState(false);
-const datePickerRef = useRef<HTMLDivElement>(null);
+  const [dateRange, setDateRange] = useState<{
+    startDate: string;
+    endDate: string;
+  }>({
+    startDate: "",
+    endDate: ""
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
 
   const [replyingTo, setReplyingTo] = useState<ProductReview | null>(null);
   const [replyText, setReplyText] = useState("");
-// Add these states at the top with other useState
-const [productSearch, setProductSearch] = useState('');
-const [showExcelImport, setShowExcelImport] = useState(false);
-const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
-const [showProductDropdown, setShowProductDropdown] = useState(false);
-const [productSearchTerm, setProductSearchTerm] = useState("");
-const productDropdownRef = useRef<HTMLDivElement>(null);
+  // Add these states at the top with other useState
+  const [productSearch, setProductSearch] = useState('');
+  const [showExcelImport, setShowExcelImport] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const productDropdownRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [serverTotal, setServerTotal] = useState(0);
@@ -96,149 +96,147 @@ const productDropdownRef = useRef<HTMLDivElement>(null);
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-const [approveConfirm, setApproveConfirm] = useState<{
-  id: string;
-  customer: string;
-  title: string;
-} | null>(null);
+  const [approveConfirm, setApproveConfirm] = useState<{
+    id: string;
+    customer: string;
+    title: string;
+  } | null>(null);
 
-const [stats, setStats] = useState({
-  totalReviews: 0,
-  totalPending: 0,
-  totalApproved: 0,
-  totalVerified: 0,
-  totalUnverified: 0,
-});
-const [isApproving, setIsApproving] = useState(false);
+  const [stats, setStats] = useState({
+    totalReviews: 0,
+    totalPending: 0,
+    totalApproved: 0,
+    totalVerified: 0,
+    totalUnverified: 0,
+  });
+  const [isApproving, setIsApproving] = useState(false);
 
-// ✅ Add this useEffect for closing date picker on outside click
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
-      setShowDatePicker(false);
+  // ✅ Add this useEffect for closing date picker on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Debounce search input — reset page when debounced value changes
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // ✅ Fetch Products that have reviews (for filter dropdown)
+  const fetchProducts = async (searchTerm?: string) => {
+    setLoadingProducts(true);
+    try {
+      const response = await productReviewsService.getProductsWithReviews({
+        pageSize: 100,
+        searchTerm,
+      });
+      if (response.data?.success && Array.isArray(response.data?.data?.items)) {
+        setProducts(response.data.data.items);
+      } else {
+        setProducts([]);
+      }
+    } catch (error: any) {
+      console.error("❌ Error fetching products:", error);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
     }
   };
 
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
-
-// Debounce search input — reset page when debounced value changes
-useEffect(() => {
-  const t = setTimeout(() => {
-    setDebouncedSearch(searchTerm);
-    setCurrentPage(1);
-  }, 400);
-  return () => clearTimeout(t);
-}, [searchTerm]);
-
-  // ✅ Fetch Products that have reviews (for filter dropdown + image map)
-const fetchProducts = async (searchTerm?: string) => {
-  setLoadingProducts(true);
-  try {
-    const response = await productReviewsService.getProductsWithReviews({
-      pageSize: 1000, // load all reviewed products so image map is complete
-      searchTerm,
-    });
-    if (response.data?.success && Array.isArray(response.data?.data?.items)) {
-      setProducts(response.data.data.items);
-    } else {
-      setProducts([]);
+  // Fetch all products for the create-review form (needs price/sku, all products not just reviewed ones)
+  const fetchFormProducts = async () => {
+    try {
+      const response = await productReviewsService.getAllProducts(1, 5000);
+      if (response.data?.success && Array.isArray(response.data?.data?.items)) {
+        setFormProducts(response.data.data.items.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          price: p.price,
+        })));
+      }
+    } catch {
+      // silently ignore — create form is non-critical
     }
-  } catch (error: any) {
-    console.error("❌ Error fetching products:", error);
-    setProducts([]);
-  } finally {
-    setLoadingProducts(false);
-  }
-};
+  };
 
-// Fetch all products for the create-review form — lazy loaded only when modal opens
-const fetchFormProducts = async () => {
-  if (formProducts.length > 0) return; // already loaded, skip
-  try {
-    const response = await productReviewsService.getAllProducts(1, 500);
-    if (response.data?.success && Array.isArray(response.data?.data?.items)) {
-      setFormProducts(response.data.data.items.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        sku: p.sku,
-        price: p.price,
-      })));
+  // Add this before return statement (with other computed values)
+  // ✅ Add this helper function
+  const getDateRangeLabel = () => {
+    if (!dateRange.startDate && !dateRange.endDate) return "Select Date Range";
+
+
+
+    if (dateRange.startDate && dateRange.endDate) {
+      return `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`;
+    } else if (dateRange.startDate) {
+      return `From ${formatDate(dateRange.startDate)}`;
+    } else if (dateRange.endDate) {
+      return `Until ${formatDate(dateRange.endDate)}`;
     }
-  } catch {
-    // silently ignore — create form is non-critical
-  }
-};
-
-// Add this before return statement (with other computed values)
-// ✅ Add this helper function
-const getDateRangeLabel = () => {
-  if (!dateRange.startDate && !dateRange.endDate) return "Select Date Range";
-  
-
-
-  if (dateRange.startDate && dateRange.endDate) {
-    return `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`;
-  } else if (dateRange.startDate) {
-    return `From ${formatDate(dateRange.startDate)}`;
-  } else if (dateRange.endDate) {
-    return `Until ${formatDate(dateRange.endDate)}`;
-  }
-  return "Select Date Range";
-};
+    return "Select Date Range";
+  };
 
 
   // ✅ Fetch Reviews — all filtering done server-side
-const fetchReviews = useCallback(async () => {
-  setLoadingReviews(true);
-  try {
-    const filters: ReviewFilters = {
-      page: currentPage,
-      pageSize: itemsPerPage,
-    };
-    if (statusFilter !== "all")    filters.status = statusFilter as "pending" | "approved";
-    if (ratingFilter !== "all")    filters.rating = parseInt(ratingFilter);
-    if (debouncedSearch.trim())    filters.searchTerm = debouncedSearch.trim();
-    if (productFilter !== "all")   filters.productId = productFilter;
-    if (verifiedOnlyFilter) {
-  filters.verifiedOnly = true;
-}
+  const fetchReviews = useCallback(async () => {
+    setLoadingReviews(true);
+    try {
+      const filters: ReviewFilters = {
+        page: currentPage,
+        pageSize: itemsPerPage,
+      };
+      if (statusFilter !== "all") filters.status = statusFilter as "pending" | "approved";
+      if (ratingFilter !== "all") filters.rating = parseInt(ratingFilter);
+      if (debouncedSearch.trim()) filters.searchTerm = debouncedSearch.trim();
+      if (productFilter !== "all") filters.productId = productFilter;
+      if (verifiedOnlyFilter) {
+        filters.verifiedOnly = true;
+      }
 
-  const res = await productReviewsService.getAll(filters);
-  console.log("ressssssssssssss",res);
+      const res = await productReviewsService.getAll(filters);
+      console.log("ressssssssssssss", res);
 
-if (res.data?.success) {
-  const paged = res.data.data;
+      if (res.data?.success) {
+        const paged = res.data.data;
 
-  setReviews(paged.items ?? []);
-  setServerTotal(paged.totalCount ?? 0);
-  setServerTotalPages(paged.totalPages ?? 1);
+        setReviews(paged.items ?? []);
+        setServerTotal(paged.totalCount ?? 0);
+        setServerTotalPages(paged.totalPages ?? 1);
 
-  // ✅ ADD THIS
-  if (paged.stats) {
-    setStats(paged.stats);
-  }
-}else {
+        // ✅ ADD THIS
+        if (paged.stats) {
+          setStats(paged.stats);
+        }
+      } else {
+        setReviews([]);
+        setServerTotal(0);
+        setServerTotalPages(1);
+      }
+    } catch (error: any) {
+      console.error("Error fetching reviews:", error);
+      toast.error("Failed to load reviews");
       setReviews([]);
-      setServerTotal(0);
-      setServerTotalPages(1);
+    } finally {
+      setLoadingReviews(false);
     }
-  } catch (error: any) {
-    console.error("Error fetching reviews:", error);
-    toast.error("Failed to load reviews");
-    setReviews([]);
-  } finally {
-    setLoadingReviews(false);
-  }
-}, [currentPage,verifiedOnlyFilter, itemsPerPage, statusFilter, ratingFilter, debouncedSearch, productFilter]);
+  }, [currentPage, verifiedOnlyFilter, itemsPerPage, statusFilter, ratingFilter, debouncedSearch, productFilter]);
 
   // ✅ Initial load — fetch products (for dropdown) and reviews simultaneously
-  // Note: fetchFormProducts is NOT called here — it is lazy-loaded when the create modal opens
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await fetchProducts();
+      await Promise.all([fetchProducts(), fetchFormProducts()]);
       setLoading(false);
     };
     init();
@@ -254,24 +252,24 @@ if (res.data?.success) {
 
 
   // ✅ Approve Review
-const handleApprove = async (id: string) => {
-  setIsApproving(true);
-  try {
-    const response = await productReviewsService.approve(id);
-    if (response.data?.success) {
-      toast.success("✅ Review approved successfully!");
-      await fetchReviews();
-      setApproveConfirm(null);
+  const handleApprove = async (id: string) => {
+    setIsApproving(true);
+    try {
+      const response = await productReviewsService.approve(id);
+      if (response.data?.success) {
+        toast.success("✅ Review approved successfully!");
+        await fetchReviews();
+        setApproveConfirm(null);
+      }
+    } catch (error: any) {
+      console.error("Error approving review:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to approve review"
+      );
+    } finally {
+      setIsApproving(false);
     }
-  } catch (error: any) {
-    console.error("Error approving review:", error);
-    toast.error(
-      error?.response?.data?.message || "Failed to approve review"
-    );
-  } finally {
-    setIsApproving(false);
-  }
-};
+  };
   // ✅ Reply to Review
   const handleReply = async () => {
     if (!replyingTo || !replyText.trim()) {
@@ -333,28 +331,28 @@ const handleApprove = async (id: string) => {
     }
   };
 
-// ✅ Update your existing clearFilters function
-const clearFilters = () => {
-  setStatusFilter("all");
-  setRatingFilter("all");
-  setProductFilter("all");
-  setVerifiedOnlyFilter(false);
-  setSearchTerm("");
-  setDebouncedSearch("");
-  setProductSearchTerm("");
-  setShowProductDropdown(false);
-  setDateRange({ startDate: "", endDate: "" });
-  setCurrentPage(1);
-};
+  // ✅ Update your existing clearFilters function
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setRatingFilter("all");
+    setProductFilter("all");
+    setVerifiedOnlyFilter(false);
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setProductSearchTerm("");
+    setShowProductDropdown(false);
+    setDateRange({ startDate: "", endDate: "" });
+    setCurrentPage(1);
+  };
 
-const hasActiveFilters =
-  statusFilter !== "all" ||
-  ratingFilter !== "all" ||
-  productFilter !== "all" ||
-  verifiedOnlyFilter ||
-  searchTerm.trim() !== "" ||
-  dateRange.startDate !== "" ||
-  dateRange.endDate !== "";
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    ratingFilter !== "all" ||
+    productFilter !== "all" ||
+    verifiedOnlyFilter ||
+    searchTerm.trim() !== "" ||
+    dateRange.startDate !== "" ||
+    dateRange.endDate !== "";
 
   // Server handles all filtering — reviews is already the current page
   const filteredReviews = reviews;
@@ -377,7 +375,7 @@ const hasActiveFilters =
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1); // triggers fetchReviews via useCallback dep change
   };
-    // ✅ Create Review Modal States
+  // ✅ Create Review Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState<CreateReviewDto>({
@@ -387,41 +385,35 @@ const hasActiveFilters =
     rating: 5
   });
   const [hoverRating, setHoverRating] = useState(0);
-// ✅ Close dropdown when clicking outside
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
-      setShowProductDropdown(false);
-    }
+  // ✅ Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
+        setShowProductDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter dropdown products (ProductWithReviewSummary — uses productId/productName)
+  const filteredProducts = products.filter(product =>
+    product.productName.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+    product.productSku.toLowerCase().includes(productSearchTerm.toLowerCase())
+  );
+
+  // Filter form products (old Product shape — uses id/name)
+  const filteredFormProducts = formProducts.filter(product =>
+    product.name.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  // ✅ Get selected product title
+  const getSelectedProductTitle = () => {
+    if (productFilter === "all") return "🛍️ All Products";
+    const product = products.find(p => p.productId === productFilter);
+    return product?.productName || "Unknown Product";
   };
-
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
-
-// Filter dropdown products (ProductWithReviewSummary — uses productId/productName)
-const filteredProducts = products.filter(product =>
-  product.productName.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-  product.productSku.toLowerCase().includes(productSearchTerm.toLowerCase())
-);
-
-// Filter form products (old Product shape — uses id/name)
-const filteredFormProducts = formProducts.filter(product =>
-  product.name.toLowerCase().includes(productSearch.toLowerCase())
-);
-
-// ✅ Fast O(1) image URL lookup: productId → productImageUrl
-const productImageMap = useMemo(() => products.reduce<Record<string, string>>((acc, p) => {
-  if (p.productId && p.productImageUrl) acc[p.productId] = p.productImageUrl;
-  return acc;
-}, {}), [products]);
-
-// ✅ Get selected product title
-const getSelectedProductTitle = () => {
-  if (productFilter === "all") return "🛍️ All Products";
-  const product = products.find(p => p.productId === productFilter);
-  return product?.productName || "Unknown Product";
-};
   // Products are loaded once on mount via the init useEffect above
 
   // ✅ Handle Create Review
@@ -448,10 +440,10 @@ const getSelectedProductTitle = () => {
     try {
       console.log("📝 Creating review:", formData);
       const response = await productReviewsService.create(formData);
-      
+
       if (response.data?.success) {
         toast.success("✅ Review created successfully!");
-        
+
         // Reset form
         setFormData({
           productId: "",
@@ -459,10 +451,10 @@ const getSelectedProductTitle = () => {
           comment: "",
           rating: 5
         });
-        
+
         // Close modal
         setShowCreateModal(false);
-        
+
         // Refresh reviews list (add your fetch function here)
         // await fetchReviews();
       } else {
@@ -477,8 +469,8 @@ const getSelectedProductTitle = () => {
   };
 
   // ✅ Star Rating Component
-  const StarRating = ({ value, onChange, size = "h-6 w-6" }: { 
-    value: number; 
+  const StarRating = ({ value, onChange, size = "h-6 w-6" }: {
+    value: number;
     onChange: (rating: number) => void;
     size?: string;
   }) => {
@@ -494,11 +486,10 @@ const getSelectedProductTitle = () => {
             className="focus:outline-none transition-transform hover:scale-110"
           >
             <Star
-              className={`${size} transition-colors ${
-                star <= (hoverRating || value)
+              className={`${size} transition-colors ${star <= (hoverRating || value)
                   ? "fill-yellow-400 text-yellow-400"
                   : "text-slate-600"
-              }`}
+                }`}
             />
           </button>
         ))}
@@ -535,127 +526,127 @@ const getSelectedProductTitle = () => {
   // Page resets are handled by wrapper setters and debounce effect above
 
 
-// ✅ COMPLETE: Download Reviews Function - All Messages in English
-const handleExportReviews = (type: string) => {
-  let data: any[] = [];
-  
-  if (type === "all") {
-    // ✅ All reviews from API (no filters)
-    data = reviews;
-    
-  } else if (type === "filtered") {
-    // ✅ Reviews after search/filter
-    data = filteredReviews;
-  }
+  // ✅ COMPLETE: Download Reviews Function - All Messages in English
+  const handleExportReviews = (type: string) => {
+    let data: any[] = [];
 
-  if (data.length === 0) {
-    toast.error("No reviews available to download");
-    setDownloadMenuOpen(false);
-    return;
-  }
+    if (type === "all") {
+      // ✅ All reviews from API (no filters)
+      data = reviews;
 
-  console.log(`📥 Exporting ${data.length} reviews...`);
+    } else if (type === "filtered") {
+      // ✅ Reviews after search/filter
+      data = filteredReviews;
+    }
 
-  exportReviewsToExcel(data, type === "all" ? "all" : "filtered");
-};
+    if (data.length === 0) {
+      toast.error("No reviews available to download");
+      setDownloadMenuOpen(false);
+      return;
+    }
 
-const exportReviewsToExcel = (data: ProductReview[], type: "all" | "filtered" | "selected") => {
-  const rows = data.map((r) => ({
-    "Product ID": r.productId,
-    "Customer Name": r.customerName,
-    "Title": r.title,
-    "Comment": r.comment,
-    "Rating": r.rating,
-    "Approved": r.isApproved ? "Yes" : "No",
-    "Verified Purchase": r.isVerifiedPurchase ? "Yes" : "No",
-    "Image URLs": (r.imageUrls ?? []).join(", "),
-    "Video URLs": (r.videoUrls ?? []).join(", "),
-    "Created At": new Date(r.createdAt).toLocaleString('en-IN', { 
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }),
-  }));
+    console.log(`📥 Exporting ${data.length} reviews...`);
 
-  import("xlsx").then((XLSX) => {
-    const ws = XLSX.utils.json_to_sheet(rows);
-    
-    ws["!cols"] = [
-      { wch: 15 }, // Product ID
-      { wch: 25 }, // Customer Name
-      { wch: 30 }, // Title
-      { wch: 50 }, // Comment
-      { wch: 10 }, // Rating
-      { wch: 12 }, // Approved
-      { wch: 18 }, // Verified Purchase
-      { wch: 40 }, // Image URLs
-      { wch: 40 }, // Video URLs
-      { wch: 25 }  // Created At
-    ];
+    exportReviewsToExcel(data, type === "all" ? "all" : "filtered");
+  };
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Reviews");
-    
-    const dateStr = new Date().toISOString().split('T')[0];
-    const filename =
-      type === "all"
-        ? `Product_Reviews_All_${data.length}_${dateStr}.xlsx`
-        : type === "selected"
-        ? `Product_Reviews_Selected_${data.length}_${dateStr}.xlsx`
-        : `Product_Reviews_Filtered_${data.length}_${dateStr}.xlsx`;
-    
-    XLSX.writeFile(wb, filename);
-    toast.success(`✅ Successfully downloaded ${data.length} reviews!`);
-    setDownloadMenuOpen(false);
-    
-  }).catch((err) => {
-    console.error("❌ Excel export error:", err);
-    toast.error("Failed to create Excel file. Please try again.");
-  });
-};
+  const exportReviewsToExcel = (data: ProductReview[], type: "all" | "filtered" | "selected") => {
+    const rows = data.map((r) => ({
+      "Product ID": r.productId,
+      "Customer Name": r.customerName,
+      "Title": r.title,
+      "Comment": r.comment,
+      "Rating": r.rating,
+      "Approved": r.isApproved ? "Yes" : "No",
+      "Verified Purchase": r.isVerifiedPurchase ? "Yes" : "No",
+      "Image URLs": (r.imageUrls ?? []).join(", "),
+      "Video URLs": (r.videoUrls ?? []).join(", "),
+      "Created At": new Date(r.createdAt).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+    }));
 
-const handleExportSelectedReviews = () => {
-  const selectedData = currentData.filter((review) => selectedReviews.includes(review.id));
+    import("xlsx").then((XLSX) => {
+      const ws = XLSX.utils.json_to_sheet(rows);
 
-  if (selectedData.length === 0) {
-    toast.error("No selected reviews available to download");
-    return;
-  }
+      ws["!cols"] = [
+        { wch: 15 }, // Product ID
+        { wch: 25 }, // Customer Name
+        { wch: 30 }, // Title
+        { wch: 50 }, // Comment
+        { wch: 10 }, // Rating
+        { wch: 12 }, // Approved
+        { wch: 18 }, // Verified Purchase
+        { wch: 40 }, // Image URLs
+        { wch: 40 }, // Video URLs
+        { wch: 25 }  // Created At
+      ];
 
-  exportReviewsToExcel(selectedData, "selected");
-  setSelectedReviews([])
-};
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Reviews");
 
-const resolveMediaUrl = (url?: string) => {
-  if (!url) return "";
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename =
+        type === "all"
+          ? `Product_Reviews_All_${data.length}_${dateStr}.xlsx`
+          : type === "selected"
+            ? `Product_Reviews_Selected_${data.length}_${dateStr}.xlsx`
+            : `Product_Reviews_Filtered_${data.length}_${dateStr}.xlsx`;
 
-  // Already full URL
-  if (/^https?:\/\//i.test(url)) return url;
+      XLSX.writeFile(wb, filename);
+      toast.success(`✅ Successfully downloaded ${data.length} reviews!`);
+      setDownloadMenuOpen(false);
 
-  const cleanBase = API_BASE_URL.replace(/\/+$/, "");
-  const cleanPath = url.replace(/^\/+/, "");
+    }).catch((err) => {
+      console.error("❌ Excel export error:", err);
+      toast.error("Failed to create Excel file. Please try again.");
+    });
+  };
 
-  return `${cleanBase}/${cleanPath}`;
-};
+  const handleExportSelectedReviews = () => {
+    const selectedData = currentData.filter((review) => selectedReviews.includes(review.id));
 
-const normalizeToArray = (data: any): string[] => {
-  if (!data) return [];
+    if (selectedData.length === 0) {
+      toast.error("No selected reviews available to download");
+      return;
+    }
 
-  if (Array.isArray(data)) return data;
+    exportReviewsToExcel(selectedData, "selected");
+    setSelectedReviews([])
+  };
 
-  if (typeof data === "string") {
-    return data.split(",").map((i) => i.trim()).filter(Boolean);
-  }
+  const resolveMediaUrl = (url?: string) => {
+    if (!url) return "";
 
-  return [];
-};
+    // Already full URL
+    if (/^https?:\/\//i.test(url)) return url;
 
-const isPlayableVideoUrl = (url: string) => {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url);
-};
+    const cleanBase = API_BASE_URL.replace(/\/+$/, "");
+    const cleanPath = url.replace(/^\/+/, "");
+
+    return `${cleanBase}/${cleanPath}`;
+  };
+
+  const normalizeToArray = (data: any): string[] => {
+    if (!data) return [];
+
+    if (Array.isArray(data)) return data;
+
+    if (typeof data === "string") {
+      return data.split(",").map((i) => i.trim()).filter(Boolean);
+    }
+
+    return [];
+  };
+
+  const isPlayableVideoUrl = (url: string) => {
+    return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url);
+  };
 
 
 
@@ -672,11 +663,10 @@ const isPlayableVideoUrl = (url: string) => {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`${size} ${
-              star <= rating
+            className={`${size} ${star <= rating
                 ? "fill-yellow-400 text-yellow-400"
                 : "text-slate-600"
-            }`}
+              }`}
           />
         ))}
       </div>
@@ -696,40 +686,40 @@ const isPlayableVideoUrl = (url: string) => {
 
   return (
     <div >
-        {selectedReviews.length > 0 && (
-         <div className="fixed top-[69px] left-1/2 -translate-x-1/2 z-[999] pointer-events-none w-full">
-            <div className="flex justify-center px-2 pt-2">
-              <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-900/95 px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.35)] backdrop-blur-xl">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-violet-400" />
-                  <div className="leading-tight">
-                    <p className="text-sm font-semibold text-white">{selectedReviews.length} review(s) selected</p>
-                    <p className="text-xs text-slate-400">Export selected reviews or clear the current selection</p>
-                  </div>
+      {selectedReviews.length > 0 && (
+        <div className="fixed top-[69px] left-1/2 -translate-x-1/2 z-[999] pointer-events-none w-full">
+          <div className="flex justify-center px-2 pt-2">
+            <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-900/95 px-4 py-3 shadow-[0_16px_40px_rgba(15,23,42,0.35)] backdrop-blur-xl">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-violet-400" />
+                <div className="leading-tight">
+                  <p className="text-sm font-semibold text-white">{selectedReviews.length} review(s) selected</p>
+                  <p className="text-xs text-slate-400">Export selected reviews or clear the current selection</p>
                 </div>
-
-                <div className="h-8 w-px bg-slate-700/80" />
-
-                <button
-                  onClick={handleExportSelectedReviews}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all"
-                  title={`Export ${selectedReviews.length} selected reviews`}
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Export Selected ({selectedReviews.length})
-                </button>
-
-                <button
-                  onClick={() => setSelectedReviews([])}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold transition-all"
-                  title="Clear selected reviews"
-                >
-                  Cancel
-                </button>
               </div>
+
+              <div className="h-8 w-px bg-slate-700/80" />
+
+              <button
+                onClick={handleExportSelectedReviews}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all"
+                title={`Export ${selectedReviews.length} selected reviews`}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export Selected ({selectedReviews.length})
+              </button>
+
+              <button
+                onClick={() => setSelectedReviews([])}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold transition-all"
+                title="Clear selected reviews"
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
       <div className="mx-auto space-y-3">
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
@@ -764,216 +754,209 @@ const isPlayableVideoUrl = (url: string) => {
             <div className="relative">
               <button
                 className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1.5 font-medium text-xs transition-all"
-                 onClick={() => handleExportReviews('all')}
+                onClick={() => handleExportReviews('all')}
               >
                 <Download className="h-3.5 w-3.5" />
                 Export Reviews
-        
+
               </button>
-         
+
             </div>
           </div>
         </div>
 
-      
+
 
         {/* Stats strip */}
- {/* ✅ Stats strip (Backend Driven) */}
-<div className="grid grid-cols-5 gap-2">
+        {/* ✅ Stats strip (Backend Driven) */}
+        <div className="grid grid-cols-5 gap-2">
 
-  {/* Total Reviews */}
-  <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
-    <div className="w-8 h-8 bg-violet-500/15 rounded-lg flex items-center justify-center">
-      <Star className="h-3.5 w-3.5 text-violet-400" />
-    </div>
-    <div>
-      <p className="text-[10px] text-slate-500 uppercase">Total</p>
-      <p className="text-lg font-bold text-white">{stats.totalReviews}</p>
-    </div>
-  </div>
+          {/* Total Reviews */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 bg-violet-500/15 rounded-lg flex items-center justify-center">
+              <Star className="h-3.5 w-3.5 text-violet-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase">Total</p>
+              <p className="text-lg font-bold text-white">{stats.totalReviews}</p>
+            </div>
+          </div>
 
-  {/* Pending */}
-  <button
-    onClick={() => {
-      setStatusFilter("pending");
-      setCurrentPage(1);
-    }}
-    className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${
-      statusFilter === "pending"
-        ? "bg-amber-500/10 border-amber-500/30"
-        : "bg-slate-900/60 border-slate-800"
-    }`}
-  >
-    <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
-      <Clock className="h-3.5 w-3.5 text-amber-400" />
-    </div>
-    <div>
-      <p className="text-[10px] text-slate-500 uppercase">Pending</p>
-      <p className="text-lg font-bold text-white">{stats.totalPending}</p>
-    </div>
-  </button>
+          {/* Pending */}
+          <button
+            onClick={() => {
+              setStatusFilter("pending");
+              setCurrentPage(1);
+            }}
+            className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${statusFilter === "pending"
+                ? "bg-amber-500/10 border-amber-500/30"
+                : "bg-slate-900/60 border-slate-800"
+              }`}
+          >
+            <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+              <Clock className="h-3.5 w-3.5 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase">Pending</p>
+              <p className="text-lg font-bold text-white">{stats.totalPending}</p>
+            </div>
+          </button>
 
-  {/* Approved */}
-  <button
-    onClick={() => {
-      setStatusFilter("approved");
-      setCurrentPage(1);
-    }}
-    className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${
-      statusFilter === "approved"
-        ? "bg-green-500/10 border-green-500/30"
-        : "bg-slate-900/60 border-slate-800"
-    }`}
-  >
-    <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-      <CheckCircle className="h-3.5 w-3.5 text-green-400" />
-    </div>
-    <div>
-      <p className="text-[10px] text-slate-500 uppercase">Approved</p>
-      <p className="text-lg font-bold text-white">{stats.totalApproved}</p>
-    </div>
-  </button>
+          {/* Approved */}
+          <button
+            onClick={() => {
+              setStatusFilter("approved");
+              setCurrentPage(1);
+            }}
+            className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${statusFilter === "approved"
+                ? "bg-green-500/10 border-green-500/30"
+                : "bg-slate-900/60 border-slate-800"
+              }`}
+          >
+            <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+              <CheckCircle className="h-3.5 w-3.5 text-green-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase">Approved</p>
+              <p className="text-lg font-bold text-white">{stats.totalApproved}</p>
+            </div>
+          </button>
 
-  {/* Verified */}
-  <button
-    onClick={() => {
-      setVerifiedOnlyFilter(true);
-      setCurrentPage(1);
-    }}
-    className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${
-      verifiedOnlyFilter
-        ? "bg-cyan-500/10 border-cyan-500/30"
-        : "bg-slate-900/60 border-slate-800"
-    }`}
-  >
-    <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-      <Award className="h-3.5 w-3.5 text-cyan-400" />
-    </div>
-    <div>
-      <p className="text-[10px] text-slate-500 uppercase">Verified</p>
-      <p className="text-lg font-bold text-white">{stats.totalVerified}</p>
-    </div>
-  </button>
+          {/* Verified */}
+          <button
+            onClick={() => {
+              setVerifiedOnlyFilter(true);
+              setCurrentPage(1);
+            }}
+            className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${verifiedOnlyFilter
+                ? "bg-cyan-500/10 border-cyan-500/30"
+                : "bg-slate-900/60 border-slate-800"
+              }`}
+          >
+            <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+              <Award className="h-3.5 w-3.5 text-cyan-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase">Verified</p>
+              <p className="text-lg font-bold text-white">{stats.totalVerified}</p>
+            </div>
+          </button>
 
-  {/* Unverified */}
-  <button
-    onClick={() => {
-      setVerifiedOnlyFilter(false);
-      setCurrentPage(1);
-    }}
-    className="border rounded-xl px-4 py-3 flex items-center gap-3 bg-slate-900/60 border-slate-800"
-  >
-    <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
-      <X className="h-3.5 w-3.5 text-red-400" />
-    </div>
-    <div>
-      <p className="text-[10px] text-slate-500 uppercase">Unverified</p>
-      <p className="text-lg font-bold text-white">{stats.totalUnverified}</p>
-    </div>
-  </button>
+          {/* Unverified */}
+          <button
+            onClick={() => {
+              setVerifiedOnlyFilter(false);
+              setCurrentPage(1);
+            }}
+            className="border rounded-xl px-4 py-3 flex items-center gap-3 bg-slate-900/60 border-slate-800"
+          >
+            <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
+              <X className="h-3.5 w-3.5 text-red-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase">Unverified</p>
+              <p className="text-lg font-bold text-white">{stats.totalUnverified}</p>
+            </div>
+          </button>
 
-</div>
+        </div>
 
         {/* Reviews Section */}
         <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-xl overflow-hidden">
           {/* Compact toolbar */}
           <div className="flex items-center gap-2 p-3 border-b border-slate-800">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-<div className="relative flex-1 min-w-[140px]" ref={productDropdownRef}>
-  <div className="relative">
-    <input
-      type="text"
-      value={showProductDropdown ? productSearchTerm : getSelectedProductTitle()}
-      onChange={(e) => { setProductSearchTerm(e.target.value); if (!showProductDropdown) setShowProductDropdown(true); }}
-      onFocus={() => { setShowProductDropdown(true); setProductSearchTerm(""); }}
-      placeholder={loadingProducts ? "Loading..." : "All Products"}
-      disabled={loadingProducts || loadingReviews}
-      className={`w-full px-3 py-2 pl-8 pr-7 bg-slate-800 border rounded-lg text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all ${
-        productFilter !== "all" ? "border-violet-500/60 bg-violet-500/10" : "border-slate-700 hover:border-slate-600"
-      } ${loadingProducts || loadingReviews ? "opacity-50 cursor-not-allowed" : ""}`}
-    />
-    <ShoppingBag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-    
-    {productFilter !== "all" ? (
-      <button
-        onClick={() => {
-          setProductFilter("all");
-          setProductSearchTerm("");
-          setCurrentPage(1);
-        }}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-700 rounded transition-all"
-      >
-        <X className="h-3.5 w-3.5 text-slate-400 hover:text-white" />
-      </button>
-    ) : (
-      <ChevronDown
-        className={`absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none transition-transform ${
-          showProductDropdown ? "rotate-180" : ""
-        }`}
-      />
-    )}
-  </div>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="relative flex-1 min-w-[140px]" ref={productDropdownRef}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={showProductDropdown ? productSearchTerm : getSelectedProductTitle()}
+                    onChange={(e) => { setProductSearchTerm(e.target.value); if (!showProductDropdown) setShowProductDropdown(true); }}
+                    onFocus={() => { setShowProductDropdown(true); setProductSearchTerm(""); }}
+                    placeholder={loadingProducts ? "Loading..." : "All Products"}
+                    disabled={loadingProducts || loadingReviews}
+                    className={`w-full px-3 py-2 pl-8 pr-7 bg-slate-800 border rounded-lg text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all ${productFilter !== "all" ? "border-violet-500/60 bg-violet-500/10" : "border-slate-700 hover:border-slate-600"
+                      } ${loadingProducts || loadingReviews ? "opacity-50 cursor-not-allowed" : ""}`}
+                  />
+                  <ShoppingBag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
 
-  {/* ✅ Dropdown Menu */}
-  {showProductDropdown && (
-    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50">
-      {/* All Products Option */}
-      <button
-        onClick={() => {
-          setProductFilter("all");
-          setShowProductDropdown(false);
-          setProductSearchTerm("");
-          setCurrentPage(1);
-        }}
-        className={`w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-all ${
-          productFilter === "all" ? "bg-purple-500/10 text-purple-400" : "text-white"
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <ShoppingBag className="h-4 w-4 flex-shrink-0" />
-          <span className="text-sm">All Products</span>
-        </div>
-      </button>
+                  {productFilter !== "all" ? (
+                    <button
+                      onClick={() => {
+                        setProductFilter("all");
+                        setProductSearchTerm("");
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-700 rounded transition-all"
+                    >
+                      <X className="h-3.5 w-3.5 text-slate-400 hover:text-white" />
+                    </button>
+                  ) : (
+                    <ChevronDown
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none transition-transform ${showProductDropdown ? "rotate-180" : ""
+                        }`}
+                    />
+                  )}
+                </div>
 
-      {/* Product List */}
-      {filteredProducts.length > 0 ? (
-        filteredProducts.map((product) => (
-          <button
-            key={product.productId}
-            onClick={() => {
-              setProductFilter(product.productId);
-              setShowProductDropdown(false);
-              setProductSearchTerm("");
-              setCurrentPage(1);
-            }}
-            className={`w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-all border-t border-slate-700 ${
-              productFilter === product.productId ? "bg-purple-500/10 text-purple-400" : "text-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-            <img
-  src={getImageUrl(product.productImageUrl)}
-  alt={product.productName}
-  className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
-  onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-/>
+                {/* ✅ Dropdown Menu */}
+                {showProductDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50">
+                    {/* All Products Option */}
+                    <button
+                      onClick={() => {
+                        setProductFilter("all");
+                        setShowProductDropdown(false);
+                        setProductSearchTerm("");
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-all ${productFilter === "all" ? "bg-purple-500/10 text-purple-400" : "text-white"
+                        }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="h-4 w-4 flex-shrink-0" />
+                        <span className="text-sm">All Products</span>
+                      </div>
+                    </button>
 
-<span className="text-sm truncate">{product.productName}</span>
+                    {/* Product List */}
+                    {filteredProducts.length > 0 ? (
+                      filteredProducts.map((product) => (
+                        <button
+                          key={product.productId}
+                          onClick={() => {
+                            setProductFilter(product.productId);
+                            setShowProductDropdown(false);
+                            setProductSearchTerm("");
+                            setCurrentPage(1);
+                          }}
+                          className={`w-full px-4 py-2.5 text-left hover:bg-slate-700 transition-all border-t border-slate-700 ${productFilter === product.productId ? "bg-purple-500/10 text-purple-400" : "text-white"
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={getImageUrl(product.productImageUrl) || "/placeholder.png"}
+                                alt={product.productName}
+                                className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
+                                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                              />
+
+                              <span className="text-sm truncate">{product.productName}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 flex-shrink-0">{product.totalReviews} reviews</span>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-center text-slate-500 text-sm">
+                        No products found for "{productSearchTerm}"
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <span className="text-[10px] text-slate-500 flex-shrink-0">{product.totalReviews} reviews</span>
-            </div>
-          </button>
-        ))
-      ) : (
-        <div className="px-4 py-3 text-center text-slate-500 text-sm">
-          No products found for "{productSearchTerm}"
-        </div>
-      )}
-    </div>
-  )}
-</div>
-  {/* Search */}
+              {/* Search */}
               <div className="relative flex-1 min-w-[120px]">
                 <input
                   type="text"
@@ -994,9 +977,8 @@ const isPlayableVideoUrl = (url: string) => {
                 <select
                   value={statusFilter}
                   onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                  className={`w-full px-3 py-2 pr-7 bg-slate-800 border rounded-lg text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer ${
-                    statusFilter !== "all" ? "border-blue-500/60 bg-blue-500/10" : "border-slate-700 hover:border-slate-600"
-                  }`}
+                  className={`w-full px-3 py-2 pr-7 bg-slate-800 border rounded-lg text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer ${statusFilter !== "all" ? "border-blue-500/60 bg-blue-500/10" : "border-slate-700 hover:border-slate-600"
+                    }`}
                 >
                   <option value="all">All Status</option>
                   <option value="approved">Approved</option>
@@ -1009,9 +991,8 @@ const isPlayableVideoUrl = (url: string) => {
                 <select
                   value={ratingFilter}
                   onChange={(e) => { setRatingFilter(e.target.value); setCurrentPage(1); }}
-                  className={`w-full px-3 py-2 pr-7 bg-slate-800 border rounded-lg text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer ${
-                    ratingFilter !== "all" ? "border-yellow-500/60 bg-yellow-500/10" : "border-slate-700 hover:border-slate-600"
-                  }`}
+                  className={`w-full px-3 py-2 pr-7 bg-slate-800 border rounded-lg text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all appearance-none cursor-pointer ${ratingFilter !== "all" ? "border-yellow-500/60 bg-yellow-500/10" : "border-slate-700 hover:border-slate-600"
+                    }`}
                 >
                   <option value="all">All Ratings</option>
                   <option value="5">★★★★★ 5</option>
@@ -1027,126 +1008,125 @@ const isPlayableVideoUrl = (url: string) => {
                 <input type="checkbox" checked={verifiedOnlyFilter} onChange={(e) => { setVerifiedOnlyFilter(e.target.checked); setCurrentPage(1); }} className="w-3 h-3 text-green-500 rounded" />
                 Verified
               </label>
-          
+
 
               {/* Date Range Filter */}
               <div className="relative flex-1 min-w-[130px]" ref={datePickerRef}>
-  <div className="relative">
-    <button
-      onClick={() => setShowDatePicker(!showDatePicker)}
-      className={`w-full px-3 py-2 pl-7 pr-6 bg-slate-800 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all text-left whitespace-nowrap ${
-        (dateRange.startDate || dateRange.endDate)
-          ? "border-cyan-500/60 bg-cyan-500/10 text-white"
-          : "border-slate-700 hover:border-slate-600 text-slate-400"
-      }`}
-    >
-      {getDateRangeLabel()}
-    </button>
-    
-    <svg className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <line x1="16" y1="2" x2="16" y2="6" strokeWidth="2" strokeLinecap="round"/>
-      <line x1="8" y1="2" x2="8" y2="6" strokeWidth="2" strokeLinecap="round"/>
-      <line x1="3" y1="10" x2="21" y2="10" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-    {(dateRange.startDate || dateRange.endDate) ? (
-      <button onClick={(e) => { e.stopPropagation(); setDateRange({ startDate: "", endDate: "" }); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-700 rounded transition-all">
-        <X className="h-3 w-3 text-slate-400 hover:text-white" />
-      </button>
-    ) : (
-      <ChevronDown className={`absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none transition-transform ${showDatePicker ? "rotate-180" : ""}`} />
-    )}
-    
-  </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className={`w-full px-3 py-2 pl-7 pr-6 bg-slate-800 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 transition-all text-left whitespace-nowrap ${(dateRange.startDate || dateRange.endDate)
+                        ? "border-cyan-500/60 bg-cyan-500/10 text-white"
+                        : "border-slate-700 hover:border-slate-600 text-slate-400"
+                      }`}
+                  >
+                    {getDateRangeLabel()}
+                  </button>
 
-  {/* Date Picker Dropdown */}
-  {showDatePicker && (
-    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl p-4 z-50 min-w-[280px]">
-      <div className="space-y-3">
-        {/* From Date */}
-        <div>
-          <label className="text-slate-400 text-xs font-medium mb-1.5 block">From Date</label>
-          <input
-            type="date"
-            value={dateRange.startDate}
-            onChange={(e) => {
-              setDateRange(prev => ({ ...prev, startDate: e.target.value }));
-              // Auto close after selecting both dates
-              if (dateRange.endDate && e.target.value) {
-                setTimeout(() => setShowDatePicker(false), 300);
-              }
-            }}
-            max={dateRange.endDate || new Date().toISOString().split('T')[0]}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-          />
-        </div>
-        
-        {/* To Date */}
-        <div>
-          <label className="text-slate-400 text-xs font-medium mb-1.5 block">To Date</label>
-          <input
-            type="date"
-            value={dateRange.endDate}
-            onChange={(e) => {
-              setDateRange(prev => ({ ...prev, endDate: e.target.value }));
-              // Auto close after selecting both dates
-              if (dateRange.startDate && e.target.value) {
-                setTimeout(() => setShowDatePicker(false), 300);
-              }
-            }}
-            min={dateRange.startDate}
-            max={new Date().toISOString().split('T')[0]}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-          />
-        </div>
+                  <svg className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="16" y1="2" x2="16" y2="6" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="8" y1="2" x2="8" y2="6" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="3" y1="10" x2="21" y2="10" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  {(dateRange.startDate || dateRange.endDate) ? (
+                    <button onClick={(e) => { e.stopPropagation(); setDateRange({ startDate: "", endDate: "" }); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-700 rounded transition-all">
+                      <X className="h-3 w-3 text-slate-400 hover:text-white" />
+                    </button>
+                  ) : (
+                    <ChevronDown className={`absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none transition-transform ${showDatePicker ? "rotate-180" : ""}`} />
+                  )}
 
-        {/* Quick Filter Buttons */}
-        <div className="flex items-center gap-2 pt-2">
-          <button
-            onClick={() => {
-              const today = new Date();
-              const weekAgo = new Date(today);
-              weekAgo.setDate(today.getDate() - 7);
-              setDateRange({
-                startDate: weekAgo.toISOString().split('T')[0],
-                endDate: today.toISOString().split('T')[0]
-              });
-              setShowDatePicker(false);
-            }}
-            className="flex-1 px-3 py-1.5 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 rounded-lg text-xs font-medium transition-all border border-violet-500/30"
-          >
-            Last 7 Days
-          </button>
-          
-          <button
-            onClick={() => {
-              const today = new Date();
-              const monthAgo = new Date(today);
-              monthAgo.setMonth(today.getMonth() - 1);
-              setDateRange({
-                startDate: monthAgo.toISOString().split('T')[0],
-                endDate: today.toISOString().split('T')[0]
-              });
-              setShowDatePicker(false);
-            }}
-            className="flex-1 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-medium transition-all border border-cyan-500/30"
-          >
-            Last 30 Days
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
-  
-  
-                     </div>
+                </div>
+
+                {/* Date Picker Dropdown */}
+                {showDatePicker && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-xl p-4 z-50 min-w-[280px]">
+                    <div className="space-y-3">
+                      {/* From Date */}
+                      <div>
+                        <label className="text-slate-400 text-xs font-medium mb-1.5 block">From Date</label>
+                        <input
+                          type="date"
+                          value={dateRange.startDate}
+                          onChange={(e) => {
+                            setDateRange(prev => ({ ...prev, startDate: e.target.value }));
+                            // Auto close after selecting both dates
+                            if (dateRange.endDate && e.target.value) {
+                              setTimeout(() => setShowDatePicker(false), 300);
+                            }
+                          }}
+                          max={dateRange.endDate || new Date().toISOString().split('T')[0]}
+                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                        />
+                      </div>
+
+                      {/* To Date */}
+                      <div>
+                        <label className="text-slate-400 text-xs font-medium mb-1.5 block">To Date</label>
+                        <input
+                          type="date"
+                          value={dateRange.endDate}
+                          onChange={(e) => {
+                            setDateRange(prev => ({ ...prev, endDate: e.target.value }));
+                            // Auto close after selecting both dates
+                            if (dateRange.startDate && e.target.value) {
+                              setTimeout(() => setShowDatePicker(false), 300);
+                            }
+                          }}
+                          min={dateRange.startDate}
+                          max={new Date().toISOString().split('T')[0]}
+                          className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                        />
+                      </div>
+
+                      {/* Quick Filter Buttons */}
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          onClick={() => {
+                            const today = new Date();
+                            const weekAgo = new Date(today);
+                            weekAgo.setDate(today.getDate() - 7);
+                            setDateRange({
+                              startDate: weekAgo.toISOString().split('T')[0],
+                              endDate: today.toISOString().split('T')[0]
+                            });
+                            setShowDatePicker(false);
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 rounded-lg text-xs font-medium transition-all border border-violet-500/30"
+                        >
+                          Last 7 Days
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const today = new Date();
+                            const monthAgo = new Date(today);
+                            monthAgo.setMonth(today.getMonth() - 1);
+                            setDateRange({
+                              startDate: monthAgo.toISOString().split('T')[0],
+                              endDate: today.toISOString().split('T')[0]
+                            });
+                            setShowDatePicker(false);
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-medium transition-all border border-cyan-500/30"
+                        >
+                          Last 30 Days
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+              </div>
               {hasActiveFilters && (
                 <button onClick={clearFilters} className="px-2.5 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-all text-xs font-medium flex items-center gap-1">
                   <FilterX className="h-3 w-3" />
                   Clear
                 </button>
               )}
-              </div>
+            </div>
           </div>
 
           {/* Entries info bar */}
@@ -1216,7 +1196,7 @@ const isPlayableVideoUrl = (url: string) => {
                 </thead>
                 <tbody>
                   {currentData.map((review) => (
-                    
+
                     <tr key={review.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors group">
                       <td className="py-2 px-3">
                         <input type="checkbox" checked={selectedReviews.includes(review.id)} onChange={() => toggleSelectReview(review.id)} className="w-3.5 h-3.5 text-violet-500 rounded" />
@@ -1241,46 +1221,39 @@ const isPlayableVideoUrl = (url: string) => {
                         </div>
                       </td>
                       <td className="py-2 px-3">
-<button
- 
-  className="flex items-center gap-2 text-left max-w-[220px]"
->
-{(() => {
-  const imgSrc = getImageUrl(review.productImageUrl || productImageMap[review.productId]);
-  return imgSrc ? (
-    <img
-      src={imgSrc}
-      alt="product"
-      className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
-      onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }}
-    />
-  ) : (
-    <div className="h-8 w-8 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0">
-      <Package className="h-4 w-4 text-slate-500" />
-    </div>
-  );
-})()}
+                        <button
 
-  <div className="min-w-0">
-    {/* Product Name */}
+                          className="flex items-center gap-2 text-left max-w-[220px]"
+                        >
+                          <img
+                            src={getImageUrl(
+                              products.find(p => p.productId === review.productId)?.productImageUrl
+                            ) || "/placeholder.png"}
+                            alt="product"
+                            className="h-8 w-8 rounded-md object-cover border border-slate-700 flex-shrink-0"
+                            onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                          />
 
-       <a
-  href={`/product/${review.productSlug}`}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-blue-400 hover:text-blue-300 text-xs truncate block"
->
-  {review.productName}
-</a>
+                          <div className="min-w-0">
+                            {/* Product Name */}
 
-    {/* ✅ SKU (NEW) */}
-    {review.productSku && (
-      <p className="text-[10px] text-slate-500 truncate">
-        SKU: {review.productSku}
-      </p>
-    )}
-  </div>
-</button>
+                            <a
+                              href={`/product/${review.productSlug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 text-xs truncate block"
+                            >
+                              {review.productName}
+                            </a>
+
+                            {/* ✅ SKU (NEW) */}
+                            {review.productSku && (
+                              <p className="text-[10px] text-slate-500 truncate">
+                                SKU: {review.productSku}
+                              </p>
+                            )}
+                          </div>
+                        </button>
                       </td>
                       <td className="py-2 px-3 text-center">
                         {renderStars(review.rating)}
@@ -1288,69 +1261,69 @@ const isPlayableVideoUrl = (url: string) => {
                       </td>
                       <td className="py-2 px-3">
                         <p className="text-slate-300 text-xs">  {formatDate(review.createdAt)}</p>
-                        
+
                       </td>
                       <td className="py-2 px-3 text-center">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${review.isApproved ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {review.isApproved ? "Approved" : "Pending"}
                         </span>
                       </td>
-               <td className="py-2 px-3">
-  <div className="flex items-center justify-center gap-0.5">
+                      <td className="py-2 px-3">
+                        <div className="flex items-center justify-center gap-0.5">
 
-    {/* APPROVE (only if not approved) */}
-    {!review.isApproved && (
-      <button
-        onClick={() =>
-          setApproveConfirm({
-            id: review.id,
-            customer: review.customerName,
-            title: review.title,
-          })
-        }
-        className="flex flex-col items-center gap-0.5 px-2 py-1 text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
-      >
-        <CheckCircle className="h-3.5 w-3.5" />
-        <span className="text-[9px] font-medium leading-none">Approve</span>
-      </button>
-    )}
+                          {/* APPROVE (only if not approved) */}
+                          {!review.isApproved && (
+                            <button
+                              onClick={() =>
+                                setApproveConfirm({
+                                  id: review.id,
+                                  customer: review.customerName,
+                                  title: review.title,
+                                })
+                              }
+                              className="flex flex-col items-center gap-0.5 px-2 py-1 text-green-400 hover:bg-green-500/10 rounded-lg transition-all"
+                            >
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              <span className="text-[9px] font-medium leading-none">Approve</span>
+                            </button>
+                          )}
 
-    {/* REPLY (only if approved) */}
-    {review.isApproved && (
-      <button
-        onClick={() => setReplyingTo(review)}
-        className="flex flex-col items-center gap-0.5 px-2 py-1 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
-      >
-        <Reply className="h-3.5 w-3.5" />
-        <span className="text-[9px] font-medium leading-none">Reply</span>
-      </button>
-    )}
+                          {/* REPLY (only if approved) */}
+                          {review.isApproved && (
+                            <button
+                              onClick={() => setReplyingTo(review)}
+                              className="flex flex-col items-center gap-0.5 px-2 py-1 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                              <span className="text-[9px] font-medium leading-none">Reply</span>
+                            </button>
+                          )}
 
-    {/* VIEW (always visible) */}
-    <button
-      onClick={() => setViewingReview(review)}
-      className="flex flex-col items-center gap-0.5 px-2 py-1 text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all"
-    >
-      <Eye className="h-3.5 w-3.5" />
-      <span className="text-[9px] font-medium leading-none">View</span>
-    </button>
+                          {/* VIEW (always visible) */}
+                          <button
+                            onClick={() => setViewingReview(review)}
+                            className="flex flex-col items-center gap-0.5 px-2 py-1 text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span className="text-[9px] font-medium leading-none">View</span>
+                          </button>
 
-    {/* DELETE (always visible) */}
-    <button
-      onClick={() =>
-        setDeleteConfirm({
-          id: review.id,
-          customer: review.customerName,
-        })
-      }
-      className="flex flex-col items-center gap-0.5 px-2 py-1 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-      <span className="text-[9px] font-medium leading-none">Delete</span>
-    </button>
+                          {/* DELETE (always visible) */}
+                          <button
+                            onClick={() =>
+                              setDeleteConfirm({
+                                id: review.id,
+                                customer: review.customerName,
+                              })
+                            }
+                            className="flex flex-col items-center gap-0.5 px-2 py-1 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="text-[9px] font-medium leading-none">Delete</span>
+                          </button>
 
-  </div>
-</td>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1465,613 +1438,611 @@ const isPlayableVideoUrl = (url: string) => {
         )}
 
         {/* View Review Modal */}
-{viewingReview && (() => {
-  const images = normalizeToArray(viewingReview?.imageUrls);
-  const videos = normalizeToArray(viewingReview?.videoUrls);
+        {viewingReview && (() => {
+          const images = normalizeToArray(viewingReview?.imageUrls);
+          const videos = normalizeToArray(viewingReview?.videoUrls);
 
-  return (
+          return (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+              <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
+                <div className="p-6 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+                        Review Details
+                      </h2>
+                      <p className="text-slate-400 text-sm mt-1">
+                        View review information
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setViewingReview(null)}
+                      className="p-2 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-all"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                  <div className="space-y-4">
+                    <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+                          <span className="text-white text-lg font-bold">
+                            {viewingReview.customerName?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium">
+                            {viewingReview.customerName}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {renderStars(viewingReview.rating, "h-4 w-4")}
+                            <span className="text-slate-400 text-sm">
+                              {viewingReview.rating}/5
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          className={`ml-auto px-3 py-1 rounded-lg text-xs font-medium ${viewingReview.isApproved
+                              ? "bg-green-500/10 text-green-400"
+                              : "bg-yellow-500/10 text-yellow-400"
+                            }`}
+                        >
+                          {viewingReview.isApproved ? "Approved" : "Pending"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-slate-400 text-sm mb-1">Title</p>
+                          <p className="text-violet-400 font-medium">
+                            {viewingReview.title}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-slate-400 text-sm mb-1">Review</p>
+                          <p className="text-white">{viewingReview.comment}</p>
+                        </div>
+
+                        {(images.length > 0 || videos.length > 0) && (
+                          <div className="space-y-4">
+
+                            {/* ================= IMAGES ================= */}
+                            {images.length > 0 && (
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <ImageIcon className="h-4 w-4 text-cyan-400" />
+                                  <p className="text-slate-400 text-sm">Images</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                  {images.map((img, index) => {
+                                    const finalUrl = resolveMediaUrl(img);
+
+                                    return (
+                                      <a
+                                        key={`${img}-${index}`}
+                                        href={finalUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="group block overflow-hidden rounded-xl border border-slate-700 bg-slate-900/60"
+                                      >
+                                        <img
+                                          src={finalUrl}
+                                          alt={`Review image ${index + 1}`}
+                                          onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                                          className="h-32 w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                        />
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* ================= VIDEOS ================= */}
+                            {videos.length > 0 && (
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Video className="h-4 w-4 text-violet-400" />
+                                  <p className="text-slate-400 text-sm">Videos</p>
+                                </div>
+
+                                <div className="space-y-3">
+                                  {videos.map((vid, index) => {
+                                    const finalUrl = resolveMediaUrl(vid);
+
+                                    return (
+                                      <div
+                                        key={`${vid}-${index}`}
+                                        className="rounded-xl border border-slate-700 bg-slate-900/60 p-3"
+                                      >
+                                        {isPlayableVideoUrl(finalUrl) ? (
+                                          <video
+                                            controls
+                                            preload="metadata"
+                                            className="w-full rounded-lg bg-black"
+                                            src={finalUrl}
+                                          />
+                                        ) : (
+                                          <a
+                                            href={finalUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-400 hover:underline"
+                                          >
+                                            Open video {index + 1}
+                                          </a>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-slate-400 text-sm mb-1">Product</p>
+                          <button
+                            onClick={() => {
+                              setProductFilter(viewingReview.productId);
+                              setViewingReview(null);
+                            }}
+                            className="text-blue-400 hover:text-blue-300 hover:underline"
+                          >
+                            {viewingReview.productName || products.find((p) => p.productId === viewingReview.productId)?.productName || "Unknown Product"}
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-slate-400 text-sm mb-1">Date</p>
+                            <p className="text-white text-sm">
+                              {formatDate(viewingReview.createdAt)}
+                            </p>
+                          </div>
+
+                          {viewingReview.isVerifiedPurchase && (
+                            <div>
+                              <p className="text-slate-400 text-sm mb-1">
+                                Purchase
+                              </p>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded text-green-400 text-xs font-medium">
+                                <CheckCircle className="h-3 w-3" />
+                                Verified
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {viewingReview.approvedAt && (
+                          <div>
+                            <p className="text-slate-400 text-sm mb-1">
+                              Approved At
+                            </p>
+                            <p className="text-white text-sm">
+                              {formatDate(viewingReview.approvedAt)}
+                            </p>
+                            {viewingReview.approvedBy && (
+                              <p className="text-slate-500 text-xs mt-1">
+                                By: {viewingReview.approvedBy}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                            <p className="text-slate-400 text-xs mb-1">Helpful</p>
+                            <p className="text-green-400 text-xl font-bold">
+                              {viewingReview.helpfulCount}
+                            </p>
+                          </div>
+                          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                            <p className="text-slate-400 text-xs mb-1">
+                              Not Helpful
+                            </p>
+                            <p className="text-red-400 text-xl font-bold">
+                              {viewingReview.notHelpfulCount}
+                            </p>
+                          </div>
+                        </div>
+
+                        {viewingReview.replies && viewingReview.replies.length > 0 && (
+                          <div>
+                            <p className="text-slate-400 text-sm mb-2">
+                              Replies ({viewingReview.replies.length})
+                            </p>
+                            <div className="space-y-2">
+                              {viewingReview.replies.map((reply) => (
+                                <div
+                                  key={reply.id}
+                                  className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"
+                                >
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-white">
+                                      {reply.createdByName}
+                                    </span>
+                                    {reply.isAdminReply && (
+                                      <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/30 rounded text-violet-400 text-xs font-medium">
+                                        Admin
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-slate-300 text-sm">
+                                    {reply.comment}
+                                  </p>
+                                  <p className="text-slate-500 text-xs mt-1">
+                                    {formatDate(reply.createdAt)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
+                      {!viewingReview.isApproved && (
+                        <button
+                          onClick={() => {
+                            handleApprove(viewingReview.id);
+                            setViewingReview(null);
+                          }}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium text-sm"
+                        >
+                          Approve Review
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setViewingReview(null)}
+                        className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-all font-medium text-sm"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {showCreateModal && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl shadow-violet-500/10">
-              <div className="p-6 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-4xl w-full shadow-2xl shadow-violet-500/10 flex flex-col max-h-[90vh]">
+
+              {/* ✅ Fixed Modal Header */}
+              <div className="flex-shrink-0 p-6 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-t-3xl">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                      Review Details
+                      Create Product Review
                     </h2>
                     <p className="text-slate-400 text-sm mt-1">
-                      View review information
+                      Add a new review for a product
                     </p>
                   </div>
                   <button
-                    onClick={() => setViewingReview(null)}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-red-600 rounded-lg transition-all"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setFormData({
+                        productId: "",
+                        title: "",
+                        comment: "",
+                        rating: 5
+                      });
+                    }}
+                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                <div className="space-y-4">
-                  <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
-                        <span className="text-white text-lg font-bold">
-                          {viewingReview.customerName?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-white font-medium">
-                          {viewingReview.customerName}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {renderStars(viewingReview.rating, "h-4 w-4")}
-                          <span className="text-slate-400 text-sm">
-                            {viewingReview.rating}/5
-                          </span>
-                        </div>
-                      </div>
-                      <span
-                        className={`ml-auto px-3 py-1 rounded-lg text-xs font-medium ${
-                          viewingReview.isApproved
-                            ? "bg-green-500/10 text-green-400"
-                            : "bg-yellow-500/10 text-yellow-400"
-                        }`}
-                      >
-                        {viewingReview.isApproved ? "Approved" : "Pending"}
-                      </span>
-                    </div>
+              {/* ✅ Scrollable Modal Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                {/* Product Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Select Product <span className="text-red-400">*</span>
+                  </label>
 
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-slate-400 text-sm mb-1">Title</p>
-                        <p className="text-violet-400 font-medium">
-                          {viewingReview.title}
-                        </p>
-                      </div>
+                  <div className="relative">
+                    {/* Search Input */}
+                    <input
+                      type="text"
+                      placeholder="Search or select product..."
+                      value={
+                        formData.productId
+                          ? `${formProducts.find(p => p.id === formData.productId)?.name || ''} ${formProducts.find(p => p.id === formData.productId)?.price ? `-£${formProducts.find(p => p.id === formData.productId)?.price}` : ''}`
+                          : productSearch
+                      }
+                      onChange={(e) => {
+                        setProductSearch(e.target.value);
+                        setShowProductDropdown(true);
+                        if (!e.target.value) {
+                          setFormData({ ...formData, productId: '' });
+                        }
+                      }}
+                      onFocus={() => setShowProductDropdown(true)}
+                      className="w-full px-4 py-3 pl-10 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                    />
 
-                      <div>
-                        <p className="text-slate-400 text-sm mb-1">Review</p>
-                        <p className="text-white">{viewingReview.comment}</p>
-                      </div>
+                    {/* Icon */}
+                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
 
-            {(images.length > 0 || videos.length > 0) && (
-  <div className="space-y-4">
-
-    {/* ================= IMAGES ================= */}
-    {images.length > 0 && (
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <ImageIcon className="h-4 w-4 text-cyan-400" />
-          <p className="text-slate-400 text-sm">Images</p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {images.map((img, index) => {
-            const finalUrl = resolveMediaUrl(img);
-
-            return (
-              <a
-                key={`${img}-${index}`}
-                href={finalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="group block overflow-hidden rounded-xl border border-slate-700 bg-slate-900/60"
-              >
-                <img
-                  src={finalUrl}
-                  alt={`Review image ${index + 1}`}
-                 onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                  className="h-32 w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                />
-              </a>
-            );
-          })}
-        </div>
-      </div>
-    )}
-
-    {/* ================= VIDEOS ================= */}
-    {videos.length > 0 && (
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Video className="h-4 w-4 text-violet-400" />
-          <p className="text-slate-400 text-sm">Videos</p>
-        </div>
-
-        <div className="space-y-3">
-          {videos.map((vid, index) => {
-            const finalUrl = resolveMediaUrl(vid);
-
-            return (
-              <div
-                key={`${vid}-${index}`}
-                className="rounded-xl border border-slate-700 bg-slate-900/60 p-3"
-              >
-                {isPlayableVideoUrl(finalUrl) ? (
-                  <video
-                    controls
-                    preload="metadata"
-                    className="w-full rounded-lg bg-black"
-                    src={finalUrl}
-                  />
-                ) : (
-                  <a
-                    href={finalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-400 hover:underline"
-                  >
-                    Open video {index + 1}
-                  </a>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    )}
-
-  </div>
-)}
-
-                      <div>
-                        <p className="text-slate-400 text-sm mb-1">Product</p>
-                        <button
-                          onClick={() => {
-                            setProductFilter(viewingReview.productId);
-                            setViewingReview(null);
-                          }}
-                          className="text-blue-400 hover:text-blue-300 hover:underline"
-                        >
-                          {viewingReview.productName || products.find((p) => p.productId === viewingReview.productId)?.productName || "Unknown Product"}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-slate-400 text-sm mb-1">Date</p>
-                          <p className="text-white text-sm">
-                         {formatDate(viewingReview.createdAt)}
-                          </p>
-                        </div>
-
-                        {viewingReview.isVerifiedPurchase && (
-                          <div>
-                            <p className="text-slate-400 text-sm mb-1">
-                              Purchase
-                            </p>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded text-green-400 text-xs font-medium">
-                              <CheckCircle className="h-3 w-3" />
-                              Verified
-                            </span>
+                    {/* Dropdown List */}
+                    {showProductDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-lg max-h-80 overflow-auto">
+                        {filteredFormProducts.length > 0 ? (
+                          filteredFormProducts.map((product) => (
+                            <button
+                              key={product.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData({ ...formData, productId: product.id });
+                                setProductSearch('');
+                                setShowProductDropdown(false);
+                              }}
+                              className={`w-full text-left px-4 py-3 hover:bg-violet-500/20 transition-colors border-b border-slate-800 last:border-b-0 ${formData.productId === product.id
+                                  ? 'bg-violet-500/30 text-violet-300'
+                                  : 'text-white'
+                                }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <div className="font-medium">{product.name}</div>
+                                  {product.sku && (
+                                    <div className="text-xs text-slate-400 mt-0.5">SKU: {product.sku}</div>
+                                  )}
+                                </div>
+                                {product.price && (
+                                  <div className="text-emerald-400 font-semibold">£{product.price}</div>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-3 text-slate-400 text-sm text-center">
+                            No products found
                           </div>
                         )}
                       </div>
+                    )}
 
-                      {viewingReview.approvedAt && (
-                        <div>
-                          <p className="text-slate-400 text-sm mb-1">
-                            Approved At
-                          </p>
-                          <p className="text-white text-sm">
-                           {formatDate(viewingReview.approvedAt)}
-                          </p>
-                          {viewingReview.approvedBy && (
-                            <p className="text-slate-500 text-xs mt-1">
-                              By: {viewingReview.approvedBy}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                    {/* Close dropdown overlay */}
+                    {showProductDropdown && (
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowProductDropdown(false)}
+                      />
+                    )}
+                  </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                          <p className="text-slate-400 text-xs mb-1">Helpful</p>
-                          <p className="text-green-400 text-xl font-bold">
-                            {viewingReview.helpfulCount}
-                          </p>
-                        </div>
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                          <p className="text-slate-400 text-xs mb-1">
-                            Not Helpful
-                          </p>
-                          <p className="text-red-400 text-xl font-bold">
-                            {viewingReview.notHelpfulCount}
-                          </p>
-                        </div>
+                  {/* Helper text */}
+                  {formData.productId && (
+                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Selected: {formProducts.find(p => p.id === formData.productId)?.name}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-slate-500 mt-1">
+                    {productSearch
+                      ? `Showing ${filteredFormProducts.length} of ${formProducts.length} products`
+                      : `${formProducts.length} products available`
+                    }
+                  </p>
+                </div>
+
+                {/* Review Title */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Review Title <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g., Excellent product, highly recommended!"
+                    maxLength={100}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {formData.title.length} / 100 characters
+                  </p>
+                </div>
+
+                {/* Rating */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-3">
+                    Rating <span className="text-red-400">*</span>
+                  </label>
+                  <div className="p-4 bg-slate-800/30 border border-slate-700 rounded-xl">
+                    <StarRating
+                      value={formData.rating}
+                      onChange={(rating) => setFormData({ ...formData, rating })}
+                      size="h-8 w-8"
+                    />
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Review Comment <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    value={formData.comment}
+                    onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                    placeholder="Share your experience with this product..."
+                    rows={5}
+                    maxLength={1000}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {formData.comment.length} / 1000 characters
+                  </p>
+                </div>
+
+                {/* Preview Card */}
+                {formData.title && formData.comment && (
+                  <div className="p-4 bg-slate-800/30 border border-slate-700 rounded-xl">
+                    <p className="text-xs text-slate-500 mb-2">Preview:</p>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-sm font-bold">A</span>
                       </div>
-
-                      {viewingReview.replies && viewingReview.replies.length > 0 && (
-                        <div>
-                          <p className="text-slate-400 text-sm mb-2">
-                            Replies ({viewingReview.replies.length})
-                          </p>
-                          <div className="space-y-2">
-                            {viewingReview.replies.map((reply) => (
-                              <div
-                                key={reply.id}
-                                className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"
-                              >
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium text-white">
-                                    {reply.createdByName}
-                                  </span>
-                                  {reply.isAdminReply && (
-                                    <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/30 rounded text-violet-400 text-xs font-medium">
-                                      Admin
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-slate-300 text-sm">
-                                  {reply.comment}
-                                </p>
-                                <p className="text-slate-500 text-xs mt-1">
-                                      {formatDate(reply.createdAt)}
-                                </p>
-                              </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-white font-semibold text-sm">Admin</p>
+                          <div className="flex items-center">
+                            {[...Array(formData.rating)].map((_, i) => (
+                              <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                             ))}
                           </div>
                         </div>
-                      )}
+                        <p className="text-white font-medium text-sm mb-1">{formData.title}</p>
+                        <p className="text-slate-400 text-xs line-clamp-2">{formData.comment}</p>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t border-slate-700/50">
-                    {!viewingReview.isApproved && (
-                      <button
-                        onClick={() => {
-                          handleApprove(viewingReview.id);
-                          setViewingReview(null);
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium text-sm"
-                      >
-                        Approve Review
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setViewingReview(null)}
-                      className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-all font-medium text-sm"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-     );
-})()}
-
-{showCreateModal && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-4xl w-full shadow-2xl shadow-violet-500/10 flex flex-col max-h-[90vh]">
-      
-      {/* ✅ Fixed Modal Header */}
-      <div className="flex-shrink-0 p-6 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-t-3xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
-              Create Product Review
-            </h2>
-            <p className="text-slate-400 text-sm mt-1">
-              Add a new review for a product
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setShowCreateModal(false);
-              setFormData({
-                productId: "",
-                title: "",
-                comment: "",
-                rating: 5
-              });
-            }}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* ✅ Scrollable Modal Body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {/* Product Dropdown */}
-  <div>
-  <label className="block text-sm font-medium text-slate-300 mb-2">
-    Select Product <span className="text-red-400">*</span>
-  </label>
-  
-  <div className="relative">
-    {/* Search Input */}
-    <input
-      type="text"
-      placeholder="Search or select product..."
-      value={
-        formData.productId
-          ? `${formProducts.find(p => p.id === formData.productId)?.name || ''} ${formProducts.find(p => p.id === formData.productId)?.price ? `-£${formProducts.find(p => p.id === formData.productId)?.price}` : ''}`
-          : productSearch
-      }
-      onChange={(e) => {
-        setProductSearch(e.target.value);
-        setShowProductDropdown(true);
-        if (!e.target.value) {
-          setFormData({ ...formData, productId: '' });
-        }
-      }}
-      onFocus={() => setShowProductDropdown(true)}
-      className="w-full px-4 py-3 pl-10 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-    />
-    
-    {/* Icon */}
-    <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-
-    {/* Dropdown List */}
-    {showProductDropdown && (
-      <div className="absolute z-50 w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-lg max-h-80 overflow-auto">
-        {filteredFormProducts.length > 0 ? (
-          filteredFormProducts.map((product) => (
-            <button
-              key={product.id}
-              type="button"
-              onClick={() => {
-                setFormData({ ...formData, productId: product.id });
-                setProductSearch('');
-                setShowProductDropdown(false);
-              }}
-              className={`w-full text-left px-4 py-3 hover:bg-violet-500/20 transition-colors border-b border-slate-800 last:border-b-0 ${
-                formData.productId === product.id
-                  ? 'bg-violet-500/30 text-violet-300'
-                  : 'text-white'
-              }`}
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="font-medium">{product.name}</div>
-                  {product.sku && (
-                    <div className="text-xs text-slate-400 mt-0.5">SKU: {product.sku}</div>
-                  )}
-                </div>
-                {product.price && (
-                  <div className="text-emerald-400 font-semibold">£{product.price}</div>
                 )}
               </div>
-            </button>
-          ))
-        ) : (
-          <div className="px-4 py-3 text-slate-400 text-sm text-center">
-            No products found
+
+              {/* ✅ Fixed Modal Footer */}
+              <div className="flex-shrink-0 p-6 border-t border-slate-700/50 bg-slate-900/50 flex justify-end gap-3 rounded-b-3xl">
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setFormData({
+                      productId: "",
+                      title: "",
+                      comment: "",
+                      rating: 5
+                    });
+                  }}
+                  className="px-5 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-all font-medium text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateReview}
+                  disabled={creating || !formData.productId || !formData.title.trim() || !formData.comment.trim()}
+                  className="px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-violet-500/50 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {creating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="h-4 w-4" />
+                      Create Review
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
-      </div>
-    )}
 
-    {/* Close dropdown overlay */}
-    {showProductDropdown && (
-      <div
-        className="fixed inset-0 z-40"
-        onClick={() => setShowProductDropdown(false)}
-      />
-    )}
-  </div>
-
-  {/* Helper text */}
-  {formData.productId && (
-    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-      </svg>
-      Selected: {formProducts.find(p => p.id === formData.productId)?.name}
-    </p>
-  )}
-
-  <p className="text-xs text-slate-500 mt-1">
-    {productSearch
-      ? `Showing ${filteredFormProducts.length} of ${formProducts.length} products`
-      : `${formProducts.length} products available`
-    }
-  </p>
-</div>
-
-        {/* Review Title */}
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Review Title <span className="text-red-400">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            placeholder="e.g., Excellent product, highly recommended!"
-            maxLength={100}
-            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            {formData.title.length} / 100 characters
-          </p>
-        </div>
-
-        {/* Rating */}
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-3">
-            Rating <span className="text-red-400">*</span>
-          </label>
-          <div className="p-4 bg-slate-800/30 border border-slate-700 rounded-xl">
-            <StarRating
-              value={formData.rating}
-              onChange={(rating) => setFormData({ ...formData, rating })}
-              size="h-8 w-8"
-            />
-          </div>
-        </div>
-
-        {/* Comment */}
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Review Comment <span className="text-red-400">*</span>
-          </label>
-          <textarea
-            value={formData.comment}
-            onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-            placeholder="Share your experience with this product..."
-            rows={5}
-            maxLength={1000}
-            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-none"
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            {formData.comment.length} / 1000 characters
-          </p>
-        </div>
-
-        {/* Preview Card */}
-        {formData.title && formData.comment && (
-          <div className="p-4 bg-slate-800/30 border border-slate-700 rounded-xl">
-            <p className="text-xs text-slate-500 mb-2">Preview:</p>
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-sm font-bold">A</span>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-white font-semibold text-sm">Admin</p>
-                  <div className="flex items-center">
-                    {[...Array(formData.rating)].map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    ))}
+        {/* ✅ Approve Confirmation Modal */}
+        {approveConfirm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-green-500/20 rounded-3xl max-w-md w-full shadow-2xl shadow-green-500/10">
+              {/* Header */}
+              <div className="p-6 border-b border-green-500/20 bg-gradient-to-r from-green-500/10 to-emerald-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-green-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Approve Review</h2>
+                    <p className="text-slate-400 text-sm mt-0.5">
+                      Confirm review approval
+                    </p>
                   </div>
                 </div>
-                <p className="text-white font-medium text-sm mb-1">{formData.title}</p>
-                <p className="text-slate-400 text-xs line-clamp-2">{formData.comment}</p>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700 mb-6">
+                  <p className="text-slate-300 text-sm mb-3">
+                    Are you sure you want to approve this review?
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="text-slate-500 text-xs mt-0.5">👤</span>
+                      <div>
+                        <p className="text-xs text-slate-500">Customer</p>
+                        <p className="text-white text-sm font-medium">
+                          {approveConfirm.customer}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-slate-500 text-xs mt-0.5">📝</span>
+                      <div>
+                        <p className="text-xs text-slate-500">Review Title</p>
+                        <p className="text-white text-sm">
+                          {approveConfirm.title}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-6">
+                  <p className="text-green-400 text-xs flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    This review will be published and visible to customers
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setApproveConfirm(null)}
+                    disabled={isApproving}
+                    className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-medium text-sm disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleApprove(approveConfirm.id)}
+                    disabled={isApproving}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:shadow-lg hover:shadow-green-500/50 text-white rounded-xl transition-all font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isApproving ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Approving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Approve Review
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-      </div>
-
-      {/* ✅ Fixed Modal Footer */}
-      <div className="flex-shrink-0 p-6 border-t border-slate-700/50 bg-slate-900/50 flex justify-end gap-3 rounded-b-3xl">
-        <button
-          onClick={() => {
-            setShowCreateModal(false);
-            setFormData({
-              productId: "",
-              title: "",
-              comment: "",
-              rating: 5
-            });
-          }}
-          className="px-5 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-600 transition-all font-medium text-sm"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleCreateReview}
-          disabled={creating || !formData.productId || !formData.title.trim() || !formData.comment.trim()}
-          className="px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-violet-500/50 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {creating ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Creating...
-            </>
-          ) : (
-            <>
-              <MessageSquare className="h-4 w-4" />
-              Create Review
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* ✅ Approve Confirmation Modal */}
-{approveConfirm && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-green-500/20 rounded-3xl max-w-md w-full shadow-2xl shadow-green-500/10">
-      {/* Header */}
-      <div className="p-6 border-b border-green-500/20 bg-gradient-to-r from-green-500/10 to-emerald-500/10">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-            <CheckCircle className="h-6 w-6 text-green-400" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white">Approve Review</h2>
-            <p className="text-slate-400 text-sm mt-0.5">
-              Confirm review approval
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700 mb-6">
-          <p className="text-slate-300 text-sm mb-3">
-            Are you sure you want to approve this review?
-          </p>
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <span className="text-slate-500 text-xs mt-0.5">👤</span>
-              <div>
-                <p className="text-xs text-slate-500">Customer</p>
-                <p className="text-white text-sm font-medium">
-                  {approveConfirm.customer}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-slate-500 text-xs mt-0.5">📝</span>
-              <div>
-                <p className="text-xs text-slate-500">Review Title</p>
-                <p className="text-white text-sm">
-                  {approveConfirm.title}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-6">
-          <p className="text-green-400 text-xs flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            This review will be published and visible to customers
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button
-            onClick={() => setApproveConfirm(null)}
-            disabled={isApproving}
-            className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-medium text-sm disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => handleApprove(approveConfirm.id)}
-            disabled={isApproving}
-            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:shadow-lg hover:shadow-green-500/50 text-white rounded-xl transition-all font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isApproving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Approving...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Approve Review
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
         {/* Delete Confirmation */}
         <ConfirmDialog
           isOpen={!!deleteConfirm}
@@ -2088,11 +2059,11 @@ const isPlayableVideoUrl = (url: string) => {
         />
       </div>
       {showExcelImport && (
-  <ExcelImportModal
-    onClose={() => setShowExcelImport(false)}
-    onSuccess={() => fetchReviews()}
-  />
-)}
+        <ExcelImportModal
+          onClose={() => setShowExcelImport(false)}
+          onSuccess={() => fetchReviews()}
+        />
+      )}
 
     </div>
   );

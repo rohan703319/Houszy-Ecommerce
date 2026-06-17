@@ -47,7 +47,7 @@ class SignalRService {
     try {
       console.log('==================== 🚀 SIGNALR INIT ====================');
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.direct-care.co.uk';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.athlits.co.uk';
       const token = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
 
       console.log('📍 API URL:', apiUrl);

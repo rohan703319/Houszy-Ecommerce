@@ -610,18 +610,35 @@ export default function CartPage() {
     let threshold = 0;
     for (const item of cart) {
       if (item.productData) {
+        let thresholdsArray = null;
+
         if (item.variantId && item.productData.variants?.length) {
           const v = item.productData.variants.find((x: any) => x.id === item.variantId);
-          if (v && v.freeShippingThreshold && v.freeShippingThreshold > 0) {
-            threshold = Math.max(threshold, v.freeShippingThreshold);
+          if (v && Array.isArray(v.freeShippingThresholds)) {
+            thresholdsArray = v.freeShippingThresholds;
           }
         }
-        if (item.productData.freeShippingThreshold && item.productData.freeShippingThreshold > 0) {
-          threshold = Math.max(threshold, item.productData.freeShippingThreshold);
+
+        if (!thresholdsArray && Array.isArray(item.productData.freeShippingThresholds)) {
+          thresholdsArray = item.productData.freeShippingThresholds;
+        }
+
+        if (thresholdsArray) {
+          const standardOpt = thresholdsArray.find((x: any) => {
+            const name = (x.name || x.displayName || "").toLowerCase();
+            return name.includes("standard");
+          });
+          if (standardOpt && standardOpt.threshold > 0) {
+            threshold = Math.max(threshold, standardOpt.threshold);
+          }
         }
       }
     }
     return threshold;
+  }, [cart]);
+
+  const allNextDayFree = useMemo(() => {
+    return cart.length > 0 && cart.every((item) => item.nextDayDeliveryFree === true);
   }, [cart]);
   // UI render\n  // -------------------------\n
   if (!cart || cart.length === 0) {
@@ -922,34 +939,61 @@ export default function CartPage() {
               <h2 className="text-lg font-bold text-gray-900 mb-2 tracking-tight">Price Details</h2>
 
               {/* Free Shipping Progress */}
-              {freeShippingThreshold > 0 && (
-                <div className="mb-2 bg-gray-50 border border-gray-100 rounded p-4 sm:p-5">
-                  {cartTotal >= freeShippingThreshold ? (
+              {allNextDayFree ? (
+                <div className="mb-2 bg-orange-50 border border-orange-100 rounded p-4 sm:p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                      <Truck size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        You've unlocked <span className="text-orange-600">FREE Next Day Delivery!</span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        All items in your cart qualify for free next day delivery.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                freeShippingThreshold > 0 ? (
+                  <div className="mb-2 bg-gray-50 border border-gray-100 rounded p-4 sm:p-5">
+                    {cartTotal >= freeShippingThreshold ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                          <Truck size={18} />
+                        </div>
+                        <span className="text-sm font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Standard Delivery!</span></span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded bg-gray-200 text-gray-600 flex items-center justify-center flex-shrink-0">
+                            <Truck size={18} />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-700 leading-tight">
+                            Add <span className="font-bold text-gray-900">£{(freeShippingThreshold - cartTotal).toFixed(2)}</span> more for <span className="text-orange-600 font-bold">FREE Delivery</span>
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded h-2.5 overflow-hidden">
+                          <div
+                            className="bg-black h-full rounded transition-all duration-500 ease-out"
+                            style={{ width: `${Math.min((cartTotal / freeShippingThreshold) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mb-2 bg-orange-50 border border-orange-100 rounded p-4 sm:p-5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
                         <Truck size={18} />
                       </div>
-                      <span className="text-sm font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Delivery!</span></span>
+                      <span className="text-sm font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Standard Delivery!</span></span>
                     </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded bg-gray-200 text-gray-600 flex items-center justify-center flex-shrink-0">
-                          <Truck size={18} />
-                        </div>
-                        <span className="text-sm font-semibold text-gray-700 leading-tight">
-                          Add <span className="font-bold text-gray-900">£{(freeShippingThreshold - cartTotal).toFixed(2)}</span> more for <span className="text-orange-600 font-bold">FREE Delivery</span>
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded h-2.5 overflow-hidden">
-                        <div
-                          className="bg-black h-full rounded transition-all duration-500 ease-out"
-                          style={{ width: `${Math.min((cartTotal / freeShippingThreshold) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                  </div>
+                )
               )}
 
               {/* Apply Coupon */}

@@ -49,8 +49,19 @@ async function fetchJSON(url: string) {
 
 function absoluteUrl(path?: string | null) {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
-  // ensure no double slash
+  
+  if (path.startsWith("http")) {
+    try {
+      const urlObj = new URL(path);
+      if (urlObj.pathname.startsWith("/images/")) {
+        return `${API_BASE.replace(/\/$/, "")}${urlObj.pathname}`;
+      }
+      return path;
+    } catch (e) {
+      return path;
+    }
+  }
+
   return `${API_BASE.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

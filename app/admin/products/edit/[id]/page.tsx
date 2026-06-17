@@ -3,7 +3,7 @@
 import { useState, use, useEffect, useRef, JSX, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, Upload, X, History, Info, Image, Package, Tag, Globe, Settings, Truck, Users, PoundSterling, Link as LinkIcon, Video, Play, Clock, Send, Bell, Plus, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Upload, X, History, Info, Image, Package, Tag, Globe, Settings, Truck, Users, PoundSterling, Link as LinkIcon, Video, Play, Clock, Send, Bell, Plus, AlertCircle, Sparkles } from "lucide-react";
 
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { useToast } from "@/app/admin/_components/CustomToast";
@@ -13,6 +13,7 @@ import { ProductAttribute, ProductVariant, ProductOption, DropdownsData, SimpleP
 import { GroupedProductModal } from '../../GroupedProductModal';
 import { MultiBrandSelector } from "../../MultiBrandSelector";
 import React from "react";
+import ProductAPlusContentTab from "../../_components/ProductAPlusContentTab";
 import { BackInStockSubscribers, LowStockAlert } from "../../productModals";
 import productLockService from "@/lib/services/productLockService";
 import { signalRService } from "@/lib/services/signalRService";
@@ -529,6 +530,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     metaKeywords: '',
     metaDescription: '',
     searchEngineFriendlyPageName: '',
+
+    // ===== A+ CONTENT =====
+    aPlusTemplateId: null as string | null,
+    aPlusContent: null as string | null,
   });
   const isEmpty = (val: any) => !val || !val.toString().trim();
 
@@ -949,6 +954,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           features: productData.features || [],
           gender: productData.gender || '',
           isActive: productData.isActive ?? true,
+          aPlusTemplateId: productData.aPlusTemplateId || null,
+          aPlusContent: productData.aPlusContent || null,
           nextDayDeliveryCutoffTime: productData.nextDayDeliveryCutoffTime ?? '',
 
           // ✅ NEW CODE:
@@ -1231,7 +1238,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               option3Value: variant.option3Value || null,
               imageUrl: variant.imageUrl || null,
               imageFile: null,
-          isDefault: variant.isDefault ?? false,
+              isDefault: variant.isDefault ?? false,
               displayOrder: variant.displayOrder || 0,
               isActive: variant.isActive ?? true,
               gtin: variant.gtin || null,
@@ -3773,6 +3780,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         crossSellProductIds: Array.isArray(formData.crossSellProducts) && formData.crossSellProducts.length > 0
           ? formData.crossSellProducts.join(',')
           : null,
+        aPlusTemplateId: formData.aPlusTemplateId || null,
+        aPlusContent: formData.aPlusContent || null,
       };
       if (productData.isRecurring) {
         productData.recurringCycleLength =
@@ -5313,6 +5322,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   <Image className="h-4 w-4" />
                   Media
                 </TabsTrigger>
+                <TabsTrigger value="aplus-content" className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
+                  <Sparkles className="h-4 w-4" />
+                  A+ Content
+                </TabsTrigger>
 
               </TabsList>
             </div>
@@ -6083,11 +6096,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, excludeFromLoyaltyPoints: !prev.excludeFromLoyaltyPoints }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${formData.excludeFromLoyaltyPoints ? 'bg-emerald-500' : 'bg-slate-600'
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${!formData.excludeFromLoyaltyPoints ? 'bg-emerald-500' : 'bg-slate-600'
                       }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${formData.excludeFromLoyaltyPoints ? 'translate-x-6' : 'translate-x-1'
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${!formData.excludeFromLoyaltyPoints ? 'translate-x-6' : 'translate-x-1'
                         }`}
                     />
                   </button>
@@ -7224,21 +7237,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                               Enter UK local cutoff time for next-day delivery
                             </p>
 
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
 
-                              <div className="rounded-md border border-yellow-500/20 bg-yellow-500/10 px-2 py-1 text-yellow-300">
-                                🌤 UK 2:30 PM → <span className="font-semibold">14:30</span>
-                              </div>
-
-                              <div className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-cyan-300">
-                                🌙 UK 8:30 PM → <span className="font-semibold">20:30</span>
-                              </div>
-
-                              <div className="rounded-md border border-violet-500/20 bg-violet-500/10 px-2 py-1 text-violet-300">
-                                🌅 UK 1:30 AM → <span className="font-semibold">01:30</span>
-                              </div>
-
-                            </div>
                           </div>
                         </>
                       )}
@@ -7970,7 +7969,19 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               </div>
             </TabsContent>
 
-
+            <TabsContent value="aplus-content" className="space-y-3 mt-2">
+              <ProductAPlusContentTab
+                aPlusTemplateId={formData.aPlusTemplateId}
+                aPlusContent={formData.aPlusContent}
+                onChange={(templateId, content) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    aPlusTemplateId: templateId,
+                    aPlusContent: content,
+                  }));
+                }}
+              />
+            </TabsContent>
 
           </Tabs>
         </div>

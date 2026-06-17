@@ -118,16 +118,31 @@ export default function SuccessClient() {
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-gray-600">
-        Loading your order…
+      <div className="min-h-[75vh] flex flex-col items-center justify-center bg-gray-50/30 px-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center max-w-sm text-center">
+          <div className="w-12 h-12 border-4 border-[#f38918] border-t-transparent rounded-full animate-spin mb-6"></div>
+          <h2 className="text-lg font-bold text-gray-900 tracking-tight mb-2">Loading your order…</h2>
+          <p className="text-xs text-gray-500">Please wait while we retrieve your order details.</p>
+        </div>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="py-20 text-center text-red-600">
-        Order not found
+      <div className="min-h-[75vh] flex flex-col items-center justify-center bg-gray-50/30 px-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center max-w-sm text-center">
+          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-6">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 tracking-tight mb-2">Order Not Found</h2>
+          <p className="text-xs text-gray-500 mb-6">We couldn't retrieve the details for this order. Please verify your order ID or check your email confirmation.</p>
+          <Link href="/" className="px-5 py-2 bg-[#f38918] hover:bg-black text-white rounded-lg text-xs font-semibold transition duration-300">
+            Back to Home
+          </Link>
+        </div>
       </div>
     );
   }

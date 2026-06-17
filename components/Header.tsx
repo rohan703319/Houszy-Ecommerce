@@ -516,7 +516,7 @@ export default function Header({
                 }}
                 className="group relative flex items-center py-1.5 text-[#f38918] transition-colors hover:opacity-80"
               >
-                <span className="tracking-wide">Offer</span>
+                <span className="tracking-wide">Offers</span>
               </Link>
             </nav>
           </div>

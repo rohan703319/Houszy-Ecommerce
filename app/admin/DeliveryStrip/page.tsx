@@ -10,7 +10,8 @@ import {
   Bike,
   PackageSearch,
   PackageCheck,
-  ExternalLink
+  ExternalLink,
+  PoundSterling
 } from "lucide-react";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
@@ -20,13 +21,13 @@ import { scrollCls } from "../_utils/styles";
 // ── Section Types ────────────────────────────────────────────────────────────
 type SectionType = "intro" | "heading" | "steps" | "bullets" | "checklist" | "address" | "cta" | "support";
 
-interface IntroSection    { type: "intro";     content: string; }
-interface StepsSection    { type: "steps";     heading: string; steps: { title: string; description: string; }[]; }
-interface BulletsSection  { type: "bullets";   heading: string; items: string[]; }
-interface ChecklistSection{ type: "checklist"; heading: string; items: { title: string; description: string; }[]; }
-interface AddressSection  { type: "address";   heading: string; lines: string[]; hours: string[]; }
-interface CtaSection      { type: "cta";       heading: string; content: string; buttonText?: string; buttonLink?: string; }
-interface SupportSection  { type: "support";   heading: string; content: string; phone?: string; email?: string; hours?: string; }
+interface IntroSection { type: "intro"; content: string; }
+interface StepsSection { type: "steps"; heading: string; steps: { title: string; description: string; }[]; }
+interface BulletsSection { type: "bullets"; heading: string; items: string[]; }
+interface ChecklistSection { type: "checklist"; heading: string; items: { title: string; description: string; }[]; }
+interface AddressSection { type: "address"; heading: string; lines: string[]; hours: string[]; }
+interface CtaSection { type: "cta"; heading: string; content: string; buttonText?: string; buttonLink?: string; }
+interface SupportSection { type: "support"; heading: string; content: string; phone?: string; email?: string; hours?: string; }
 interface HeadingSection {
   type: "heading";
   text: string;
@@ -39,50 +40,50 @@ interface HeadingSection {
 type PageSection = IntroSection | HeadingSection | StepsSection | BulletsSection | ChecklistSection | AddressSection | CtaSection | SupportSection;
 
 const SECTION_META: Record<SectionType, { label: string; icon: React.ReactNode; color: string; desc: string }> = {
-  intro:     { label: "Introduction", icon: <AlignLeft size={13}/>,      color: "violet", desc: "Opening paragraph" },
-    heading: {
-  label: "Heading",
-  icon: <AlignLeft size={13} />,
-  color: "violet",
-  desc: "H1 to H6 heading block",
-},
-  steps:     { label: "Steps",        icon: <Hash size={13}/>,           color: "cyan",   desc: "Numbered how-it-works" },
-  bullets:   { label: "Bullet List",  icon: <List size={13}/>,           color: "emerald",desc: "Simple list (pricing etc.)" },
-  checklist: { label: "Checklist",    icon: <ListChecks size={13}/>,     color: "blue",   desc: "Items with descriptions" },
-  address:   { label: "Address",      icon: <Building2 size={13}/>,      color: "orange", desc: "Store address + hours" },
-  cta:       { label: "Call to Action",icon: <Megaphone size={13}/>,     color: "pink",   desc: "Button / CTA block" },
-  support:   { label: "Support",      icon: <HeadphonesIcon size={13}/>, color: "amber",  desc: "Phone, email, hours" },
+  intro: { label: "Introduction", icon: <AlignLeft size={13} />, color: "violet", desc: "Opening paragraph" },
+  heading: {
+    label: "Heading",
+    icon: <AlignLeft size={13} />,
+    color: "violet",
+    desc: "H1 to H6 heading block",
+  },
+  steps: { label: "Steps", icon: <Hash size={13} />, color: "cyan", desc: "Numbered how-it-works" },
+  bullets: { label: "Bullet List", icon: <List size={13} />, color: "emerald", desc: "Simple list (pricing etc.)" },
+  checklist: { label: "Checklist", icon: <ListChecks size={13} />, color: "blue", desc: "Items with descriptions" },
+  address: { label: "Address", icon: <Building2 size={13} />, color: "orange", desc: "Store address + hours" },
+  cta: { label: "Call to Action", icon: <Megaphone size={13} />, color: "pink", desc: "Button / CTA block" },
+  support: { label: "Support", icon: <HeadphonesIcon size={13} />, color: "amber", desc: "Phone, email, hours" },
 
 };
 
 const COLOR_MAP: Record<string, string> = {
-  violet:  "bg-violet-500/10 border-violet-500/30 text-violet-400",
-  cyan:    "bg-cyan-500/10 border-cyan-500/30 text-cyan-400",
+  violet: "bg-violet-500/10 border-violet-500/30 text-violet-400",
+  cyan: "bg-cyan-500/10 border-cyan-500/30 text-cyan-400",
   emerald: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
-  blue:    "bg-blue-500/10 border-blue-500/30 text-blue-400",
-  orange:  "bg-orange-500/10 border-orange-500/30 text-orange-400",
-  pink:    "bg-pink-500/10 border-pink-500/30 text-pink-400",
-  amber:   "bg-amber-500/10 border-amber-500/30 text-amber-400",
+  blue: "bg-blue-500/10 border-blue-500/30 text-blue-400",
+  orange: "bg-orange-500/10 border-orange-500/30 text-orange-400",
+  pink: "bg-pink-500/10 border-pink-500/30 text-pink-400",
+  amber: "bg-amber-500/10 border-amber-500/30 text-amber-400",
 };
 
 function createEmptySection(type: SectionType): PageSection {
   switch (type) {
-    case "intro":     return { type: "intro", content: "" };
-    case "steps":     return { type: "steps", heading: "How It Works", steps: [] };
-    case "bullets":   return { type: "bullets", heading: "", items: [] };
+    case "intro": return { type: "intro", content: "" };
+    case "steps": return { type: "steps", heading: "How It Works", steps: [] };
+    case "bullets": return { type: "bullets", heading: "", items: [] };
     case "checklist": return { type: "checklist", heading: "", items: [] };
-    case "address":   return { type: "address", heading: "Our Store", lines: [], hours: [] };
-    case "cta":       return { type: "cta", heading: "", content: "", buttonText: "", buttonLink: "" };
-    case "support":   return { type: "support", heading: "Need Help?", content: "", phone: "", email: "", hours: "" };
+    case "address": return { type: "address", heading: "Our Store", lines: [], hours: [] };
+    case "cta": return { type: "cta", heading: "", content: "", buttonText: "", buttonLink: "" };
+    case "support": return { type: "support", heading: "Need Help?", content: "", phone: "", email: "", hours: "" };
     case "heading":
-  return {
-    type: "heading",
-    text: "",
-    level: "h2",
-    bold: true,
-    italic: false,
-    strike: false,
-  };
+      return {
+        type: "heading",
+        text: "",
+        level: "h2",
+        bold: true,
+        italic: false,
+        strike: false,
+      };
   }
 }
 
@@ -123,33 +124,34 @@ const EMPTY: FormState = {
 };
 
 const ICONS = [
-  { value: "Truck",       label: "Truck",     el: <Truck size={14}/> },
-  { value: "Zap",         label: "Lightning", el: <Zap size={14}/> },
-  { value: "Package",     label: "Package",   el: <Package size={14}/> },
-  { value: "ShieldCheck", label: "Shield",    el: <ShieldCheck size={14}/> },
-  { value: "Clock",       label: "Clock",     el: <Clock size={14}/> },
-  { value: "MapPin",      label: "Map Pin",   el: <MapPin size={14}/> },
-  { value: "Store",       label: "Store",     el: <Store size={14}/> },
-  { value: "CheckCircle", label: "Check",     el: <CheckCircle size={14}/> },
-  { value: "Star",        label: "Star",      el: <Star size={14}/> },
-    // ✅ NEW
-  { value: "PackageCheck",  label: "Delivered",    el: <PackageCheck size={14}/> },
-  { value: "PackageSearch", label: "Tracking",     el: <PackageSearch size={14}/> },
-  { value: "Bike",          label: "Fast Delivery",el: <Bike size={14}/> },
+  { value: "Truck", label: "Truck", el: <Truck size={14} /> },
+  { value: "Zap", label: "Lightning", el: <Zap size={14} /> },
+  { value: "Package", label: "Package", el: <Package size={14} /> },
+  { value: "ShieldCheck", label: "Shield", el: <ShieldCheck size={14} /> },
+  { value: "Clock", label: "Clock", el: <Clock size={14} /> },
+  { value: "MapPin", label: "Map Pin", el: <MapPin size={14} /> },
+  { value: "Store", label: "Store", el: <Store size={14} /> },
+  { value: "CheckCircle", label: "Check", el: <CheckCircle size={14} /> },
+  { value: "Star", label: "Star", el: <Star size={14} /> },
+  // ✅ NEW
+  { value: "PackageCheck", label: "Delivered", el: <PackageCheck size={14} /> },
+  { value: "PackageSearch", label: "Tracking", el: <PackageSearch size={14} /> },
+  { value: "Bike", label: "Fast Delivery", el: <Bike size={14} /> },
+  { value: "PoundSterling", label: "PoundSterling", el: <PoundSterling size={14} /> },
 ];
 
 function IconComp({ name, size = 18 }: { name: string; size?: number }) {
   const p = { size };
   const map: Record<string, React.ReactElement> = {
-    Truck: <Truck {...p}/>, Zap: <Zap {...p}/>, Package: <Package {...p}/>,
-    ShieldCheck: <ShieldCheck {...p}/>, Clock: <Clock {...p}/>,
-    MapPin: <MapPin {...p}/>, Store: <Store {...p}/>,
-    CheckCircle: <CheckCircle {...p}/>, Star: <Star {...p}/>,
-    PackageCheck: <PackageCheck {...p}/>,
-PackageSearch: <PackageSearch {...p}/>,
-Bike: <Bike {...p}/>,
+    Truck: <Truck {...p} />, Zap: <Zap {...p} />, Package: <Package {...p} />,
+    ShieldCheck: <ShieldCheck {...p} />, Clock: <Clock {...p} />,
+    MapPin: <MapPin {...p} />, Store: <Store {...p} />,
+    CheckCircle: <CheckCircle {...p} />, Star: <Star {...p} />,
+    PackageCheck: <PackageCheck {...p} />,
+    PackageSearch: <PackageSearch {...p} />,
+    Bike: <Bike {...p} />,
   };
-  return map[name] ?? <Truck {...p}/>;
+  return map[name] ?? <Truck {...p} />;
 }
 
 const inputCls = "w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/60";
@@ -176,7 +178,7 @@ function SectionEditor({
   onDragStart: () => void;
   onDragEnd: () => void;
   isDragging: boolean;
-isCurrentDragging: boolean;
+  isCurrentDragging: boolean;
   onDrop: () => void;
   onDragOver: (e: React.DragEvent) => void;
 }) {
@@ -186,32 +188,30 @@ isCurrentDragging: boolean;
 
   const upd = (patch: Partial<any>) => onUpdate({ ...section, ...patch } as PageSection);
 
-return (
-  <div
-onDragOver={(e) => {
-  onDragOver(e);
-  onAutoScroll(e);
-}}
-    onDrop={onDrop}
-    className={`
+  return (
+    <div
+      onDragOver={(e) => {
+        onDragOver(e);
+        onAutoScroll(e);
+      }}
+      onDrop={onDrop}
+      className={`
       border rounded-xl overflow-hidden
       transition-opacity duration-200
-      ${
-        isCurrentDragging
+      ${isCurrentDragging
           ? "border-violet-500 opacity-35"
           : "border-slate-700 bg-slate-800/30"
-      }
-      ${
-        isDragging
+        }
+      ${isDragging
           ? "hover:border-violet-500/40"
           : ""
-      }
+        }
     `}
-  >
-    {/* Card Header */}
-<div className="flex items-center gap-2 px-3 py-2.5 bg-slate-800/60">
-  <div
-  className={`
+    >
+      {/* Card Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-800/60">
+        <div
+          className={`
     w-5 h-5
     rounded-full
     text-[10px]
@@ -219,24 +219,23 @@ onDragOver={(e) => {
     flex items-center justify-center
     flex-shrink-0
     transition-all duration-200
-    ${
-      isCurrentDragging
-        ? "bg-violet-500 text-white shadow-lg shadow-violet-500/30"
-        : "bg-slate-700 text-slate-300"
-    }
+    ${isCurrentDragging
+              ? "bg-violet-500 text-white shadow-lg shadow-violet-500/30"
+              : "bg-slate-700 text-slate-300"
+            }
   `}
->
-    {idx + 1}
-  </div>
-      {/* Drag Handle */}
-      <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = "move";
-          onDragStart();
-        }}
-        onDragEnd={onDragEnd}
-        className="
+        >
+          {idx + 1}
+        </div>
+        {/* Drag Handle */}
+        <div
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+          className="
           cursor-grab
           active:cursor-grabbing
           text-slate-600
@@ -244,13 +243,13 @@ onDragOver={(e) => {
           transition
           flex-shrink-0
         "
-      >
-        <GripVertical size={14} />
-      </div>
+        >
+          <GripVertical size={14} />
+        </div>
 
-      {/* Section Badge */}
-      <span
-        className={`
+        {/* Section Badge */}
+        <span
+          className={`
           flex items-center gap-1.5
           px-2 py-0.5
           rounded-full
@@ -258,57 +257,57 @@ onDragOver={(e) => {
           border
           ${colorCls}
         `}
-      >
-        {meta.icon} {meta.label}
-      </span>
-
-      {/* Section Label */}
-      <span className="text-slate-500 text-xs truncate flex-1">
-        {section.type === "intro"
-          ? (section as IntroSection).content?.slice(0, 60) || "Empty"
-          : section.type === "heading"
-          ? (section as HeadingSection).text || "Heading"
-          : (section as any).heading || meta.desc}
-      </span>
-
-      {/* Actions */}
-      <div className="flex items-center gap-0.5 flex-shrink-0">
-        
-        <button
-          onClick={() => onMove(-1)}
-          disabled={idx === 0}
-          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition"
         >
-          <ChevronUp size={13} />
-        </button>
+          {meta.icon} {meta.label}
+        </span>
 
-        <button
-          onClick={() => onMove(1)}
-          disabled={idx === total - 1}
-          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition"
-        >
-          <ChevronDown size={13} />
-        </button>
+        {/* Section Label */}
+        <span className="text-slate-500 text-xs truncate flex-1">
+          {section.type === "intro"
+            ? (section as IntroSection).content?.slice(0, 60) || "Empty"
+            : section.type === "heading"
+              ? (section as HeadingSection).text || "Heading"
+              : (section as any).heading || meta.desc}
+        </span>
 
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition"
-        >
-          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        </button>
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
 
-        <button
-          onClick={onRemove}
-          className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition"
-        >
-          <X size={13} />
-        </button>
+          <button
+            onClick={() => onMove(-1)}
+            disabled={idx === 0}
+            className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition"
+          >
+            <ChevronUp size={13} />
+          </button>
+
+          <button
+            onClick={() => onMove(1)}
+            disabled={idx === total - 1}
+            className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-white disabled:opacity-20 transition"
+          >
+            <ChevronDown size={13} />
+          </button>
+
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition"
+          >
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+
+          <button
+            onClick={onRemove}
+            className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition"
+          >
+            <X size={13} />
+          </button>
+        </div>
       </div>
-    </div>
 
-    {/* Card Body */}
-    {expanded && (
-      <div className="px-4 py-3 space-y-3">
+      {/* Card Body */}
+      {expanded && (
+        <div className="px-4 py-3 space-y-3">
           {/* INTRO */}
           {section.type === "intro" && (
             <div>
@@ -319,78 +318,78 @@ onDragOver={(e) => {
                 className={inputCls + " resize-none"} />
             </div>
           )}
-{section.type === "heading" && (() => {
-  const s = section as HeadingSection;
+          {section.type === "heading" && (() => {
+            const s = section as HeadingSection;
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-end gap-3 flex-wrap">
-        
-        {/* Heading Text */}
-        <div className="flex-1 min-w-[260px]">
-          <label className={labelCls}>Heading Text</label>
+            return (
+              <div className="space-y-3">
+                <div className="flex items-end gap-3 flex-wrap">
 
-          <input
-            value={s.text}
-            onChange={(e) => upd({ text: e.target.value })}
-            placeholder="Enter heading..."
-            className={inputCls}
-          />
-        </div>
+                  {/* Heading Text */}
+                  <div className="flex-1 min-w-[260px]">
+                    <label className={labelCls}>Heading Text</label>
 
-        {/* Heading Level */}
-        <div className="w-28">
-          <label className={labelCls}>Level</label>
+                    <input
+                      value={s.text}
+                      onChange={(e) => upd({ text: e.target.value })}
+                      placeholder="Enter heading..."
+                      className={inputCls}
+                    />
+                  </div>
 
-          <select
-            value={s.level}
-            onChange={(e) => upd({ level: e.target.value })}
-            className={inputCls}
-          >
-            <option value="h1">H1</option>
-            <option value="h2">H2</option>
-            <option value="h3">H3</option>
-            <option value="h4">H4</option>
-            <option value="h5">H5</option>
-            <option value="h6">H6</option>
-          </select>
-        </div>
+                  {/* Heading Level */}
+                  <div className="w-28">
+                    <label className={labelCls}>Level</label>
 
-        {/* Bold */}
-        <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={s.bold}
-            onChange={(e) => upd({ bold: e.target.checked })}
-          />
-          Bold
-        </label>
+                    <select
+                      value={s.level}
+                      onChange={(e) => upd({ level: e.target.value })}
+                      className={inputCls}
+                    >
+                      <option value="h1">H1</option>
+                      <option value="h2">H2</option>
+                      <option value="h3">H3</option>
+                      <option value="h4">H4</option>
+                      <option value="h5">H5</option>
+                      <option value="h6">H6</option>
+                    </select>
+                  </div>
 
-        {/* Italic */}
-        <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={s.italic}
-            onChange={(e) => upd({ italic: e.target.checked })}
-          />
-          Italic
-        </label>
+                  {/* Bold */}
+                  <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={s.bold}
+                      onChange={(e) => upd({ bold: e.target.checked })}
+                    />
+                    Bold
+                  </label>
 
-        {/* Strike */}
-        <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={(s as any).strike || false}
-            onChange={(e) =>
-              upd({ strike: e.target.checked } as any)
-            }
-          />
-          Strike
-        </label>
-      </div>
-    </div>
-  );
-})()}
+                  {/* Italic */}
+                  <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={s.italic}
+                      onChange={(e) => upd({ italic: e.target.checked })}
+                    />
+                    Italic
+                  </label>
+
+                  {/* Strike */}
+                  <label className="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={(s as any).strike || false}
+                      onChange={(e) =>
+                        upd({ strike: e.target.checked } as any)
+                      }
+                    />
+                    Strike
+                  </label>
+                </div>
+              </div>
+            );
+          })()}
           {/* STEPS */}
           {section.type === "steps" && (() => {
             const s = section as StepsSection;
@@ -405,13 +404,13 @@ onDragOver={(e) => {
                   <label className={labelCls + " mb-0"}>Steps ({s.steps.length})</label>
                   <button onClick={() => upd({ steps: [...s.steps, { title: "", description: "" }] })}
                     className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 font-medium">
-                    <Plus size={11}/> Add Step
+                    <Plus size={11} /> Add Step
                   </button>
                 </div>
                 <div className="space-y-2">
                   {s.steps.map((step, i) => (
                     <div key={i} className="flex gap-2 items-start bg-slate-900/40 border border-slate-700 rounded-lg p-2.5">
-                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">{i+1}</span>
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">{i + 1}</span>
                       <div className="flex-1 space-y-1.5">
                         <input value={step.title} onChange={e => {
                           const steps = [...s.steps]; steps[i] = { ...steps[i], title: e.target.value }; upd({ steps });
@@ -422,7 +421,7 @@ onDragOver={(e) => {
                       </div>
                       <button onClick={() => upd({ steps: s.steps.filter((_, j) => j !== i) })}
                         className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition mt-0.5">
-                        <X size={12}/>
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
@@ -446,7 +445,7 @@ onDragOver={(e) => {
                   <label className={labelCls + " mb-0"}>Items ({s.items.length})</label>
                   <button onClick={() => upd({ items: [...s.items, ""] })}
                     className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium">
-                    <Plus size={11}/> Add Item
+                    <Plus size={11} /> Add Item
                   </button>
                 </div>
                 <div className="space-y-1.5">
@@ -458,7 +457,7 @@ onDragOver={(e) => {
                       }} placeholder="e.g. £3.95 for orders under £50" className={smInputCls + " flex-1"} />
                       <button onClick={() => upd({ items: s.items.filter((_, j) => j !== i) })}
                         className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition">
-                        <X size={12}/>
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
@@ -482,13 +481,13 @@ onDragOver={(e) => {
                   <label className={labelCls + " mb-0"}>Items ({s.items.length})</label>
                   <button onClick={() => upd({ items: [...s.items, { title: "", description: "" }] })}
                     className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 font-medium">
-                    <Plus size={11}/> Add Item
+                    <Plus size={11} /> Add Item
                   </button>
                 </div>
                 <div className="space-y-2">
                   {s.items.map((item, i) => (
                     <div key={i} className="flex gap-2 items-start bg-slate-900/40 border border-slate-700 rounded-lg p-2.5">
-                      <CheckCircle size={14} className="text-blue-400 flex-shrink-0 mt-0.5"/>
+                      <CheckCircle size={14} className="text-blue-400 flex-shrink-0 mt-0.5" />
                       <div className="flex-1 space-y-1.5">
                         <input value={item.title} onChange={e => {
                           const items = [...s.items]; items[i] = { ...items[i], title: e.target.value }; upd({ items });
@@ -499,7 +498,7 @@ onDragOver={(e) => {
                       </div>
                       <button onClick={() => upd({ items: s.items.filter((_, j) => j !== i) })}
                         className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition mt-0.5">
-                        <X size={12}/>
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
@@ -524,7 +523,7 @@ onDragOver={(e) => {
                     <label className={labelCls + " mb-0"}>Address Lines</label>
                     <button onClick={() => upd({ lines: [...s.lines, ""] })}
                       className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 font-medium">
-                      <Plus size={11}/> Add
+                      <Plus size={11} /> Add
                     </button>
                   </div>
                   <div className="space-y-1.5">
@@ -535,7 +534,7 @@ onDragOver={(e) => {
                         }} placeholder="Address line..." className={smInputCls + " flex-1"} />
                         <button onClick={() => upd({ lines: s.lines.filter((_, j) => j !== i) })}
                           className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400">
-                          <X size={12}/>
+                          <X size={12} />
                         </button>
                       </div>
                     ))}
@@ -547,7 +546,7 @@ onDragOver={(e) => {
                     <label className={labelCls + " mb-0"}>Opening Hours</label>
                     <button onClick={() => upd({ hours: [...s.hours, ""] })}
                       className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 font-medium">
-                      <Plus size={11}/> Add
+                      <Plus size={11} /> Add
                     </button>
                   </div>
                   <div className="space-y-1.5">
@@ -558,7 +557,7 @@ onDragOver={(e) => {
                         }} placeholder="e.g. Mon-Fri: 9am-5pm" className={smInputCls + " flex-1"} />
                         <button onClick={() => upd({ hours: s.hours.filter((_, j) => j !== i) })}
                           className="p-1 rounded hover:bg-red-500/10 text-slate-600 hover:text-red-400">
-                          <X size={12}/>
+                          <X size={12} />
                         </button>
                       </div>
                     ))}
@@ -658,7 +657,7 @@ function AddSectionPicker({
 
   return (
     <div className="relative" ref={ref}>
-      
+
       {/* Trigger */}
       <button
         onClick={() => setOpen((o) => !o)}
@@ -694,7 +693,7 @@ function AddSectionPicker({
           overflow-hidden
           z-50
         ">
-          
+
           <div className="px-3 py-2 border-b border-slate-800">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
               Choose Section Type
@@ -753,18 +752,18 @@ function AddSectionPicker({
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function DeliveryStripPage() {
   const toast = useToast();
-  const [items,        setItems]        = useState<DeliveryStripItem[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [saving,       setSaving]       = useState(false);
-  const [showModal,    setShowModal]    = useState(false);
-  const [activeTab,    setActiveTab]    = useState<"strip" | "page" | "rich">("strip");
-  const [editing,      setEditing]      = useState<DeliveryStripItem | null>(null);
-  const [form,         setForm]         = useState<FormState>({ ...EMPTY });
+  const [items, setItems] = useState<DeliveryStripItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"strip" | "page" | "rich">("strip");
+  const [editing, setEditing] = useState<DeliveryStripItem | null>(null);
+  const [form, setForm] = useState<FormState>({ ...EMPTY });
   const [deleteTarget, setDeleteTarget] = useState<DeliveryStripItem | null>(null);
- const [toggleTarget, setToggleTarget] = useState<DeliveryStripItem | null>(null);
- const [dragIndex, setDragIndex] = useState<number | null>(null);
- const [isDragging, setIsDragging] = useState(false);
- const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [toggleTarget, setToggleTarget] = useState<DeliveryStripItem | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const fetchItems = async () => {
     try {
       setLoading(true);
@@ -772,7 +771,7 @@ export default function DeliveryStripPage() {
       if (res.data?.success) setItems(res.data.data ?? []);
       else toast.error(res.data?.message || "Failed to load delivery strip items");
     } catch { toast.error("Failed to load delivery strip items"); }
-    finally  { setLoading(false); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchItems(); }, []);
@@ -801,7 +800,7 @@ export default function DeliveryStripPage() {
 
   const handleSave = async () => {
     if (!form.title.trim()) { toast.error("Title is required"); return; }
-    if (!form.slug.trim())  { toast.error("Slug is required");  return; }
+    if (!form.slug.trim()) { toast.error("Slug is required"); return; }
     setSaving(true);
     try {
       const payload = {
@@ -811,7 +810,7 @@ export default function DeliveryStripPage() {
       };
       let res: any;
       if (editing) res = await apiClient.put<any>(`/api/DeliveryStrip/${editing.id}`, payload);
-      else         res = await apiClient.post<any>("/api/DeliveryStrip", payload);
+      else res = await apiClient.post<any>("/api/DeliveryStrip", payload);
 
       if (res.data?.success) {
         toast.success(editing ? "Updated successfully" : "Created successfully");
@@ -821,25 +820,25 @@ export default function DeliveryStripPage() {
         toast.error(res.data?.message || res.error || "Save failed");
       }
     } catch { toast.error("Save failed"); }
-    finally  { setSaving(false); }
+    finally { setSaving(false); }
   };
 
-const handleToggle = async () => {
-  if (!toggleTarget) return;
+  const handleToggle = async () => {
+    if (!toggleTarget) return;
 
-  try {
-    const res = await apiClient.patch<any>(`/api/DeliveryStrip/${toggleTarget.id}/toggle`);
-    if (res.data?.success) {
-      toast.success(res.data.message || "Updated");
-      setToggleTarget(null);
-      fetchItems();
-    } else {
-      toast.error(res.data?.message || "Toggle failed");
+    try {
+      const res = await apiClient.patch<any>(`/api/DeliveryStrip/${toggleTarget.id}/toggle`);
+      if (res.data?.success) {
+        toast.success(res.data.message || "Updated");
+        setToggleTarget(null);
+        fetchItems();
+      } else {
+        toast.error(res.data?.message || "Toggle failed");
+      }
+    } catch {
+      toast.error("Toggle failed");
     }
-  } catch {
-    toast.error("Toggle failed");
-  }
-};
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -851,10 +850,10 @@ const handleToggle = async () => {
   };
 
   // Feature card helpers
-  const addCard  = () => setForm(f => ({ ...f, featureCards: [...f.featureCards, { icon: "Clock", heading: "", description: "" }] }));
-  const updCard  = (i: number, k: keyof FeatureCard, v: string) =>
+  const addCard = () => setForm(f => ({ ...f, featureCards: [...f.featureCards, { icon: "Clock", heading: "", description: "" }] }));
+  const updCard = (i: number, k: keyof FeatureCard, v: string) =>
     setForm(f => { const c = [...f.featureCards]; c[i] = { ...c[i], [k]: v }; return { ...f, featureCards: c }; });
-  const remCard  = (i: number) => setForm(f => ({ ...f, featureCards: f.featureCards.filter((_, j) => j !== i) }));
+  const remCard = (i: number) => setForm(f => ({ ...f, featureCards: f.featureCards.filter((_, j) => j !== i) }));
 
   // Info point helpers
   const addPoint = () => setForm(f => ({ ...f, infoPoints: [...f.infoPoints, ""] }));
@@ -863,91 +862,91 @@ const handleToggle = async () => {
   const remPoint = (i: number) => setForm(f => ({ ...f, infoPoints: f.infoPoints.filter((_, j) => j !== i) }));
 
   // Section helpers
-const addSection = (type: SectionType) => {
-  setForm((f) => ({
-    ...f,
-    sections: [...f.sections, createEmptySection(type)],
-  }));
+  const addSection = (type: SectionType) => {
+    setForm((f) => ({
+      ...f,
+      sections: [...f.sections, createEmptySection(type)],
+    }));
 
-  // smooth auto scroll bottom
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      scrollContainerRef.current?.scrollTo({
-        top: scrollContainerRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }, 80);
-  });
-};
+    // smooth auto scroll bottom
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        scrollContainerRef.current?.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 80);
+    });
+  };
   const updateSection = (i: number, s: PageSection) => setForm(f => { const arr = [...f.sections]; arr[i] = s; return { ...f, sections: arr }; });
   const removeSection = (i: number) => setForm(f => ({ ...f, sections: f.sections.filter((_, j) => j !== i) }));
-  const moveSection   = (i: number, dir: 1 | -1) => setForm(f => {
+  const moveSection = (i: number, dir: 1 | -1) => setForm(f => {
     const arr = [...f.sections]; const j = i + dir;
     if (j < 0 || j >= arr.length) return f;
     [arr[i], arr[j]] = [arr[j], arr[i]];
     return { ...f, sections: arr };
   });
   const handleDropSection = (dropIndex: number) => {
-  if (dragIndex === null || dragIndex === dropIndex) return;
+    if (dragIndex === null || dragIndex === dropIndex) return;
 
-  setForm((f) => {
-    const updated = [...f.sections];
+    setForm((f) => {
+      const updated = [...f.sections];
 
-    const draggedItem = updated[dragIndex];
+      const draggedItem = updated[dragIndex];
 
-    updated.splice(dragIndex, 1);
+      updated.splice(dragIndex, 1);
 
-    updated.splice(dropIndex, 0, draggedItem);
+      updated.splice(dropIndex, 0, draggedItem);
 
-    return {
-      ...f,
-      sections: updated,
-    };
-  });
+      return {
+        ...f,
+        sections: updated,
+      };
+    });
 
-  setDragIndex(null);
-};
+    setDragIndex(null);
+  };
 
-const handleDragEnd = () => {
-  setDragIndex(null);
-  setIsDragging(false);
-};
-const handleAutoScroll = (e: React.DragEvent) => {
-  const container = scrollContainerRef.current;
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setIsDragging(false);
+  };
+  const handleAutoScroll = (e: React.DragEvent) => {
+    const container = scrollContainerRef.current;
 
-  if (!container) return;
+    if (!container) return;
 
-  const rect = container.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
 
-  const scrollMargin = 100;
-  const scrollSpeed = 20;
+    const scrollMargin = 100;
+    const scrollSpeed = 20;
 
-  // Mouse Y position
-  const y = e.clientY;
+    // Mouse Y position
+    const y = e.clientY;
 
-  // Scroll Down
-  if (y > rect.bottom - scrollMargin) {
-    container.scrollTop += scrollSpeed;
-  }
+    // Scroll Down
+    if (y > rect.bottom - scrollMargin) {
+      container.scrollTop += scrollSpeed;
+    }
 
-  // Scroll Up
-  else if (y < rect.top + scrollMargin) {
-    container.scrollTop -= scrollSpeed;
-  }
-};
+    // Scroll Up
+    else if (y < rect.top + scrollMargin) {
+      container.scrollTop -= scrollSpeed;
+    }
+  };
   const handleTitleChange = (val: string) =>
     setForm(f => ({
       ...f, title: val,
       slug: editing ? f.slug : val.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     }));
 
-  const active   = items.filter(i => i.isActive).length;
+  const active = items.filter(i => i.isActive).length;
   const withRich = items.filter(i => i.pageContentJson).length;
 
   const TABS = [
     { id: "strip", label: "Strip Bar" },
-    { id: "page",  label: "Page Content" },
-    { id: "rich",  label: `Page Sections (${form.sections.length})` },
+    { id: "page", label: "Page Content" },
+    { id: "rich", label: `Page Sections (${form.sections.length})` },
   ] as const;
 
   return (
@@ -965,17 +964,17 @@ const handleAutoScroll = (e: React.DragEvent) => {
         </div>
         <button onClick={openCreate}
           className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition shadow-lg shadow-violet-500/20">
-          <Plus size={15}/> Add Item
+          <Plus size={15} /> Add Item
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3 mb-3">
         {[
-          { label: "Total",         value: items.length,          color: "text-white" },
-          { label: "Active",        value: active,                color: "text-emerald-400" },
-          { label: "Inactive",      value: items.length - active, color: "text-slate-400" },
-          { label: "Has Rich Page", value: withRich,              color: "text-cyan-400" },
+          { label: "Total", value: items.length, color: "text-white" },
+          { label: "Active", value: active, color: "text-emerald-400" },
+          { label: "Inactive", value: items.length - active, color: "text-slate-400" },
+          { label: "Has Rich Page", value: withRich, color: "text-cyan-400" },
         ].map(s => (
           <div key={s.label} className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-center">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -987,11 +986,11 @@ const handleAutoScroll = (e: React.DragEvent) => {
       {/* List */}
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <Loader2 className="animate-spin text-violet-400" size={28}/>
+          <Loader2 className="animate-spin text-violet-400" size={28} />
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-slate-500 bg-slate-900/50 border border-slate-800 rounded-xl">
-          <Truck size={40} className="mx-auto mb-3 opacity-30"/>
+          <Truck size={40} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium text-slate-400">No delivery strip items yet.</p>
           <p className="text-xs mt-1">Click "Add Item" to create the first one.</p>
         </div>
@@ -1012,7 +1011,7 @@ const handleAutoScroll = (e: React.DragEvent) => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 flex-shrink-0">
-                        <IconComp name={item.icon}/>
+                        <IconComp name={item.icon} />
                       </div>
                       <div>
                         <p className="font-semibold text-white text-sm">{item.title}</p>
@@ -1027,21 +1026,20 @@ const handleAutoScroll = (e: React.DragEvent) => {
                     <div className="flex items-center gap-2 text-xs">
                       {item.pageContentJson ? (
                         <span className="flex items-center gap-1 text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full">
-                          <FileText size={10}/> Rich Content
+                          <FileText size={10} /> Rich Content
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-slate-500 bg-slate-800/60 border border-slate-700 px-2 py-0.5 rounded-full">
-                          <Layers size={10}/> Basic Only
+                          <Layers size={10} /> Basic Only
                         </span>
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
-                      item.isActive
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${item.isActive
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                         : "bg-slate-800/60 text-slate-500 border-slate-700"
-                    }`}>
+                      }`}>
                       {item.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
@@ -1050,16 +1048,16 @@ const handleAutoScroll = (e: React.DragEvent) => {
                       <button onClick={() => setToggleTarget(item)} title={item.isActive ? "Deactivate" : "Activate"}
                         className="p-1.5 rounded-lg hover:bg-slate-700/60 transition">
                         {item.isActive
-                          ? <ToggleRight size={18} className="text-emerald-400"/>
-                          : <ToggleLeft  size={18} className="text-slate-500"/>}
+                          ? <ToggleRight size={18} className="text-emerald-400" />
+                          : <ToggleLeft size={18} className="text-slate-500" />}
                       </button>
                       <button onClick={() => openEdit(item)}
                         className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-500 hover:text-cyan-400 transition">
-                        <Edit size={15}/>
+                        <Edit size={15} />
                       </button>
                       <button onClick={() => setDeleteTarget(item)}
                         className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition">
-                        <Trash2 size={15}/>
+                        <Trash2 size={15} />
                       </button>
                       <a
                         href={`/delivery/${item.slug}`}
@@ -1067,10 +1065,10 @@ const handleAutoScroll = (e: React.DragEvent) => {
                         rel="noopener noreferrer"
                         title="View Page"
                         className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-500 hover:text-green-400 transition"
-                        >
+                      >
                         <ExternalLink size={15} />
                       </a>
-                  </div>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1094,43 +1092,42 @@ const handleAutoScroll = (e: React.DragEvent) => {
               </div>
               <button onClick={() => setShowModal(false)}
                 className="p-2 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition">
-                <X size={16}/>
+                <X size={16} />
               </button>
             </div>
 
             {/* Tabs */}
-<div className="flex items-center justify-between border-b border-slate-800 px-6 flex-shrink-0">
-  
-  {/* Tabs */}
-  <div className="flex gap-1">
-    {TABS.map(tab => (
-      <button
-        key={tab.id}
-        onClick={() => setActiveTab(tab.id)}
-        className={`py-3 px-4 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-          activeTab === tab.id
-            ? "border-violet-500 text-violet-400"
-            : "border-transparent text-slate-500 hover:text-slate-300"
-        }`}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 flex-shrink-0">
 
-  {/* Add Section Button */}
-  {activeTab === "rich" && (
-    <div className="relative group">
-      <AddSectionPicker onAdd={addSection} />
-    </div>
-  )}
-</div>
+              {/* Tabs */}
+              <div className="flex gap-1">
+                {TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`py-3 px-4 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
+                        ? "border-violet-500 text-violet-400"
+                        : "border-transparent text-slate-500 hover:text-slate-300"
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Add Section Button */}
+              {activeTab === "rich" && (
+                <div className="relative group">
+                  <AddSectionPicker onAdd={addSection} />
+                </div>
+              )}
+            </div>
 
             {/* Modal Body */}
             <div
-  ref={scrollContainerRef}
-className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
->
+              ref={scrollContainerRef}
+              className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
+            >
 
               {/* TAB 1: Strip Bar */}
               {activeTab === "strip" && (
@@ -1151,11 +1148,10 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                       <div className="grid grid-cols-3 gap-2">
                         {ICONS.map(ic => (
                           <button key={ic.value} type="button" onClick={() => setForm(f => ({ ...f, icon: ic.value }))}
-                            className={`flex items-center gap-1.5 px-2 py-2 rounded-lg border text-xs transition ${
-                              form.icon === ic.value
+                            className={`flex items-center gap-1.5 px-2 py-2 rounded-lg border text-xs transition ${form.icon === ic.value
                                 ? "border-violet-500/60 bg-violet-500/10 text-violet-400 font-semibold"
                                 : "border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-600 hover:text-slate-300"
-                            }`}>
+                              }`}>
                             {ic.el} {ic.label}
                           </button>
                         ))}
@@ -1190,7 +1186,7 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Strip Bar Preview</p>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
-                        <IconComp name={form.icon} size={20}/>
+                        <IconComp name={form.icon} size={20} />
                       </div>
                       <div>
                         <p className="font-bold text-sm text-white tracking-wide">{form.title || "TITLE"}</p>
@@ -1224,7 +1220,7 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs font-semibold text-slate-400">Feature Cards ({form.featureCards.length})</p>
                       <button onClick={addCard} className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 font-medium transition">
-                        <Plus size={12}/> Add Card
+                        <Plus size={12} /> Add Card
                       </button>
                     </div>
                     <div className="space-y-3">
@@ -1239,7 +1235,7 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                               placeholder="Card Heading"
                               className="flex-1 border border-slate-700 bg-slate-800 rounded-lg px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none" />
                             <button onClick={() => remCard(i)} className="p-1.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition">
-                              <X size={13}/>
+                              <X size={13} />
                             </button>
                           </div>
                           <textarea rows={2} value={card.description} onChange={e => updCard(i, "description", e.target.value)}
@@ -1267,7 +1263,7 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-semibold text-slate-400">Bullet Points ({form.infoPoints.length})</p>
                         <button onClick={addPoint} className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 font-medium transition">
-                          <Plus size={12}/> Add Point
+                          <Plus size={12} /> Add Point
                         </button>
                       </div>
                       <div className="space-y-2">
@@ -1278,7 +1274,7 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                               placeholder="Enter bullet point..."
                               className="flex-1 border border-slate-700 bg-slate-800/60 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none" />
                             <button onClick={() => remPoint(i)} className="p-1.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition">
-                              <X size={13}/>
+                              <X size={13} />
                             </button>
                           </div>
                         ))}
@@ -1298,12 +1294,12 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                 <div className="space-y-3">
                   {form.sections.length === 0 && (
                     <div className="text-center py-8 text-slate-500 text-sm">
-                      <Layers size={32} className="mx-auto mb-2 opacity-30"/>
+                      <Layers size={32} className="mx-auto mb-2 opacity-30" />
                       <p>No sections yet.</p>
                       <p className="text-xs mt-1 text-slate-600">Click "Add Section" below to build the page.</p>
                     </div>
                   )}
-                  
+
                   {form.sections.map((section, i) => (
                     <SectionEditor
                       key={i}
@@ -1318,14 +1314,14 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                       onRemove={() => removeSection(i)}
                       onMove={dir => moveSection(i, dir)}
                       onDragStart={() => {
-  setDragIndex(i);
-  setIsDragging(true);
-}}
-  onDrop={() => handleDropSection(i)}
-  onDragOver={(e) => e.preventDefault()}
+                        setDragIndex(i);
+                        setIsDragging(true);
+                      }}
+                      onDrop={() => handleDropSection(i)}
+                      onDragOver={(e) => e.preventDefault()}
                     />
                   ))}
-             
+
                 </div>
               )}
             </div>
@@ -1344,7 +1340,7 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
                 </button>
                 <button onClick={handleSave} disabled={saving}
                   className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-violet-600 to-cyan-600 text-white text-sm font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-40 shadow-lg shadow-violet-500/20">
-                  {saving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>}
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   {saving ? "Saving..." : editing ? "Update" : "Create"}
                 </button>
               </div>
@@ -1355,26 +1351,25 @@ className={`flex-1 overflow-y-auto px-6 py-5 space-y-5 ${scrollCls}`}
 
       {/* Delete Confirm */}
       {deleteTarget && (
-      <ConfirmDialog
-  isOpen={!!deleteTarget}
-  title="Delete Delivery Strip Item"
-  message={`Are you sure you want to delete "${deleteTarget?.title}"?`}
-  onConfirm={handleDelete}
-  onClose={() => setDeleteTarget(null)}
-/>
+        <ConfirmDialog
+          isOpen={!!deleteTarget}
+          title="Delete Delivery Strip Item"
+          message={`Are you sure you want to delete "${deleteTarget?.title}"?`}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
 
       {toggleTarget && (
-  <ConfirmDialog
-    isOpen={!!toggleTarget}
-    title={toggleTarget.isActive ? "Deactivate Item" : "Activate Item"}
-    message={`Are you sure you want to ${
-      toggleTarget.isActive ? "deactivate" : "activate"
-    } "${toggleTarget.title}"?`}
-    onConfirm={handleToggle}
-    onClose={() => setToggleTarget(null)}
-  />
-)}
+        <ConfirmDialog
+          isOpen={!!toggleTarget}
+          title={toggleTarget.isActive ? "Deactivate Item" : "Activate Item"}
+          message={`Are you sure you want to ${toggleTarget.isActive ? "deactivate" : "activate"
+            } "${toggleTarget.title}"?`}
+          onConfirm={handleToggle}
+          onClose={() => setToggleTarget(null)}
+        />
+      )}
     </div>
   );
 }

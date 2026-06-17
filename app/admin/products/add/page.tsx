@@ -2,9 +2,10 @@
 import { useState, useRef, useEffect, JSX, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, Upload, X, Info, Search, Image, Package, Tag, Globe, Truck, PoundSterling, Link as LinkIcon, ShoppingCart, Video, Play, Plus, Settings, ChevronDown } from "lucide-react";
+import { ArrowLeft, Save, Upload, X, Info, Search, Image, Package, Tag, Globe, Truck, PoundSterling, Link as LinkIcon, ShoppingCart, Video, Play, Plus, Settings, ChevronDown, Sparkles } from "lucide-react";
 import Link from "next/link"
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
+import ProductAPlusContentTab from "../_components/ProductAPlusContentTab";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import { brandsService, DropdownsData, ProductAttribute, ProductImage, ProductOption, productsService, ProductVariant, SimpleProduct, VATRateData } from '@/lib/services';
 import { GroupedProductModal } from '../GroupedProductModal';
@@ -655,6 +656,8 @@ export default function AddProductPage() {
     metaKeywords: '',
     metaDescription: '',
     searchEngineFriendlyPageName: '',
+    aPlusTemplateId: null as string | null,
+    aPlusContent: null as string | null,
   });
 
 
@@ -1875,6 +1878,10 @@ export default function AddProductPage() {
 
       // Reviews
       if (formData.allowCustomerReviews) productData.allowCustomerReviews = true;
+
+      // A+ Content
+      productData.aPlusTemplateId = formData.aPlusTemplateId || null;
+      productData.aPlusContent = formData.aPlusContent || null;
 
       console.log("¦ FINAL PAYLOAD:");
       console.log(JSON.stringify(productData, null, 2));
@@ -3357,6 +3364,10 @@ export default function AddProductPage() {
                     <Image className="h-4 w-4" />
                     Media
                   </TabsTrigger>
+                  <TabsTrigger value="aplus-content" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
+                    <Sparkles className="h-4 w-4" />
+                    A+ Content
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -4033,11 +4044,11 @@ export default function AddProductPage() {
                     <button
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, excludeFromLoyaltyPoints: !prev.excludeFromLoyaltyPoints }))}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${formData.excludeFromLoyaltyPoints ? 'bg-emerald-500' : 'bg-slate-600'
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${!formData.excludeFromLoyaltyPoints ? 'bg-emerald-500' : 'bg-slate-600'
                         }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${formData.excludeFromLoyaltyPoints ? 'translate-x-6' : 'translate-x-1'
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${!formData.excludeFromLoyaltyPoints ? 'translate-x-6' : 'translate-x-1'
                           }`}
                       />
                     </button>
@@ -5651,7 +5662,7 @@ export default function AddProductPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-white">Product Images  <span className="text-red-500">*</span></h3>
                       <p className="text-sm text-red-500">
-                        Upload product images (WebP or Avif).    Up to 10 images
+                        Upload product images (WebP or Avif). Minimum 5 images are required.
                       </p>
                     </div>
                   </div>
@@ -5910,6 +5921,19 @@ export default function AddProductPage() {
                     Add Video URL
                   </button>
                 </div>
+              </TabsContent>
+              <TabsContent value="aplus-content" className="space-y-3 mt-2">
+                <ProductAPlusContentTab
+                  aPlusTemplateId={formData.aPlusTemplateId}
+                  aPlusContent={formData.aPlusContent}
+                  onChange={(templateId, content) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      aPlusTemplateId: templateId,
+                      aPlusContent: content,
+                    }));
+                  }}
+                />
               </TabsContent>
             </Tabs>
           </div>

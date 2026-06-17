@@ -72,9 +72,30 @@ if (
       }
     }
 
+    let aplusTemplate = null;
+    if (product?.aPlusTemplateId) {
+      try {
+        const tRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/APlusTemplates/${product.aPlusTemplateId}`,
+          {
+            cache: 'no-store',
+          }
+        );
+        if (tRes.ok) {
+          const tJson = await tRes.json();
+          if (tJson.success) {
+            aplusTemplate = tJson.data;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch A+ Template on server side:", err);
+      }
+    }
+
     return {
       product,
       selectedVariantId,
+      aplusTemplate,
     };
   } catch (err) {
     console.error("getProduct error:", err);
@@ -213,6 +234,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     <ProductClient 
       product={data.product}
       initialVariantId={data.selectedVariantId}
+      aplusTemplate={data.aplusTemplate}
+      aplusContent={data.product.aPlusContent}
     />
   </>
 );

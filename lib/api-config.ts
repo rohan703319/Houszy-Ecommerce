@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.direct-care.co.uk';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.athlits.co.uk';
 
 export const API_ENDPOINTS = {
   // Auth
@@ -131,4 +131,5 @@ export const API_ENDPOINTS = {
     balance: '/api/loyalty/balance',
     history: '/api/loyalty/history'
   },
+  aplusTemplates: '/api/APlusTemplates',
 };

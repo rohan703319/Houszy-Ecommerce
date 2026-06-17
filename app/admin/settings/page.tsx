@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Settings, Store, CreditCard, Mail, Palette, Shield, Bell,
   Save, Upload, Eye, EyeOff, RefreshCw, Globe, Phone, MapPin,
-  Clock, DollarSign, Check, AlertCircle, X, Image as ImageIcon,
+  Clock, Check, AlertCircle, X, Image as ImageIcon,
   Zap, Webhook, ExternalLink, TestTube, Info, ChevronRight,
   Plus, Trash2, Pencil,
+  PoundSterling,
 } from 'lucide-react';
 import { useToast } from '../_components/CustomToast';
 import { API_BASE_URL } from '@/lib/api-config';
@@ -96,14 +97,14 @@ const DEFAULT: StoreSettingsDto = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'general',         label: 'General',         icon: Store,      color: 'text-violet-400' },
-  { id: 'payments',        label: 'Payments',         icon: CreditCard, color: 'text-emerald-400' },
-  { id: 'email',           label: 'Email / SMTP',     icon: Mail,       color: 'text-blue-400' },
-  { id: 'appearance',      label: 'Appearance',       icon: Palette,    color: 'text-pink-400' },
-  { id: 'security',        label: 'Security',         icon: Shield,     color: 'text-yellow-400' },
-  { id: 'notifications',   label: 'Notifications',    icon: Bell,       color: 'text-cyan-400' },
-  { id: 'store-locations', label: 'Store Locations',  icon: MapPin,     color: 'text-orange-400' },
-  { id: 'google-merchant', label: 'Google Merchant',  icon: Globe,      color: 'text-emerald-400' },
+  { id: 'general', label: 'General', icon: Store, color: 'text-violet-400' },
+  { id: 'payments', label: 'Payments', icon: CreditCard, color: 'text-emerald-400' },
+  { id: 'email', label: 'Email / SMTP', icon: Mail, color: 'text-blue-400' },
+  { id: 'appearance', label: 'Appearance', icon: Palette, color: 'text-pink-400' },
+  { id: 'security', label: 'Security', icon: Shield, color: 'text-yellow-400' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'text-cyan-400' },
+  { id: 'store-locations', label: 'Store Locations', icon: MapPin, color: 'text-orange-400' },
+  { id: 'google-merchant', label: 'Google Merchant', icon: Globe, color: 'text-emerald-400' },
 ];
 
 // ─── Store Location types ─────────────────────────────────────────────────────
@@ -134,13 +135,13 @@ const EMPTY_LOCATION: StoreLocationForm = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'CAD', 'AUD'];
-const TIMEZONES  = ['UTC', 'Europe/London', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Karachi'];
+const TIMEZONES = ['UTC', 'Europe/London', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Karachi'];
 const ACCENT_COLORS = [
   { label: 'Violet + Cyan', value: 'violet-cyan' },
   { label: 'Blue + Purple', value: 'blue-purple' },
-  { label: 'Green + Teal',  value: 'green-teal' },
-  { label: 'Pink + Rose',   value: 'pink-rose' },
-  { label: 'Orange + Red',  value: 'orange-red' },
+  { label: 'Green + Teal', value: 'green-teal' },
+  { label: 'Pink + Rose', value: 'pink-rose' },
+  { label: 'Orange + Red', value: 'orange-red' },
 ];
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -327,7 +328,7 @@ function PaymentsTab({ s, set }: { s: StoreSettingsDto; set: (k: keyof StoreSett
         )}
       </SectionCard>
 
-      <SectionCard title="Other Methods" icon={DollarSign}>
+      <SectionCard title="Other Methods" icon={PoundSterling}>
         <Toggle value={s.codEnabled} onChange={v => set('codEnabled', v)} label="Cash on Delivery (COD)" />
         <Toggle value={s.bankTransferEnabled} onChange={v => set('bankTransferEnabled', v)} label="Bank Transfer" />
       </SectionCard>
@@ -446,28 +447,28 @@ function StoreLocationsTab() {
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<StoreLocationForm>(EMPTY_LOCATION);
   // ================== STATE ADD ==================
-const [confirmToggle, setConfirmToggle] = useState<{
-  open: boolean;
-  item: StoreLocationItem | null;
-}>({
-  open: false,
-  item: null,
-});
-
-const [toggleLoading, setToggleLoading] = useState(false);
-
-
-// ================== TOGGLE CLICK ==================
-const openStatusConfirm = (loc: StoreLocationItem) => {
-  setConfirmToggle({
-    open: true,
-    item: loc,
+  const [confirmToggle, setConfirmToggle] = useState<{
+    open: boolean;
+    item: StoreLocationItem | null;
+  }>({
+    open: false,
+    item: null,
   });
-};
+
+  const [toggleLoading, setToggleLoading] = useState(false);
+
+
+  // ================== TOGGLE CLICK ==================
+  const openStatusConfirm = (loc: StoreLocationItem) => {
+    setConfirmToggle({
+      open: true,
+      item: loc,
+    });
+  };
 
 
   // ================= STATE ADD =================
-const [viewingLoc, setViewingLoc] = useState<StoreLocationItem | null>(null);
+  const [viewingLoc, setViewingLoc] = useState<StoreLocationItem | null>(null);
 
   const loadLocations = useCallback(async () => {
     setLocLoading(true);
@@ -490,39 +491,39 @@ const [viewingLoc, setViewingLoc] = useState<StoreLocationItem | null>(null);
 
 
   // ================== TOGGLE SUBMIT ==================
-const handleToggleStatus = async () => {
-  if (!confirmToggle.item) return;
+  const handleToggleStatus = async () => {
+    if (!confirmToggle.item) return;
 
-  const loc = confirmToggle.item;
+    const loc = confirmToggle.item;
 
-  try {
-    setToggleLoading(true);
+    try {
+      setToggleLoading(true);
 
-    const res = await fetch(`${API_BASE_URL}/api/StoreLocations/${loc.id}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        ...loc,
-        isActive: !loc.isActive,
-      }),
-    });
+      const res = await fetch(`${API_BASE_URL}/api/StoreLocations/${loc.id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          ...loc,
+          isActive: !loc.isActive,
+        }),
+      });
 
-    if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error();
 
-    toast.success(
-      `Location ${loc.isActive ? "deactivated" : "activated"} successfully`
-    );
+      toast.success(
+        `Location ${loc.isActive ? "deactivated" : "activated"} successfully`
+      );
 
-    setConfirmToggle({ open: false, item: null });
+      setConfirmToggle({ open: false, item: null });
 
-    loadLocations();
+      loadLocations();
 
-  } catch {
-    toast.error("Failed to update location status");
-  } finally {
-    setToggleLoading(false);
-  }
-};
+    } catch {
+      toast.error("Failed to update location status");
+    } finally {
+      setToggleLoading(false);
+    }
+  };
   const handleSave = async () => {
     if (!form.name.trim() || !form.addressLine1.trim() || !form.city.trim() || !form.postalCode.trim()) {
       toast.error('Name, Address, City and Postal Code are required.');
@@ -572,130 +573,129 @@ const handleToggleStatus = async () => {
 
   return (
     <div className="space-y-4">
-    <div className="flex items-center justify-between gap-3 flex-wrap">
-  <div className="flex items-center gap-2">
-    <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold">
-      {locations.length}
-    </span>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold">
+            {locations.length}
+          </span>
 
-    <p className="text-sm text-slate-300 font-medium">
-      {locations.length === 1 ? "Store Location" : "Store Locations"}
-      <span className="text-slate-500 font-normal ml-1">
-        for Click & Collect
-      </span>
-    </p>
-  </div>
+          <p className="text-sm text-slate-300 font-medium">
+            {locations.length === 1 ? "Store Location" : "Store Locations"}
+            <span className="text-slate-500 font-normal ml-1">
+              for Click & Collect
+            </span>
+          </p>
+        </div>
 
-  <button
-    onClick={openAdd}
-    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/20 border border-violet-500/40 text-violet-300 rounded-lg text-xs font-medium hover:bg-violet-500/30 transition-all"
-  >
-    <Plus className="w-3.5 h-3.5" />
-    Add Location
-  </button>
-</div>
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/20 border border-violet-500/40 text-violet-300 rounded-lg text-xs font-medium hover:bg-violet-500/30 transition-all"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add Location
+        </button>
+      </div>
 
       {locLoading ? (
         <div className="flex justify-center py-12"><RefreshCw className="w-6 h-6 text-violet-400 animate-spin" /></div>
       ) : locations.length === 0 ? (
         <div className="text-center py-12 text-slate-500 text-sm">No store locations yet. Click &quot;Add Location&quot; to create one.</div>
       ) : (
-   <div className="space-y-3">
-  {locations.map((loc, index) => (
-    <div
-      key={loc.id}
-      className="bg-slate-800/40 border border-slate-700/50 rounded-xl px-4 py-4 hover:border-violet-500/30 transition-all"
-    >
-      <div className="flex justify-between gap-4">
+        <div className="space-y-3">
+          {locations.map((loc, index) => (
+            <div
+              key={loc.id}
+              className="bg-slate-800/40 border border-slate-700/50 rounded-xl px-4 py-4 hover:border-violet-500/30 transition-all"
+            >
+              <div className="flex justify-between gap-4">
 
-        {/* LEFT */}
-
-        
-          <div className="min-w-0 flex-1">
-
-            {/* TOP */}
-            <div className="flex items-center gap-2 flex-wrap">
-
-              <span className="w-6 h-6 rounded-full bg-violet-500/15 text-violet-300 text-xs font-bold flex items-center justify-center">
-                {index + 1}
-              </span>
-
-              <h3 className="text-base font-semibold text-white truncate">
-                {loc.name}
-              </h3>
+                {/* LEFT */}
 
 
-<button
-  onClick={() => openStatusConfirm(loc)}
-  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all hover:scale-105 ${
-    loc.isActive
-      ? "bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
-      : "bg-slate-700/40 text-slate-400 border-slate-600 hover:bg-slate-700"
-  }`}
->
-  {loc.isActive ? "Active" : "Inactive"}
-</button>
+                <div className="min-w-0 flex-1">
+
+                  {/* TOP */}
+                  <div className="flex items-center gap-2 flex-wrap">
+
+                    <span className="w-6 h-6 rounded-full bg-violet-500/15 text-violet-300 text-xs font-bold flex items-center justify-center">
+                      {index + 1}
+                    </span>
+
+                    <h3 className="text-base font-semibold text-white truncate">
+                      {loc.name}
+                    </h3>
+
+
+                    <button
+                      onClick={() => openStatusConfirm(loc)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all hover:scale-105 ${loc.isActive
+                        ? "bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
+                        : "bg-slate-700/40 text-slate-400 border-slate-600 hover:bg-slate-700"
+                        }`}
+                    >
+                      {loc.isActive ? "Active" : "Inactive"}
+                    </button>
+                  </div>
+
+                  {/* ADDRESS */}
+                  <p className="text-sm text-slate-400 mt-1 leading-relaxed">
+                    {loc.addressLine1}
+                    {loc.addressLine2 ? `, ${loc.addressLine2}` : ""}
+                    , {loc.city}, {loc.postalCode}
+                  </p>
+
+                  {/* META */}
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    {loc.phoneNumber && (
+                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-cyan-400" />
+                        {loc.phoneNumber}
+                      </span>
+                    )}
+
+                    {loc.openingHours && (
+                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-400" />
+                        {loc.openingHours}
+                      </span>
+                    )}
+                  </div>
+
+                </div>
+
+
+                {/* RIGHT ACTIONS */}
+                <div className="flex items-center gap-1 self-center bg-slate-900/40 border border-slate-700/40 rounded-xl p-1">
+
+                  <button
+                    onClick={() => setViewingLoc(loc)}
+                    className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
+                    title="View"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => openEdit(loc)}
+                    className="p-2 text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all"
+                    title="Edit"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setDeleteId(loc.id)}
+                    className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+
+                </div>
+              </div>
             </div>
-
-            {/* ADDRESS */}
-            <p className="text-sm text-slate-400 mt-1 leading-relaxed">
-              {loc.addressLine1}
-              {loc.addressLine2 ? `, ${loc.addressLine2}` : ""}
-              , {loc.city}, {loc.postalCode}
-            </p>
-
-            {/* META */}
-            <div className="flex flex-wrap gap-4 mt-2">
-              {loc.phoneNumber && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <Phone className="w-3 h-3 text-cyan-400" />
-                  {loc.phoneNumber}
-                </span>
-              )}
-
-              {loc.openingHours && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-amber-400" />
-                  {loc.openingHours}
-                </span>
-              )}
-            </div>
-
-          </div>
-
-
-        {/* RIGHT ACTIONS */}
-        <div className="flex items-center gap-1 self-center bg-slate-900/40 border border-slate-700/40 rounded-xl p-1">
-
-          <button
-            onClick={() => setViewingLoc(loc)}
-            className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all"
-            title="View"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => openEdit(loc)}
-            className="p-2 text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-all"
-            title="Edit"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setDeleteId(loc.id)}
-            className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-            title="Delete"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-
+          ))}
         </div>
-      </div>
-    </div>
-  ))}
-</div>
       )}
 
       {/* Add / Edit Modal */}
@@ -809,151 +809,149 @@ const handleToggleStatus = async () => {
       )}
 
       {/* ================= VIEW MODAL ================= */}
-{viewingLoc && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-    <div className="bg-slate-900 border border-slate-700/60 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+      {viewingLoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700/60 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 p-5 border-b border-slate-700/50 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-violet-500/10">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-          <MapPin className="w-5 h-5 text-cyan-400" />
+            {/* Header */}
+            <div className="flex items-center gap-3 p-5 border-b border-slate-700/50 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-violet-500/10">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-cyan-400" />
+              </div>
+
+              <div className="flex-1">
+                <h3 className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  Store Location Details
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Click & Collect Store Information
+                </p>
+              </div>
+
+              <button
+                onClick={() => setViewingLoc(null)}
+                className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500/20 rounded-xl transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4 overflow-y-auto">
+
+              {/* Name + Status */}
+              <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
+                <div>
+                  <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider mb-1">
+                    Location Name
+                  </p>
+                  <p className="text-white font-semibold text-xl">
+                    {viewingLoc.name}
+                  </p>
+                </div>
+
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${viewingLoc.isActive
+                    ? "bg-green-500/10 text-green-400 border-green-500/30"
+                    : "bg-red-500/10 text-red-400 border-red-500/30"
+                    }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${viewingLoc.isActive ? "bg-green-400" : "bg-red-400"
+                      }`}
+                  />
+                  {viewingLoc.isActive ? "Active" : "Inactive"}
+                </span>
+              </div>
+
+              {/* Address */}
+              <div className="border-b border-slate-800 pb-4">
+                <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider mb-3">
+                  Address
+                </p>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 min-w-[95px]">Line 1:</span>
+                    <span className="text-slate-200">{viewingLoc.addressLine1}</span>
+                  </div>
+
+                  {viewingLoc.addressLine2 && (
+                    <div className="flex gap-2">
+                      <span className="text-slate-500 min-w-[95px]">Line 2:</span>
+                      <span className="text-slate-300">{viewingLoc.addressLine2}</span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 min-w-[95px]">City:</span>
+                    <span className="text-slate-300">
+                      {viewingLoc.city}, {viewingLoc.postalCode}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 min-w-[95px]">Country:</span>
+                    <span className="text-slate-300">{viewingLoc.country}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
+                  <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
+                    Phone
+                  </p>
+                  <p className="text-slate-200">
+                    {viewingLoc.phoneNumber || "N/A"}
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
+                  <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
+                    Email
+                  </p>
+                  <p className="text-slate-200 break-all">
+                    {viewingLoc.email || "N/A"}
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
+                  <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
+                    Opening Hours
+                  </p>
+                  <p className="text-slate-200">
+                    {viewingLoc.openingHours || "N/A"}
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
+                  <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
+                    Display Order
+                  </p>
+                  <p className="text-cyan-400 font-semibold">
+                    #{viewingLoc.displayOrder}
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-slate-700/50 bg-slate-900/80">
+              <button
+                onClick={() => setViewingLoc(null)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-xl font-medium transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
         </div>
-
-        <div className="flex-1">
-          <h3 className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-            Store Location Details
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Click & Collect Store Information
-          </p>
-        </div>
-
-        <button
-          onClick={() => setViewingLoc(null)}
-          className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500/20 rounded-xl transition-all"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="p-5 space-y-4 overflow-y-auto">
-
-        {/* Name + Status */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
-          <div>
-            <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider mb-1">
-              Location Name
-            </p>
-            <p className="text-white font-semibold text-xl">
-              {viewingLoc.name}
-            </p>
-          </div>
-
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
-              viewingLoc.isActive
-                ? "bg-green-500/10 text-green-400 border-green-500/30"
-                : "bg-red-500/10 text-red-400 border-red-500/30"
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                viewingLoc.isActive ? "bg-green-400" : "bg-red-400"
-              }`}
-            />
-            {viewingLoc.isActive ? "Active" : "Inactive"}
-          </span>
-        </div>
-
-        {/* Address */}
-<div className="border-b border-slate-800 pb-4">
-  <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wider mb-3">
-    Address
-  </p>
-
-  <div className="space-y-2 text-sm">
-    <div className="flex gap-2">
-      <span className="text-slate-500 min-w-[95px]">Line 1:</span>
-      <span className="text-slate-200">{viewingLoc.addressLine1}</span>
-    </div>
-
-    {viewingLoc.addressLine2 && (
-      <div className="flex gap-2">
-        <span className="text-slate-500 min-w-[95px]">Line 2:</span>
-        <span className="text-slate-300">{viewingLoc.addressLine2}</span>
-      </div>
-    )}
-
-    <div className="flex gap-2">
-      <span className="text-slate-500 min-w-[95px]">City:</span>
-      <span className="text-slate-300">
-        {viewingLoc.city}, {viewingLoc.postalCode}
-      </span>
-    </div>
-
-    <div className="flex gap-2">
-      <span className="text-slate-500 min-w-[95px]">Country:</span>
-      <span className="text-slate-300">{viewingLoc.country}</span>
-    </div>
-  </div>
-</div>
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
-            <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
-              Phone
-            </p>
-            <p className="text-slate-200">
-              {viewingLoc.phoneNumber || "N/A"}
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
-            <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
-              Email
-            </p>
-            <p className="text-slate-200 break-all">
-              {viewingLoc.email || "N/A"}
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
-            <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
-              Opening Hours
-            </p>
-            <p className="text-slate-200">
-              {viewingLoc.openingHours || "N/A"}
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
-            <p className="text-[11px] text-slate-500 uppercase font-semibold mb-1">
-              Display Order
-            </p>
-            <p className="text-cyan-400 font-semibold">
-              #{viewingLoc.displayOrder}
-            </p>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-5 border-t border-slate-700/50 bg-slate-900/80">
-        <button
-          onClick={() => setViewingLoc(null)}
-          className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-xl font-medium transition-all"
-        >
-          Close
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
+      )}
       {/* Delete confirm */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -975,68 +973,67 @@ const handleToggleStatus = async () => {
       )}
 
 
-{confirmToggle.open && confirmToggle.item && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-    <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+      {confirmToggle.open && confirmToggle.item && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
 
-      {/* Header */}
-      <div className="p-5 border-b border-slate-800">
-        <h3 className="text-lg font-bold text-white">
-          {confirmToggle.item.isActive ? "Deactivate" : "Activate"} Location
-        </h3>
-        <p className="text-sm text-slate-400 mt-1">
-          {confirmToggle.item.isActive
-            ? "This location will be hidden from customers."
-            : "This location will be visible for Click & Collect."}
-        </p>
-      </div>
+            {/* Header */}
+            <div className="p-5 border-b border-slate-800">
+              <h3 className="text-lg font-bold text-white">
+                {confirmToggle.item.isActive ? "Deactivate" : "Activate"} Location
+              </h3>
+              <p className="text-sm text-slate-400 mt-1">
+                {confirmToggle.item.isActive
+                  ? "This location will be hidden from customers."
+                  : "This location will be visible for Click & Collect."}
+              </p>
+            </div>
 
-      {/* Body */}
-      <div className="p-5">
-        <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
-          <p className="text-white font-medium">
-            {confirmToggle.item.name}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            {confirmToggle.item.city}, {confirmToggle.item.postalCode}
-          </p>
+            {/* Body */}
+            <div className="p-5">
+              <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+                <p className="text-white font-medium">
+                  {confirmToggle.item.name}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {confirmToggle.item.city}, {confirmToggle.item.postalCode}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-slate-800 flex gap-3">
+              <button
+                onClick={() =>
+                  setConfirmToggle({
+                    open: false,
+                    item: null,
+                  })
+                }
+                disabled={toggleLoading}
+                className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleToggleStatus}
+                disabled={toggleLoading}
+                className={`flex-1 px-4 py-2.5 rounded-xl text-white font-medium transition-all ${confirmToggle.item.isActive
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-green-500 hover:bg-green-600"
+                  }`}
+              >
+                {toggleLoading
+                  ? "Please wait..."
+                  : confirmToggle.item.isActive
+                    ? "Deactivate"
+                    : "Activate"}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-5 border-t border-slate-800 flex gap-3">
-        <button
-          onClick={() =>
-            setConfirmToggle({
-              open: false,
-              item: null,
-            })
-          }
-          disabled={toggleLoading}
-          className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={handleToggleStatus}
-          disabled={toggleLoading}
-          className={`flex-1 px-4 py-2.5 rounded-xl text-white font-medium transition-all ${
-            confirmToggle.item.isActive
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-green-500 hover:bg-green-600"
-          }`}
-        >
-          {toggleLoading
-            ? "Please wait..."
-            : confirmToggle.item.isActive
-            ? "Deactivate"
-            : "Activate"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 }
@@ -1145,12 +1142,12 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-white">{currentTab.label}</h2>
             </div>
 
-            {activeTab === 'general'         && <GeneralTab         s={settings} set={setField} />}
-            {activeTab === 'payments'        && <PaymentsTab        s={settings} set={setField} />}
-            {activeTab === 'email'           && <EmailTab           s={settings} set={setField} />}
-            {activeTab === 'appearance'      && <AppearanceTab      s={settings} set={setField} />}
-            {activeTab === 'security'        && <SecurityTab        s={settings} set={setField} />}
-            {activeTab === 'notifications'   && <NotificationsTab   s={settings} set={setField} />}
+            {activeTab === 'general' && <GeneralTab s={settings} set={setField} />}
+            {activeTab === 'payments' && <PaymentsTab s={settings} set={setField} />}
+            {activeTab === 'email' && <EmailTab s={settings} set={setField} />}
+            {activeTab === 'appearance' && <AppearanceTab s={settings} set={setField} />}
+            {activeTab === 'security' && <SecurityTab s={settings} set={setField} />}
+            {activeTab === 'notifications' && <NotificationsTab s={settings} set={setField} />}
             {activeTab === 'store-locations' && <StoreLocationsTab />}
             {activeTab === 'google-merchant' && <GoogleMerchantSettings />}
           </div>

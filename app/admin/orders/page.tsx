@@ -145,7 +145,6 @@ export default function OrdersListPage() {
     status: "",
     fromDate: "",
     toDate: "",
-    deliveryMethod: "",
     shippingMethodName: "",
     paymentMethod: "",
     paymentStatus: "",
@@ -288,10 +287,15 @@ export default function OrdersListPage() {
             ? filters.isGuestOrder === "true"
             : undefined,
         isClickAndCollect:
-          filters.deliveryMethod !== ""
-            ? filters.deliveryMethod === "ClickAndCollect"
+          filters.shippingMethodName === "ClickAndCollect"
+            ? true
+            : filters.shippingMethodName !== ""
+            ? false
             : undefined,
-        shippingMethodName: filters.shippingMethodName || undefined,
+        shippingMethodName:
+          filters.shippingMethodName !== "" && filters.shippingMethodName !== "ClickAndCollect"
+            ? filters.shippingMethodName
+            : undefined,
         isPharmaProduct:
           filters.isPharmaProduct !== ""
             ? filters.isPharmaProduct === "true"
@@ -338,7 +342,6 @@ export default function OrdersListPage() {
     filters.status,
     filters.fromDate,
     filters.toDate,
-    filters.deliveryMethod,
     filters.shippingMethodName,
     filters.paymentMethod,
     filters.paymentStatus,
@@ -543,7 +546,6 @@ export default function OrdersListPage() {
       status: "",
       fromDate: "",
       toDate: "",
-      deliveryMethod: "",
       shippingMethodName: "",
       paymentMethod: "",
       paymentStatus: "",
@@ -1111,24 +1113,6 @@ export default function OrdersListPage() {
             <option value="Refunded">Refunded</option>
             <option value="Cancelled">Cancelled</option>
           </select>
-
-          {/* DELIVERY METHOD */}
-          <select
-            value={filters.deliveryMethod}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                deliveryMethod: e.target.value,
-              }))
-            }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
-        ${filters.deliveryMethod ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
-          >
-            <option value="">Delivery Method: All</option>
-            <option value="HomeDelivery">Home Delivery</option>
-            <option value="ClickAndCollect">Click & Collect</option>
-          </select>
-
           {/* SHIPPING METHOD */}
           <select
             value={filters.shippingMethodName}
@@ -1144,6 +1128,7 @@ export default function OrdersListPage() {
             <option value="">Shipping Method: All</option>
             <option value="Next Day Delivery">Next Day Delivery</option>
             <option value="Standard Delivery">Standard Delivery</option>
+            <option value="ClickAndCollect">Click & Collect</option>
           </select>
 
           {/* PAYMENT METHOD */}

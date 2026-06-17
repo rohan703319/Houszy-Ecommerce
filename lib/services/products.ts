@@ -223,8 +223,10 @@ vatRateName?:string;
 recurringTotalCycles?:number;
 deliveryDateId?:number;
 dispatchTimeNote?:string;
-nextDayDeliveryFree?:boolean;
-nextDayDeliveryCutoffTime?:string;
+  nextDayDeliveryFree?:boolean;
+  nextDayDeliveryCutoffTime?:string;
+  aPlusTemplateId?: string | null;
+  aPlusContent?: string | null;
   sku: string;
   gtin?: string;
   isActive?: boolean;
@@ -403,6 +405,8 @@ export interface CreateProductDto {
   backInStockCount?: number; // ✅ ADD THIS
   features?: ProductFeature[];
   fakeSaleCount?: number;
+  aPlusTemplateId?: string | null;
+  aPlusContent?: string | null;
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

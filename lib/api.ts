@@ -1,7 +1,7 @@
 // lib/api.ts
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.direct-care.co.uk';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.athlits.co.uk';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -18,7 +18,7 @@ class ApiClient {
     // ✅ Validate and log base URL
     if (!baseURL || baseURL === 'undefined') {
       console.error('❌ Invalid API_BASE_URL:', baseURL);
-      baseURL = 'https://api.direct-care.co.uk';
+      baseURL = 'https://api.athlits.co.uk';
     }
 
     console.log('🔧 API Client initialized with URL:', baseURL);

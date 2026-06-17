@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
 const SITE_URL = 'https://www.direct-care.co.uk'
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.direct-care.co.uk'
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.athlits.co.uk'
 
 async function fetchSlugs<T>(url: string, extract: (item: T) => string): Promise<string[]> {
   try {
@@ -66,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: 'weekly',
     priority: 0.7,
   }))
-  
+
   const brandPages: MetadataRoute.Sitemap = brandSlugs.map((slug) => ({
     url: `${SITE_URL}/brands/${slug}`,
     lastModified: new Date(),
@@ -74,5 +74,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-return [...staticPages, ...productPages, ...categoryPages, ...blogPages, ...brandPages]
+  return [...staticPages, ...productPages, ...categoryPages, ...blogPages, ...brandPages]
 }
