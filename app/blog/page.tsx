@@ -49,7 +49,7 @@ async function fetchJSON(url: string) {
 
 function absoluteUrl(path?: string | null) {
   if (!path) return null;
-  
+
   if (path.startsWith("http")) {
     try {
       const urlObj = new URL(path);
@@ -149,7 +149,7 @@ export default async function BlogPage() {
                   <Link key={post.id} href={`/blog/${post.slug}`} className="group flex flex-col">
                     <article className="flex flex-col h-full">
                       {/* IMAGE */}
-                      <div className="w-full aspect-[16/10] bg-gray-50 rounded-xl overflow-hidden mb-4 border border-gray-100 relative">
+                      <div className="w-full aspect-[16/10] rounded-xl overflow-hidden mb-4  relative">
                         <Image
                           src={
                             absoluteUrl(post.thumbnailImageUrl) ??
@@ -203,10 +203,7 @@ export default async function BlogPage() {
                         )}
                       </div>
 
-                      {/* READ MORE */}
-                      <div className="text-sm text-gray-600 font-medium group-hover:text-[#f38918] transition-colors">
-                        Read more
-                      </div>
+
                     </article>
                   </Link>
                 ))}
@@ -214,10 +211,10 @@ export default async function BlogPage() {
 
               {/* LOAD MORE BUTTON */}
               {catPosts.length > 3 && (
-                <div className="mt-12">
+                <div className="mt-6">
                   <Link href={`/blog/category/${cat.slug}`}>
-                    <button className="bg-[#f38918] hover:bg-black text-white font-bold py-3 px-8 rounded-lg transition-colors">
-                      Load more &gt;
+                    <button className="bg-[#f38918] hover:bg-black text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                      Load more &gt; &gt;
                     </button>
                   </Link>
                 </div>

@@ -19,7 +19,7 @@ async function fetchSlugs<T>(url: string, extract: (item: T) => string): Promise
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [productSlugs, categorySlugs, blogSlugs, brandSlugs] = await Promise.all([
     fetchSlugs<{ slug: string }>(
-      `${API_URL}/api/Products?page=1&pageSize=5000&isPublished=true`,
+      `${API_URL}/api/Products?page=1&pageSize=500&isPublished=true`,
       (p) => p.slug
     ),
     fetchSlugs<{ slug: string }>(
@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       (c) => c.slug
     ),
     fetchSlugs<{ slug: string }>(
-      `${API_URL}/api/BlogPosts?page=1&pageSize=1000`,
+      `${API_URL}/api/BlogPosts?page=1&pageSize=500`,
       (b) => b.slug
     ),
     fetchSlugs<{ slug: string }>(

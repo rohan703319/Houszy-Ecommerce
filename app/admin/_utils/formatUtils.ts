@@ -136,16 +136,24 @@ export const generateSlug = (title: string) =>
     .replace(/^-|-$/g, "");
   export const getImageUrl = (imageUrl?: string) => {
     if (!imageUrl) return "";
-    // Full URL — return as-is
-    if (imageUrl.startsWith("http")) return imageUrl;
-    // Relative path (e.g. /images/products/...) — return as-is so that
-    // Next.js rewrites can proxy it to the correct API server.
-    // This avoids any dependency on NEXT_PUBLIC_API_URL being set correctly.
-    if (imageUrl.startsWith("/")) return imageUrl;
-    
-    // Relative path without leading slash — prepend base URL
-    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "");
-    return `${baseUrl}/${imageUrl}`;
+    // Full URL — check if it contains /images/ or /s/files/ path
+    if (imageUrl.startsWith("http")) {
+      try {
+        const urlObj = new URL(imageUrl);
+        if (urlObj.pathname.startsWith("/images/") || urlObj.pathname.startsWith("/s/files/")) {
+          const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "").replace(/\/$/, "");
+          return `${baseUrl}${urlObj.pathname}`;
+        }
+        return imageUrl;
+      } catch (e) {
+        return imageUrl;
+      }
+    }
+    // Relative path (either starting with "/" or not)
+    // We prepend the API base URL so it queries the backend directly and avoids missing rewrite rules.
+    const baseUrl = API_BASE_URL.replace(/\/api\/?$/, "").replace(/\/$/, "");
+    const cleanPath = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
+    return `${baseUrl}${cleanPath}`;
   };
 
 

@@ -178,9 +178,11 @@ async function getDiscountedProducts(baseUrl: string) {
     const result = await res.json();
     if (!result.success) return [];
     const items: any[] = result.data?.items ?? [];
-    return items.filter(
-      (p: any) => Array.isArray(p.assignedDiscounts) && p.assignedDiscounts.length > 0
-    );
+    return items
+      .filter(
+        (p: any) => Array.isArray(p.assignedDiscounts) && p.assignedDiscounts.length > 0
+      )
+      .slice(0, 16);
   } catch {
     return [];
   }

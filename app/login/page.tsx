@@ -34,7 +34,7 @@ export default function LoginPage() {
       localStorage.setItem("accessToken", token);
       localStorage.setItem("authToken", token);
       localStorage.setItem("refreshToken", result.refreshToken || "");
-      
+
       if (result.user) {
         localStorage.setItem("user", JSON.stringify(result.user));
         localStorage.setItem("userData", JSON.stringify(result.user)); // Backward compatibility
@@ -77,46 +77,46 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
 
       {/* Gradient Orbs */}
-      <div className="absolute top-0 -left-4 w-96 h-96 bg-violet-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
-      <div className="absolute top-0 -right-4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
-      <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000" />
+      <div className="absolute top-0 -left-4 w-96 h-96 bg-[#f38918] rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-blob" />
+      <div className="absolute top-0 -right-4 w-96 h-96 bg-amber-600 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-blob animation-delay-2000" />
+      <div className="absolute -bottom-8 left-20 w-96 h-96 bg-orange-700 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000" />
 
       <div className="relative z-10 min-h-screen flex">
         {/* Left Side - Branding */}
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12">
           <div>
-     
-
-<div className="flex items-center gap-4 mb-14">
-  <div className="relative rounded-2xl border border-slate-700/70 bg-slate-900/70 backdrop-blur-xl px-5 py-4 shadow-2xl">
-
-    <div className="flex items-center gap-5">
-      
-      {/* Logo */}
-      <div className="bg-white rounded-xl px-3 py-2 shadow-md">
-        <img
-          src="/logo/logo.png"
-          alt="Houszy"
-          className="h-12 w-auto object-contain"
-        />
-      </div>
 
 
-      <div className="w-px h-12 bg-slate-700" />
-      {/* Brand */}
-      <div>
-          <p className="text-xs tracking-[0.35em] uppercase text-slate-400 mt-2">
-          Admin Dashboard
-        </p>
-      </div>
+            <div className="flex items-center gap-4 mb-14">
+              <div className="relative rounded-2xl border border-slate-700/70 bg-slate-900/70 backdrop-blur-xl px-5 py-4 shadow-2xl">
 
-    </div>
-  </div>
-</div>
+                <div className="flex items-center gap-5">
+
+                  {/* Logo */}
+                  <div className="bg-white rounded-xl px-3 py-2 shadow-md">
+                    <img
+                      src="/logo/logo.png"
+                      alt="Houszy"
+                      className="h-12 w-auto object-contain"
+                    />
+                  </div>
+
+
+                  <div className="w-px h-12 bg-slate-700" />
+                  {/* Brand */}
+                  <div>
+                    <p className="text-xs tracking-[0.35em] uppercase text-slate-400 mt-2">
+                      Admin Dashboard
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+            </div>
 
             <h1 className="text-5xl font-bold text-white mb-6 leading-tight">
               Welcome to the<br />
-              <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#f38918] via-amber-400 to-[#f38918] bg-clip-text text-transparent">
                 Future of Commerce
               </span>
             </h1>
@@ -126,23 +126,23 @@ export default function LoginPage() {
             </p>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-6 max-w-lg">
+            {/* <div className="grid grid-cols-3 gap-6 max-w-lg">
               <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-5">
-                <TrendingUp className="w-8 h-8 text-violet-400 mb-3" />
+                <TrendingUp className="w-8 h-8 text-[#f38918] mb-3" />
                 <div className="text-2xl font-bold text-white">99.9%</div>
                 <div className="text-sm text-slate-400">Uptime</div>
               </div>
               <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-5">
-                <Users2 className="w-8 h-8 text-cyan-400 mb-3" />
+                <Users2 className="w-8 h-8 text-[#f38918] mb-3" />
                 <div className="text-2xl font-bold text-white">10k+</div>
                 <div className="text-sm text-slate-400">Merchants</div>
               </div>
               <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-5">
-                <BarChart3 className="w-8 h-8 text-pink-400 mb-3" />
+                <BarChart3 className="w-8 h-8 text-[#f38918] mb-3" />
                 <div className="text-2xl font-bold text-white">$2M+</div>
                 <div className="text-sm text-slate-400">Daily Sales</div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="text-sm text-slate-500">
@@ -155,11 +155,12 @@ export default function LoginPage() {
           <div className="w-full max-w-md">
             {/* Mobile Logo */}
             <div className="lg:hidden mb-10 text-center">
-              <div className="inline-flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-white">EcomPanel</span>
+              <div className="inline-flex items-center gap-3 mb-8 bg-white rounded-xl px-4 py-2 shadow-md">
+                <img
+                  src="/logo/logo.png"
+                  alt="Houszy"
+                  className="h-10 w-auto object-contain"
+                />
               </div>
             </div>
 
@@ -178,7 +179,7 @@ export default function LoginPage() {
                   <label className="text-sm font-medium text-slate-300">Email</label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+                      <Mail className="h-5 w-5 text-slate-500 group-focus-within:text-[#f38918] transition-colors" />
                     </div>
                     <input
                       type="email"
@@ -186,7 +187,7 @@ export default function LoginPage() {
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="admin@ecompanel.com"
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#f38918] focus:border-transparent transition-all"
                       required
                     />
                   </div>
@@ -197,7 +198,7 @@ export default function LoginPage() {
                   <label className="text-sm font-medium text-slate-300">Password</label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+                      <Lock className="h-5 w-5 text-slate-500 group-focus-within:text-[#f38918] transition-colors" />
                     </div>
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -205,7 +206,7 @@ export default function LoginPage() {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="••••••••"
-                      className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      className="w-full pl-12 pr-12 py-3.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#f38918] focus:border-transparent transition-all"
                       required
                     />
                     <button
@@ -228,10 +229,10 @@ export default function LoginPage() {
                 {/* Remember & Forgot */}
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900" />
+                    <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-[#f38918] focus:ring-[#f38918] focus:ring-offset-slate-900" />
                     <span className="text-sm text-slate-400">Remember me</span>
                   </label>
-                  <Link href="/forgot-password" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
+                  <Link href="/forgot-password" className="text-sm text-[#f38918] hover:text-amber-400 transition-colors">
                     Forgot password?
                   </Link>
                 </div>
@@ -240,7 +241,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-violet-500 via-purple-500 to-cyan-500 text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:shadow-violet-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className="w-full bg-gradient-to-r from-[#f38918] via-amber-500 to-[#d9730c] text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:shadow-[#f38918]/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -260,7 +261,7 @@ export default function LoginPage() {
 
               {/* Footer */}
               <div className="mt-8 text-center">
-                <Link href="/" className="text-sm text-slate-400 hover:text-slate-300 transition-colors inline-flex items-center gap-2">
+                <Link href="/" className="text-sm text-slate-400 hover:text-[#f38918] transition-colors inline-flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>

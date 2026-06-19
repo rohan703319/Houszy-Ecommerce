@@ -101,6 +101,8 @@ export default function CustomersPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [assigningRole, setAssigningRole] = useState(false);
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
 
   // ✅ Only 3 Filters (Backend)
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -378,6 +380,22 @@ const modalTier = selectedCustomer
     }
   };
 
+  const handleAssignRole = async (customerId: string, role: string) => {
+    setAssigningRole(true);
+    setPendingRole(role);
+    try {
+      await customersService.assignRole(customerId, role);
+      toast.success(`Role changed to ${role}`);
+      fetchCustomers(); // list refresh
+      if (selectedCustomer) setSelectedCustomer({ ...selectedCustomer, role });
+    } catch {
+      toast.error("Failed to change role");
+    } finally {
+      setAssigningRole(false);
+      setPendingRole(null);
+    }
+  };
+
   const getTierBadge = (tier: CustomerTier) => {
     const badges = {
       gold: { label: "Gold", icon: Crown, color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20" },
@@ -616,9 +634,15 @@ const modalTier = selectedCustomer
                         <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-md text-xs">{customer.totalOrders}</span>
                       </td>
                       <td className="py-2 px-2 text-center">
-                        {customer.accountType ? (
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${customer.accountType === "Business" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-slate-500/10 text-slate-400 border border-slate-500/20"}`}>
-                            {customer.accountType}
+                        {customer.role || customer.accountType ? (
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            (customer.role || customer.accountType) === "Business"
+                              ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                              : customer.role === "Admin"
+                                ? "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                                : "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                          }`}>
+                            {customer.role && customer.role !== "Customer" ? customer.role : (customer.accountType || "Personal")}
                           </span>
                         ) : <span className="text-slate-500 text-xs">N/A</span>}
                       </td>
@@ -1226,6 +1250,14 @@ const modalTier = selectedCustomer
                 {selectedCustomer.lastLoginAt ? formatRelativeDate(selectedCustomer.lastLoginAt) : "Never"}
               </span>
             </div>
+
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-violet-400 shrink-0" />
+              <span className="text-slate-400 min-w-[80px]">Role:</span>
+              <span className="text-white font-medium capitalize">
+                {selectedCustomer.role || "Customer"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1264,7 +1296,36 @@ const modalTier = selectedCustomer
           </div>
         )}
 
-       
+        {/* ✅ Role Management Section */}
+        <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
+          <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-violet-400" />
+            Role Management
+          </h3>
+          <div className="flex gap-3">
+            {["Customer", "Admin"].map((roleOption) => {
+              const currentRole = selectedCustomer.role || "Customer";
+              const isActive = currentRole.toLowerCase() === roleOption.toLowerCase();
+              return (
+                <button
+                  key={roleOption}
+                  disabled={assigningRole}
+                  onClick={() => handleAssignRole(selectedCustomer.id, roleOption)}
+                  className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 border ${
+                    isActive
+                      ? "bg-violet-500/20 border-violet-500 text-violet-300 shadow-md shadow-violet-500/10"
+                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {assigningRole && pendingRole === roleOption && (
+                    <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
+                  )}
+                  {roleOption}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   </div>

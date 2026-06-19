@@ -13,6 +13,7 @@ import { useToast } from "@/app/admin/_components/CustomToast";
 import { blogPostsService, BlogPost, BlogCategory } from "@/lib/services/blogPosts";
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { blogCategoriesService } from "@/lib/services/blogCategories";
+import { getImageUrl } from "../_utils/formatUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormErrors {
@@ -329,7 +330,7 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
   const [metaTitle, setMetaTitle] = useState(initialData?.metaTitle ?? "");
   const [metaDescription, setMetaDescription] = useState(initialData?.metaDescription ?? "");
   const [metaKeywords, setMetaKeywords] = useState(initialData?.metaKeywords ?? "");
-  const [thumbnailUrl, setThumbnailUrl] = useState(initialData?.thumbnailImageUrl ?? "");
+  const [thumbnailUrl, setThumbnailUrl] = useState(initialData?.thumbnailImageUrl || initialData?.featuredImageUrl || "");
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
@@ -361,14 +362,14 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
     else if (title.trim().length > 200) e.title = "Title must be under 200 characters.";
 
     if (!slug.trim()) e.slug = "Slug is required.";
-    else if (!/^[a-z0-9-]+$/.test(slug)) e.slug = "Slug can only contain lowercase letters, numbers, and hyphens.";
+    else if (!/^[a-z0-9-_]+$/.test(slug)) e.slug = "Slug can only contain lowercase letters, numbers, and hyphens.";
 
     if (!body || body.replace(/<[^>]+>/g, "").trim().length < 10)
       e.body = "Content is required (minimum 10 characters).";
 
-    if (metaTitle && metaTitle.length > 60) e.metaTitle = "Meta title must be under 60 characters.";
-    if (metaDescription && metaDescription.length > 160)
-      e.metaDescription = "Meta description must be under 160 characters.";
+    if (metaTitle && metaTitle.length > 200) e.metaTitle = "Meta title must be under 200 characters.";
+    if (metaDescription && metaDescription.length > 500)
+      e.metaDescription = "Meta description must be under 500 characters.";
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -398,6 +399,7 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
       metaDescription: metaDescription || undefined,
       metaKeywords: metaKeywords || undefined,
       thumbnailImageUrl: thumbnailUrl || undefined,
+      featuredImageUrl: thumbnailUrl || undefined,
     };
 
     try {
@@ -765,7 +767,7 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
               {thumbnailUrl ? (
                 <div className="relative group">
                   <img
-                    src={thumbnailUrl}
+                    src={getImageUrl(thumbnailUrl)}
                     alt="Thumbnail"
                     className="w-full h-36 object-cover rounded-lg border border-slate-700"
                     onError={() => setThumbnailUrl("")}

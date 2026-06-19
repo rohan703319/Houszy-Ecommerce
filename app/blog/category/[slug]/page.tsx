@@ -6,7 +6,7 @@ const API_BASE = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 
 
 function absoluteUrl(path?: string | null) {
   if (!path) return null;
-  
+
   if (path.startsWith("http")) {
     try {
       const urlObj = new URL(path);
@@ -203,7 +203,7 @@ export default async function BlogCategoryPage({
               key={post.id}
               className="bg-white rounded-2xl shadow p-4 hover:shadow-lg transition"
             >
-              <div className="relative w-full h-44 mb-4">
+              <div className="w-full aspect-[16/10] rounded-xl overflow-hidden mb-4 relative">
                 <Image
                   src={
                     absoluteUrl(post.thumbnailImageUrl) ??
@@ -212,7 +212,7 @@ export default async function BlogCategoryPage({
                   }
                   alt={`${post.title} ${category.name} article`}
                   fill
-                  className="object-contain rounded-lg"
+                  className="object-contain rounded-xl"
                   loading="lazy"
                 />
               </div>

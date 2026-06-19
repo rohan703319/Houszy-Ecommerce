@@ -12,6 +12,7 @@ import { CreditCard, FileText, Gift, ReceiptText, ShoppingBag, Truck } from "luc
 import SavedAddressesSection from "@/components/checkout/SavedAddressesSection";
 import LoyaltyRedemptionBox from "@/components/checkout/LoyaltyRedemptionBox";
 import { getPharmaSessionId } from "@/app/lib/pharmaSession";
+import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from "@/lib/analytics";
 // ---------- Types ----------
 type AddressSuggestion = {
   id: string;
@@ -413,6 +414,29 @@ export default function CheckoutPage() {
   useEffect(() => {
     console.log("CHECK ITEMS", checkoutItems);
   }, [checkoutItems]);
+
+  const beginCheckoutTrackedRef = useRef<string>("");
+  useEffect(() => {
+    const validItems = checkoutItems.filter((i: any) => i.productId || i.id);
+    if (validItems.length === 0) return;
+    const signature = validItems.map((i: any) => `${i.productId ?? i.id}:${i.quantity}`).join(",");
+    if (beginCheckoutTrackedRef.current === signature) return;
+    beginCheckoutTrackedRef.current = signature;
+    trackBeginCheckout(validItems);
+  }, [checkoutItems]);
+
+  const shippingTrackedRef = useRef<string>("");
+  useEffect(() => {
+    if (!selectedShippingOption || checkoutItems.length === 0) return;
+    const key = selectedShippingOption.deliveryOptionId ?? selectedShippingOption.name ?? "";
+    if (shippingTrackedRef.current === key) return;
+    shippingTrackedRef.current = key;
+    trackAddShippingInfo(
+      checkoutItems,
+      selectedShippingOption.displayName ?? selectedShippingOption.name ?? "Standard",
+      selectedShippingOption.price ?? 0
+    );
+  }, [selectedShippingOption, checkoutItems]);
   // 🔥 PHARMA CHECK
   const hasPharmaProduct = useMemo(() => {
     return checkoutItems.some(
@@ -1958,6 +1982,7 @@ export default function CheckoutPage() {
                         const totalAmount = orderJson.data.totalAmount;
 
                         // ✅ STRIPE PAYMENT INTENT
+                        trackAddPaymentInfo(checkoutItems, "Stripe");
                         const intentResp = await fetch(
                           `${process.env.NEXT_PUBLIC_API_URL}/api/Payment/create-intent`,
                           {

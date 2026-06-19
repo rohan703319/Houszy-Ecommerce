@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/toast/CustomToast";
 import * as signalR from "@microsoft/signalr";
-import { trackAddToCart } from "@/lib/analytics";
+import { trackAddToCart, trackRemoveFromCart } from "@/lib/analytics";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5285";
 function getSessionId(): string {
@@ -566,6 +566,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         (p) => p.id === id && (p.type ?? "one-time") === (type ?? p.type)
       );
       if (!itemToRemove) return prev;
+      trackRemoveFromCart(itemToRemove);
 
       // Remove bundle parent + children
       if (itemToRemove.isBundleParent && itemToRemove.bundleInstanceId) {

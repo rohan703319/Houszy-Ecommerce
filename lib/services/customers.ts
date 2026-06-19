@@ -123,6 +123,7 @@ companyName?: string;
 companyNumber?: string;
   totalSpent: number;
   tierLevel?: "Gold" | "Silver" | "Bronze"; // ✅ ADD THIS
+  role?: string;
 }
 
 export interface CustomerQueryParams {
@@ -172,4 +173,7 @@ export const customersService = {
 
   toggleStatus: (id: string): Promise<ApiResponse<string>> =>
   apiClient.put(`${API_ENDPOINTS.customers}/${id}/toggle-status`) as Promise<ApiResponse<string>>,
+
+  assignRole: (customerId: string, role: string): Promise<ApiResponse<any>> =>
+    apiClient.put(`/api/Customers/${customerId}/assign-role`, { role }) as Promise<ApiResponse<any>>,
 };

@@ -1401,7 +1401,7 @@ export default function CategoriesPage() {
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search Brands By Name..."
+              placeholder="Search Categories By Name..."
               className={`w-full pl-8 pr-8 py-1.5 bg-slate-800/60 border rounded-md text-white text-[12px] focus:outline-none transition-all ${searchTerm
                 ? "border-violet-500 ring-1 ring-violet-500/40"
                 : "border-slate-700 focus:ring-1 focus:ring-violet-500"

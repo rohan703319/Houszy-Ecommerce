@@ -37,7 +37,7 @@ const ProductImageModal = dynamic(() => import("@/components/product/ProductImag
 import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers";
 import { usePathname } from "next/navigation";
 import { detectUKRegion } from "@/app/lib/region";
-import GenderBadge from "@/components/shared/GenderBadge";
+// import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
 const PharmaQuestionsModal = dynamic(() => import("@/components/pharma/PharmaQuestionsModal"));
 const APlusContentRenderer = dynamic(() => import("@/components/aplus/APlusContentRenderer"));
@@ -2411,11 +2411,11 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   </div>
                 )}
                 {/* Unisex */}
-                <GenderBadge
+                {/* <GenderBadge
                   gender={product.gender}
                   absolute={false}
                   className="bg-gray-100 text-gray-700 border border-purple-200 px-2 py-0 rounded text-xs font-semibold gap-1 shadow-none"
-                />
+                /> */}
                 {/* Pharma Product */}
                 {product.isPharmaProduct && (
                   <div className="flex items-center gap-1 text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded text-xs font-semibold">

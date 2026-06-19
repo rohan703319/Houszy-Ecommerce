@@ -11,6 +11,7 @@ import { getOldPriceDiscount } from "@/utils/pricing";
 import {
   flattenProductsForListing,
 } from "@/app/lib/flattenProductsForListing";
+import SearchTracker from "./SearchTracker";
 
 
 export default async function SearchPage({ searchParams }: any) {
@@ -71,6 +72,7 @@ export default async function SearchPage({ searchParams }: any) {
           </p>
         )}
 
+      <SearchTracker products={products} query={query} />
       {/* RESULTS GRID */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
 

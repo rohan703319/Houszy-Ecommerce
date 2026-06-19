@@ -34,24 +34,30 @@ export default function CategorySlider({
       : `${baseUrl}${imageUrl}`;
   };
 
+  const showNavigation = categories.length > 4;
+
   return (
     <div className="relative">
       {/* ===== ARROWS ===== */}
-      <button
-        id="catPrev"
-        className="hidden md:block absolute left-[-35px] top-[50%] -translate-y-1/2 z-30
-                   bg-white p-2 md:p-3 shadow-md rounded-full border"
-      >
-        <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
-      </button>
+      {showNavigation && (
+        <>
+          <button
+            id="catPrev"
+            className="hidden md:block absolute left-[-35px] top-[50%] -translate-y-1/2 z-30
+                       bg-white p-2 md:p-3 shadow-md rounded-full border"
+          >
+            <ChevronLeft className="w-3 h-3 md:w-4 md:h-4" />
+          </button>
 
-      <button
-        id="catNext"
-        className="hidden md:block absolute right-[-35px] top-[50%] -translate-y-1/2 z-30
-                   bg-white p-2 md:p-3 shadow-md rounded-full border"
-      >
-        <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
-      </button>
+          <button
+            id="catNext"
+            className="hidden md:block absolute right-[-35px] top-[50%] -translate-y-1/2 z-30
+                       bg-white p-2 md:p-3 shadow-md rounded-full border"
+          >
+            <ChevronRight className="w-3 h-3 md:w-4 md:h-4" />
+          </button>
+        </>
+      )}
 
       {/* ===== SLIDER ===== */}
       <Swiper
@@ -65,11 +71,15 @@ export default function CategorySlider({
           1280: { slidesPerView: 4 },
         }}
         autoplay={{ delay: 2500, disableOnInteraction: false, pauseOnMouseEnter: true }}
-        navigation={{
-          prevEl: "#catPrev",
-          nextEl: "#catNext",
-        }}
-        loop
+        navigation={
+          showNavigation
+            ? {
+                prevEl: "#catPrev",
+                nextEl: "#catNext",
+              }
+            : false
+        }
+        loop={categories.length > 2}
         className="category-slider"
       >
         {categories.map((category) => {

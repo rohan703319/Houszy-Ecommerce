@@ -145,8 +145,8 @@ const navigation: NavigationItem[] = [
       { name: 'A+ Templates', href: '/admin/aplus-templates', icon: Sparkles },
       { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban },
       { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText },
-      { name: 'Comments', href: '/admin/comments', icon: MessageSquare },
-      { name: 'Contacts', href: '/admin/contact', icon: Mail },
+      { name: 'Blog Comments', href: '/admin/comments', icon: MessageSquare },
+      { name: 'Contact Requests', href: '/admin/contact', icon: Mail },
     ],
   },
   {
@@ -215,15 +215,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const getGroupColor = (name: string) => {
     const map: Record<string, { icon: string; border: string; bg: string; dot: string }> = {
-      Catalog: { icon: 'text-cyan-400', border: 'border-cyan-500/50', bg: 'bg-cyan-500/10', dot: 'bg-cyan-400' },
-      Sales: { icon: 'text-emerald-400', border: 'border-emerald-500/50', bg: 'bg-emerald-500/10', dot: 'bg-emerald-400' },
-      Marketing: { icon: 'text-pink-400', border: 'border-pink-500/50', bg: 'bg-pink-500/10', dot: 'bg-pink-400' },
-      Shipping: { icon: 'text-blue-400', border: 'border-blue-500/50', bg: 'bg-blue-500/10', dot: 'bg-blue-400' },
-      Finance: { icon: 'text-yellow-400', border: 'border-yellow-500/50', bg: 'bg-yellow-500/10', dot: 'bg-yellow-400' },
-      Content: { icon: 'text-amber-400', border: 'border-amber-500/50', bg: 'bg-amber-500/10', dot: 'bg-amber-400' },
-      System: { icon: 'text-slate-400', border: 'border-slate-500/50', bg: 'bg-slate-500/10', dot: 'bg-slate-400' },
+      Catalog: { icon: 'text-[#f38918]', border: 'border-[#f38918]/30', bg: 'bg-[#f38918]/10', dot: 'bg-[#f38918]' },
+      Sales: { icon: 'text-slate-800 dark:text-slate-200', border: 'border-slate-300/60 dark:border-slate-700/60', bg: 'bg-slate-200/50 dark:bg-slate-800/50', dot: 'bg-slate-800 dark:bg-slate-200' },
+      Marketing: { icon: 'text-[#f38918]', border: 'border-[#f38918]/30', bg: 'bg-[#f38918]/10', dot: 'bg-[#f38918]' },
+      Shipping: { icon: 'text-slate-800 dark:text-slate-200', border: 'border-slate-300/60 dark:border-slate-700/60', bg: 'bg-slate-200/50 dark:bg-slate-800/50', dot: 'bg-slate-800 dark:bg-slate-200' },
+      Finance: { icon: 'text-[#f38918]', border: 'border-[#f38918]/30', bg: 'bg-[#f38918]/10', dot: 'bg-[#f38918]' },
+      Content: { icon: 'text-slate-800 dark:text-slate-200', border: 'border-slate-300/60 dark:border-slate-700/60', bg: 'bg-slate-200/50 dark:bg-slate-800/50', dot: 'bg-slate-800 dark:bg-slate-200' },
+      System: { icon: 'text-[#f38918]', border: 'border-[#f38918]/30', bg: 'bg-[#f38918]/10', dot: 'bg-[#f38918]' },
     };
-    return map[name] ?? { icon: 'text-violet-400', border: 'border-violet-500/50', bg: 'bg-violet-500/10', dot: 'bg-violet-400' };
+    return map[name] ?? { icon: 'text-[#f38918]', border: 'border-[#f38918]/30', bg: 'bg-[#f38918]/10', dot: 'bg-[#f38918]' };
   };
 
   // ✅ UPDATED: Handle click to toggle (for mobile and click behavior)
@@ -440,13 +440,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200 inline-block">
                     <img
                       src="/logo/logo.png"
-                      alt="Direct Care"
+                      alt="Houszy"
                       className="h-10 w-auto object-contain"
                     />
                   </div>
 
                   {/* Text Below */}
-                  <p className=" pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-violet-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
+                  <p className=" pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-[#f38918] via-amber-400 to-[#f38918] bg-clip-text text-transparent drop-shadow-sm">
                     Admin Dashboard
                   </p>
                 </div>
@@ -455,7 +455,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-md border border-slate-200 overflow-hidden">
                   <img
                     src="/logo/logo.png"
-                    alt="DC"
+                    alt="Houszy"
                     className="max-w-full max-h-full object-contain"
                   />
                 </div>
@@ -666,13 +666,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 <div className="px-2 py-1 bg-white rounded-xl shadow-md border border-slate-200">
                   <img
                     src="/logo/logo.png"
-                    alt="Direct Care"
+                    alt="Houszy"
                     className="h-10 w-auto object-contain"
                   />
                 </div>
 
                 {/* Text */}
-                <p className="mt-2 pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-violet-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
+                <p className="mt-2 pl-1 text-[11px] font-semibold tracking-[0.28em] uppercase bg-gradient-to-r from-[#f38918] via-amber-400 to-[#f38918] bg-clip-text text-transparent drop-shadow-sm">
                   Admin Dashboard
                 </p>
 
@@ -807,9 +807,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"
             )}
           >
-            <header className="flex-shrink-0 bg-slate-900/80 dark:bg-gray-900/90 backdrop-blur-xl border-b border-slate-800 dark:border-gray-800 z-30 transition-colors duration-150">
+            <header className="flex-shrink-0 bg-yellow-50 dark:bg-gray-900/90 backdrop-blur-xl border-b border-[#d9730c] dark:border-gray-800 z-30 transition-colors duration-150">
               <div className="px-6 py-4">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-4 relative">
                   <div className="flex items-center gap-3 flex-1">
                     <button
                       onClick={() => setSidebarOpen(!sidebarOpen)}

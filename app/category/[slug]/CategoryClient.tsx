@@ -18,6 +18,7 @@ import GenderBadge from "@/components/shared/GenderBadge";
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import ProductCard from "@/components/ProductCard";
+import { trackViewItemList } from "@/lib/analytics";
 
 // ---------- Types ----------
 interface ProductImage {
@@ -556,7 +557,11 @@ export default function CategoryClient({
     setHasMore(totalPages ? currentPage < totalPages : true);
   }, [initialProducts, currentPage, totalPages]);
 
-
+  useEffect(() => {
+    if (products.length > 0) {
+      trackViewItemList(products, category?.name ?? "Category");
+    }
+  }, [products, category?.name]);
 
 
   const getDefaultVariant = (product: any, cardSlug?: string) => {
@@ -1271,7 +1276,7 @@ export default function CategoryClient({
                   </div>
                   <Button
                     onClick={resetFilters}
-                    className="bg-[#f38918] hover:bg-[#334a2c] text-white"
+                    className="bg-[#f38918] hover:bg-black text-white"
                   >
                     Reset All Filters
                   </Button>

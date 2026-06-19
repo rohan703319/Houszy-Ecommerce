@@ -59,15 +59,19 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
+
 body {
   font-family: 'Montserrat', sans-serif;
   font-weight: 500;
-  font-synthesis: none; /* 🔥 VERY IMPORTANT */
+  font-synthesis: none;
+  /* 🔥 VERY IMPORTANT */
 }
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -76,6 +80,7 @@ body {
 html {
   text-rendering: optimizeLegibility;
 }
+
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -93,6 +98,7 @@ html {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.5);
 }
+
 /* input, textarea, select {
   font-size: 16px !important;
 } */
@@ -105,18 +111,21 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 input[type="number"] {
-  -moz-appearance: textfield; /* Firefox */
+  -moz-appearance: textfield;
+  /* Firefox */
 }
+
 .share-item {
-  @apply flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700
-         hover:bg-gray-50 w-full transition;
+  @apply flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full transition;
 }
+
 /* ===============================
    FeaturedProductsSlider – Equal Height Slides
 ================================ */
 .featured-products-slider .swiper-wrapper {
   align-items: stretch !important;
 }
+
 .featured-products-slider .swiper-slide {
   height: auto !important;
   display: flex !important;
@@ -136,7 +145,8 @@ input[type="number"] {
 
 .swiper-button-prev::after,
 .swiper-button-next::after {
-  font-size: 16px;   /* 🔥 arrow size */
+  font-size: 16px;
+  /* 🔥 arrow size */
   font-weight: 700;
 }
 
@@ -145,52 +155,68 @@ input[type="number"] {
 .swiper-button-next:hover {
   color: #111827 !important;
 }
+
 /* Hide scrollbar but keep scrolling */
 .scrollbar-hide {
-  -ms-overflow-style: none; /* IE */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  /* IE */
+  scrollbar-width: none;
+  /* Firefox */
 }
+
 .scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Chrome, Safari */
+  display: none;
+  /* Chrome, Safari */
 }
+
 @keyframes slideInLeft {
   from {
     opacity: 0;
     transform: translateX(-30px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
+
 @keyframes slideInRight {
   from {
     opacity: 0;
     transform: translateX(40px) scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
 }
+
 @keyframes toastIn {
   from {
     opacity: 0;
     transform: translateY(-10px) scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
+
 @keyframes scalePulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.15);
   }
 }
+
 .animate-toastIn {
   animation: toastIn 0.28s ease-out;
 }
@@ -202,23 +228,29 @@ html.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(1) brightness(1.2);
   cursor: pointer;
 }
+
 .custom-scrollbar {
   overscroll-behavior: contain;
 }
+
 /* 🔥 Hide scrollbar but keep scroll */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 .hide-scrollbar {
-  -ms-overflow-style: none;  /* IE & Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  /* IE & Edge */
+  scrollbar-width: none;
+  /* Firefox */
   scroll-behavior: smooth;
 }
+
 @keyframes gradientMove {
   0% {
     background-position: 0% 50%;
   }
+
   100% {
     background-position: 200% 50%;
   }
@@ -233,108 +265,232 @@ html.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 /* ── Background colours ─────────────────────────────────────── */
 html:not(.dark) [data-admin] .bg-slate-950,
-html:not(.dark) [data-admin] .bg-gray-950 { background-color: #f1f5f9 !important; }
+html:not(.dark) [data-admin] .bg-gray-950 {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/10,
+html:not(.dark) [data-admin] .bg-gray-950\/10 {
+  background-color: rgba(241, 245, 249, 0.15) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/20,
+html:not(.dark) [data-admin] .bg-gray-950\/20 {
+  background-color: rgba(241, 245, 249, 0.3) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/30,
+html:not(.dark) [data-admin] .bg-gray-950\/30 {
+  background-color: rgba(241, 245, 249, 0.45) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/40,
+html:not(.dark) [data-admin] .bg-gray-950\/40 {
+  background-color: rgba(241, 245, 249, 0.6) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/50,
+html:not(.dark) [data-admin] .bg-gray-950\/50 {
+  background-color: rgba(241, 245, 249, 0.7) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/60,
+html:not(.dark) [data-admin] .bg-gray-950\/60 {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/70,
+html:not(.dark) [data-admin] .bg-gray-950\/70 {
+  background-color: rgba(241, 245, 249, 0.85) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/80,
+html:not(.dark) [data-admin] .bg-gray-950\/80 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/90,
+html:not(.dark) [data-admin] .bg-gray-950\/90 {
+  background-color: rgba(241, 245, 249, 0.95) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-950\/95,
+html:not(.dark) [data-admin] .bg-gray-950\/95 {
+  background-color: rgba(241, 245, 249, 0.98) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900,
-html:not(.dark) [data-admin] .bg-gray-900 { background-color: #f8fafc !important; }
+html:not(.dark) [data-admin] .bg-gray-900 {
+  background-color: #f8fafc !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/20,
-html:not(.dark) [data-admin] .bg-gray-900\/20 { background-color: rgba(248,250,252,0.3) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/20 {
+  background-color: rgba(248, 250, 252, 0.3) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/30,
-html:not(.dark) [data-admin] .bg-gray-900\/30 { background-color: rgba(248,250,252,0.5) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/30 {
+  background-color: rgba(248, 250, 252, 0.5) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/40,
-html:not(.dark) [data-admin] .bg-gray-900\/40 { background-color: rgba(248,250,252,0.65) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/40 {
+  background-color: rgba(248, 250, 252, 0.65) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/50,
-html:not(.dark) [data-admin] .bg-gray-900\/50 { background-color: rgba(248,250,252,0.75) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/50 {
+  background-color: rgba(248, 250, 252, 0.75) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/60,
-html:not(.dark) [data-admin] .bg-gray-900\/60 { background-color: rgba(248,250,252,0.85) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/60 {
+  background-color: rgba(248, 250, 252, 0.85) !important;
+}
+
+html:not(.dark) [data-admin] .bg-slate-900\/70,
+html:not(.dark) [data-admin] .bg-gray-900\/70 {
+  background-color: rgba(248, 250, 252, 0.9) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/80,
-html:not(.dark) [data-admin] .bg-gray-900\/80 { background-color: rgba(255,255,255,0.95) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/80 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/90,
-html:not(.dark) [data-admin] .bg-gray-900\/90 { background-color: rgba(255,255,255,0.97) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/90 {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-900\/95,
-html:not(.dark) [data-admin] .bg-gray-900\/95 { background-color: rgba(255,255,255,0.98) !important; }
+html:not(.dark) [data-admin] .bg-gray-900\/95 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800,
-html:not(.dark) [data-admin] .bg-gray-800 { background-color: #ffffff !important; }
+html:not(.dark) [data-admin] .bg-gray-800 {
+  background-color: #ffffff !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/30,
-html:not(.dark) [data-admin] .bg-gray-800\/30 { background-color: rgba(241,245,249,0.45) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/30 {
+  background-color: rgba(241, 245, 249, 0.45) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/40,
-html:not(.dark) [data-admin] .bg-gray-800\/40 { background-color: rgba(241,245,249,0.6) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/40 {
+  background-color: rgba(241, 245, 249, 0.6) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/50,
-html:not(.dark) [data-admin] .bg-gray-800\/50 { background-color: rgba(241,245,249,0.7) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/50 {
+  background-color: rgba(241, 245, 249, 0.7) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/60,
-html:not(.dark) [data-admin] .bg-gray-800\/60 { background-color: rgba(241,245,249,0.8) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/60 {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/70,
-html:not(.dark) [data-admin] .bg-gray-800\/70 { background-color: rgba(241,245,249,0.85) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/70 {
+  background-color: rgba(241, 245, 249, 0.85) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/80,
-html:not(.dark) [data-admin] .bg-gray-800\/80 { background-color: rgba(241,245,249,0.9) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/80 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/85,
-html:not(.dark) [data-admin] .bg-gray-800\/85 { background-color: rgba(255,255,255,0.96) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/85 {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/90,
-html:not(.dark) [data-admin] .bg-gray-800\/90 { background-color: rgba(255,255,255,0.95) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/90 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/95,
-html:not(.dark) [data-admin] .bg-gray-800\/95 { background-color: rgba(255,255,255,0.98) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/95 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/10,
-html:not(.dark) [data-admin] .bg-gray-800\/10 { background-color: rgba(241,245,249,0.2) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/10 {
+  background-color: rgba(241, 245, 249, 0.2) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-800\/20,
-html:not(.dark) [data-admin] .bg-gray-800\/20 { background-color: rgba(241,245,249,0.3) !important; }
+html:not(.dark) [data-admin] .bg-gray-800\/20 {
+  background-color: rgba(241, 245, 249, 0.3) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-700,
-html:not(.dark) [data-admin] .bg-gray-700 { background-color: #e2e8f0 !important; }
+html:not(.dark) [data-admin] .bg-gray-700 {
+  background-color: #e2e8f0 !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-700\/30,
-html:not(.dark) [data-admin] .bg-gray-700\/30 { background-color: rgba(226,232,240,0.4) !important; }
+html:not(.dark) [data-admin] .bg-gray-700\/30 {
+  background-color: rgba(226, 232, 240, 0.4) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-700\/50,
-html:not(.dark) [data-admin] .bg-gray-700\/50 { background-color: rgba(226,232,240,0.6) !important; }
+html:not(.dark) [data-admin] .bg-gray-700\/50 {
+  background-color: rgba(226, 232, 240, 0.6) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-700\/60,
-html:not(.dark) [data-admin] .bg-gray-700\/60 { background-color: rgba(226,232,240,0.7) !important; }
+html:not(.dark) [data-admin] .bg-gray-700\/60 {
+  background-color: rgba(226, 232, 240, 0.7) !important;
+}
 
 html:not(.dark) [data-admin] .bg-slate-600,
-html:not(.dark) [data-admin] .bg-gray-600 { background-color: #cbd5e1 !important; }
+html:not(.dark) [data-admin] .bg-gray-600 {
+  background-color: #cbd5e1 !important;
+}
 
-html:not(.dark) [data-admin] .bg-orange-500\/5 { background-color: #fff7ed !important; }
-html:not(.dark) [data-admin] .bg-orange-400 { background-color: #ea580c !important; }
+html:not(.dark) [data-admin] .bg-orange-500\/5 {
+  background-color: #fff7ed !important;
+}
+
+html:not(.dark) [data-admin] .bg-orange-400 {
+  background-color: #ea580c !important;
+}
 
 html:not(.dark) [data-admin] .bg-amber-500\/10,
 html:not(.dark) [data-admin] .bg-yellow-500\/10,
-html:not(.dark) [data-admin] .bg-orange-500\/10 { background-color: #fffbeb !important; }
+html:not(.dark) [data-admin] .bg-orange-500\/10 {
+  background-color: #fffbeb !important;
+}
 
 html:not(.dark) [data-admin] .bg-amber-500\/15,
 html:not(.dark) [data-admin] .bg-yellow-500\/15,
-html:not(.dark) [data-admin] .bg-orange-500\/15 { background-color: #fef3c7 !important; }
+html:not(.dark) [data-admin] .bg-orange-500\/15 {
+  background-color: #fef3c7 !important;
+}
 
-html:not(.dark) [data-admin] .bg-black\/50 { background-color: rgba(0,0,0,0.2) !important; }
-html:not(.dark) [data-admin] .bg-black\/70 { background-color: rgba(0,0,0,0.3) !important; }
+html:not(.dark) [data-admin] .bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+html:not(.dark) [data-admin] .bg-black\/70 {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
 
 /* Slate gradients are dark cards in admin pages; keep them light only in light mode. */
 html:not(.dark) [data-admin] .from-slate-950,
 html:not(.dark) [data-admin] .from-slate-900,
 html:not(.dark) [data-admin] .from-slate-900\/80,
 html:not(.dark) [data-admin] .from-slate-800,
-html:not(.dark) [data-admin] .from-slate-800\/80 {
-  --tw-gradient-from: rgba(255,255,255,0.96) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(255,255,255,0) var(--tw-gradient-to-position) !important;
+html:not(.dark) [data-admin] .from-slate-800\/80,
+html:not(.dark) [data-admin] .from-slate-800\/60 {
+  --tw-gradient-from: rgba(255, 255, 255, 0.96) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(255, 255, 255, 0) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
@@ -342,71 +498,206 @@ html:not(.dark) [data-admin] .to-slate-950,
 html:not(.dark) [data-admin] .to-slate-900,
 html:not(.dark) [data-admin] .to-slate-900\/80,
 html:not(.dark) [data-admin] .to-slate-800,
-html:not(.dark) [data-admin] .to-slate-800\/80 {
-  --tw-gradient-to: rgba(241,245,249,0.96) var(--tw-gradient-to-position) !important;
+html:not(.dark) [data-admin] .to-slate-800\/80,
+html:not(.dark) [data-admin] .to-slate-800\/40 {
+  --tw-gradient-to: rgba(241, 245, 249, 0.96) var(--tw-gradient-to-position) !important;
 }
 
 /* ── Border colours ─────────────────────────────────────────── */
 html:not(.dark) [data-admin] .border-slate-800,
-html:not(.dark) [data-admin] .border-gray-800 { border-color: #e2e8f0 !important; }
+html:not(.dark) [data-admin] .border-gray-800 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/10,
+html:not(.dark) [data-admin] .border-gray-800\/10 {
+  border-color: rgba(226, 232, 240, 0.2) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/20,
+html:not(.dark) [data-admin] .border-gray-800\/20 {
+  border-color: rgba(226, 232, 240, 0.3) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/30,
+html:not(.dark) [data-admin] .border-gray-800\/30 {
+  border-color: rgba(226, 232, 240, 0.4) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/40,
+html:not(.dark) [data-admin] .border-gray-800\/40 {
+  border-color: rgba(226, 232, 240, 0.5) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/50,
+html:not(.dark) [data-admin] .border-gray-800\/50 {
+  border-color: rgba(226, 232, 240, 0.6) !important;
+}
 
 html:not(.dark) [data-admin] .border-slate-800\/60,
-html:not(.dark) [data-admin] .border-gray-800\/60 { border-color: rgba(226,232,240,0.7) !important; }
+html:not(.dark) [data-admin] .border-gray-800\/60 {
+  border-color: rgba(226, 232, 240, 0.7) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/70,
+html:not(.dark) [data-admin] .border-gray-800\/70 {
+  border-color: rgba(226, 232, 240, 0.8) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-800\/80,
+html:not(.dark) [data-admin] .border-gray-800\/80 {
+  border-color: rgba(226, 232, 240, 0.9) !important;
+}
 
 html:not(.dark) [data-admin] .border-slate-700,
-html:not(.dark) [data-admin] .border-gray-700 { border-color: #cbd5e1 !important; }
+html:not(.dark) [data-admin] .border-gray-700 {
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/10,
+html:not(.dark) [data-admin] .border-gray-700\/10 {
+  border-color: rgba(203, 213, 225, 0.2) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/20,
+html:not(.dark) [data-admin] .border-gray-700\/20 {
+  border-color: rgba(203, 213, 225, 0.3) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/30,
+html:not(.dark) [data-admin] .border-gray-700\/30 {
+  border-color: rgba(203, 213, 225, 0.4) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/40,
+html:not(.dark) [data-admin] .border-gray-700\/40 {
+  border-color: rgba(203, 213, 225, 0.5) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/50,
+html:not(.dark) [data-admin] .border-gray-700\/50 {
+  border-color: rgba(203, 213, 225, 0.6) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/60,
+html:not(.dark) [data-admin] .border-gray-700\/60 {
+  border-color: rgba(203, 213, 225, 0.7) !important;
+}
+
+html:not(.dark) [data-admin] .border-slate-700\/80,
+html:not(.dark) [data-admin] .border-gray-700\/80 {
+  border-color: rgba(203, 213, 225, 0.9) !important;
+}
 
 html:not(.dark) [data-admin] .border-slate-600,
-html:not(.dark) [data-admin] .border-gray-600 { border-color: #94a3b8 !important; }
+html:not(.dark) [data-admin] .border-gray-600 {
+  border-color: #94a3b8 !important;
+}
 
-html:not(.dark) [data-admin] .border-orange-500\/10 { border-color: #fed7aa !important; }
+html:not(.dark) [data-admin] .border-orange-500\/10 {
+  border-color: #fed7aa !important;
+}
 
 html:not(.dark) [data-admin] .border-amber-400\/40,
 html:not(.dark) [data-admin] .border-yellow-400\/40,
 html:not(.dark) [data-admin] .border-orange-400\/40,
 html:not(.dark) [data-admin] .border-amber-500\/40,
 html:not(.dark) [data-admin] .border-yellow-500\/40,
-html:not(.dark) [data-admin] .border-orange-500\/40 { border-color: #f59e0b !important; }
+html:not(.dark) [data-admin] .border-orange-500\/40 {
+  border-color: #f59e0b !important;
+}
 
 /* ── Text colours ───────────────────────────────────────────── */
-html:not(.dark) [data-admin] .text-white { color: #1e293b !important; }
+html:not(.dark) [data-admin] .text-white {
+  color: #1e293b !important;
+}
+
 html:not(.dark) [data-admin] .text-slate-100,
-html:not(.dark) [data-admin] .text-gray-100 { color: #1e293b !important; }
+html:not(.dark) [data-admin] .text-gray-100 {
+  color: #1e293b !important;
+}
+
 html:not(.dark) [data-admin] .text-slate-200,
-html:not(.dark) [data-admin] .text-gray-200 { color: #334155 !important; }
+html:not(.dark) [data-admin] .text-gray-200 {
+  color: #334155 !important;
+}
+
 html:not(.dark) [data-admin] .text-slate-300,
-html:not(.dark) [data-admin] .text-gray-300 { color: #475569 !important; }
+html:not(.dark) [data-admin] .text-gray-300 {
+  color: #475569 !important;
+}
+
 html:not(.dark) [data-admin] .text-slate-400,
-html:not(.dark) [data-admin] .text-gray-400 { color: #64748b !important; }
+html:not(.dark) [data-admin] .text-gray-400 {
+  color: #64748b !important;
+}
+
 html:not(.dark) [data-admin] .text-slate-500,
-html:not(.dark) [data-admin] .text-gray-500 { color: #6b7280 !important; }
+html:not(.dark) [data-admin] .text-gray-500 {
+  color: #6b7280 !important;
+}
 
 html:not(.dark) [data-admin] .text-violet-300,
-html:not(.dark) [data-admin] .text-violet-400 { color: #7c3aed !important; }
+html:not(.dark) [data-admin] .text-violet-400 {
+  color: #7c3aed !important;
+}
+
 html:not(.dark) [data-admin] .text-cyan-300,
-html:not(.dark) [data-admin] .text-cyan-400 { color: #0891b2 !important; }
+html:not(.dark) [data-admin] .text-cyan-400 {
+  color: #0891b2 !important;
+}
+
 html:not(.dark) [data-admin] .text-blue-300,
-html:not(.dark) [data-admin] .text-blue-400 { color: #2563eb !important; }
+html:not(.dark) [data-admin] .text-blue-400 {
+  color: #2563eb !important;
+}
+
 html:not(.dark) [data-admin] .text-indigo-300,
-html:not(.dark) [data-admin] .text-indigo-400 { color: #4f46e5 !important; }
+html:not(.dark) [data-admin] .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+
 html:not(.dark) [data-admin] .text-amber-300,
-html:not(.dark) [data-admin] .text-amber-400 { color: #b45309 !important; }
+html:not(.dark) [data-admin] .text-amber-400 {
+  color: #b45309 !important;
+}
+
 html:not(.dark) [data-admin] .text-yellow-300,
-html:not(.dark) [data-admin] .text-yellow-400 { color: #a16207 !important; }
+html:not(.dark) [data-admin] .text-yellow-400 {
+  color: #a16207 !important;
+}
+
 html:not(.dark) [data-admin] .text-green-300,
-html:not(.dark) [data-admin] .text-green-400 { color: #16a34a !important; }
+html:not(.dark) [data-admin] .text-green-400 {
+  color: #16a34a !important;
+}
+
 html:not(.dark) [data-admin] .text-emerald-300,
-html:not(.dark) [data-admin] .text-emerald-400 { color: #059669 !important; }
+html:not(.dark) [data-admin] .text-emerald-400 {
+  color: #059669 !important;
+}
+
 html:not(.dark) [data-admin] .text-pink-300,
-html:not(.dark) [data-admin] .text-pink-400 { color: #db2777 !important; }
+html:not(.dark) [data-admin] .text-pink-400 {
+  color: #db2777 !important;
+}
+
 html:not(.dark) [data-admin] .text-orange-200\/80,
 html:not(.dark) [data-admin] .text-orange-200,
 html:not(.dark) [data-admin] .text-orange-300,
-html:not(.dark) [data-admin] .text-orange-400 { color: #c2410c !important; }
+html:not(.dark) [data-admin] .text-orange-400 {
+  color: #c2410c !important;
+}
+
 html:not(.dark) [data-admin] .text-red-300,
-html:not(.dark) [data-admin] .text-red-400 { color: #dc2626 !important; }
+html:not(.dark) [data-admin] .text-red-400 {
+  color: #dc2626 !important;
+}
+
 html:not(.dark) [data-admin] .text-rose-300,
-html:not(.dark) [data-admin] .text-rose-400 { color: #e11d48 !important; }
+html:not(.dark) [data-admin] .text-rose-400 {
+  color: #e11d48 !important;
+}
 
 /* Keep white text + icons inside gradient active nav items */
 html:not(.dark) [data-admin] [class*="from-violet-5"].text-white,
@@ -419,7 +710,9 @@ html:not(.dark) [data-admin] [class*="from-red-5"].text-white,
 html:not(.dark) [data-admin] [class*="from-blue-5"].text-white,
 html:not(.dark) [data-admin] [class*="from-cyan-5"].text-white,
 html:not(.dark) [data-admin] [class*="from-emerald-5"].text-white,
-html:not(.dark) [data-admin] [class*="from-green-5"].text-white { color: #ffffff !important; }
+html:not(.dark) [data-admin] [class*="from-green-5"].text-white {
+  color: #ffffff !important;
+}
 
 html:not(.dark) [data-admin] [class*="from-violet-5"].text-white *,
 html:not(.dark) [data-admin] [class*="from-violet-4"].text-white *,
@@ -431,18 +724,22 @@ html:not(.dark) [data-admin] [class*="from-red-5"].text-white *,
 html:not(.dark) [data-admin] [class*="from-blue-5"].text-white *,
 html:not(.dark) [data-admin] [class*="from-cyan-5"].text-white *,
 html:not(.dark) [data-admin] [class*="from-emerald-5"].text-white *,
-html:not(.dark) [data-admin] [class*="from-green-5"].text-white * { color: #ffffff !important; }
+html:not(.dark) [data-admin] [class*="from-green-5"].text-white * {
+  color: #ffffff !important;
+}
 
-html:not(.dark) [data-admin] [class*="from-violet-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-purple-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-pink-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-rose-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-orange-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-red-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-blue-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-cyan-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-emerald-500"]:not([class*="/"]) > .text-white,
-html:not(.dark) [data-admin] [class*="from-green-500"]:not([class*="/"]) > .text-white { color: #ffffff !important; }
+html:not(.dark) [data-admin] [class*="from-violet-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-purple-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-pink-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-rose-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-orange-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-red-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-blue-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-cyan-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-emerald-500"]:not([class*="/"])>.text-white,
+html:not(.dark) [data-admin] [class*="from-green-500"]:not([class*="/"])>.text-white {
+  color: #ffffff !important;
+}
 
 html:not(.dark) [data-admin] .bg-blue-600,
 html:not(.dark) [data-admin] .bg-blue-600 *,
@@ -469,7 +766,9 @@ html:not(.dark) [data-admin] .bg-rose-600 *,
 html:not(.dark) [data-admin] .bg-orange-600,
 html:not(.dark) [data-admin] .bg-orange-600 *,
 html:not(.dark) [data-admin] .bg-amber-600,
-html:not(.dark) [data-admin] .bg-amber-600 * { color: #ffffff !important; }
+html:not(.dark) [data-admin] .bg-amber-600 * {
+  color: #ffffff !important;
+}
 
 /* Gradient headings become too pale on light backgrounds; use solid dark text in light mode only. */
 html:not(.dark) [data-admin] .bg-clip-text.text-transparent {
@@ -478,55 +777,85 @@ html:not(.dark) [data-admin] .bg-clip-text.text-transparent {
 
 /* ── Hover backgrounds ──────────────────────────────────────── */
 html:not(.dark) [data-admin] .hover\:bg-slate-900:hover,
-html:not(.dark) [data-admin] .hover\:bg-gray-900:hover { background-color: #e2e8f0 !important; }
+html:not(.dark) [data-admin] .hover\:bg-gray-900:hover {
+  background-color: #e2e8f0 !important;
+}
 
 html:not(.dark) [data-admin] .hover\:bg-slate-800:hover,
-html:not(.dark) [data-admin] .hover\:bg-gray-800:hover { background-color: #e2e8f0 !important; }
+html:not(.dark) [data-admin] .hover\:bg-gray-800:hover {
+  background-color: #e2e8f0 !important;
+}
 
 html:not(.dark) [data-admin] .hover\:bg-slate-800\/50:hover,
-html:not(.dark) [data-admin] .hover\:bg-gray-800\/50:hover { background-color: rgba(226,232,240,0.6) !important; }
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/50:hover {
+  background-color: rgba(226, 232, 240, 0.6) !important;
+}
 
 html:not(.dark) [data-admin] .hover\:bg-slate-800\/60:hover,
-html:not(.dark) [data-admin] .hover\:bg-gray-800\/60:hover { background-color: rgba(226,232,240,0.7) !important; }
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/60:hover {
+  background-color: rgba(226, 232, 240, 0.7) !important;
+}
 
 html:not(.dark) [data-admin] .hover\:bg-slate-800\/70:hover,
-html:not(.dark) [data-admin] .hover\:bg-gray-800\/70:hover { background-color: rgba(226,232,240,0.8) !important; }
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/70:hover {
+  background-color: rgba(226, 232, 240, 0.8) !important;
+}
 
 html:not(.dark) [data-admin] .hover\:bg-slate-700:hover,
-html:not(.dark) [data-admin] .hover\:bg-gray-700:hover { background-color: #cbd5e1 !important; }
+html:not(.dark) [data-admin] .hover\:bg-gray-700:hover {
+  background-color: #cbd5e1 !important;
+}
 
-html:not(.dark) [data-admin] .hover\:text-white:hover { color: #0f172a !important; }
+html:not(.dark) [data-admin] .hover\:text-white:hover {
+  color: #0f172a !important;
+}
 
 /* ── Divide colours ─────────────────────────────────────────── */
-html:not(.dark) [data-admin] .divide-slate-800 > * + *,
-html:not(.dark) [data-admin] .divide-gray-800 > * + * { border-color: #e2e8f0 !important; }
-html:not(.dark) [data-admin] .divide-slate-700 > * + *,
-html:not(.dark) [data-admin] .divide-gray-700 > * + * { border-color: #cbd5e1 !important; }
+html:not(.dark) [data-admin] .divide-slate-800>*+*,
+html:not(.dark) [data-admin] .divide-gray-800>*+* {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) [data-admin] .divide-slate-700>*+*,
+html:not(.dark) [data-admin] .divide-gray-700>*+* {
+  border-color: #cbd5e1 !important;
+}
 
 /* ── Placeholder ────────────────────────────────────────────── */
-html:not(.dark) [data-admin] ::placeholder { color: #94a3b8 !important; }
+html:not(.dark) [data-admin] ::placeholder {
+  color: #94a3b8 !important;
+}
 
 /* ── Scrollbar ──────────────────────────────────────────────── */
 html:not(.dark) [data-admin] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148,163,184,0.5);
+  background: rgba(148, 163, 184, 0.5);
 }
+
 html:not(.dark) [data-admin] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(100,116,139,0.6);
+  background: rgba(100, 116, 139, 0.6);
 }
 
 /* ── Shadow softening ───────────────────────────────────────── */
-html:not(.dark) [data-admin] .shadow-black\/50 { --tw-shadow-color: rgba(0,0,0,0.08) !important; }
-html:not(.dark) [data-admin] .shadow-2xl { box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+html:not(.dark) [data-admin] .shadow-black\/50 {
+  --tw-shadow-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html:not(.dark) [data-admin] .shadow-2xl {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
+}
 
 /* ── Ring/Focus ─────────────────────────────────────────────── */
 html:not(.dark) [data-admin] .ring-slate-700,
-html:not(.dark) [data-admin] .ring-gray-700 { --tw-ring-color: #e2e8f0 !important; }
+html:not(.dark) [data-admin] .ring-gray-700 {
+  --tw-ring-color: #e2e8f0 !important;
+}
 
 /* ── Native <select> & <option> in light mode ───────────────── */
 html:not(.dark) [data-admin] select {
   background-color: #ffffff !important;
   color: #1e293b !important;
 }
+
 html:not(.dark) [data-admin] select option {
   background-color: #ffffff !important;
   color: #1e293b !important;
@@ -534,11 +863,14 @@ html:not(.dark) [data-admin] select option {
 
 /* ── Native <select> & <option> in dark mode ────────────────── */
 html.dark [data-admin] select {
-  background-color: #1e293b !important; /* bg-slate-800 */
+  background-color: #1e293b !important;
+  /* bg-slate-800 */
   color: #ffffff !important;
 }
+
 html.dark [data-admin] select option {
-  background-color: #0f172a !important; /* bg-slate-900 */
+  background-color: #0f172a !important;
+  /* bg-slate-900 */
   color: #ffffff !important;
 }
 
@@ -550,16 +882,31 @@ html:not(.dark) [data-admin] textarea {
 }
 
 /* ── Hardcoded dark hex colours used in edit/add product pages ── */
-html:not(.dark) [data-admin] .bg-\[\#071120\] { background-color: #f1f5f9 !important; }
-html:not(.dark) [data-admin] .bg-\[\#071120\]\/95 { background-color: rgba(241,245,249,0.97) !important; }
+html:not(.dark) [data-admin] .bg-\[\#071120\] {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) [data-admin] .bg-\[\#071120\]\/95 {
+  background-color: rgba(241, 245, 249, 0.97) !important;
+}
 
 /* ── bg-slate-950 override (sticky top bar) ─────────────────── */
-html:not(.dark) [data-admin] .bg-slate-950 { background-color: #f1f5f9 !important; }
+html:not(.dark) [data-admin] .bg-slate-950 {
+  background-color: #f1f5f9 !important;
+}
 
 /* ── Text visibility in light mode ──────────────────────────── */
-html:not(.dark) [data-admin] .text-slate-400 { color: #475569 !important; }
-html:not(.dark) [data-admin] .placeholder-slate-500::placeholder { color: #94a3b8 !important; }
-html:not(.dark) [data-admin] .placeholder-slate-400::placeholder { color: #94a3b8 !important; }
+html:not(.dark) [data-admin] .text-slate-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) [data-admin] .placeholder-slate-500::placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) [data-admin] .placeholder-slate-400::placeholder {
+  color: #94a3b8 !important;
+}
 
 /* ── Product Image Animation ────────────────────────────────── */
 @keyframes productImageSlideIn {
@@ -567,6 +914,7 @@ html:not(.dark) [data-admin] .placeholder-slate-400::placeholder { color: #94a3b
     transform: translateX(20px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -577,3 +925,332 @@ html:not(.dark) [data-admin] .placeholder-slate-400::placeholder { color: #94a3b
   animation: productImageSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN PANEL — HOUSZY BRAND THEME OVERRIDES (LIGHT MODE)
+   Maps violet/cyan/etc. colors to Houszy brand colors in light mode
+   Orange/Yellow: #f38918, Black: #111827
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Violet to Orange Overrides ──────────────────────────────── */
+html:not(.dark) [data-admin] .bg-violet-500 {
+  background-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-600 {
+  background-color: #d9730c !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-700 {
+  background-color: #b85f05 !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-400 {
+  background-color: #f59c38 !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-500\/10 {
+  background-color: rgba(243, 137, 24, 0.1) !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-500\/15 {
+  background-color: rgba(243, 137, 24, 0.15) !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-500\/20 {
+  background-color: rgba(243, 137, 24, 0.2) !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-500\/30 {
+  background-color: rgba(243, 137, 24, 0.3) !important;
+}
+
+html:not(.dark) [data-admin] .bg-violet-500\/5 {
+  background-color: rgba(243, 137, 24, 0.05) !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-violet-600:hover {
+  background-color: #d9730c !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-violet-700:hover {
+  background-color: #b85f05 !important;
+}
+
+html:not(.dark) [data-admin] .text-violet-500 {
+  color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .text-violet-600 {
+  color: #d9730c !important;
+}
+
+html:not(.dark) [data-admin] .text-violet-400 {
+  color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .text-violet-300 {
+  color: #f59c38 !important;
+}
+
+html:not(.dark) [data-admin] .hover\:text-violet-400:hover {
+  color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .hover\:text-violet-300:hover {
+  color: #f59c38 !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-500 {
+  border-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-600 {
+  border-color: #d9730c !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-400 {
+  border-color: #f59c38 !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-500\/20 {
+  border-color: rgba(243, 137, 24, 0.2) !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-500\/30 {
+  border-color: rgba(243, 137, 24, 0.3) !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-500\/40 {
+  border-color: rgba(243, 137, 24, 0.4) !important;
+}
+
+html:not(.dark) [data-admin] .border-violet-500\/50 {
+  border-color: rgba(243, 137, 24, 0.5) !important;
+}
+
+html:not(.dark) [data-admin] .focus\:border-violet-500:focus {
+  border-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .focus-within\:border-violet-500:focus-within {
+  border-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .ring-violet-500 {
+  --tw-ring-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .focus\:ring-violet-500:focus {
+  --tw-ring-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .focus-within\:ring-violet-500:focus-within {
+  --tw-ring-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .focus\:ring-violet-500\/40:focus {
+  --tw-ring-color: rgba(243, 137, 24, 0.4) !important;
+}
+
+html:not(.dark) [data-admin] .shadow-violet-500\/10 {
+  --tw-shadow-color: rgba(243, 137, 24, 0.05) !important;
+}
+
+html:not(.dark) [data-admin] .shadow-violet-500\/20 {
+  --tw-shadow-color: rgba(243, 137, 24, 0.1) !important;
+}
+
+html:not(.dark) [data-admin] .shadow-violet-500\/30 {
+  --tw-shadow-color: rgba(243, 137, 24, 0.15) !important;
+}
+
+html:not(.dark) [data-admin] .accent-violet-500 {
+  accent-color: #f38918 !important;
+}
+
+/* ── Cyan to Black/Dark Slate Overrides ──────────────────────── */
+html:not(.dark) [data-admin] .bg-cyan-500 {
+  background-color: #111827 !important;
+}
+
+html:not(.dark) [data-admin] .bg-cyan-600 {
+  background-color: #030712 !important;
+}
+
+html:not(.dark) [data-admin] .bg-cyan-400 {
+  background-color: #1f2937 !important;
+}
+
+html:not(.dark) [data-admin] .bg-cyan-500\/10 {
+  background-color: rgba(17, 24, 39, 0.08) !important;
+}
+
+html:not(.dark) [data-admin] .bg-cyan-500\/20 {
+  background-color: rgba(17, 24, 39, 0.15) !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-cyan-600:hover {
+  background-color: #030712 !important;
+}
+
+html:not(.dark) [data-admin] .text-cyan-500 {
+  color: #111827 !important;
+}
+
+html:not(.dark) [data-admin] .text-cyan-600 {
+  color: #030712 !important;
+}
+
+html:not(.dark) [data-admin] .text-cyan-400 {
+  color: #1f2937 !important;
+}
+
+html:not(.dark) [data-admin] .text-cyan-300 {
+  color: #374151 !important;
+}
+
+html:not(.dark) [data-admin] .border-cyan-500 {
+  border-color: #111827 !important;
+}
+
+html:not(.dark) [data-admin] .border-cyan-600 {
+  border-color: #030712 !important;
+}
+
+html:not(.dark) [data-admin] .border-cyan-500\/20 {
+  border-color: rgba(17, 24, 39, 0.15) !important;
+}
+
+html:not(.dark) [data-admin] .border-cyan-500\/30 {
+  border-color: rgba(17, 24, 39, 0.25) !important;
+}
+
+html:not(.dark) [data-admin] .border-cyan-500\/50 {
+  border-color: rgba(17, 24, 39, 0.4) !important;
+}
+
+/* ── Gradient Overrides (Orange to Brand Orange/Amber) ────────── */
+html:not(.dark) [data-admin] .from-violet-500 {
+  --tw-gradient-from: #f38918 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(243, 137, 24, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+html:not(.dark) [data-admin] .to-cyan-500 {
+  --tw-gradient-to: #d9730c var(--tw-gradient-to-position) !important;
+}
+
+html:not(.dark) [data-admin] .from-violet-600 {
+  --tw-gradient-from: #d9730c var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(217, 115, 12, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+html:not(.dark) [data-admin] .to-cyan-600 {
+  --tw-gradient-to: #b85f05 var(--tw-gradient-to-position) !important;
+}
+
+html:not(.dark) [data-admin] .from-cyan-500 {
+  --tw-gradient-from: #d9730c var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(217, 115, 12, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+html:not(.dark) [data-admin] .to-violet-500 {
+  --tw-gradient-to: #f38918 var(--tw-gradient-to-position) !important;
+}
+
+html:not(.dark) [data-admin] .from-violet-500\/90 {
+  --tw-gradient-from: rgba(243, 137, 24, 0.9) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgba(243, 137, 24, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+html:not(.dark) [data-admin] .to-cyan-500\/90 {
+  --tw-gradient-to: rgba(217, 115, 12, 0.9) var(--tw-gradient-to-position) !important;
+}
+
+/* ── Specific Overrides for Violet/Cyan Text in Light Mode ─────── */
+html:not(.dark) [data-admin] .text-violet-300,
+html:not(.dark) [data-admin] .text-violet-400 {
+  color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .text-cyan-300,
+html:not(.dark) [data-admin] .text-cyan-400 {
+  color: #111827 !important;
+}
+
+/* Theme switcher ping animation in light mode */
+html:not(.dark) [data-admin] .bg-violet-500\/30 {
+  background-color: rgba(243, 137, 24, 0.3) !important;
+}
+
+/* Radial Background Blobs in Admin Layout (light mode) */
+html:not(.dark) [data-admin] .bg-violet-500 {
+  background-color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] .bg-cyan-500 {
+  background-color: #111827 !important;
+}
+
+/* ── Admin Header Yellow Theme Override ─────────────────────── */
+html:not(.dark) [data-admin] header {
+  background-color: #e6a34a !important;
+  border-color: #fdba74 !important;
+}
+
+html:not(.dark) [data-admin] header button {
+  color: #475569 !important;
+}
+
+html:not(.dark) [data-admin] header button:hover {
+  background-color: rgba(243, 137, 24, 0.1) !important;
+  color: #f38918 !important;
+}
+
+html:not(.dark) [data-admin] header .text-slate-400,
+html:not(.dark) [data-admin] header .text-slate-800,
+html:not(.dark) [data-admin] header .text-slate-900,
+html:not(.dark) [data-admin] header .text-gray-500,
+html:not(.dark) [data-admin] header p {
+  color: #334155 !important;
+}
+
+html:not(.dark) [data-admin] header .border-slate-800,
+html:not(.dark) [data-admin] header .border-l {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) [data-admin] header .bg-slate-800\/50,
+html:not(.dark) [data-admin] header [class*="bg-slate-800"],
+html:not(.dark) [data-admin] header [class*="bg-gray-800"] {
+  background-color: #ffffff !important;
+  border-color: #fed7aa !important;
+}
+
+html:not(.dark) [data-admin] header [class*="text-green"],
+html:not(.dark) [data-admin] header [class*="text-yellow"],
+html:not(.dark) [data-admin] header [class*="text-red"],
+html:not(.dark) [data-admin] header span,
+html:not(.dark) [data-admin] header svg {
+  color: #334155 !important;
+}
+
+html:not(.dark) [data-admin] header .animate-pulse {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) [data-admin] header [class*="from-violet-500"] {
+  background: #f38918 !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) [data-admin] header .text-slate-400 {
+  color: #64748b !important;
+}
+
+html:not(.dark) [data-admin] header .text-yellow-500 {
+  color: #f38918 !important;
+}

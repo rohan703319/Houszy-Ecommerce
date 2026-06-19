@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Heart, ShoppingCart, Trash2, BadgePercent, PackageX, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackAddToCart } from "@/lib/analytics";
 
 export default function WishlistPage() {
   const { wishlist, removeFromWishlist, clearWishlist } = useWishlist();
@@ -66,6 +67,7 @@ export default function WishlistPage() {
       : !!productData?.nextDayDeliveryFree;
 
     // ✅ ADD TO CART (FULL DATA)
+    trackAddToCart({ productId: item.productId, name: item.name, price: item.finalPrice ?? item.price, quantity: 1 });
     addToCart({
       id: item.variantId
         ? `${item.variantId}-one`

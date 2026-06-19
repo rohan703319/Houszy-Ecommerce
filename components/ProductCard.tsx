@@ -11,9 +11,10 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useToast } from "@/components/toast/CustomToast";
 import { getDiscountBadge, getDiscountedPrice } from "@/app/lib/discountHelpers";
 import { getOldPriceDiscount } from "@/utils/pricing";
-import GenderBadge from "./shared/GenderBadge";
+// import GenderBadge from "./shared/GenderBadge";
 const FALLBACK_IMAGE = "/placeholder-product.jpg";
 import { useState, useRef } from "react";
+import { trackAddToCart, trackSelectItem } from "@/lib/analytics";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { useRouter } from "next/navigation";
 export default function ProductCard({
@@ -196,6 +197,21 @@ export default function ProductCard({
       ? defaultVariant.nextDayDeliveryFree === true
       : !!product.nextDayDeliveryFree;
 
+    trackAddToCart({ ...{
+      id: `${variantId ?? product.id}-one`,
+      productId: product.id,
+      name: defaultVariant
+        ? `${product.name} (${[
+          defaultVariant.option1Value,
+          defaultVariant.option2Value,
+          defaultVariant.option3Value,
+        ]
+          .filter(Boolean)
+          .join(", ")})`
+        : product.name,
+      price: finalPrice,
+      quantity: finalQty,
+    }, categories: product.productCategories ?? product.categories });
     addToCart({
       id: `${variantId ?? product.id}-one`,
       productId: product.id,
@@ -291,7 +307,7 @@ export default function ProductCard({
   return (
     <div className="group rounded-lg hover:shadow-xl transition-all bg-white">
       {/* IMAGE */}
-      <Link href={`/product/${cardSlug}`} className="block">
+      <Link href={`/product/${cardSlug}`} className="block" onClick={() => trackSelectItem(product, "Category")}>
         <div className="relative h-44 md:h-56 bg-white rounded-t-lg overflow-hidden">
           <Image
             src={mainImage}
@@ -356,7 +372,7 @@ export default function ProductCard({
                 </div>
               </div>
             )}
-          <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
+          {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
           {/* VAT Relief — bottom left on image */}
           {(product.vatExempt || product.vatRate === 0) && (
             <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">

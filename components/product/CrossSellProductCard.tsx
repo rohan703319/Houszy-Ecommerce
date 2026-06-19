@@ -19,8 +19,9 @@ import {
 } from "@/app/lib/discountHelpers";
 
 import { Card, CardContent } from "../ui/card";
-import GenderBadge from "../shared/GenderBadge";
+// import GenderBadge from "../shared/GenderBadge";
 import { useRouter } from "next/navigation";
+import { trackAddToCart } from "@/lib/analytics";
 
 const getCrossSellProductImage = (
   product: any,
@@ -201,6 +202,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       ? defaultVariant.nextDayDeliveryFree === true
       : !!product.nextDayDeliveryFree;
 
+    trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: qty });
     addToCart({
       id: `${variantId ?? product.id}-one`,
       productId: product.id,
@@ -410,8 +412,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
                 }`}
             />
           </button>
-          <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
-
+          {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
           <Link href={`/product/${product.slug}`}>
             <Image
               src={getCrossSellProductImage(product, defaultVariant)}

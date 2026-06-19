@@ -13,7 +13,7 @@ import { useToast } from "@/app/admin/_components/CustomToast";
 import { blogPostsService, BlogPost, BlogCategory } from "@/lib/services/blogPosts";
 import { ProductDescriptionEditor } from "@/app/admin/_components/SelfHostedEditor";
 import { blogCategoriesService } from "@/lib/services/blogCategories";
-import { generateSlug } from "../_utils/formatUtils";
+import { generateSlug, getImageUrl } from "../_utils/formatUtils";
 import { getBackendMessage } from "@/app/admin/_utils/errorUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -128,10 +128,10 @@ function computeSeo(
         titleLen >= 50 && titleLen <= 70
           ? "Perfect length for SEO"
           : titleLen > 0 && titleLen < 50
-          ? `Too short (${titleLen}/50–70)`
-          : titleLen > 70
-          ? `Too long (${titleLen}/70)`
-          : "Enter a title first",
+            ? `Too short (${titleLen}/50–70)`
+            : titleLen > 70
+              ? `Too long (${titleLen}/70)`
+              : "Enter a title first",
       points: 10,
       status: titleLen >= 50 && titleLen <= 70 ? "pass" : titleLen >= 30 && titleLen < 50 ? "warn" : "fail",
     },
@@ -149,8 +149,8 @@ function computeSeo(
         wordCount >= 300
           ? `${wordCount} words — great!`
           : wordCount > 0
-          ? `${wordCount} words (aim for 300+)`
-          : "Add post content",
+            ? `${wordCount} words (aim for 300+)`
+            : "Add post content",
       points: 15,
       status: wordCount >= 300 ? "pass" : wordCount >= 100 ? "warn" : "fail",
     },
@@ -230,9 +230,9 @@ function SeoScoreRing({ score }: { score: number }) {
   const offset = circ - (score / 100) * circ;
   const grade =
     score >= 80 ? { label: "Excellent", color: "#22c55e", ring: "#22c55e" } :
-    score >= 60 ? { label: "Good",      color: "#84cc16", ring: "#84cc16" } :
-    score >= 35 ? { label: "Fair",      color: "#f59e0b", ring: "#f59e0b" } :
-                  { label: "Poor",      color: "#ef4444", ring: "#ef4444" };
+      score >= 60 ? { label: "Good", color: "#84cc16", ring: "#84cc16" } :
+        score >= 35 ? { label: "Fair", color: "#f59e0b", ring: "#f59e0b" } :
+          { label: "Poor", color: "#ef4444", ring: "#ef4444" };
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -280,20 +280,18 @@ function SeoCheckItem({ check }: { check: SeoCheck }) {
   const pts = check.status === "pass" ? check.points : check.status === "warn" ? Math.round(check.points * 0.5) : 0;
 
   return (
-    <div className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border transition-colors ${
-      check.status === "pass"
+    <div className={`flex items-start gap-2 px-2.5 py-2 rounded-lg border transition-colors ${check.status === "pass"
         ? "bg-green-500/5 border-green-500/15"
         : check.status === "warn"
-        ? "bg-amber-500/5 border-amber-500/15"
-        : "bg-red-500/5 border-red-500/15"
-    }`}>
+          ? "bg-amber-500/5 border-amber-500/15"
+          : "bg-red-500/5 border-red-500/15"
+      }`}>
       {icon}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-1">
           <p className="text-[11px] font-semibold text-slate-300 leading-tight truncate">{check.label}</p>
-          <span className={`text-[9px] font-bold tabular-nums flex-shrink-0 ${
-            check.status === "pass" ? "text-green-400" : check.status === "warn" ? "text-amber-400" : "text-slate-600"
-          }`}>
+          <span className={`text-[9px] font-bold tabular-nums flex-shrink-0 ${check.status === "pass" ? "text-green-400" : check.status === "warn" ? "text-amber-400" : "text-slate-600"
+            }`}>
             +{pts}
           </span>
         </div>
@@ -340,7 +338,7 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
   const [metaTitle, setMetaTitle] = useState(initialData?.metaTitle ?? "");
   const [metaDescription, setMetaDescription] = useState(initialData?.metaDescription ?? "");
   const [metaKeywords, setMetaKeywords] = useState(initialData?.metaKeywords ?? "");
-  const [thumbnailUrl, setThumbnailUrl] = useState(initialData?.thumbnailImageUrl ?? "");
+  const [thumbnailUrl, setThumbnailUrl] = useState(initialData?.thumbnailImageUrl || initialData?.featuredImageUrl || "");
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
@@ -365,7 +363,7 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
       .finally(() => setLoadingCats(false));
   }, []);
 
-  
+
 
   useEffect(() => {
     blogPostsService
@@ -375,8 +373,8 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
         const currentId = initialData?.id;
         const posts = Array.isArray(data)
           ? data
-              .filter((post) => !post.isDeleted && post.id !== currentId)
-              .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
+            .filter((post) => !post.isDeleted && post.id !== currentId)
+            .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
           : [];
         setAllBlogPosts(posts);
       })
@@ -406,41 +404,41 @@ export default function BlogPostForm({ mode, initialData }: BlogPostFormProps) {
   }, [title, slugTouched]);
 
   useEffect(() => {
-  if (!initialData) return;
+    if (!initialData) return;
 
-  setTitle(initialData.title ?? "");
-  setSlug(initialData.slug ?? "");
-  setSummary(initialData.bodyOverview ?? initialData.summary ?? "");
-  setBody(initialData.body ?? initialData.content ?? "");
-  setIsPublished(initialData.isPublished ?? false);
+    setTitle(initialData.title ?? "");
+    setSlug(initialData.slug ?? "");
+    setSummary(initialData.bodyOverview ?? initialData.summary ?? "");
+    setBody(initialData.body ?? initialData.content ?? "");
+    setIsPublished(initialData.isPublished ?? false);
 
-  setPublishedAt(
-    initialData.publishedAt
-      ? initialData.publishedAt.slice(0, 16)
-      : ""
-  );
-if ((initialData?.categoryIds?.length ?? 0) > 0) {
-  setBlogCategoryId(initialData.categoryIds ?? []);
-} else if ((initialData?.categories?.length ?? 0) > 0) {
-  setBlogCategoryId(
-    initialData.categories?.map((c: any) => c.categoryId) ?? []
-  );
-} else if (initialData?.blogCategoryId) {
-  setBlogCategoryId([initialData.blogCategoryId]);
-} else {
-  setBlogCategoryId([]);
-}
-  setRelatedBlogPostIds(initialData.relatedBlogPostIds ?? []);
-  setTags(initialData.tags ?? []);
-  setAllowComments(initialData.allowComments ?? true);
-  setShowOnHomePage(initialData.showOnHomePage ?? false);
-  setIncludeInSitemap(initialData.includeInSitemap ?? true);
-  setDisplayOrder(initialData.displayOrder ?? 0);
-  setMetaTitle(initialData.metaTitle ?? "");
-  setMetaDescription(initialData.metaDescription ?? "");
-  setMetaKeywords(initialData.metaKeywords ?? "");
-  setThumbnailUrl(initialData.thumbnailImageUrl ?? "");
-}, [initialData]);
+    setPublishedAt(
+      initialData.publishedAt
+        ? initialData.publishedAt.slice(0, 16)
+        : ""
+    );
+    if ((initialData?.categoryIds?.length ?? 0) > 0) {
+      setBlogCategoryId(initialData.categoryIds ?? []);
+    } else if ((initialData?.categories?.length ?? 0) > 0) {
+      setBlogCategoryId(
+        initialData.categories?.map((c: any) => c.categoryId) ?? []
+      );
+    } else if (initialData?.blogCategoryId) {
+      setBlogCategoryId([initialData.blogCategoryId]);
+    } else {
+      setBlogCategoryId([]);
+    }
+    setRelatedBlogPostIds(initialData.relatedBlogPostIds ?? []);
+    setTags(initialData.tags ?? []);
+    setAllowComments(initialData.allowComments ?? true);
+    setShowOnHomePage(initialData.showOnHomePage ?? false);
+    setIncludeInSitemap(initialData.includeInSitemap ?? true);
+    setDisplayOrder(initialData.displayOrder ?? 0);
+    setMetaTitle(initialData.metaTitle ?? "");
+    setMetaDescription(initialData.metaDescription ?? "");
+    setMetaKeywords(initialData.metaKeywords ?? "");
+    setThumbnailUrl(initialData.thumbnailImageUrl || initialData.featuredImageUrl || "");
+  }, [initialData]);
 
   // ── Validation ────────────────────────────────────────────────────────────
   const validate = useCallback((): boolean => {
@@ -450,125 +448,126 @@ if ((initialData?.categoryIds?.length ?? 0) > 0) {
     else if (title.trim().length > 200) e.title = "Title must be under 200 characters.";
 
     if (!slug.trim()) e.slug = "Slug is required.";
-    else if (!/^[a-z0-9-]+$/.test(slug)) e.slug = "Slug can only contain lowercase letters, numbers, and hyphens.";
+    else if (!/^[a-z0-9-_]+$/.test(slug)) e.slug = "Slug can only contain lowercase letters, numbers, hyphens, and underscores.";
 
     if (!body || body.replace(/<[^>]+>/g, "").trim().length < 10)
       e.body = "Content is required (minimum 10 characters).";
 
-    if (metaTitle && metaTitle.length > 60) e.metaTitle = "Meta title must be under 60 characters.";
-    if (metaDescription && metaDescription.length > 160)
-      e.metaDescription = "Meta description must be under 160 characters.";
+    if (metaTitle && metaTitle.length > 200) e.metaTitle = "Meta title must be under 200 characters.";
+    if (metaDescription && metaDescription.length > 500)
+      e.metaDescription = "Meta description must be under 500 characters.";
 
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [title, slug, body, metaTitle, metaDescription]);
 
   // ── Save ─────────────────────────────────────────────────────────────────
-async function handleSave(publish?: boolean) {
-  if (!validate()) {
-    toast.error("Please fix the errors before saving.");
-    return;
-  }
+  async function handleSave(publish?: boolean) {
+    if (!validate()) {
+      toast.error("Please fix the errors before saving.");
+      return;
+    }
 
-  setSaving(true);
+    setSaving(true);
 
-  try {
-    const currentUser =
-      typeof window !== "undefined"
-        ? JSON.parse(localStorage.getItem("user") || "{}")
-        : {};
+    try {
+      const currentUser =
+        typeof window !== "undefined"
+          ? JSON.parse(localStorage.getItem("user") || "{}")
+          : {};
 
-    const finalPayload: any = {
-      id: mode === "edit" ? initialData?.id : undefined,
+      const finalPayload: any = {
+        id: mode === "edit" ? initialData?.id : undefined,
 
-      title: title.trim(),
-      slug: slug.trim(),
-      bodyOverview: summary.trim(),
-      body,
+        title: title.trim(),
+        slug: slug.trim(),
+        bodyOverview: summary.trim(),
+        body,
 
-      isPublished:
-        publish !== undefined ? publish : isPublished,
+        isPublished:
+          publish !== undefined ? publish : isPublished,
 
-      publishedAt: publishedAt
-        ? new Date(publishedAt).toISOString()
-        : null,
-
-      isActive: true,
-
-      blogCategoryId:
-        blogCategoryId.length > 0
-          ? blogCategoryId[0]
+        publishedAt: publishedAt
+          ? new Date(publishedAt).toISOString()
           : null,
 
-      categoryIds: blogCategoryId,
+        isActive: true,
 
-      relatedBlogPostIds,
+        blogCategoryId:
+          blogCategoryId.length > 0
+            ? blogCategoryId[0]
+            : null,
 
-      tags,
+        categoryIds: blogCategoryId,
 
-      allowComments,
-      showOnHomePage,
-      includeInSitemap,
+        relatedBlogPostIds,
 
-      displayOrder,
+        tags,
 
-      metaTitle: metaTitle?.trim() || undefined,
-      metaDescription:
-        metaDescription?.trim() || undefined,
-      metaKeywords:
-        metaKeywords?.trim() || undefined,
+        allowComments,
+        showOnHomePage,
+        includeInSitemap,
 
-      thumbnailImageUrl:
-        thumbnailUrl || undefined,
+        displayOrder,
 
-      authorName:
-        `${currentUser?.firstName || ""} ${
-          currentUser?.lastName || ""
-        }`.trim(),
+        metaTitle: metaTitle?.trim() || undefined,
+        metaDescription:
+          metaDescription?.trim() || undefined,
+        metaKeywords:
+          metaKeywords?.trim() || undefined,
 
-      authorId: currentUser?.id || "",
-    };
+        thumbnailImageUrl:
+          thumbnailUrl || undefined,
+        featuredImageUrl:
+          thumbnailUrl || undefined,
 
-    // remove undefined only
-    const cleanPayload = Object.fromEntries(
-      Object.entries(finalPayload).filter(
-        ([_, value]) => value !== undefined
-      )
-    );
+        authorName:
+          `${currentUser?.firstName || ""} ${currentUser?.lastName || ""
+            }`.trim(),
 
-    console.log("Submitting Payload:", cleanPayload);
+        authorId: currentUser?.id || "",
+      };
 
-    let response;
-
-    if (mode === "create") {
-      response = await blogPostsService.create(
-        cleanPayload as any
+      // remove undefined only
+      const cleanPayload = Object.fromEntries(
+        Object.entries(finalPayload).filter(
+          ([_, value]) => value !== undefined
+        )
       );
-    } else {
-      response = await blogPostsService.update(
-        initialData!.id,
-        cleanPayload as any
-      );
+
+      console.log("Submitting Payload:", cleanPayload);
+
+      let response;
+
+      if (mode === "create") {
+        response = await blogPostsService.create(
+          cleanPayload as any
+        );
+      } else {
+        response = await blogPostsService.update(
+          initialData!.id,
+          cleanPayload as any
+        );
+      }
+
+      if (response.data?.success) {
+        toast.success(
+          mode === "create"
+            ? "Blog post created!"
+            : "Blog post updated!"
+        );
+
+        router.push("/admin/BlogPosts");
+      } else {
+        throw new Error(getBackendMessage(response.data));
+      }
+    } catch (e: any) {
+      console.error("Save Error:", e);
+      toast.error(getBackendMessage(e));
+    } finally {
+      setSaving(false);
     }
-
-    if (response.data?.success) {
-      toast.success(
-        mode === "create"
-          ? "Blog post created!"
-          : "Blog post updated!"
-      );
-
-      router.push("/admin/BlogPosts");
-    } else {
-      throw new Error(getBackendMessage(response.data));
-    }
-  } catch (e: any) {
-    console.error("Save Error:", e);
-    toast.error(getBackendMessage(e));
-  } finally {
-    setSaving(false);
   }
-}
 
   // ── Thumbnail Upload ──────────────────────────────────────────────────────
   async function handleThumbUpload(file: File) {
@@ -726,7 +725,7 @@ async function handleSave(publish?: boolean) {
               {/* Summary */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className={label}>Excerpt / Summary</label>
+                  <label className={label}>Excerpt / Summary*</label>
                   <CharCounter value={summary} max={500} />
                 </div>
                 <textarea
@@ -846,8 +845,8 @@ async function handleSave(publish?: boolean) {
                       width: `${seo.score}%`,
                       background:
                         seo.score >= 80 ? "#22c55e" :
-                        seo.score >= 60 ? "#84cc16" :
-                        seo.score >= 35 ? "#f59e0b" : "#ef4444",
+                          seo.score >= 60 ? "#84cc16" :
+                            seo.score >= 35 ? "#f59e0b" : "#ef4444",
                     }}
                   />
                 </div>
@@ -946,7 +945,7 @@ async function handleSave(publish?: boolean) {
               {thumbnailUrl ? (
                 <div className="relative group">
                   <img
-                    src={thumbnailUrl}
+                    src={getImageUrl(thumbnailUrl)}
                     alt="Thumbnail"
                     className="w-full h-36 object-cover rounded-lg border border-slate-700"
                     onError={(e) => (e.currentTarget.src = "/placeholder.png")}
@@ -1180,7 +1179,7 @@ async function handleSave(publish?: boolean) {
                   className={inp}
                 />
               </div>
-              
+
             </div>
           </SectionCard>
         </div>

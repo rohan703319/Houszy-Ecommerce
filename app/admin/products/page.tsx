@@ -1000,9 +1000,9 @@ const formatOptionLabel = (option: SelectOption) => {
       title={option.label}
       className={`
         block whitespace-normal break-words leading-tight
-        ${depth === 1 ? "text-sm" : ""}
-        ${depth === 2 ? "text-xs text-slate-200" : ""}
-        ${depth >= 3 ? "text-[11px] text-slate-400" : ""}
+        ${depth === 1 ? "text-sm font-semibold text-slate-900 dark:text-white" : ""}
+        ${depth === 2 ? "text-xs text-slate-600 dark:text-slate-200" : ""}
+        ${depth >= 3 ? "text-[11px] text-slate-500 dark:text-slate-400" : ""}
       `}
     >
       {option.label}

@@ -21,10 +21,11 @@ import "swiper/css/navigation";
 import "swiper/css/autoplay";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
-import GenderBadge from "../shared/GenderBadge";
+// import GenderBadge from "../shared/GenderBadge";
 import { useRef } from "react";
 import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { useRouter } from "next/navigation";
+import { trackAddToCart } from "@/lib/analytics";
 
 const getRelatedProductImage = (
   product: any,
@@ -192,6 +193,7 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
       ? defaultVariant.nextDayDeliveryFree === true
       : !!product.nextDayDeliveryFree;
 
+    trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: qty });
     addToCart({
       id: `standalone:${product.id}:${variantId ?? "base"}`,
       type: "one-time",
@@ -413,7 +415,7 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
                 }`}
             />
           </button>
-          <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
+          {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
           <Link href={`/product/${product.slug}`}>
             <Image
               src={getRelatedProductImage(product, defaultVariant)}

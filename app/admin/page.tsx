@@ -50,7 +50,7 @@ function getInitials(name: string) {
 const STATUS_META: Record<string, { color: string; bg: string; icon: any; bar: string; hex: string }> = {
   Pending:              { color: "text-amber-400",  bg: "bg-amber-500/10",  icon: Timer,        bar: "bg-amber-500", hex: "#f59e0b" },
   Processing:           { color: "text-cyan-400",   bg: "bg-cyan-500/10",   icon: RefreshCcw,   bar: "bg-cyan-500",  hex: "#06b6d4" },
-  Shipped:              { color: "text-violet-400", bg: "bg-violet-500/10", icon: Truck,        bar: "bg-violet-500", hex: "#8b5cf6" },
+  Shipped:              { color: "text-violet-400", bg: "bg-violet-500/10", icon: Truck,        bar: "bg-violet-500", hex: "#f38918" },
   Delivered:            { color: "text-green-400",  bg: "bg-green-500/10",  icon: CheckCircle2, bar: "bg-green-500", hex: "#10b981" },
   Cancelled:            { color: "text-red-400",    bg: "bg-red-500/10",    icon: XCircle,      bar: "bg-red-500",   hex: "#ef4444" },
   Refunded:             { color: "text-pink-400",   bg: "bg-pink-500/10",   icon: RotateCcw,    bar: "bg-pink-500",  hex: "#ec4899" },
@@ -132,7 +132,7 @@ const d = data ?? ({} as DashboardStats);
       {/* ═══ HEADER ═══ */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent tracking-tight">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-[#f38918] via-amber-500 to-[#f38918] bg-clip-text text-transparent tracking-tight">
             Dashboard
           </h1>
           <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5">
@@ -326,12 +326,12 @@ const d = data ?? ({} as DashboardStats);
               <AreaChart data={d.revenueChart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#8b5cf6" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}   />
+                    <stop offset="5%"  stopColor="#f38918" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#f38918" stopOpacity={0}   />
                   </linearGradient>
                   <linearGradient id="gOrd" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#06b6d4" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}   />
+                    <stop offset="5%"  stopColor="#111827" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#111827" stopOpacity={0}   />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
@@ -344,8 +344,8 @@ const d = data ?? ({} as DashboardStats);
                     n === "revenue" ? "Revenue" : "Orders",
                   ]}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#gRev)" dot={false} />
-                <Area type="monotone" dataKey="orders"  stroke="#06b6d4" strokeWidth={2} fillOpacity={1} fill="url(#gOrd)" dot={false} />
+                <Area type="monotone" dataKey="revenue" stroke="#f38918" strokeWidth={2} fillOpacity={1} fill="url(#gRev)" dot={false} />
+                <Area type="monotone" dataKey="orders"  stroke="#111827" strokeWidth={2} fillOpacity={1} fill="url(#gOrd)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (

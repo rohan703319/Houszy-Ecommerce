@@ -170,6 +170,13 @@ export function trackAddToCart(item: any) {
   });
 }
 
+export function trackRemoveFromCart(item: any) {
+  pushEcommerceEvent("remove_from_cart", {
+    value: lineValue(item),
+    items: [toGa4Item(item)],
+  });
+}
+
 export function trackViewCart(items: any[]) {
   pushEcommerceEvent("view_cart", {
     value: cartValue(items),
@@ -189,6 +196,29 @@ export function trackAddPaymentInfo(items: any[], paymentType: string) {
     value: cartValue(items),
     payment_type: paymentType,
     items: items.map(toGa4Item),
+  });
+}
+
+export function trackAddShippingInfo(items: any[], shippingTier: string, shippingCost: number) {
+  pushEcommerceEvent("add_shipping_info", {
+    value: cartValue(items),
+    shipping_tier: shippingTier,
+    shipping: shippingCost,
+    items: items.map(toGa4Item),
+  });
+}
+
+export function trackViewItemList(items: any[], listName: string) {
+  pushEcommerceEvent("view_item_list", {
+    item_list_name: listName,
+    items: items.map((item, index) => ({ ...toGa4Item(item, index) })),
+  });
+}
+
+export function trackSelectItem(item: any, listName: string, index = 0) {
+  pushEcommerceEvent("select_item", {
+    item_list_name: listName,
+    items: [toGa4Item(item, index)],
   });
 }
 

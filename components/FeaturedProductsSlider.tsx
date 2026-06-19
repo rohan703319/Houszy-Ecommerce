@@ -17,9 +17,10 @@ import {
   getDiscountBadge,
   getDiscountedPrice,
 } from "@/app/lib/discountHelpers";
-import GenderBadge from "@/components/shared/GenderBadge";
+// import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
 import { useRouter } from "next/navigation";
+import { trackAddToCart } from "@/lib/analytics";
 import { useAuth } from "@/context/AuthContext";
 import { getBackorderUIState } from "@/app/lib/backorderHelpers";
 import BackInStockModal from "@/components/backorder/BackInStockModal";
@@ -542,7 +543,7 @@ export default function FeaturedProductsSlider({
                           </div>
                         </div>
                       )}
-                      <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" />
+                      {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
                       {/* Wishlist — top right below badge */}
                       <button
                         onClick={(e) => {
@@ -791,6 +792,7 @@ export default function FeaturedProductsSlider({
                                 ? defaultVariant.nextDayDeliveryFree === true
                                 : !!product.nextDayDeliveryFree;
 
+                              trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: finalQty });
                               addToCart({
                                 id: defaultVariant ? `${defaultVariant.id}-one` : product.id,
                                 type: "one-time",
@@ -1031,6 +1033,7 @@ export default function FeaturedProductsSlider({
                 ? variant.nextDayDeliveryFree === true
                 : !!product.nextDayDeliveryFree;
 
+              trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: finalQty });
               addToCart({
                 id: variant ? `${variant.id}-one` : product.id,
                 type: "one-time",

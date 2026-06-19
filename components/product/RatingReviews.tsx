@@ -640,18 +640,22 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
           <p className="text-gray-500 italic text-sm px-1">No reviews matching filters.</p>
         ) : (
           <div className="relative group px-4 md:px-10">
-            <button
-              id="prev-btn"
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full border bg-white shadow-md hover:bg-gray-50 transition cursor-pointer disabled:opacity-0 hidden md:flex items-center justify-center border-gray-200"
-            >
-              <ChevronLeft className="h-5 w-5 text-gray-700" />
-            </button>
-            <button
-              id="next-btn"
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full border bg-white shadow-md hover:bg-gray-50 transition cursor-pointer disabled:opacity-0 hidden md:flex items-center justify-center border-gray-200"
-            >
-              <ChevronRight className="h-5 w-5 text-gray-700" />
-            </button>
+            {filteredReviews.length > 1 && (
+              <>
+                <button
+                  id="prev-btn"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full border bg-white shadow-md hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center border-gray-200"
+                >
+                  <ChevronLeft className="h-3 w-3 md:h-5 md:w-5 text-gray-700" />
+                </button>
+                <button
+                  id="next-btn"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full border bg-white shadow-md hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center border-gray-200"
+                >
+                  <ChevronRight className="h-3 w-3 md:h-5 md:w-5 text-gray-700" />
+                </button>
+              </>
+            )}
 
             <Swiper
               onSwiper={setSwiperInstance}
