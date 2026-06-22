@@ -1,4 +1,4 @@
-const DEFAULT_GTM_ID = "GTM-N2G6RZDM";
+const DEFAULT_GTM_ID = "GTM-MW6WZQBM";
 const DEFAULT_CURRENCY = "GBP";
 
 export const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || DEFAULT_GTM_ID;

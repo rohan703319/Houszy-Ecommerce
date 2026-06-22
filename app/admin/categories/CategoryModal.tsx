@@ -219,6 +219,7 @@ useEffect(() => {
       metaTitle: editingCategory.metaTitle || "",
       metaDescription: editingCategory.metaDescription || "",
       metaKeywords: editingCategory.metaKeywords || "",
+      schemaDescription: editingCategory.schemaDescription || "",
     });
   }
 }, [editingCategory, showModal]);
@@ -670,6 +671,19 @@ useEffect(() => {
                       onChange={(e) => setFormData({...formData, metaKeywords: e.target.value})}
                       placeholder="Enter keywords separated by commas"
                       className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Schema Description
+                      <span className="ml-1 text-slate-500 font-normal">(for SEO structured data)</span>
+                    </label>
+                    <textarea
+                      value={formData.schemaDescription ?? ""}
+                      onChange={(e) => setFormData({ ...formData, schemaDescription: e.target.value })}
+                      placeholder="Shop fitness products including gym accessories, gym equipment..."
+                      rows={3}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 transition-colors resize-none"
                     />
                   </div>
                 </div>

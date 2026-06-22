@@ -123,19 +123,9 @@ useEffect(() => {
 
   if (storedUser && storedAccess) {
     try {
-      const payload = JSON.parse(atob(storedAccess.split(".")[1]));
-      const roleKey =
-        "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
-      const role: string | string[] = payload[roleKey] ?? "";
-      const isAdmin = Array.isArray(role)
-        ? role.includes("Admin")
-        : role === "Admin";
-
-      if (!isAdmin) {
-        setUser(JSON.parse(storedUser));
-        setAccessToken(storedAccess);
-        setRefreshToken(storedRefresh);
-      }
+      setUser(JSON.parse(storedUser));
+      setAccessToken(storedAccess);
+      setRefreshToken(storedRefresh);
     } catch {}
   }
 

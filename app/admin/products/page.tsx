@@ -2447,8 +2447,16 @@ Updated By: ${product.updatedBy || "N/A"}`}
 
   {/* VIEW */}
   {!isDeleted && (
-    <Link href={`/product/${product.slug}`} target="_blank">
-      <button className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-md">
+    <Link
+      href={`/product/${product.slug}`}
+      target="_blank"
+      title={product.isPublished ? "View live product" : "Preview unpublished product (Admin only)"}
+    >
+      <button className={`p-1 rounded-md transition-all ${
+        product.isPublished
+          ? "text-emerald-400 hover:bg-emerald-500/10"
+          : "text-amber-400 hover:bg-amber-500/10"
+      }`}>
         <ExternalLink className="h-3.5 w-3.5" />
       </button>
     </Link>

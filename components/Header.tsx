@@ -173,7 +173,7 @@ export default function Header({
         setSearchLoading(true);
         setShowSearchDropdown(true);
         const res = await fetch(
-          `/api/Products?page=1&pageSize=10&searchTerm=${encodeURIComponent(debouncedSearch)}&sortDirection=asc`,
+          `/api/Products?page=1&pageSize=10&searchTerm=${encodeURIComponent(debouncedSearch)}&sortDirection=asc&isPublished=true`,
           { signal: controller.signal }
         );
         const json = await res.json();

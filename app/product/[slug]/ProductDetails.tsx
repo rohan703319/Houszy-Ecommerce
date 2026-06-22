@@ -257,6 +257,7 @@ interface ProductDetailsProps {
   initialVariantId?: string | null;
   aplusTemplate?: any | null;
   aplusContent?: string | null;
+  isAdminPreview?: boolean;
 }
 type BreadcrumbCategory = {
   name: string;
@@ -422,6 +423,7 @@ export default function ProductDetails({
   initialVariantId,
   aplusTemplate,
   aplusContent,
+  isAdminPreview = false,
 }: ProductDetailsProps & { initialVariantId?: string }) {
   if (!product) {
     return (
@@ -1869,6 +1871,21 @@ export default function ProductDetails({
   };
   return (
     <div className="min-h-screen bg-white">
+      {/* ✅ ADMIN PREVIEW BANNER */}
+      {isAdminPreview && (
+        <div className="sticky top-0 z-50 w-full bg-amber-500 text-black py-2 px-4 flex items-center justify-center gap-3 shadow-md">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-black/10 text-black font-bold text-xs">!</span>
+          <p className="text-sm font-semibold tracking-wide">
+            ⚠️ Admin Preview — This product is <strong>Unpublished</strong> and not visible to customers.
+          </p>
+          <a
+            href="/admin/products"
+            className="ml-4 text-xs font-bold underline underline-offset-2 hover:opacity-70 transition whitespace-nowrap"
+          >
+            ← Back to Products
+          </a>
+        </div>
+      )}
       {/* Breadcrumb */}
       <div className="hidden md:block bg-white">
         <div className="max-w-7xl mx-auto px-4 py-4">

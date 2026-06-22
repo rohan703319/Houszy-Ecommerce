@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import ProductClient from './ProductDetails';
 import { notFound } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { cookies } from 'next/headers';
 
 interface ProductImage {
   id: string;
@@ -37,7 +38,7 @@ interface Product {
 }
 
 
-async function getProduct(slug: string) {
+async function getProduct(slug: string, isAdmin: boolean = false) {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/Products/by-slug/${slug}`,
@@ -52,14 +53,18 @@ async function getProduct(slug: string) {
     if (!json.success) return null;
 
     const product = json.data;
-// ✅ PRODUCTION SAFE CHECK
-if (
-  !product ||
-  product.status !== "Active" ||
-  product.isPublished !== true
-) {
-  return null;
-}
+
+    // ✅ PRODUCTION SAFE CHECK — Admin can bypass published check
+    if (
+      !product ||
+      (
+        (product.status !== "Active" || product.isPublished !== true)
+        && !isAdmin
+      )
+    ) {
+      return null;
+    }
+
     // ✅ IMPORTANT: Variant logic preserve
     let selectedVariantId: string | undefined = undefined;
 
@@ -102,6 +107,21 @@ if (
     return null;
   }
 }
+
+// ✅ Helper: Check if token belongs to Admin role (server-side)
+function isAdminToken(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+    const roleKey = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+    const role = payload[roleKey] ?? "";
+    return Array.isArray(role) ? role.includes("Admin") : role === "Admin";
+  } catch {
+    return false;
+  }
+}
+
 
 // ⭐ FIX: params is now Promise
 export async function generateMetadata({
@@ -173,9 +193,17 @@ height: 630,
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  const data = await getProduct(slug);
+  // ✅ Read authToken cookie server-side to check if admin
+  const cookieStore = await cookies();
+  const token = cookieStore.get('authToken')?.value ?? '';
+  const isAdmin = token ? isAdminToken(token) : false;
 
- if (!data?.product) notFound();
+  const data = await getProduct(slug, isAdmin);
+
+  if (!data?.product) notFound();
+
+  // ✅ Show preview banner only when admin & product is unpublished
+  const isAdminPreview = isAdmin && !data.product.isPublished;
 
  return (
   <>
@@ -205,7 +233,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         name: data.product.brandName,
       },
 
-      category: data.product.categoryName, // ✅ ADD
+      category: data.product.categoryName,
 
       offers: {
         "@type": "Offer",
@@ -236,6 +264,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       initialVariantId={data.selectedVariantId}
       aplusTemplate={data.aplusTemplate}
       aplusContent={data.product.aPlusContent}
+      isAdminPreview={isAdminPreview}
     />
   </>
 );

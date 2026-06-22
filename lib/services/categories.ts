@@ -26,6 +26,7 @@ export interface Category {
   updatedBy?: string;
   subCategories?: Category[];
     faqs?: CategoryFaq[];
+  schemaDescription?: string;
 }
 
 export interface ApiResponse<T> {
@@ -44,6 +45,7 @@ export interface UpdateCategoryDto {
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
+  schemaDescription?: string;
 }
 
 export type CategoryStats = {
@@ -64,6 +66,7 @@ export interface CreateCategoryDto {
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
+  schemaDescription?: string;
 }
 
 export interface CategoryApiResponse {

@@ -786,6 +786,31 @@ html:not(.dark) [data-admin] .hover\:bg-gray-800:hover {
   background-color: #e2e8f0 !important;
 }
 
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/5:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/5:hover {
+  background-color: rgba(241, 245, 249, 0.4) !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/10:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/10:hover {
+  background-color: rgba(226, 232, 240, 0.2) !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/20:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/20:hover {
+  background-color: rgba(226, 232, 240, 0.3) !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/30:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/30:hover {
+  background-color: rgba(226, 232, 240, 0.4) !important;
+}
+
+html:not(.dark) [data-admin] .hover\:bg-slate-800\/40:hover,
+html:not(.dark) [data-admin] .hover\:bg-gray-800\/40:hover {
+  background-color: rgba(226, 232, 240, 0.5) !important;
+}
+
 html:not(.dark) [data-admin] .hover\:bg-slate-800\/50:hover,
 html:not(.dark) [data-admin] .hover\:bg-gray-800\/50:hover {
   background-color: rgba(226, 232, 240, 0.6) !important;
@@ -1168,6 +1193,48 @@ html:not(.dark) [data-admin] .from-violet-500\/90 {
 
 html:not(.dark) [data-admin] .to-cyan-500\/90 {
   --tw-gradient-to: rgba(217, 115, 12, 0.9) var(--tw-gradient-to-position) !important;
+}
+
+/* ── Disable Fading/White Gradient for Primary Admin Buttons in Light Mode ── */
+html:not(.dark) [data-admin] button[class*="from-violet-"],
+html:not(.dark) [data-admin] button[class*="from-cyan-"],
+html:not(.dark) [data-admin] button.from-violet-500,
+html:not(.dark) [data-admin] button.from-violet-600,
+html:not(.dark) [data-admin] button.from-cyan-500,
+html:not(.dark) [data-admin] button.from-cyan-600,
+html:not(.dark) [data-admin] a[class*="from-violet-"],
+html:not(.dark) [data-admin] a[class*="from-cyan-"],
+html:not(.dark) [data-admin] a.from-violet-500,
+html:not(.dark) [data-admin] a.from-violet-600,
+html:not(.dark) [data-admin] a.from-cyan-500,
+html:not(.dark) [data-admin] a.from-cyan-600 {
+  background-image: none !important;
+  background-color: #d9730c !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) [data-admin] button[class*="from-violet-"]:hover,
+html:not(.dark) [data-admin] button[class*="from-cyan-"]:hover,
+html:not(.dark) [data-admin] button.from-violet-500:hover,
+html:not(.dark) [data-admin] button.from-violet-600:hover,
+html:not(.dark) [data-admin] button.from-cyan-500:hover,
+html:not(.dark) [data-admin] button.from-cyan-600:hover,
+html:not(.dark) [data-admin] a[class*="from-violet-"]:hover,
+html:not(.dark) [data-admin] a[class*="from-cyan-"]:hover,
+html:not(.dark) [data-admin] a.from-violet-500:hover,
+html:not(.dark) [data-admin] a.from-violet-600:hover,
+html:not(.dark) [data-admin] a.from-cyan-500:hover,
+html:not(.dark) [data-admin] a.from-cyan-600:hover {
+  background-image: none !important;
+  background-color: #b85f05 !important;
+  color: #ffffff !important;
+}
+
+/* ── Disable Fading/White Gradient for Admin Avatars/Icons in Light Mode ──── */
+html:not(.dark) [data-admin] .from-violet-500.to-pink-500 {
+  background-image: none !important;
+  background-color: #f38918 !important;
+  color: #ffffff !important;
 }
 
 /* ── Specific Overrides for Violet/Cyan Text in Light Mode ─────── */

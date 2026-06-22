@@ -23,7 +23,7 @@ export default async function SearchPage({ searchParams }: any) {
   if (query.length > 1) {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/Products?page=1&pageSize=20&searchTerm=${encodeURIComponent(query)}&sortDirection=asc`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/Products?page=1&pageSize=20&searchTerm=${encodeURIComponent(query)}&sortDirection=asc&isPublished=true`,
         { cache: "no-store" }
       );
 

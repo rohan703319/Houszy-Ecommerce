@@ -223,6 +223,21 @@ const ErrorText = ({ error }: { error?: string }) => {
   return <p className="text-red-600 text-xs mt-1">{error}</p>;
 };
 
+async function getErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      return json?.message || json?.error || (Array.isArray(json?.errors) ? json.errors.join(", ") : json?.errors) || fallback;
+    } catch {
+      if (text && text.length < 200) {
+        return text;
+      }
+    }
+  } catch {}
+  return fallback;
+}
+
 /* === Main Checkout Page === */
 export default function CheckoutPage() {
   const router = useRouter();
@@ -1922,7 +1937,8 @@ export default function CheckoutPage() {
                             );
 
                             if (!orderResp.ok) {
-                              setError("Order creation failed");
+                              const errorMsg = await getErrorMessage(orderResp, "Order creation failed");
+                              setError(errorMsg);
                               setIsPlacing(false);
                               return;
                             }
@@ -1930,7 +1946,7 @@ export default function CheckoutPage() {
                             const orderJson = await orderResp.json();
 
                             if (!orderJson?.data?.id) {
-                              setError("Invalid order response");
+                              setError(orderJson?.message || "Invalid order response");
                               setIsPlacing(false);
                               return;
                             }
@@ -1965,7 +1981,8 @@ export default function CheckoutPage() {
                         );
 
                         if (!orderResp.ok) {
-                          setError("Order creation failed");
+                          const errorMsg = await getErrorMessage(orderResp, "Order creation failed");
+                          setError(errorMsg);
                           setIsPlacing(false);
                           return;
                         }
@@ -1973,7 +1990,7 @@ export default function CheckoutPage() {
                         const orderJson = await orderResp.json();
 
                         if (!orderJson?.data?.id) {
-                          setError("Invalid order response");
+                          setError(orderJson?.message || "Invalid order response");
                           setIsPlacing(false);
                           return;
                         }

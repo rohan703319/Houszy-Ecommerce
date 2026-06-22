@@ -74,6 +74,7 @@ export default function CategoriesPage() {
     metaTitle: "",
     metaDescription: "",
     metaKeywords: "",
+    schemaDescription: "",
     parentCategoryId: ""
   });
 
@@ -387,6 +388,7 @@ export default function CategoriesPage() {
       metaTitle: "",
       metaDescription: "",
       metaKeywords: "",
+      schemaDescription: "",
       parentCategoryId: parentId
     });
     setShowModal(true);
@@ -568,6 +570,7 @@ export default function CategoriesPage() {
         metaTitle: formData.metaTitle || "",
         metaDescription: formData.metaDescription || "",
         metaKeywords: formData.metaKeywords || "",
+        schemaDescription: formData.schemaDescription || "",
       };
 
       console.log("📤 Payload:", payload);
@@ -718,6 +721,7 @@ export default function CategoriesPage() {
       metaTitle: category.metaTitle || "",
       metaDescription: category.metaDescription || "",
       metaKeywords: category.metaKeywords || "",
+      schemaDescription: category.schemaDescription || "",
       parentCategoryId: category.parentCategoryId || "",
     })
 
@@ -744,6 +748,7 @@ export default function CategoriesPage() {
       metaTitle: "",
       metaDescription: "",
       metaKeywords: "",
+      schemaDescription: "",
       parentCategoryId: "",
     });
     setEditingCategory(null);
@@ -1805,6 +1810,10 @@ export default function CategoriesPage() {
                       <div className="bg-slate-900/50 p-3 rounded-lg">
                         <p className="text-xs text-slate-400 mb-1">Meta Keywords</p>
                         <p className="text-white text-sm">{viewingCategory.metaKeywords || <span className="text-slate-500 italic">Not set</span>}</p>
+                      </div>
+                      <div className="bg-slate-900/50 p-3 rounded-lg">
+                        <p className="text-xs text-slate-400 mb-1">Schema Description</p>
+                        <p className="text-white text-sm">{viewingCategory.schemaDescription || <span className="text-slate-500 italic">Not set</span>}</p>
                       </div>
                     </div>
                   </div>
