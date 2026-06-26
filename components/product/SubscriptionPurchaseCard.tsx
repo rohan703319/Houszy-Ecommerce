@@ -227,7 +227,7 @@ export default function SubscriptionPurchaseCard({
             £{(selectedVariant?.price ?? product.price).toFixed(2)}
           </span>
           {vatRate !== null && (
-            <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-md font-semibold">
+            <span className="text-xs text-gray-700 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded font-medium">
               {vatRate}% VAT
             </span>
           )}
@@ -239,10 +239,10 @@ export default function SubscriptionPurchaseCard({
           )}
         </div>
         {/* Benefits Block */}
-        <ul className="bg-[#f8faf9] border border-green-200 rounded-xl p-2 mb-2 text-[11px] text-gray-700 space-y-0.5">
+        <ul className="bg-[#f8faf9] border border-orange-200 rounded p-2 mb-2 text-[11px] text-gray-700 space-y-0.5">
 
           <li className="flex items-center gap-2">
-            <span className="text-green-700 font-bold">✓</span> Pause or cancel anytime
+            <span className="text-orange-700 font-bold">✓</span> Pause or cancel anytime
           </li>
 
 
@@ -296,18 +296,18 @@ export default function SubscriptionPurchaseCard({
           {stockDisplay.show && (
             <div
               className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold shadow-sm mb-1 ${stockDisplay.type === "out"
-                  ? "bg-red-100 text-red-700"
-                  : stockDisplay.type === "low"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-green-100 text-green-700"
+                ? "bg-red-100 text-red-700"
+                : stockDisplay.type === "low"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-green-100 text-green-700"
                 }`}
             >
               <span
                 className={`inline-block w-2 h-2 rounded-full ${stockDisplay.type === "out"
-                    ? "bg-red-600"
-                    : stockDisplay.type === "low"
-                      ? "bg-yellow-600"
-                      : "bg-green-600"
+                  ? "bg-red-600"
+                  : stockDisplay.type === "low"
+                    ? "bg-yellow-600"
+                    : "bg-green-600"
                   }`}
               ></span>
 

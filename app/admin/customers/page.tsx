@@ -45,6 +45,7 @@ import {
 import * as XLSX from "xlsx";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import { Customer, CustomerQueryParams, customersService, CustomerStats } from "@/lib/services/customers";
+import { staffService } from "@/lib/services/staff";
 import ConfirmDialog from "../_components/ConfirmDialog";
 import { useDebounce } from "../_hooks/useDebounce";
 import { formatDate, getImageUrl  } from "../_utils/formatUtils";
@@ -103,6 +104,9 @@ export default function CustomersPage() {
   const [filterLoading, setFilterLoading] = useState(false);
   const [assigningRole, setAssigningRole] = useState(false);
   const [pendingRole, setPendingRole] = useState<string | null>(null);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [roleModalCustomer, setRoleModalCustomer] = useState<Customer | null>(null);
 
   // ✅ Only 3 Filters (Backend)
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
@@ -170,6 +174,23 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await staffService.getRoles();
+        if (response?.data?.success) {
+          const roleNames = response.data.data.map(r => r.name);
+          const uniqueRoles = Array.from(new Set(["Customer", ...roleNames]));
+          setAvailableRoles(uniqueRoles);
+        }
+      } catch (error) {
+        console.error("Failed to fetch roles:", error);
+        setAvailableRoles(["Customer", "Admin"]);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   // ✅ Bulk Selection
   const toggleSelectAll = () => {
@@ -662,11 +683,14 @@ const modalTier = selectedCustomer
                       </td>
                       <td className="py-2 px-2">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => { setSelectedCustomer(customer); setIsModalOpen(true); }} className="p-1 text-violet-400 hover:bg-violet-500/10 rounded-md">
+                          <button onClick={() => { setSelectedCustomer(customer); setIsModalOpen(true); }} className="p-1 text-violet-400 hover:bg-violet-500/10 rounded-md" title="View Details">
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button onClick={() => { setSelectedOrderCustomer(customer); setIsOrderModalOpen(true); }} className="p-1 text-green-400 hover:bg-green-500/10 rounded-md">
+                          <button onClick={() => { setSelectedOrderCustomer(customer); setIsOrderModalOpen(true); }} className="p-1 text-green-400 hover:bg-green-500/10 rounded-md" title="View Orders">
                             <ShoppingBag className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => { setRoleModalCustomer(customer); setIsRoleModalOpen(true); }} className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded-md" title="Assign Role">
+                            <UserCheck className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -1296,36 +1320,83 @@ const modalTier = selectedCustomer
           </div>
         )}
 
-        {/* ✅ Role Management Section */}
-        <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50">
-          <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-            <UserCheck className="h-4 w-4 text-violet-400" />
-            Role Management
-          </h3>
-          <div className="flex gap-3">
-            {["Customer", "Admin"].map((roleOption) => {
-              const currentRole = selectedCustomer.role || "Customer";
-              const isActive = currentRole.toLowerCase() === roleOption.toLowerCase();
-              return (
-                <button
-                  key={roleOption}
-                  disabled={assigningRole}
-                  onClick={() => handleAssignRole(selectedCustomer.id, roleOption)}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 border ${
-                    isActive
-                      ? "bg-violet-500/20 border-violet-500 text-violet-300 shadow-md shadow-violet-500/10"
-                      : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {assigningRole && pendingRole === roleOption && (
-                    <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
-                  )}
-                  {roleOption}
-                </button>
-              );
-            })}
-          </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* ✅ Assign Role Modal (Small Modal) */}
+{isRoleModalOpen && roleModalCustomer && (
+  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl">
+      {/* Header */}
+      <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10 flex justify-between items-center">
+        <div>
+          <h2 className="text-base font-bold text-white">Assign System Role</h2>
+          <p className="text-xs text-slate-400">{roleModalCustomer.fullName}</p>
         </div>
+        <button
+          onClick={() => {
+            setIsRoleModalOpen(false);
+            setRoleModalCustomer(null);
+          }}
+          className="p-1.5 text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-all"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="p-5 space-y-4">
+        <div>
+          <label className="block text-xs text-slate-400 font-medium mb-1.5">
+            Select Role
+          </label>
+          <select
+            disabled={assigningRole}
+            value={roleModalCustomer.role || "Customer"}
+            onChange={(e) => {
+              setRoleModalCustomer({ ...roleModalCustomer, role: e.target.value });
+            }}
+            className="w-full py-2 px-3 bg-slate-800 border border-slate-700 text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+          >
+            {availableRoles.map((roleOption) => (
+              <option key={roleOption} value={roleOption}>
+                {roleOption}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-800 flex justify-end gap-2 bg-slate-900/60">
+        <button
+          disabled={assigningRole}
+          onClick={() => {
+            setIsRoleModalOpen(false);
+            setRoleModalCustomer(null);
+          }}
+          className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-lg transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          disabled={assigningRole}
+          onClick={async () => {
+            if (roleModalCustomer) {
+              await handleAssignRole(roleModalCustomer.id, roleModalCustomer.role || "Customer");
+              setIsRoleModalOpen(false);
+              setRoleModalCustomer(null);
+            }
+          }}
+          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-50"
+        >
+          {assigningRole && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          )}
+          Save Role
+        </button>
       </div>
     </div>
   </div>

@@ -125,9 +125,8 @@ const Info = ({
   <div>
     <p className="text-slate-400 text-xs mb-1">{label}</p>
     <p
-      className={`text-white break-words ${
-        mono ? "font-mono text-xs" : "font-medium"
-      }`}
+      className={`text-white break-words ${mono ? "font-mono text-xs" : "font-medium"
+        }`}
     >
       {children ?? "-"}
     </p>
@@ -198,11 +197,10 @@ function ConfirmationModal({
               onConfirm();
               onClose();
             }}
-            className={`px-4 py-2 rounded-lg transition-all font-medium ${
-              isDangerous
+            className={`px-4 py-2 rounded-lg transition-all font-medium ${isDangerous
                 ? "bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-red-500/50"
                 : "bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 text-white shadow-lg hover:shadow-violet-500/50"
-            }`}
+              }`}
           >
             {confirmText}
           </button>
@@ -242,7 +240,7 @@ export default function ActivityLogsPage() {
     isOpen: false,
     title: "",
     message: "",
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   // ✅ Advanced Filters
@@ -253,28 +251,28 @@ export default function ActivityLogsPage() {
     dateTo: "",
     userName: "all",
   });
-// ✅ Helper function to check if date range matches preset
-const isDateRangeEqual = (days: number) => {
-  if (!filters.dateFrom || !filters.dateTo) return false;
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const fromDate = new Date(filters.dateFrom);
-  fromDate.setHours(0, 0, 0, 0);
-  
-  const toDate = new Date(filters.dateTo);
-  toDate.setHours(0, 0, 0, 0);
-  
-  const expectedFrom = new Date(today);
-  expectedFrom.setDate(today.getDate() - days);
-  expectedFrom.setHours(0, 0, 0, 0);
-  
-  return (
-    fromDate.getTime() === expectedFrom.getTime() &&
-    toDate.getTime() === today.getTime()
-  );
-};
+  // ✅ Helper function to check if date range matches preset
+  const isDateRangeEqual = (days: number) => {
+    if (!filters.dateFrom || !filters.dateTo) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const fromDate = new Date(filters.dateFrom);
+    fromDate.setHours(0, 0, 0, 0);
+
+    const toDate = new Date(filters.dateTo);
+    toDate.setHours(0, 0, 0, 0);
+
+    const expectedFrom = new Date(today);
+    expectedFrom.setDate(today.getDate() - days);
+    expectedFrom.setHours(0, 0, 0, 0);
+
+    return (
+      fromDate.getTime() === expectedFrom.getTime() &&
+      toDate.getTime() === today.getTime()
+    );
+  };
   // ✅ Sorting
   const [sortField, setSortField] = useState<SortField>("createdOnUtc");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -299,58 +297,58 @@ const isDateRangeEqual = (days: number) => {
 
 
 
-// ✅ Fetch Activity Logs - FIXED
-const fetchActivityLogs = useCallback(async () => {
-  try {
-    setLoading(true);
+  // ✅ Fetch Activity Logs - FIXED
+  const fetchActivityLogs = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    const params: ActivityLogQueryParams = {
-      page: 1,
-      pageSize: 10000,
-      sortDirection: "desc",
-    };
+      const params: ActivityLogQueryParams = {
+        page: 1,
+        pageSize: 10000,
+        sortDirection: "desc",
+      };
 
-    if (debouncedSearchTerm) {
-      params.searchTerm = debouncedSearchTerm;
-    }
+      if (debouncedSearchTerm) {
+        params.searchTerm = debouncedSearchTerm;
+      }
 
-    const response = await activityLogService.getAll(params);
+      const response = await activityLogService.getAll(params);
 
-    // ✅ FIXED: Handle potentially undefined response.data with optional chaining
-    if (response?.data?.success) {
-      const fetchedLogs = response.data.data.items || [];
-      setAllActivityLogs(fetchedLogs);
+      // ✅ FIXED: Handle potentially undefined response.data with optional chaining
+      if (response?.data?.success) {
+        const fetchedLogs = response.data.data.items || [];
+        setAllActivityLogs(fetchedLogs);
 
-      // Apply filters and sorting
-      let filteredLogs = applyFilters(fetchedLogs);
-      filteredLogs = applySorting(filteredLogs);
+        // Apply filters and sorting
+        let filteredLogs = applyFilters(fetchedLogs);
+        filteredLogs = applySorting(filteredLogs);
 
-      setTotalCount(filteredLogs.length);
+        setTotalCount(filteredLogs.length);
 
-      // Pagination
-      const startIndex = (currentPage - 1) * pageSize;
-      const paginatedLogs = filteredLogs.slice(startIndex, startIndex + pageSize);
-      setActivityLogs(paginatedLogs);
-    } else {
-      toast.error(response?.data?.message || "Failed to fetch activity logs");
+        // Pagination
+        const startIndex = (currentPage - 1) * pageSize;
+        const paginatedLogs = filteredLogs.slice(startIndex, startIndex + pageSize);
+        setActivityLogs(paginatedLogs);
+      } else {
+        toast.error(response?.data?.message || "Failed to fetch activity logs");
+        setActivityLogs([]);
+        setAllActivityLogs([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching activity logs:", error);
+
+      if (error?.response?.status === 401) {
+        toast.error("Session expired. Please login again.");
+      } else {
+        toast.error(error?.response?.data?.message || "Failed to fetch activity logs");
+      }
+
       setActivityLogs([]);
       setAllActivityLogs([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    console.error("Error fetching activity logs:", error);
-    
-    if (error?.response?.status === 401) {
-      toast.error("Session expired. Please login again.");
-    } else {
-      toast.error(error?.response?.data?.message || "Failed to fetch activity logs");
-    }
-    
-    setActivityLogs([]);
-    setAllActivityLogs([]);
-  } finally {
-    setLoading(false);
-  }
-}, [currentPage, pageSize, debouncedSearchTerm, filters, sortField, sortDirection]);
+  }, [currentPage, pageSize, debouncedSearchTerm, filters, sortField, sortDirection]);
 
 
   useEffect(() => {
@@ -492,219 +490,219 @@ const fetchActivityLogs = useCallback(async () => {
   };
 
   // ✅ Export Functions
-const generateExcel = (logs: any[]) => {
-  try {
-    const excelData = logs.map((log) => ({
-      ID: log.id || "N/A",
+  const generateExcel = (logs: any[]) => {
+    try {
+      const excelData = logs.map((log) => ({
+        ID: log.id || "N/A",
 
-      User: log.userName || "N/A",
+        User: log.userName || "N/A",
 
-      Action: log.activityLogType || "N/A",
+        Action: log.activityLogType || "N/A",
 
-      Module: log.entityName || "N/A",
+        Module: log.entityName || "N/A",
 
-      Description: log.comment || "N/A",
+        Description: log.comment || "N/A",
 
-      "IP Address": log.ipAddress || "N/A",
+        "IP Address": log.ipAddress || "N/A",
 
-      Status: log.entityDetails?.status || "N/A",
+        Status: log.entityDetails?.status || "N/A",
 
-      "Order Number": log.entityDetails?.orderNumber || "N/A",
+        "Order Number": log.entityDetails?.orderNumber || "N/A",
 
-      "Total Amount": log.entityDetails?.totalAmount ?? "N/A",
+        "Total Amount": log.entityDetails?.totalAmount ?? "N/A",
 
-      "Customer Email": log.entityDetails?.customerEmail || "N/A",
+        "Customer Email": log.entityDetails?.customerEmail || "N/A",
 
-      "Order Date": log.entityDetails?.orderDate
-        ? new Date(log.entityDetails.orderDate).toLocaleString()
-        : "N/A",
+        "Order Date": log.entityDetails?.orderDate
+          ? new Date(log.entityDetails.orderDate).toLocaleString()
+          : "N/A",
 
-      "Is Deleted": log.entityDetails?.isDeleted ?? "N/A",
+        "Is Deleted": log.entityDetails?.isDeleted ?? "N/A",
 
-      "Created At": log.createdOnUtc
-        ? new Date(log.createdOnUtc).toLocaleString()
-        : "N/A",
-    }));
+        "Created At": log.createdOnUtc
+          ? new Date(log.createdOnUtc).toLocaleString()
+          : "N/A",
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
 
- const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
-  wch: Math.max(
-    key.length,
-    ...excelData.map((row) => String((row as Record<string, any>)[key] ?? "").length)
-  ),
-}));
-    worksheet["!cols"] = colWidths;
+      const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+        wch: Math.max(
+          key.length,
+          ...excelData.map((row) => String((row as Record<string, any>)[key] ?? "").length)
+        ),
+      }));
+      worksheet["!cols"] = colWidths;
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Activity Logs");
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Activity Logs");
 
-    XLSX.writeFile(workbook, `activity_logs_${Date.now()}.xlsx`);
-  } catch (err) {
-    console.error(err);
-  }
-};
-const handleExportSelected = () => {
-  if (selectedLogs.length === 0) {
-    toast.warning("Please select logs to export");
-    return;
-  }
+      XLSX.writeFile(workbook, `activity_logs_${Date.now()}.xlsx`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const handleExportSelected = () => {
+    if (selectedLogs.length === 0) {
+      toast.warning("Please select logs to export");
+      return;
+    }
 
-  const logsToExport = allActivityLogs.filter((log) =>
-    selectedLogs.includes(log.id)
-  );
+    const logsToExport = allActivityLogs.filter((log) =>
+      selectedLogs.includes(log.id)
+    );
 
-  generateExcel(logsToExport);
+    generateExcel(logsToExport);
 
-  toast.success(`${logsToExport.length} logs exported successfully`);
-  setSelectedLogs([]);
-  setShowExportMenu(false);
-};
-const handleExportFiltered = () => {
-  const filteredLogs = applyFilters(allActivityLogs);
+    toast.success(`${logsToExport.length} logs exported successfully`);
+    setSelectedLogs([]);
+    setShowExportMenu(false);
+  };
+  const handleExportFiltered = () => {
+    const filteredLogs = applyFilters(allActivityLogs);
 
-  if (filteredLogs.length === 0) {
-    toast.warning("No logs to export");
-    return;
-  }
+    if (filteredLogs.length === 0) {
+      toast.warning("No logs to export");
+      return;
+    }
 
-  generateExcel(filteredLogs);
+    generateExcel(filteredLogs);
 
-  toast.success(`${filteredLogs.length} logs exported successfully`);
-  setShowExportMenu(false);
-};
+    toast.success(`${filteredLogs.length} logs exported successfully`);
+    setShowExportMenu(false);
+  };
 
-const handleExportAll = () => {
-  if (allActivityLogs.length === 0) {
-    toast.warning("No logs to export");
-    return;
-  }
+  const handleExportAll = () => {
+    if (allActivityLogs.length === 0) {
+      toast.warning("No logs to export");
+      return;
+    }
 
-  generateExcel(allActivityLogs);
+    generateExcel(allActivityLogs);
 
-  toast.success(`${allActivityLogs.length} logs exported successfully`);
-  setShowExportMenu(false);
-};
+    toast.success(`${allActivityLogs.length} logs exported successfully`);
+    setShowExportMenu(false);
+  };
 
-const handleExportCurrentPage = () => {
-  if (activityLogs.length === 0) {
-    toast.warning("No logs on current page");
-    return;
-  }
+  const handleExportCurrentPage = () => {
+    if (activityLogs.length === 0) {
+      toast.warning("No logs on current page");
+      return;
+    }
 
-  generateExcel(activityLogs);
+    generateExcel(activityLogs);
 
-  toast.success(`${activityLogs.length} logs exported successfully`);
-  setShowExportMenu(false);
-};
+    toast.success(`${activityLogs.length} logs exported successfully`);
+    setShowExportMenu(false);
+  };
 
-// ✅ Clear All Logs with Confirmation - FIXED
-const handleClearAllLogs = () => {
-  setConfirmModal({
-    isOpen: true,
-    title: "Clear All Activity Logs",
-    message: `Are you sure you want to permanently delete ALL ${allActivityLogs.length} activity logs? This action cannot be undone and will remove all historical data.`,
-    onConfirm: async () => {
-      try {
-        const response = await activityLogService.clearAll();
-        
-        // ✅ FIXED: Handle potentially undefined response.data
-        if (response?.data?.success) {
-          toast.success("All activity logs cleared successfully");
-          setSelectedLogs([]);
-          fetchActivityLogs();
-        } else {
-          toast.error(response?.data?.message || "Failed to clear activity logs");
-        }
-      } catch (error: any) {
-        if (error?.response?.status === 401) {
-          toast.error("Session expired. Please login again.");
-        } else {
-          toast.error(error?.response?.data?.message || "An error occurred while clearing logs");
-        }
-      }
-    },
-  });
-};
+  // ✅ Clear All Logs with Confirmation - FIXED
+  const handleClearAllLogs = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Clear All Activity Logs",
+      message: `Are you sure you want to permanently delete ALL ${allActivityLogs.length} activity logs? This action cannot be undone and will remove all historical data.`,
+      onConfirm: async () => {
+        try {
+          const response = await activityLogService.clearAll();
 
-// ✅ Delete Selected Logs with Confirmation - FIXED
-const handleDeleteSelected = () => {
-  if (selectedLogs.length === 0) {
-    toast.warning("Please select logs to delete");
-    return;
-  }
-
-  setConfirmModal({
-    isOpen: true,
-    title: "Delete Selected Logs",
-    message: `Are you sure you want to delete ${selectedLogs.length} selected log(s)? This action cannot be undone.`,
-    onConfirm: async () => {
-      try {
-        let successCount = 0;
-        let failCount = 0;
-
-        for (const logId of selectedLogs) {
-          try {
-            const response = await activityLogService.deleteById(logId);
-            
-            // ✅ FIXED: Handle potentially undefined response.data
-            if (response?.data?.success) {
-              successCount++;
-            } else {
-              failCount++;
-            }
-          } catch (err) {
-            failCount++;
+          // ✅ FIXED: Handle potentially undefined response.data
+          if (response?.data?.success) {
+            toast.success("All activity logs cleared successfully");
+            setSelectedLogs([]);
+            fetchActivityLogs();
+          } else {
+            toast.error(response?.data?.message || "Failed to clear activity logs");
+          }
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            toast.error("Session expired. Please login again.");
+          } else {
+            toast.error(error?.response?.data?.message || "An error occurred while clearing logs");
           }
         }
+      },
+    });
+  };
 
-        if (successCount > 0) {
-          toast.success(`${successCount} log(s) deleted successfully`);
-        }
-        if (failCount > 0) {
-          toast.error(`${failCount} log(s) failed to delete`);
-        }
+  // ✅ Delete Selected Logs with Confirmation - FIXED
+  const handleDeleteSelected = () => {
+    if (selectedLogs.length === 0) {
+      toast.warning("Please select logs to delete");
+      return;
+    }
 
-        setSelectedLogs([]);
-        fetchActivityLogs();
-      } catch (error: any) {
-        if (error?.response?.status === 401) {
-          toast.error("Session expired. Please login again.");
-        } else {
-          toast.error(error?.response?.data?.message || "An error occurred while deleting logs");
-        }
-      }
-    },
-  });
-};
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Selected Logs",
+      message: `Are you sure you want to delete ${selectedLogs.length} selected log(s)? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          let successCount = 0;
+          let failCount = 0;
 
-// ✅ Delete Single Log with Confirmation - FIXED
-const handleDeleteSingleLog = (log: ActivityLog) => {
-  setConfirmModal({
-    isOpen: true,
-    title: "Delete Activity Log",
-    message: `Are you sure you want to delete this activity log?\n\n"${log.comment}"\n\nThis action cannot be undone.`,
-    onConfirm: async () => {
-      try {
-        const response = await activityLogService.deleteById(log.id);
-        
-        // ✅ FIXED: Handle potentially undefined response.data
-        if (response?.data?.success) {
-          toast.success("Activity log deleted successfully");
+          for (const logId of selectedLogs) {
+            try {
+              const response = await activityLogService.deleteById(logId);
+
+              // ✅ FIXED: Handle potentially undefined response.data
+              if (response?.data?.success) {
+                successCount++;
+              } else {
+                failCount++;
+              }
+            } catch (err) {
+              failCount++;
+            }
+          }
+
+          if (successCount > 0) {
+            toast.success(`${successCount} log(s) deleted successfully`);
+          }
+          if (failCount > 0) {
+            toast.error(`${failCount} log(s) failed to delete`);
+          }
+
+          setSelectedLogs([]);
           fetchActivityLogs();
-        } else {
-          toast.error(response?.data?.message || "Failed to delete activity log");
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            toast.error("Session expired. Please login again.");
+          } else {
+            toast.error(error?.response?.data?.message || "An error occurred while deleting logs");
+          }
         }
-      } catch (error: any) {
-        if (error?.response?.status === 401) {
-          toast.error("Session expired. Please login again.");
-        } else {
-          toast.error(error?.response?.data?.message || "An error occurred while deleting log");
+      },
+    });
+  };
+
+  // ✅ Delete Single Log with Confirmation - FIXED
+  const handleDeleteSingleLog = (log: ActivityLog) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Activity Log",
+      message: `Are you sure you want to delete this activity log?\n\n"${log.comment}"\n\nThis action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          const response = await activityLogService.deleteById(log.id);
+
+          // ✅ FIXED: Handle potentially undefined response.data
+          if (response?.data?.success) {
+            toast.success("Activity log deleted successfully");
+            fetchActivityLogs();
+          } else {
+            toast.error(response?.data?.message || "Failed to delete activity log");
+          }
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            toast.error("Session expired. Please login again.");
+          } else {
+            toast.error(error?.response?.data?.message || "An error occurred while deleting log");
+          }
         }
-      }
-    },
-  });
-};
+      },
+    });
+  };
 
   // ✅ Filter Functions
   const clearFilters = () => {
@@ -784,7 +782,7 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
     });
   };
 
- 
+
 
   // ✅ Get Activity Type Badge
   const getActivityTypeBadge = (activityType: string) => {
@@ -885,7 +883,7 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
                 <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden">
-                
+
 
                   <button
                     onClick={handleExportCurrentPage}
@@ -1034,270 +1032,265 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
         </div>
       </div>
 
- {/* ✅ Search and Filters */}
-<div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-2.5">
-  {/* ========== FIRST ROW: Search + Select Filters ========== */}
-  <div className="flex flex-wrap items-center gap-2">
-    {/* Search */}
-    <div className="relative flex-1 min-w-[280px]">
-      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10" />
-      <input
-        type="search"
-        placeholder="Search by comment, user, or entity..."
-        value={searchTerm}
-        onChange={(e) => {
-          setSearchTerm(e.target.value);
-          setCurrentPage(1);
-        }}
-        className="w-full pl-9 pr-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-      />
-    </div>
-
-    {/* Activity Type Filter - React Select */}
-    <div className="w-[200px]">
-      <Select
-        value={ACTIVITY_TYPES.find((type) => type.value === filters.activityType)}
-        onChange={(option) => {
-          setFilters({ ...filters, activityType: option?.value || "all" });
-          setCurrentPage(1);
-        }}
-        options={ACTIVITY_TYPES}
-        placeholder="All Activities"
-        isClearable={false}
-        isSearchable={true}
-        menuPortalTarget={document.body}
-        menuPosition="absolute"
-        className="react-select-container"
-        classNamePrefix="react-select"
-        styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
-      />
-    </div>
-
-    {/* Entity Type Filter - React Select */}
-    <div className="w-[180px]">
-      <Select
-        value={
-          filters.entityType === "all"
-            ? { value: "all", label: "All Entities" }
-            : { value: filters.entityType, label: filters.entityType }
-        }
-        onChange={(option) => {
-          setFilters({ ...filters, entityType: option?.value || "all" });
-          setCurrentPage(1);
-        }}
-        options={[
-          { value: "all", label: "All Entities" },
-          ...getUniqueEntityTypes().map((entity) => ({
-            value: entity,
-            label: entity,
-          })),
-        ]}
-        placeholder="All Entities"
-        isClearable={false}
-        isSearchable={true}
-        menuPortalTarget={document.body}
-        menuPosition="absolute"
-        className="react-select-container"
-        classNamePrefix="react-select"
-        styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
-      />
-    </div>
-
-    {/* User Filter - React Select */}
-    <div className="w-[180px]">
-      <Select
-        value={
-          filters.userName === "all"
-            ? { value: "all", label: "All Users" }
-            : {
-                value: filters.userName,
-                label: filters.userName === "System" ? "System" : filters.userName,
-              }
-        }
-        onChange={(option) => {
-          setFilters({ ...filters, userName: option?.value || "all" });
-          setCurrentPage(1);
-        }}
-        options={[
-          { value: "all", label: "All Users" },
-          ...getUniqueUsers().map((user) => ({
-            value: user,
-            label: user === "System" ? "System" : user,
-          })),
-        ]}
-        placeholder="All Users"
-        isClearable={false}
-        isSearchable={true}
-        menuPortalTarget={document.body}
-        menuPosition="absolute"
-        className="react-select-container"
-        classNamePrefix="react-select"
-        styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
-      />
-    </div>
-
-    {/* Advanced Filters Toggle */}
-    <button
-      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-      className={`px-3 py-2 rounded-lg border transition-all text-xs font-semibold flex items-center gap-1.5 ${
-        showAdvancedFilters
-          ? "bg-violet-500/20 border-violet-500/50 text-violet-400"
-          : "bg-slate-800/50 border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
-      }`}
-    >
-      <Filter className="h-3.5 w-3.5" />
-      Advanced
-      <ChevronDown className={`h-3 w-3 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
-    </button>
-
-    {hasActiveFilters && (
-      <button
-        onClick={clearFilters}
-        className="px-3 py-2 bg-red-500/10 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/20 transition-all text-xs font-semibold flex items-center gap-1.5"
-      >
-        <FilterX className="h-3.5 w-3.5" />
-        Clear All
-      </button>
-    )}
-  </div>
-
-  {/* ========== SECOND ROW: Advanced Date Filters (All Inline) ========== */}
-  {showAdvancedFilters && (
-    <div className="mt-3 pt-3 border-t border-slate-700">
-      <div className="flex flex-wrap items-end gap-3">
-        {/* Date From */}
-        <div className="flex-1 min-w-[180px]">
-          <input
-            type="date"
-            title="Date From"
-            placeholder="Date From"
-            value={filters.dateFrom}
-            onChange={(e) => {
-              setFilters({ ...filters, dateFrom: e.target.value });
-              setCurrentPage(1);
-            }}
-            max={new Date().toISOString().split("T")[0]}
-            className="w-full px-2.5 py-1.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500"
-          />
-        </div>
-
-        {/* Date To */}
-        <div className="flex-1 min-w-[180px]">
-          <input
-            type="date"
-            title="Date To"
-            placeholder="Date To"
-            value={filters.dateTo}
-            onChange={(e) => {
-              setFilters({ ...filters, dateTo: e.target.value });
-              setCurrentPage(1);
-            }}
-            max={new Date().toISOString().split("T")[0]}
-            min={filters.dateFrom}
-            className="w-full px-2.5 py-1.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500"
-          />
-        </div>
-
-        {/* Quick Filters - Inline */}
+      {/* ✅ Search and Filters */}
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-2.5">
+        {/* ========== FIRST ROW: Search + Select Filters ========== */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              const today = new Date();
-              const weekAgo = new Date(today);
-              weekAgo.setDate(today.getDate() - 7);
-              setFilters({
-                ...filters,
-                dateFrom: weekAgo.toISOString().split("T")[0],
-                dateTo: today.toISOString().split("T")[0],
-              });
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filters.dateFrom && filters.dateTo && isDateRangeEqual(7)
-                ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
-                : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
-            }`}
-          >
-            7 Days
-          </button>
-
-          <button
-            onClick={() => {
-              const today = new Date();
-              const daysAgo = new Date(today);
-              daysAgo.setDate(today.getDate() - 15);
-              setFilters({
-                ...filters,
-                dateFrom: daysAgo.toISOString().split("T")[0],
-                dateTo: today.toISOString().split("T")[0],
-              });
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filters.dateFrom && filters.dateTo && isDateRangeEqual(15)
-                ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
-                : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
-            }`}
-          >
-            15 Days
-          </button>
-
-          <button
-            onClick={() => {
-              const today = new Date();
-              const monthAgo = new Date(today);
-              monthAgo.setMonth(today.getMonth() - 1);
-              setFilters({
-                ...filters,
-                dateFrom: monthAgo.toISOString().split("T")[0],
-                dateTo: today.toISOString().split("T")[0],
-              });
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filters.dateFrom && filters.dateTo && isDateRangeEqual(30)
-                ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
-                : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
-            }`}
-          >
-            30 Days
-          </button>
-
-          <button
-            onClick={() => {
-              const today = new Date();
-              setFilters({
-                ...filters,
-                dateFrom: today.toISOString().split("T")[0],
-                dateTo: today.toISOString().split("T")[0],
-              });
-              setCurrentPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filters.dateFrom && filters.dateTo && isDateRangeEqual(0)
-                ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
-                : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
-            }`}
-          >
-            Today
-          </button>
-
-          {(filters.dateFrom || filters.dateTo) && (
-            <button
-              onClick={() => {
-                setFilters({ ...filters, dateFrom: "", dateTo: "" });
+          {/* Search */}
+          <div className="relative flex-1 min-w-[280px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10" />
+            <input
+              type="search"
+              placeholder="Search by comment, user, or entity..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-1.5 bg-red-500/10 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/20 transition-all text-xs font-semibold"
+              className="w-full pl-9 pr-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          {/* Activity Type Filter - React Select */}
+          <div className="w-[200px]">
+            <Select
+              value={ACTIVITY_TYPES.find((type) => type.value === filters.activityType)}
+              onChange={(option) => {
+                setFilters({ ...filters, activityType: option?.value || "all" });
+                setCurrentPage(1);
+              }}
+              options={ACTIVITY_TYPES}
+              placeholder="All Activities"
+              isClearable={false}
+              isSearchable={true}
+              menuPortalTarget={document.body}
+              menuPosition="absolute"
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
+            />
+          </div>
+
+          {/* Entity Type Filter - React Select */}
+          <div className="w-[180px]">
+            <Select
+              value={
+                filters.entityType === "all"
+                  ? { value: "all", label: "All Entities" }
+                  : { value: filters.entityType, label: filters.entityType }
+              }
+              onChange={(option) => {
+                setFilters({ ...filters, entityType: option?.value || "all" });
+                setCurrentPage(1);
+              }}
+              options={[
+                { value: "all", label: "All Entities" },
+                ...getUniqueEntityTypes().map((entity) => ({
+                  value: entity,
+                  label: entity,
+                })),
+              ]}
+              placeholder="All Entities"
+              isClearable={false}
+              isSearchable={true}
+              menuPortalTarget={document.body}
+              menuPosition="absolute"
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
+            />
+          </div>
+
+          {/* User Filter - React Select */}
+          <div className="w-[180px]">
+            <Select
+              value={
+                filters.userName === "all"
+                  ? { value: "all", label: "All Users" }
+                  : {
+                    value: filters.userName,
+                    label: filters.userName === "System" ? "System" : filters.userName,
+                  }
+              }
+              onChange={(option) => {
+                setFilters({ ...filters, userName: option?.value || "all" });
+                setCurrentPage(1);
+              }}
+              options={[
+                { value: "all", label: "All Users" },
+                ...getUniqueUsers().map((user) => ({
+                  value: user,
+                  label: user === "System" ? "System" : user,
+                })),
+              ]}
+              placeholder="All Users"
+              isClearable={false}
+              isSearchable={true}
+              menuPortalTarget={document.body}
+              menuPosition="absolute"
+              className="react-select-container"
+              classNamePrefix="react-select"
+              styles={{ ...selectStyles, menuPortal: (base: any) => ({ ...base, zIndex: 9999 }) }}
+            />
+          </div>
+
+          {/* Advanced Filters Toggle */}
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className={`px-3 py-2 rounded-lg border transition-all text-xs font-semibold flex items-center gap-1.5 ${showAdvancedFilters
+                ? "bg-violet-500/20 border-violet-500/50 text-violet-400"
+                : "bg-slate-800/50 border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
+              }`}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Advanced
+            <ChevronDown className={`h-3 w-3 transition-transform ${showAdvancedFilters ? "rotate-180" : ""}`} />
+          </button>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-3 py-2 bg-red-500/10 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/20 transition-all text-xs font-semibold flex items-center gap-1.5"
             >
-              Clear
+              <FilterX className="h-3.5 w-3.5" />
+              Clear All
             </button>
           )}
         </div>
+
+        {/* ========== SECOND ROW: Advanced Date Filters (All Inline) ========== */}
+        {showAdvancedFilters && (
+          <div className="mt-3 pt-3 border-t border-slate-700">
+            <div className="flex flex-wrap items-end gap-3">
+              {/* Date From */}
+              <div className="flex-1 min-w-[180px]">
+                <input
+                  type="date"
+                  title="Date From"
+                  placeholder="Date From"
+                  value={filters.dateFrom}
+                  onChange={(e) => {
+                    setFilters({ ...filters, dateFrom: e.target.value });
+                    setCurrentPage(1);
+                  }}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full px-2.5 py-1.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+
+              {/* Date To */}
+              <div className="flex-1 min-w-[180px]">
+                <input
+                  type="date"
+                  title="Date To"
+                  placeholder="Date To"
+                  value={filters.dateTo}
+                  onChange={(e) => {
+                    setFilters({ ...filters, dateTo: e.target.value });
+                    setCurrentPage(1);
+                  }}
+                  max={new Date().toISOString().split("T")[0]}
+                  min={filters.dateFrom}
+                  className="w-full px-2.5 py-1.5 bg-slate-800/50 border border-slate-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+
+              {/* Quick Filters - Inline */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(today.getDate() - 7);
+                    setFilters({
+                      ...filters,
+                      dateFrom: weekAgo.toISOString().split("T")[0],
+                      dateTo: today.toISOString().split("T")[0],
+                    });
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filters.dateFrom && filters.dateTo && isDateRangeEqual(7)
+                      ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
+                      : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
+                    }`}
+                >
+                  7 Days
+                </button>
+
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    const daysAgo = new Date(today);
+                    daysAgo.setDate(today.getDate() - 15);
+                    setFilters({
+                      ...filters,
+                      dateFrom: daysAgo.toISOString().split("T")[0],
+                      dateTo: today.toISOString().split("T")[0],
+                    });
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filters.dateFrom && filters.dateTo && isDateRangeEqual(15)
+                      ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
+                      : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
+                    }`}
+                >
+                  15 Days
+                </button>
+
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    const monthAgo = new Date(today);
+                    monthAgo.setMonth(today.getMonth() - 1);
+                    setFilters({
+                      ...filters,
+                      dateFrom: monthAgo.toISOString().split("T")[0],
+                      dateTo: today.toISOString().split("T")[0],
+                    });
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filters.dateFrom && filters.dateTo && isDateRangeEqual(30)
+                      ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
+                      : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
+                    }`}
+                >
+                  30 Days
+                </button>
+
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    setFilters({
+                      ...filters,
+                      dateFrom: today.toISOString().split("T")[0],
+                      dateTo: today.toISOString().split("T")[0],
+                    });
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filters.dateFrom && filters.dateTo && isDateRangeEqual(0)
+                      ? "bg-violet-500/20 border-2 border-violet-500/50 text-violet-400"
+                      : "bg-slate-800/50 border border-slate-600 text-slate-400 hover:text-white hover:border-violet-500/50"
+                    }`}
+                >
+                  Today
+                </button>
+
+                {(filters.dateFrom || filters.dateTo) && (
+                  <button
+                    onClick={() => {
+                      setFilters({ ...filters, dateFrom: "", dateTo: "" });
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-1.5 bg-red-500/10 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/20 transition-all text-xs font-semibold"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )}
-</div>
 
 
 
@@ -1318,10 +1311,10 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
                   <th className="py-2 px-3">
                     <input
                       type="checkbox"
-                     checked={
-  activityLogs.length > 0 &&
-  activityLogs.every(log => selectedLogs.includes(log.id))
-}
+                      checked={
+                        activityLogs.length > 0 &&
+                        activityLogs.every(log => selectedLogs.includes(log.id))
+                      }
                       onChange={toggleSelectAll}
                       className="rounded bg-slate-700 border-slate-600 text-violet-500 focus:ring-violet-500 cursor-pointer"
                     />
@@ -1383,12 +1376,11 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
                 {activityLogs.map((log) => (
                   <tr
                     key={log.id}
-        className={`border-b border-slate-800 transition-colors group
-  ${
-    selectedLogs.includes(log.id)
-      ? "bg-violet-500/10 ring-1 ring-violet-500/40"
-      : "hover:bg-slate-800/30"
-  }
+                    className={`border-b border-slate-800 transition-colors group
+  ${selectedLogs.includes(log.id)
+                        ? "bg-violet-500/10 ring-1 ring-violet-500/40"
+                        : "hover:bg-slate-800/30"
+                      }
 `}
                   >
                     {/* Checkbox */}
@@ -1435,7 +1427,7 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
                       <div className="flex items-center gap-1.5">
                         <User className="h-3 w-3 text-slate-500" />
                         <span className="text-white text-sm font-medium">
-                          {log.userName === "System" ? "System" : log.userName.substring(0, 8)}
+                          {log.userName === "System" ? "System" : log.userName.substring(0, 11)}
                         </span>
                       </div>
                     </td>
@@ -1469,72 +1461,72 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
           </div>
         )}
       </div>
-{selectedLogs.length > 0 && (
-  <div className="fixed top-[70px] left-1/2 -translate-x-1/2 z-[999] pointer-events-none w-full">
+      {selectedLogs.length > 0 && (
+        <div className="fixed top-[70px] left-1/2 -translate-x-1/2 z-[999] pointer-events-none w-full">
 
-    <div className="flex justify-center px-2">
+          <div className="flex justify-center px-2">
 
-      <div className="pointer-events-auto mx-auto w-fit max-w-[95%] sm:max-w-[900px] 
+            <div className="pointer-events-auto mx-auto w-fit max-w-[95%] sm:max-w-[900px] 
         rounded-xl border border-slate-700 bg-slate-900/95 
         px-4 py-3 shadow-xl backdrop-blur-md transition-all duration-300">
 
-        <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
 
-          {/* LEFT */}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse"></span>
-              <span className="font-semibold text-white">
-                {selectedLogs.length}
-              </span>
-              <span className="text-slate-300">logs selected</span>
-            </div>
+                {/* LEFT */}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse"></span>
+                    <span className="font-semibold text-white">
+                      {selectedLogs.length}
+                    </span>
+                    <span className="text-slate-300">logs selected</span>
+                  </div>
 
-            <p className="mt-1 text-xs text-slate-400">
-              Bulk actions: export selected logs or delete them permanently.
-            </p>
-          </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Bulk actions: export selected logs or delete them permanently.
+                  </p>
+                </div>
 
-          {/* Divider */}
-          <div className="h-5 w-px bg-slate-700 hidden md:block" />
+                {/* Divider */}
+                <div className="h-5 w-px bg-slate-700 hidden md:block" />
 
-          {/* EXPORT */}
-          <button
-            onClick={handleExportSelected}
-            className="inline-flex items-center gap-2 rounded-lg 
+                {/* EXPORT */}
+                <button
+                  onClick={handleExportSelected}
+                  className="inline-flex items-center gap-2 rounded-lg 
             bg-emerald-600 px-4 py-2 text-sm font-medium text-white 
             hover:bg-emerald-700 transition-all"
-          >
-            <Download className="h-4 w-4" />
-            Export ({selectedLogs.length})
-          </button>
+                >
+                  <Download className="h-4 w-4" />
+                  Export ({selectedLogs.length})
+                </button>
 
-          {/* DELETE */}
-          <button
-            onClick={handleDeleteSelected}
-            className="inline-flex items-center gap-2 rounded-lg 
+                {/* DELETE */}
+                <button
+                  onClick={handleDeleteSelected}
+                  className="inline-flex items-center gap-2 rounded-lg 
             bg-red-600 px-4 py-2 text-sm font-medium text-white 
             hover:bg-red-700 transition-all"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </button>
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
 
-          {/* CLEAR */}
-          <button
-            onClick={() => setSelectedLogs([])}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 
+                {/* CLEAR */}
+                <button
+                  onClick={() => setSelectedLogs([])}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 
             text-white text-sm rounded-lg transition-all"
-          >
-            Clear
-          </button>
+                >
+                  Clear
+                </button>
 
+              </div>
+            </div>
+
+          </div>
         </div>
-      </div>
-
-    </div>
-  </div>
-)}
+      )}
       {/* ✅ Pagination */}
       {totalPages > 1 && (
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-4">
@@ -1567,11 +1559,10 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
                   <button
                     key={page}
                     onClick={() => goToPage(page)}
-                    className={`px-3 py-2 text-sm rounded-lg transition-all ${
-                      currentPage === page
+                    className={`px-3 py-2 text-sm rounded-lg transition-all ${currentPage === page
                         ? "bg-violet-500 text-white font-semibold"
                         : "text-slate-400 hover:text-white hover:bg-slate-800"
-                    }`}
+                      }`}
                   >
                     {page}
                   </button>
@@ -1602,120 +1593,120 @@ const handleDeleteSingleLog = (log: ActivityLog) => {
         </div>
       )}
 
-   {/* ✅ Activity Log Details Modal */}
-{isModalOpen && selectedLog && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-violet-500/10">
+      {/* ✅ Activity Log Details Modal */}
+      {isModalOpen && selectedLog && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-violet-500/10">
 
-      {/* Header */}
-      <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 flex items-center justify-center">
-              <Activity className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">
-                  Activity Log Details
-                </h2>
-                {getActivityTypeBadge(selectedLog.activityLogTypeName)}
+            {/* Header */}
+            <div className="p-4 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 flex items-center justify-center">
+                    <Activity className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-white">
+                        Activity Log Details
+                      </h2>
+                      {getActivityTypeBadge(selectedLog.activityLogTypeName)}
+                    </div>
+                    <p className="text-slate-400 text-sm mt-0.5">
+                      {formatExactDate(selectedLog.createdOnUtc)}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setSelectedLog(null);
+                  }}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <p className="text-slate-400 text-sm mt-0.5">
-                {formatExactDate(selectedLog.createdOnUtc)}
-              </p>
             </div>
-          </div>
 
-          <button
-            onClick={() => {
-              setIsModalOpen(false);
-              setSelectedLog(null);
-            }}
-            className="p-2 text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-all"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
+            {/* Content */}
+            <div className="overflow-y-auto p-5 space-y-5">
 
-      {/* Content */}
-      <div className="overflow-y-auto p-5 space-y-5">
+              {/* Basic Info */}
+              <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+                <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-violet-400" />
+                  Basic Information
+                </h3>
 
-        {/* Basic Info */}
-        <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
-          <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-violet-400" />
-            Basic Information
-          </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <Info label="Activity Type">
+                    {selectedLog.activityLogTypeName}
+                  </Info>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <Info label="Activity Type">
-              {selectedLog.activityLogTypeName}
-            </Info>
+                  <Info label="Entity Type">
+                    {selectedLog.entityName}
+                  </Info>
 
-            <Info label="Entity Type">
-              {selectedLog.entityName}
-            </Info>
-
-            {/* <Info label="User">
+                  {/* <Info label="User">
               {selectedLog.userName || "System"}
             </Info> */}
 
-            {/* {selectedLog.entityId && (
+                  {/* {selectedLog.entityId && (
               <Info label="Entity ID" mono>
                 {selectedLog.entityId}
               </Info>
             )} */}
 
-            {selectedLog.ipAddress && (
-              <Info label="IP Address">
-                {selectedLog.ipAddress}
-              </Info>
-            )}
-          </div>
-        </div>
+                  {selectedLog.ipAddress && (
+                    <Info label="IP Address">
+                      {selectedLog.ipAddress}
+                    </Info>
+                  )}
+                </div>
+              </div>
 
-        {/* Comment */}
-        {selectedLog.comment && (
-          <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
-            <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-cyan-400" />
-              Activity Comment
-            </h3>
-            <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line">
-              {selectedLog.comment}
-            </p>
-          </div>
-        )}
+              {/* Comment */}
+              {selectedLog.comment && (
+                <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+                  <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-cyan-400" />
+                    Activity Comment
+                  </h3>
+                  <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line">
+                    {selectedLog.comment}
+                  </p>
+                </div>
+              )}
 
-        {/* Entity Details (Formatted View) */}
-        {selectedLog.entityDetails && (
-          <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
-            <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-              <Package className="h-4 w-4 text-pink-400" />
-              Entity Details
-            </h3>
+              {/* Entity Details (Formatted View) */}
+              {selectedLog.entityDetails && (
+                <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+                  <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                    <Package className="h-4 w-4 text-pink-400" />
+                    Entity Details
+                  </h3>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {Object.entries(selectedLog.entityDetails).map(
-                ([key, value]) => (
-                  <Info
-                    key={key}
-                    label={formatLabel(key)}
-                    mono={key.toLowerCase().includes("id")}
-                  >
-                    {formatValue(value)}
-                  </Info>
-                )
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {Object.entries(selectedLog.entityDetails).map(
+                      ([key, value]) => (
+                        <Info
+                          key={key}
+                          label={formatLabel(key)}
+                          mono={key.toLowerCase().includes("id")}
+                        >
+                          {formatValue(value)}
+                        </Info>
+                      )
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
     </div>
   );

@@ -62,6 +62,27 @@ function findCategoryPath(
   return null;
 }
 
+function collectBrandsFromCategoryTree(category: any): any[] {
+  if (!category) return [];
+  const collected = new Map<string, any>();
+
+  const recurse = (cat: any) => {
+    if (cat.brands && Array.isArray(cat.brands)) {
+      cat.brands.forEach((b: any) => {
+        if (b && b.id) {
+          collected.set(b.id, b);
+        }
+      });
+    }
+    if (cat.subCategories && Array.isArray(cat.subCategories)) {
+      cat.subCategories.forEach(recurse);
+    }
+  };
+
+  recurse(category);
+  return Array.from(collected.values());
+}
+
 /* ==================
    Products Fetch
 ===================== */
@@ -235,10 +256,12 @@ export default async function CategoryPage({
     },
   ];
 
+  const allCategoryBrands = collectBrandsFromCategoryTree(category);
+
   // Map brand slugs (from URL) → brand IDs (for API)
   const brandSlugs = searchParamsResolved.brands?.split(",").filter(Boolean) ?? [];
   const resolvedBrandIds = brandSlugs.length > 0
-    ? (category.brands ?? [] as any[])
+    ? allCategoryBrands
       .filter((b: any) => brandSlugs.includes(b.slug))
       .map((b: any) => b.id)
       .join(",")
@@ -382,7 +405,7 @@ export default async function CategoryPage({
         totalPages={productsRes.data?.totalPages ?? 1}
         initialSortBy={searchParamsResolved.sortBy || "name"}
         initialSortDirection={searchParamsResolved.sortDirection || "asc"}
-        brands={category.brands ?? []}
+        brands={allCategoryBrands}
 
         discount={discount}
       />

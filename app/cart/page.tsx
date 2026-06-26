@@ -35,24 +35,124 @@ export default function CartPage() {
   }, [cart]);
   // ================= PHARMA SYNC =================
 
+  const [isCheckingStock, setIsCheckingStock] = useState(false);
+
   const handleCheckout = async () => {
+    if (cart.length === 0) return;
 
-    const inStockItems = cart.filter(item => getItemStock(item) > 0);
+    setIsCheckingStock(true);
+    try {
+      // 1. Run parallel API stock checks for all items in the cart
+      const stockResults = await Promise.all(
+        cart.map(async (item) => {
+          // Determine the correct SKU: Variant SKU gets priority over Product SKU
+          let sku = item.sku;
+          if (!sku && item.variantId && item.productData?.variants) {
+            const variant = item.productData.variants.find((v: any) => v.id === item.variantId);
+            sku = variant?.sku;
+          }
+          if (!sku) {
+            sku = item.productData?.sku;
+          }
 
-    if (inStockItems.length === 0) {
-      toast.error("All selected items are out of stock. Please remove them to continue.");
-      return;
-    }
+          if (!sku) {
+            // Fallback if no SKU is found anywhere
+            return {
+              item,
+              sku: null,
+              success: true,
+              stockQuantity: getItemStock(item),
+              trackInventory: false,
+            };
+          }
 
-    // Send only valid items to checkout
-    updateCart(inStockItems);
+          try {
+            const res = await fetch(`/api/Products/stock-by-sku/${encodeURIComponent(sku)}`);
+            if (res.ok) {
+              const json = await res.json();
+              if (json?.success && json?.data) {
+                return {
+                  item,
+                  sku,
+                  success: true,
+                  stockQuantity: json.data.stockQuantity ?? 0,
+                  trackInventory: json.data.trackInventory !== false,
+                  productName: json.data.productName || item.name,
+                };
+              }
+            }
+            // Fail-safe local stock check fallback if API call fails
+            return {
+              item,
+              sku,
+              success: false,
+              stockQuantity: getItemStock(item),
+              trackInventory: true,
+            };
+          } catch (err) {
+            console.error(`Stock check failed for SKU ${sku}:`, err);
+            return {
+              item,
+              sku,
+              success: false,
+              stockQuantity: getItemStock(item),
+              trackInventory: true,
+            };
+          }
+        })
+      );
 
-    if (isAuthenticated) {
-      sessionStorage.removeItem("buyNowItem");
-      router.push("/checkout");
+      // 2. Process stock verification results
+      const outOfStockItems: string[] = [];
+      const insufficientStockItems: { name: string; available: number; requested: number }[] = [];
 
-    } else {
-      router.push("/account?from=checkout");
+      stockResults.forEach((res) => {
+        const item = res.item;
+        if (res.trackInventory === false) return; // Skip if stock tracking is disabled
+
+        const available = res.stockQuantity;
+        const requested = item.quantity ?? 1;
+
+        if (available <= 0) {
+          outOfStockItems.push(item.name);
+        } else if (requested > available) {
+          insufficientStockItems.push({
+            name: item.name,
+            available,
+            requested,
+          });
+        }
+      });
+
+      // 3. Show error notifications and block checkout if there are stock issues
+      if (outOfStockItems.length > 0) {
+        toast.error(
+          `Stock is 0 for: ${outOfStockItems.join(", ")}. Please remove these items to proceed.`
+        );
+        return;
+      }
+
+      if (insufficientStockItems.length > 0) {
+        insufficientStockItems.forEach((info) => {
+          toast.error(
+            `Only ${info.available} quantity is available for "${info.name}". Please decrease or remove the extra ${info.requested - info.available} quantity.`
+          );
+        });
+        return;
+      }
+
+      // 4. If stock is valid for all items, proceed to checkout
+      if (isAuthenticated) {
+        sessionStorage.removeItem("buyNowItem");
+        router.push("/checkout");
+      } else {
+        router.push("/account?from=checkout");
+      }
+    } catch (error) {
+      console.error("Error during checkout stock validation:", error);
+      toast.error("Unable to verify stock at this moment. Please try again.");
+    } finally {
+      setIsCheckingStock(false);
     }
   };
   const [removeTarget, setRemoveTarget] = useState<any | null>(null);
@@ -669,9 +769,10 @@ export default function CartPage() {
           </div>
           <button
             onClick={handleCheckout}
-            className="flex-1 bg-black hover:bg-gray-800 text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+            disabled={isCheckingStock}
+            className={`flex-1 bg-black hover:bg-gray-800 text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 ${isCheckingStock ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            Checkout Now
+            {isCheckingStock ? "Checking Stock..." : "Checkout Now"}
           </button>
         </div>
       </div>
@@ -1058,9 +1159,13 @@ export default function CartPage() {
                 <span className="text-xl font-black text-gray-900 tracking-tight">£{(correctSubtotal - totalCombinedDiscount).toFixed(2)}</span>
               </div>
 
-              <button onClick={handleCheckout} className="w-full bg-black hover:bg-gray-800 text-white py-3 rounded font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group">
-                Proceed to Checkout
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              <button
+                onClick={handleCheckout}
+                disabled={isCheckingStock}
+                className={`w-full bg-black hover:bg-gray-800 text-white py-3 rounded font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group ${isCheckingStock ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isCheckingStock ? "Checking Stock..." : "Proceed to Checkout"}
+                {!isCheckingStock && <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />}
               </button>
 
               <div className="mt-5 flex items-center justify-center gap-2 text-gray-400 text-xs font-semibold">

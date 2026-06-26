@@ -9,6 +9,7 @@
 
 @layer base {
   :root {
+    --header-height: 102px;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -29,6 +30,12 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --header-height: 110px;
+    }
   }
 
   .dark {

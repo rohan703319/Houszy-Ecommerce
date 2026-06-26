@@ -43,6 +43,7 @@ const PharmaQuestionsModal = dynamic(() => import("@/components/pharma/PharmaQue
 const APlusContentRenderer = dynamic(() => import("@/components/aplus/APlusContentRenderer"));
 import { useCartActivity } from "@/context/CartContext";
 import { trackViewItem } from "@/lib/analytics";
+import { shippingService } from "@/lib/services/shipping";
 // ---------- Types ----------
 interface ProductImage {
   id: string;
@@ -206,6 +207,8 @@ interface Product {
   nextDayDeliveryFree?: boolean;
   sameDayDeliveryEnabled?: boolean;
   nextDayDeliveryCutoffTime?: string;
+  standardDeliveryEnabled?: boolean;
+  allowedDeliveryOptionIds?: string[];
   nextDayDeliveryCharge?: number;
   disableBuyButton?: boolean;
   disableWishlistButton?: boolean;
@@ -451,6 +454,32 @@ export default function ProductDetails({
   const [normalStockError, setNormalStockError] = useState<string | null>(null);
   // Subscription purchase quantity state
   const [subscriptionQty, setSubscriptionQty] = useState(1);
+
+  const [deliveryOptions, setDeliveryOptions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchDeliveryOptions = async () => {
+      try {
+        const res = await shippingService.getDeliveryOptions({ includeInactive: false });
+        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setDeliveryOptions(data);
+      } catch (error) {
+        console.error("Error fetching delivery options:", error);
+      }
+    };
+    fetchDeliveryOptions();
+  }, []);
+
+  const allowedOptions = useMemo(() => {
+    if (!deliveryOptions || deliveryOptions.length === 0) return [];
+    
+    const restrictionIds = product.allowedDeliveryOptionIds || [];
+    if (restrictionIds.length === 0) {
+      return deliveryOptions;
+    }
+    
+    return deliveryOptions.filter((opt) => restrictionIds.includes(opt.id));
+  }, [deliveryOptions, product.allowedDeliveryOptionIds]);
   const [subscriptionStockError, setSubscriptionStockError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [thumbStart, setThumbStart] = useState(0);
@@ -2519,9 +2548,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               <div className="space-y-4 mb-5">
                 {/* OPTION 1 */}
                 {product.variants?.[0]?.option1Name && (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-gray-950">
-                      <span className="font-bold">{product.variants?.[0]?.option1Name}</span> <span className="text-gray-700 capitalize ml-1">{selectedOptions.option1}</span>
+                      <span className="font-bold">{product.variants?.[0]?.option1Name}</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {[
@@ -2534,7 +2563,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <button
                           key={opt}
                           onClick={() => updateSelection(1, opt)}
-                          className={`px-3 py-1.5 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option1 === opt
+                          className={`px-2 py-1 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option1 === opt
                             ? "border-black ring-1 ring-black text-black font-bold bg-white"
                             : "border-gray-200 text-gray-800 hover:border-gray-400 bg-white"
                             }`}
@@ -2548,7 +2577,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
                 {/* OPTION 2 */}
                 {product.variants?.[0]?.option2Name && (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-gray-950">
                       <span className="font-bold">{product.variants?.[0]?.option2Name}</span> <span className="text-gray-700 capitalize ml-1">{selectedOptions.option2}</span>
                     </p>
@@ -2561,7 +2590,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <button
                           key={opt}
                           onClick={() => updateSelection(2, opt)}
-                          className={`px-3 py-1.5 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option2 === opt
+                          className={`px-2 py-1 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option2 === opt
                             ? "border-black ring-1 ring-black text-black font-bold bg-white"
                             : "border-gray-200 text-gray-800 hover:border-gray-400 bg-white"
                             }`}
@@ -2574,7 +2603,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 )}
                 {/* OPTION 3 */}
                 {product.variants?.some(v => v.option3Name && v.option3Value) && (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-gray-950">
                       <span className="font-bold">{product.variants?.[0]?.option3Name}</span> <span className="text-gray-700 capitalize ml-1">{selectedOptions.option3}</span>
                     </p>
@@ -2590,7 +2619,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <button
                           key={opt}
                           onClick={() => updateSelection(3, opt)}
-                          className={`px-3 py-1.5 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option3 === opt
+                          className={`px-2 py-1 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option3 === opt
                             ? "border-black ring-1 ring-black text-black font-bold bg-white"
                             : "border-gray-200 text-gray-800 hover:border-gray-400 bg-white"
                             }`}
@@ -3390,18 +3419,62 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                     </p>
 
                     <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
-                      <li><strong>Standard Delivery:</strong> Free</li>
-                      <li><strong>Next Day Delivery:</strong> £3.99</li>
-                      <li><strong>Royal Mail Special Delivery Guaranteed 1PM:</strong> £10.99</li>
+                      {allowedOptions.length > 0 ? (
+                        allowedOptions.map((opt) => {
+                          const name = (opt.displayName || opt.name || "");
+                          const isNextDay = name.toLowerCase().includes("next");
+                          const isFree = isNextDay && product.nextDayDeliveryFree;
+                          const priceStr = isFree ? "FREE" : (opt.price !== undefined ? `£${opt.price.toFixed(2)}` : "");
+                          
+                          return (
+                            <li key={opt.id}>
+                              <strong>{name}:</strong> {priceStr ? priceStr : "Available"}
+                              {opt.description ? ` - ${opt.description}` : ""}
+                            </li>
+                          );
+                        })
+                      ) : (
+                        <>
+                          {product.standardDeliveryEnabled && (
+                            <li>
+                              <strong>Standard Delivery:</strong> £2.95
+                              {(() => {
+                                const standardOpt = product.freeShippingThresholds?.find((x: any) => {
+                                  const name = (x.name || x.displayName || "").toLowerCase();
+                                  return name.includes("standard");
+                                });
+                                if (standardOpt && standardOpt.threshold > 0) {
+                                  return ` (Free over £${standardOpt.threshold})`;
+                                }
+                                return "";
+                              })()}
+                            </li>
+                          )}
+
+                          {product.nextDayDeliveryEnabled && (
+                            <li>
+                              <strong>Next Day Delivery:</strong> {product.nextDayDeliveryFree ? "FREE" : "£3.49"}
+                            </li>
+                          )}
+
+                          {product.sameDayDeliveryEnabled && (
+                            <li>
+                              <strong>Same Day Delivery</strong>
+                            </li>
+                          )}
+                        </>
+                      )}
                     </ul>
 
                     <p className="text-sm text-gray-700 mt-4">
                       Deliveries usually take place between 10 AM and 8 PM. All estimated delivery times are calculated from the moment you place your order and do not include weekends or Bank Holidays. A customer signature may be required in some cases.
                     </p>
 
-                    <p className="text-sm text-gray-700 mt-3">
-                      <strong>Next Day Delivery:</strong> Orders placed before 1 PM Monday to Friday are dispatched the same day and delivered the next working day. Orders placed after 1 PM on Friday or during the weekend will be delivered on the next available working day.
-                    </p>
+                    {product.nextDayDeliveryEnabled && (
+                      <p className="text-sm text-gray-700 mt-3">
+                        <strong>Next Day Delivery:</strong> Orders placed before {product.nextDayDeliveryCutoffTime || "1 PM"} Monday to Friday are dispatched the same day and delivered the next working day. Orders placed after {product.nextDayDeliveryCutoffTime || "1 PM"} on Friday or during the weekend will be delivered on the next available working day.
+                      </p>
+                    )}
                   </div>
 
                   {/* Return & Refund Policy */}

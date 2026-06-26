@@ -24,6 +24,7 @@ import RelatedProductsSelector from "../../RelatedProductsSelector";
 import ProductVariantsManager from "../../ProductVariantsManager";
 import PharmacyQuestionAssignModal from "../../PharmacyQuestionAssignModal";
 import { AssignProductPharmacyQuestionDto, pharmacyQuestionsService } from "@/lib/services/PharmacyQuestions";
+import { shippingService } from "@/lib/services/shipping";
 import ProductNameInput from "../../ProductNameInput";
 import SKUInput from "../../SKUInput";
 import { categoriesService } from "@/lib/services/categories";
@@ -101,6 +102,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   });
   // Add this state with your other useState declarations
   const [isGroupedModalOpen, setIsGroupedModalOpen] = useState(false);
+  const [availableDeliveryOptions, setAvailableDeliveryOptions] = useState<any[]>([]);
   // Add after existing useState declarations (around line 50-100)
   const [variantSkuErrors, setVariantSkuErrors] = useState<Record<string, string>>({});
 
@@ -499,6 +501,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     nextDayDeliveryEnabled: false,
     nextDayDeliveryFree: false,
     standardDeliveryEnabled: true,
+    allowedDeliveryOptionIds: [] as string[],
 
     // ===== GIFT CARDS =====
     isGiftCard: false,
@@ -733,11 +736,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         const [
           brandsResponse,
           categoriesResponse,
+          deliveryOptionsResponse
           // allProductsResponse,
           // simpleProductsResponse
         ] = await Promise.allSettled([
           brandsService.getAll({ includeInactive: true }),
           categoriesService.getAll({ includeInactive: true, includeSubCategories: true }),
+          shippingService.getDeliveryOptions({ includeInactive: false })
           // productsService.getAll({ pageSize: 1000 }),
           // productsService.getSimpleProducts()
         ]);
@@ -753,6 +758,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             Array.isArray(categoriesResponse.value?.data?.data?.items)
             ? categoriesResponse.value.data.data.items
             : [];
+
+        const deliveryOptionsData =
+          deliveryOptionsResponse.status === "fulfilled" &&
+            Array.isArray(deliveryOptionsResponse.value?.data?.data)
+            ? deliveryOptionsResponse.value.data.data
+            : [];
+        setAvailableDeliveryOptions(deliveryOptionsData);
 
         setDropdownsData({
           brands: Array.isArray(brandsData) ? brandsData : [],
@@ -1136,6 +1148,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           nextDayDeliveryEnabled: productData.nextDayDeliveryEnabled ?? false,
           nextDayDeliveryFree: productData.nextDayDeliveryFree ?? false,   // ✅ ADD
           standardDeliveryEnabled: productData.standardDeliveryEnabled ?? true,
+          allowedDeliveryOptionIds: productData.allowedDeliveryOptionIds || [],
 
           // ===== TAGS & RELATED =====
           productTags: productData.tags || '',
@@ -3736,6 +3749,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         // 🔥 ADD THIS
         nextDayDeliveryCutoffTime: formData.nextDayDeliveryCutoffTime || null,
         standardDeliveryEnabled: formData.standardDeliveryEnabled ?? true,
+        allowedDeliveryOptionIds: formData.allowedDeliveryOptionIds || [],
         isRecurring:
           formData.productType !== 'grouped' && formData.isRecurring,
 
@@ -6107,11 +6121,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 {/* Is Pharma Product */}
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
 
                   <div className="flex items-center justify-between">
 
-                    {/* LEFT SIDE */}
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -6141,7 +6154,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     </label>
 
 
-                    {/* RIGHT SIDE */}
                     {formData.isPharmaProduct && (
                       <button
                         type="button"
@@ -6163,7 +6175,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
                   </div>
 
-                </div>
+                </div> */}
               </div>
 
               {/* Features Section */}
@@ -7185,80 +7197,109 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             )}
           </div> */}
 
-                      {/* Next Day Delivery */}
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            name="nextDayDeliveryEnabled"
-                            checked={formData.nextDayDeliveryEnabled}
-                            onChange={handleChange}
-                            className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                          />
-                          <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                            🚀 Enable Next-Day Delivery
-                          </span>
-                        </label>
-
-                      </div>
-                      {/* Next Day Delivery Free */}
-                      {formData.nextDayDeliveryEnabled && (
-                        <>
-                          {/* FREE OPTION */}
-                          <label className="flex items-center gap-2 cursor-pointer group ml-6">
-                            <input
-                              type="checkbox"
-                              name="nextDayDeliveryFree"
-                              checked={formData.nextDayDeliveryFree}
-                              onChange={handleChange}
-                              className="rounded bg-slate-800/50 border-slate-700 text-violet-500"
-                            />
-                            <span className="text-sm text-slate-300">
-                              🎁 Next-Day Delivery Free
-                            </span>
-                          </label>
-
-                          {/* 🔥 CUTOFF TIME (ADD THIS) */}
-                          <div className="ml-6 mt-2">
-                            <label className="block text-md text-slate-400 mb-1">
-                              Cutoff Time (UK Time)
-                              <span className="text-red-400">*</span>
+                        {/* Allowed Delivery Options Grid */}
+                        {availableDeliveryOptions.length > 0 && (
+                          <div className="space-y-3 pt-2">
+                            <label className="block text-sm font-medium text-slate-300">
+                              Restrict Allowed Delivery Options
                             </label>
-
-                            <input
-                              type="time"
-                              name="nextDayDeliveryCutoffTime"
-                              value={formData.nextDayDeliveryCutoffTime || ""}
-                              onChange={handleChange}
-                              className="w-40 px-3 py-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:ring-2 focus:ring-violet-500"
-                            />
-
-                            <p className="text-xs text-slate-500 mt-1">
-                              Enter UK local cutoff time for next-day delivery
+                            <p className="text-xs text-slate-500">
+                              Select specific delivery options allowed for this product. If none are selected, all active delivery options are allowed by default.
                             </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                              {availableDeliveryOptions.map((option) => {
+                                const isChecked = formData.allowedDeliveryOptionIds?.includes(option.id) || false;
+                                const isStandard = option.name?.toLowerCase().includes("standard") || option.displayName?.toLowerCase().includes("standard");
+                                const isNextDay = option.name?.toLowerCase().includes("next") || option.displayName?.toLowerCase().includes("next");
+                                
+                                return (
+                                  <div key={option.id} className="flex flex-col bg-slate-800/20 hover:bg-slate-800/30 p-3 rounded-lg border border-slate-700/50 transition-colors gap-2">
+                                    <label className="flex items-start gap-2 cursor-pointer group">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          setFormData((prev) => {
+                                            const currentIds = prev.allowedDeliveryOptionIds || [];
+                                            const nextIds = checked
+                                              ? [...currentIds, option.id]
+                                              : currentIds.filter((id) => id !== option.id);
+                                            
+                                            const updateObj: any = {
+                                              ...prev,
+                                              allowedDeliveryOptionIds: nextIds,
+                                            };
 
+                                            if (isStandard) {
+                                              updateObj.standardDeliveryEnabled = checked;
+                                            }
+                                            if (isNextDay) {
+                                              updateObj.nextDayDeliveryEnabled = checked;
+                                              if (!checked) {
+                                                updateObj.nextDayDeliveryFree = false;
+                                                updateObj.nextDayDeliveryCutoffTime = '';
+                                              }
+                                            }
 
+                                            return updateObj;
+                                          });
+                                        }}
+                                        className="rounded mt-0.5 bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
+                                      />
+                                      <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                                          {option.displayName || option.name}
+                                        </span>
+                                        {option.description && (
+                                          <span className="text-xs text-slate-500">
+                                            {option.description}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </label>
+
+                                    {/* Next Day Delivery Cutoff Time & Free Option */}
+                                    {isNextDay && isChecked && (
+                                      <div className="pl-6 pt-3 mt-2 border-t border-slate-800/60 space-y-3">
+                                        {/* FREE OPTION */}
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                          <input
+                                            type="checkbox"
+                                            name="nextDayDeliveryFree"
+                                            checked={formData.nextDayDeliveryFree || false}
+                                            onChange={handleChange}
+                                            className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
+                                          />
+                                          <span className="text-xs text-slate-300 group-hover:text-white transition-colors">
+                                            Next-Day Delivery Free
+                                          </span>
+                                        </label>
+
+                                        {/* CUTOFF TIME */}
+                                        <div className="space-y-1">
+                                          <label className="block text-xs font-medium text-slate-400">
+                                            Cutoff Time (UK Time) <span className="text-red-400">*</span>
+                                          </label>
+                                          <input
+                                            type="time"
+                                            name="nextDayDeliveryCutoffTime"
+                                            value={formData.nextDayDeliveryCutoffTime || ""}
+                                            onChange={handleChange}
+                                            className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                                          />
+                                          <p className="text-[10px] text-slate-500">
+                                            Enter UK local cutoff time for next-day delivery
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </>
-                      )}
-
-                      {/* Standard Delivery */}
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            name="standardDeliveryEnabled"
-                            checked={formData.standardDeliveryEnabled}
-                            onChange={handleChange}
-                            className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                          />
-                          <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                            📦 Enable Standard Delivery
-                          </span>
-                        </label>
-
-
-                      </div>
+                        )}
 
                       <div className="flex items-start gap-2 text-xs text-blue-400 bg-blue-900/20 px-3 py-2 rounded border border-blue-800/50 mt-2">
                         <Info className="w-4 h-4 shrink-0 mt-0.5" />

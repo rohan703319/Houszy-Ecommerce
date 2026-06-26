@@ -314,6 +314,7 @@ allowedSubscriptionFrequencies?: string;
   isRecurring?:boolean;
   vatExempt?:boolean;
   standardDeliveryEnabled?:boolean;
+  allowedDeliveryOptionIds?: string[];
   images?: ProductImage[];
   attributes?: ProductAttribute[];
   variants?: ProductVariant[];
@@ -407,6 +408,7 @@ export interface CreateProductDto {
   fakeSaleCount?: number;
   aPlusTemplateId?: string | null;
   aPlusContent?: string | null;
+  allowedDeliveryOptionIds?: string[];
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

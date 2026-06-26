@@ -140,6 +140,7 @@ export default function OrdersListPage() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [deliveryOptions, setDeliveryOptions] = useState<any[]>([]);
   const [filters, setFilters] = useState({
     searchTerm: "",
     status: "",
@@ -256,6 +257,17 @@ export default function OrdersListPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   useEffect(() => {
     const init = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/delivery-options`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setDeliveryOptions(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching delivery options:", err);
+      }
       await fetchOrders();
       setInitialLoading(false);
     };
@@ -1126,9 +1138,22 @@ export default function OrdersListPage() {
         ${filters.shippingMethodName ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
           >
             <option value="">Shipping Method: All</option>
-            <option value="Next Day Delivery">Next Day Delivery</option>
-            <option value="Standard Delivery">Standard Delivery</option>
-            <option value="ClickAndCollect">Click & Collect</option>
+            {deliveryOptions.length > 0 ? (
+              deliveryOptions.map((opt) => (
+                <option
+                  key={opt.id}
+                  value={opt.name === "ClickCollect" ? "ClickAndCollect" : opt.displayName}
+                >
+                  {opt.displayName}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="Next Day Delivery">Next Day Delivery</option>
+                <option value="Standard Delivery">Standard Delivery</option>
+                <option value="ClickAndCollect">Click & Collect</option>
+              </>
+            )}
           </select>
 
           {/* PAYMENT METHOD */}
@@ -1173,40 +1198,7 @@ export default function OrdersListPage() {
             <option value="Refunded">Refunded</option>
           </select>
 
-          {/* IS PHARMA PRODUCT */}
-          <select
-            value={filters.isPharmaProduct}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                isPharmaProduct: e.target.value,
-              }))
-            }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
-        ${filters.isPharmaProduct !== "" ? "border-emerald-500 bg-emerald-500/10" : "border-slate-700"}`}
-          >
-            <option value="">Order Type: All</option>
-            <option value="true">Pharma Orders</option>
-            <option value="false">Non-Pharma Orders</option>
-          </select>
 
-          {/* PHARMACY STATUS */}
-          <select
-            value={filters.pharmacyVerificationStatus || ""}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                pharmacyVerificationStatus: e.target.value === "" ? "" : e.target.value as PharmacyVerificationStatus,
-              }))
-            }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
-        ${filters.pharmacyVerificationStatus ? "border-purple-500 bg-purple-500/10" : "border-slate-700"}`}
-          >
-            <option value="">Pharmacy Status: All</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-          </select>
 
           {/* DATE RANGE */}
           <div className="relative w-[210px] flex-shrink-0" ref={datePickerRef}>

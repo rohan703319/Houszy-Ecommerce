@@ -891,19 +891,24 @@ export default function CategoryClient({
             ))}
           </nav>
 
-          {/* RIGHT: Sort */}
-          <select
-            value={`${sortBy}-${sortDirection}`}
-            onChange={(e) => handleSortChange(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#f38918]"
-          >
-            <option value="name-asc">
-              Default Sorting
-            </option>
-            <option value="price-asc">Sort by price: Low-High</option>
-            <option value="price-desc">Sort by price: High-Low</option>
-            <option value="rating-desc">Sort by: Popularity⭐</option>
-          </select>
+          {/* RIGHT: Sort & Count */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 font-medium">
+              Showing {flattenedProducts.length} product{flattenedProducts.length !== 1 ? "s" : ""}
+            </span>
+            <select
+              value={`${sortBy}-${sortDirection}`}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-xs md:text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#f38918]"
+            >
+              <option value="name-asc">
+                Default Sorting
+              </option>
+              <option value="price-asc">Sort by price: Low-High</option>
+              <option value="price-desc">Sort by price: High-Low</option>
+              <option value="rating-desc">Sort by: Popularity⭐</option>
+            </select>
+          </div>
 
         </div>
 
@@ -985,6 +990,38 @@ export default function CategoryClient({
                         </span>
                       </label>
                     ))}
+                </div>
+              </details>
+            )}
+
+            {/* ─── BRANDS ─── */}
+            {availableBrands.length > 0 && (
+              <details className="group border-b border-gray-200">
+                <summary className="flex items-center justify-between py-3 cursor-pointer list-none select-none">
+                  <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Brands</span>
+                  <span className="text-gray-400 text-base leading-none group-open:hidden">+</span>
+                  <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
+                </summary>
+                <div className="pb-3 max-h-60 overflow-y-auto pr-1 hide-scrollbar space-y-0">
+                  {availableBrands.map((brand) => (
+                    <label
+                      key={brand.id}
+                      className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black flex-shrink-0"
+                        checked={selectedBrands.includes(brand.id)}
+                        onChange={(e) => handleBrandChange(brand.id, e.target.checked)}
+                      />
+                      <span className={`text-[13px] truncate transition ${selectedBrands.includes(brand.id)
+                        ? "font-semibold text-black"
+                        : "text-gray-600 group-hover/item:text-black"
+                        }`}>
+                        {brand.name}
+                      </span>
+                    </label>
+                  ))}
                 </div>
               </details>
             )}
@@ -1112,6 +1149,31 @@ export default function CategoryClient({
                               />
                               <span className={`text-[13px] transition ${selectedSubCategories.includes(sub.id) ? "font-semibold text-black" : "text-gray-600"
                                 }`}>{sub.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Brands */}
+                    {availableBrands.length > 0 && (
+                      <details className="group border-b border-gray-200">
+                        <summary className="flex items-center justify-between py-4 cursor-pointer list-none select-none">
+                          <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Brands</span>
+                          <span className="text-gray-400 text-base leading-none group-open:hidden">+</span>
+                          <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
+                        </summary>
+                        <div className="pb-4 max-h-52 overflow-y-auto space-y-0">
+                          {availableBrands.map((brand) => (
+                            <label key={brand.id} className="flex items-center gap-3 cursor-pointer py-2">
+                              <input
+                                type="checkbox"
+                                className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black"
+                                checked={selectedBrands.includes(brand.id)}
+                                onChange={(e) => handleBrandChange(brand.id, e.target.checked)}
+                              />
+                              <span className={`text-[13px] transition ${selectedBrands.includes(brand.id) ? "font-semibold text-black" : "text-gray-600"
+                                }`}>{brand.name}</span>
                             </label>
                           ))}
                         </div>

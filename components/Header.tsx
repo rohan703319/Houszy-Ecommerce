@@ -68,6 +68,7 @@ export default function Header({
 
   const lastScroll = useRef(0);
   const megaWrapperRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const toast = useToast();
   const { cartCount, isInitialized } = useCart();
@@ -256,6 +257,30 @@ export default function Header({
     return () => { document.body.style.overflow = ''; };
   }, [menuOpen, mobileSearchOpen]);
 
+  // Dynamically update --header-height CSS variable based on actual header height
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const updateHeight = () => {
+      document.documentElement.style.setProperty(
+        "--header-height",
+        `${header.offsetHeight}px`
+      );
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(() => {
+      updateHeight();
+    });
+    observer.observe(header);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -291,7 +316,8 @@ export default function Header({
 
   return (
     <header
-      id="main-header"   // ðŸ‘ˆ ADD THIS
+      ref={headerRef}
+      id="main-header"
       className="fixed left-0 right-0 z-50"
       style={{
         top: (hideTopBar && !menuOpen) ? '-36px' : '0',
@@ -366,7 +392,7 @@ export default function Header({
 
       {/* ⭐ MAIN HEADER */}
       <div className="bg-white shadow-md relative">
-        <div className="flex items-center min-h-16 md:min-h-[72px] py-2 md:py-3 px-1 md:px-6 lg:px-20 gap-2 justify-between">
+        <div className="flex items-center min-h-16 md:min-h-[72px] py-2 md:py-3 px-3 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 gap-2 justify-between">
 
           {/* LEFT: Hamburger + Logo */}
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -383,7 +409,7 @@ export default function Header({
                 alt="Houszy Logo"
                 width={150}
                 height={50}
-                className="h-10 w-auto sm:h-11 md:h-[52px] md:w-auto object-contain"
+                className="h-10 w-auto sm:h-11 md:h-[46px] lg:h-[50px] md:w-auto object-contain"
                 priority
               />
             </Link>
@@ -392,14 +418,14 @@ export default function Header({
           {/* CENTER: DESKTOP CATEGORIES NAV */}
           <div
             ref={megaWrapperRef}
-            className="hidden md:flex flex-1 justify-start ml-4 lg:ml-6 relative"
+            className="hidden md:flex flex-1 justify-start ml-2 lg:ml-4 xl:ml-5 relative"
             onMouseLeave={() => {
               setHovered(false);
               setActiveCategory(null);
               setBlogsHovered(false);
             }}
           >
-            <nav className="flex flex-wrap items-center text-[12px] lg:text-[13px] xl:text-[14px] font-semibold text-black gap-x-2.5 lg:gap-x-4 xl:gap-x-5 gap-y-1.5 transition-all duration-300">
+            <nav className="flex flex-wrap items-center text-[10.5px] lg:text-[11.5px] xl:text-[12.5px] 2xl:text-[13.5px] font-semibold text-black gap-x-1.5 lg:gap-x-2.5 xl:gap-x-3.5 2xl:gap-x-4 gap-y-1.5 transition-all duration-300">
               {categories.map((cat) => (
                 <div
                   key={cat.id}
@@ -440,72 +466,6 @@ export default function Header({
                   )}
                 </div>
               ))}
-
-              {/* ⭐ BLOGS NAVIGATION WITH DROPDOWN */}
-              <div
-                className="relative flex items-center py-1.5"
-                onMouseEnter={() => {
-                  setBlogsHovered(true);
-                  setHovered(false);
-                  setActiveCategory(null);
-                }}
-                onMouseLeave={() => setBlogsHovered(false)}
-              >
-                <Link
-                  href="/blog"
-                  className={`relative flex items-center gap-1 cursor-pointer py-1 transition-colors whitespace-nowrap group ${blogsHovered ? "text-[#f38918]" : "text-black hover:text-[#f38918]"
-                    }`}
-                >
-                  Blogs
-                  {blogCategories.length > 0 && (
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-300 ease-in-out ${blogsHovered ? "rotate-180" : "rotate-0"
-                        }`}
-                    />
-                  )}
-                  <span
-                    className={`absolute bottom-0 left-0 h-[2.5px] bg-[#f38918] transition-all duration-200 ${blogsHovered ? "w-full" : "w-0 group-hover:w-full"
-                      }`}
-                  />
-                </Link>
-
-                {/* Vertical Dropdown list */}
-                {blogsHovered && blogCategories.length > 0 && (
-                  <div className="absolute top-[100%] left-0 bg-white border border-gray-100 shadow-xl py-2 min-w-[200px] z-50 rounded-md">
-                    {blogCategories.map((blogCat) => {
-                      const cleanName = blogCat.name.replace(/&amp;/g, "&");
-                      return (
-                        <Link
-                          key={blogCat.id}
-                          href={`/blog/category/${blogCat.slug}`}
-                          onClick={() => setBlogsHovered(false)}
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#f38918] transition-colors"
-                        >
-                          {cleanName}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div
-                className="relative flex items-center py-1.5"
-                onMouseEnter={() => {
-                  setHovered(false);
-                  setActiveCategory(null);
-                  setBlogsHovered(false);
-                }}
-              >
-                <Link
-                  href="/bundle-deals"
-                  className="relative flex items-center gap-1 cursor-pointer py-1 transition-colors whitespace-nowrap group text-black hover:text-[#f38918]"
-                >
-                  Bundle Deals
-                  <span className="absolute bottom-0 left-0 h-[2.5px] bg-[#f38918] transition-all duration-200 w-0 group-hover:w-full" />
-                </Link>
-              </div>
 
               <Link
                 href="/offers"

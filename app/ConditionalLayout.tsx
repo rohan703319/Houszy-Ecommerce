@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
+import CookieConsent from "@/components/CookieConsent";
 
 export default function ConditionalLayout({
   children,
@@ -31,7 +32,7 @@ export default function ConditionalLayout({
   // ✅ Admin routes ko completely exclude karo
   const isAdminRoute = pathname.startsWith("/admin");
   const isAuthRoute = hideLayoutRoutes.includes(pathname);
-  
+
   const hideLayout = isAdminRoute || isAuthRoute;
 
   // ✅ Admin ya Auth routes par Header/Footer NAHI dikhega
@@ -41,20 +42,21 @@ export default function ConditionalLayout({
 
   // ✅ Main site par Header + Footer dikhega with proper spacing
   return (
-  <div className="min-h-screen flex flex-col">
-   <Header 
-  ssrCategories={categories} 
-  deliveryStrip={deliveryStrip}
-/>
+    <div className="min-h-screen flex flex-col">
+      <Header
+        ssrCategories={categories}
+        deliveryStrip={deliveryStrip}
+      />
 
-    {/* main will push footer to bottom */}
-    <main className="flex-1 pt-[102px] md:pt-[110px]">
-      {children}
-    </main>
+      {/* main will push footer to bottom */}
+      <main className="flex-1" style={{ paddingTop: "calc(var(--header-height) - 5px)" }}>
+        {children}
+      </main>
 
-    <Footer />
-    <ScrollToTop />
-  </div>
-);
+      <Footer />
+      <ScrollToTop />
+      <CookieConsent />
+    </div>
+  );
 
 }

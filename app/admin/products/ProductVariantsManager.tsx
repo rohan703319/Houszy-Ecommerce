@@ -369,7 +369,7 @@ export default function ProductVariantsManager({
           type="button"
           onClick={options.length > 0 ? addVariantWithOptions : addProductVariant}
           disabled={disabled}
-          className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
           Add Variant

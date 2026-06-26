@@ -95,6 +95,7 @@ export default function InventoryPage() {
   const [sampleLoading, setSampleLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [productType, setSelectedProductType] = useState("all");
+  const [downloadAllLoading, setDownloadAllLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -381,7 +382,7 @@ export default function InventoryPage() {
 
   const handleBulkUpdate = () => {
     const invalidProducts = changedProducts.filter(p => p.newOldPrice > 0 && p.newOldPrice <= p.newPrice);
-    
+
     if (invalidProducts.length > 0) {
       toast.error(`Invalid Prices: Old Price must be greater than New Price for ${invalidProducts.length} product(s).`);
       return;
@@ -486,6 +487,67 @@ export default function InventoryPage() {
     setSelected(new Set());
   };
 
+  const downloadAllProducts = async () => {
+    try {
+      setDownloadAllLoading(true);
+      const res = await productsService.getAll({ page: 1, pageSize: 100000 });
+      if (res.data?.success) {
+        const apiData = res.data.data;
+        const allFlatRows: ProductRow[] = [];
+        apiData.items.forEach((p: any) => {
+          const variants = Array.isArray(p.variants) ? p.variants : [];
+          allFlatRows.push({
+            id: p.id,
+            isVariant: false,
+            productType: p.productType || "simple",
+            variantsCount: variants.length,
+            slug: p.slug,
+            name: p.name,
+            sku: p.sku,
+            stockQuantity: Number(p.stockQuantity ?? 0),
+            price: Number(p.price ?? 0),
+            oldPrice: Number(p.oldPrice ?? 0),
+            newStock: Number(p.stockQuantity ?? 0),
+            newPrice: Number(p.price ?? 0),
+            newOldPrice: Number(p.oldPrice ?? 0),
+            brandName: p.brandName ?? "",
+            categoryName: p.categories?.[0]?.categoryName || "",
+          });
+
+          variants.forEach((v: any) => {
+            allFlatRows.push({
+              id: p.id,
+              parentId: p.id,
+              parentName: p.name,
+              slug: v.slug || p.slug,
+              variantId: v.id,
+              isVariant: true,
+              name: v.name,
+              sku: v.sku,
+              stockQuantity: Number(v.stockQuantity ?? 0),
+              price: Number(v.price ?? 0),
+              oldPrice: Number(v.compareAtPrice ?? 0),
+              newStock: Number(v.stockQuantity ?? 0),
+              newPrice: Number(v.price ?? 0),
+              newOldPrice: Number(v.compareAtPrice ?? 0),
+              brandName: p.brandName ?? "",
+              categoryName: p.categories?.[0]?.categoryName || "",
+            });
+          });
+        });
+
+        if (!allFlatRows.length) { toast.error("No products found"); return; }
+        writeExcel(toExcelRows(allFlatRows), "all-inventory.xlsx");
+        toast.success(`Exported all ${allFlatRows.length} rows`);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Download failed");
+    } finally {
+      setDownloadAllLoading(false);
+    }
+  };
+
   const handleExcelUpload = async (file: File) => {
     if (!file) return;
     try {
@@ -535,19 +597,19 @@ export default function InventoryPage() {
       {selected.size > 0 && (
         <div className="fixed top-[80px] left-1/2 -translate-x-1/2 z-[999] pointer-events-none w-full">
           <div className="flex justify-center px-2">
-            <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-900/95 px-4 py-3 shadow-xl backdrop-blur-xl">
+            <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/95 px-4 py-3 shadow-xl backdrop-blur-xl">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
                 <div className="leading-tight">
-                  <p className="text-sm font-semibold text-white">{selected.size} item(s) selected</p>
-                  <p className="text-xs text-slate-400">Export the selected inventory rows to Excel</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{selected.size} item(s) selected</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Export the selected inventory rows to Excel</p>
                 </div>
               </div>
-              <div className="h-8 w-px bg-slate-700/80" />
+              <div className="h-8 w-px bg-slate-200 dark:bg-slate-700/80" />
               <button onClick={downloadSelectedTemplate} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all">
                 <Download className="w-3.5 h-3.5" /> Export Selected ({selected.size})
               </button>
-              <button onClick={() => setSelected(new Set())} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold transition-all">
+              <button onClick={() => setSelected(new Set())} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-white rounded-lg font-semibold transition-all border border-slate-200 dark:border-transparent">
                 Cancel
               </button>
             </div>
@@ -566,6 +628,10 @@ export default function InventoryPage() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => router.push("/admin/products")} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-400 rounded-lg font-semibold transition-all"><ShoppingCart className="w-3.5 h-3.5" />Go to Products</button>
+          <button onClick={downloadAllProducts} disabled={downloadAllLoading} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-semibold transition-all">
+            {downloadAllLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            {downloadAllLoading ? "Downloading..." : "Download All Products"}
+          </button>
           <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition-all"><Upload className="w-3.5 h-3.5" />Update Inventory</button>
         </div>
       </div>
@@ -604,7 +670,7 @@ export default function InventoryPage() {
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400">Show</span>
           <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:outline-none">
-            {[25, 50, 100, 500].map(n => <option key={n} value={n}>{n}</option>)}
+            {[25, 50, 100, 500, 1000].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           <span className="text-xs text-slate-400">entries</span>
         </div>
@@ -650,56 +716,56 @@ export default function InventoryPage() {
                       <td className="p-2.5 text-center">
                         <input type="checkbox" checked={selected.has(getRowKey(p))} onChange={() => toggleSelect(p)} className="rounded accent-violet-500 w-3.5 h-3.5" />
                       </td>
-                      <td className="py-2 px-2.5">
+                      <td className="py-2 px-2.">
                         <div className="flex items-center gap-3">
                           <img src={getImageUrl(p.image || "")} alt={p.name} onClick={() => openMediaViewer(p.images || [], 0)} className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer bg-slate-800 flex-shrink-0 object-cover" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <a href={`/product/${p.variants?.[0]?.slug || p.slug}`} target="_blank" rel="noopener noreferrer" className="group block" title={p.name}>
-                                <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-cyan-400 max-w-[300px] lg:max-w-[550px]">{p.name}</p>
+                                <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-cyan-400 max-w-[300px] lg:max-w-[440px]">{p.name}</p>
                               </a>
-                           {(p.variants?.length ?? 0) > 0 && (
-  <button
-    onClick={() => toggleExpand(p.id)}
-    title={
-      expandedRows.has(p.id)
-        ? "Hide Product"
-        : "Show Product"
-    }
-    className="
-      inline-flex items-center gap-1
-      h-7 px-2
-      rounded-lg
+                              {(p.variants?.length ?? 0) > 0 && (
+                                <button
+                                  onClick={() => toggleExpand(p.id)}
+                                  title={
+                                    expandedRows.has(p.id)
+                                      ? "Hide Product"
+                                      : "Show Product"
+                                  }
+                                  className="
+      inline-flex items-center gap-1
+      h-7 px-2
+      rounded-lg
 
-      border border-slate-200
-      bg-white
-      hover:bg-slate-50
+      border border-slate-200
+      bg-white
+      hover:bg-slate-50
 
-      dark:bg-slate-800
-      dark:border-slate-700
-      dark:hover:bg-slate-700
+      dark:bg-slate-800
+      dark:border-slate-700
+      dark:hover:bg-slate-700
 
-      text-[10px] font-medium
-      text-slate-700
-      dark:text-slate-200
+      text-[10px] font-medium
+      text-slate-700
+      dark:text-slate-200
 
-      transition-all duration-200
-      shadow-sm
-    "
-  >
-    {expandedRows.has(p.id) ? (
-      <>
-        <ChevronUp className="w-3.5 h-3.5" />
-        Hide
-      </>
-    ) : (
-      <>
-        <ChevronDown className="w-3.5 h-3.5" />
-        Show
-      </>
-    )}
-  </button>
-)}
+      transition-all duration-200
+      shadow-sm
+    "
+                                >
+                                  {expandedRows.has(p.id) ? (
+                                    <>
+                                      <ChevronUp className="w-3.5 h-3.5" />
+
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="w-3.5 h-3.5" />
+
+                                    </>
+                                  )}
+                                </button>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               {p.brandName && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/10 text-violet-300 border border-violet-500/20">{p.brandName}</span>}
@@ -837,7 +903,7 @@ export default function InventoryPage() {
               ))}
               <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages} className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
               <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-1.5 rounded-lg text-slate-400 hover:text-white disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
-              </div>
+            </div>
           </div>
         )}
       </div>

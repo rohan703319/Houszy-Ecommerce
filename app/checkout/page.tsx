@@ -639,6 +639,18 @@ export default function CheckoutPage() {
       return sum + vat;
     }, 0);
   }, [checkoutItems]);
+
+  const productIdsParam = useMemo(() => {
+    return checkoutItems
+      .map((item: any) => item.productId || item.id)
+      .filter(Boolean)
+      .join(",");
+  }, [checkoutItems]);
+
+  const cartValue = useMemo(() => {
+    return checkoutItems.reduce((s, i) => s + (i.finalPrice ?? i.price) * i.quantity, 0);
+  }, [checkoutItems]);
+
   // Fetch shipping quote when postcode is available
   useEffect(() => {
     const postcode = (shippingSameAsBilling ? billingPostalCode : shippingPostalCode).trim();
@@ -648,14 +660,13 @@ export default function CheckoutPage() {
       setShippingError(null);
       return;
     }
-    const cartValue = checkoutItems.reduce((s, i) => s + (i.finalPrice ?? i.price) * i.quantity, 0);
     const itemCount = checkoutItems.reduce((s, i) => s + i.quantity, 0);
 
     const timer = setTimeout(async () => {
       try {
         setShippingQuoteLoading(true);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=${encodeURIComponent(postcode)}&orderTotal=${cartValue}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=${encodeURIComponent(postcode)}&orderTotal=${cartValue}&productIds=${encodeURIComponent(productIdsParam)}`
         );
         const json = await res.json();
 
@@ -715,7 +726,7 @@ export default function CheckoutPage() {
       }
     }, 600);
     return () => clearTimeout(timer);
-  }, [billingPostalCode, shippingPostalCode, shippingSameAsBilling, deliveryMethod, allSupportNextDay, allSupportSameDay, allNextDayFree]);
+  }, [billingPostalCode, shippingPostalCode, shippingSameAsBilling, deliveryMethod, allSupportNextDay, allSupportSameDay, allNextDayFree, productIdsParam, cartValue]);
   useEffect(() => {
     if (deliveryMethod !== "ClickAndCollect") {
       setStores([]);
@@ -1069,8 +1080,7 @@ export default function CheckoutPage() {
     if (!billingCity.trim())
       errors.billingCity = "City is required";
 
-    if (!billingState.trim())
-      errors.billingState = "County is required";
+
     // ✅ SHIPPING VALIDATION (same as billing)
     if (deliveryMethod === "HomeDelivery" && !shippingSameAsBilling) {
       // ✅ ADD THIS
@@ -1087,8 +1097,7 @@ export default function CheckoutPage() {
       if (!shippingCity.trim())
         errors.shippingCity = "Shipping city is required";
 
-      if (!shippingState.trim())
-        errors.shippingState = "Shipping county is required";
+
     }
 
 
@@ -1328,13 +1337,12 @@ export default function CheckoutPage() {
                   <ErrorText error={fieldErrors.billingCity} />
                 </div>
                 <div className="flex flex-col space-y-0.5 col-span-2">
-                  <label className="text-xs font-medium text-gray-700">County *</label>
+                  <label className="text-xs font-medium text-gray-700">Country *</label>
                   <input
-                    value={billingState}
-                    onChange={(e) => { setBillingState(e.target.value); clearFieldError("billingState"); }}
-                    className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
+                    value={billingCountry}
+                    readOnly
+                    className="w-full border border-gray-300 p-1.5 text-sm rounded bg-gray-100 cursor-not-allowed focus:outline-none"
                   />
-                  <ErrorText error={fieldErrors.billingState} />
                 </div>
               </div>
             </div>
@@ -1505,9 +1513,12 @@ export default function CheckoutPage() {
                       <ErrorText error={fieldErrors.shippingCity} />
                     </div>
                     <div className="flex flex-col space-y-0.5 col-span-2">
-                      <label className="text-xs font-medium text-gray-700">County *</label>
-                      <input value={shippingState} onChange={(e) => { setShippingState(e.target.value); clearFieldError("shippingState"); }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all" />
-                      <ErrorText error={fieldErrors.shippingState} />
+                      <label className="text-xs font-medium text-gray-700">Country *</label>
+                      <input
+                        value={shippingCountry}
+                        readOnly
+                        className="w-full border border-gray-300 p-1.5 text-sm rounded bg-gray-100 cursor-not-allowed focus:outline-none"
+                      />
                     </div>
                   </div>
                 ) : (

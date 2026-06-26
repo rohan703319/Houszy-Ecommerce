@@ -87,7 +87,7 @@ setSuccess(data?.message || "Subscribed successfully"); // ✅ FIX
           setIsOpen(false);
           setSuccess(null);
           setChecked(true);
-        }, 1500);
+        }, 3000);
       } else {
         setError(data?.message ?? "Subscription failed");
       }

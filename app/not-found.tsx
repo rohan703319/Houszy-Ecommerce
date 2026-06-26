@@ -20,14 +20,14 @@ export default function NotFound() {
           <div className="relative mb-3">
             {/* Background 404 */}
             <div className="absolute inset-0 flex items-center justify-center opacity-[0.02]">
-              <div className="text-[180px] font-black text-[#4a6f52] leading-none select-none">
+              <div className="text-[180px] font-black text-[#ea580c] leading-none select-none">
                 404
               </div>
             </div>
             <div className="relative pt-4 ">
               {/* Icon */}
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#4a6f52]/10 rounded-full mb-2">
-                <Package className="w-10 h-10 text-[#4a6f52]" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#ea580c]/10 rounded-full mb-2">
+                <Package className="w-10 h-10 text-[#ea580c]" />
               </div>
               {/* Title */}
               <h1 className="text-3xl md:text-4xl font-black text-gray-800 mb-2">
@@ -46,13 +46,13 @@ export default function NotFound() {
           <div className="flex flex-wrap items-center justify-center gap-2.5 mb-4">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-1.5 px-5 py-2.5 border-2 border-[#4a6f52] text-[#4a6f52] rounded-full hover:bg-[#4a6f52] hover:text-white transition-all font-semibold text-sm" >
+              className="flex items-center gap-1.5 px-5 py-2.5 border-2 border-[#ea580c] text-[#ea580c] rounded-full hover:bg-[#ea580c] hover:text-white transition-all font-semibold text-sm" >
               <ArrowLeft className="w-4 h-4" />
               Go Back
             </button>
             <Link
               href="/"
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-[#4a6f52] text-white rounded-full hover:bg-[#3d5c43] transition-all font-semibold text-sm" >
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-[#ea580c] text-white rounded-full hover:bg-[#c2410c] transition-all font-semibold text-sm" >
               <Home className="w-4 h-4" />
               Back to Home
             </Link>
@@ -66,11 +66,11 @@ export default function NotFound() {
         </div>
 
         {/* Trust Features - Compact */}
-        <div className="bg-gradient-to-br from-[#4a6f52]/5 to-emerald-50 rounded-2xl p-5">
+        <div className="bg-gradient-to-br from-[#ea580c]/5 to-orange-50 rounded-2xl p-5">
           <div className="grid md:grid-cols-3 gap-4">
             {/* Fast Delivery */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-11 h-11 bg-[#4a6f52] rounded-full flex items-center justify-center mb-2">
+              <div className="w-11 h-11 bg-[#ea580c] rounded-full flex items-center justify-center mb-2">
                 <Package className="w-5 h-5 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 text-sm mb-0.5">Fast & Reliable Delivery</h3>
@@ -80,7 +80,7 @@ export default function NotFound() {
             </div>
             {/* Returns */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-11 h-11 bg-[#4a6f52] rounded-full flex items-center justify-center mb-2">
+              <div className="w-11 h-11 bg-[#ea580c] rounded-full flex items-center justify-center mb-2">
                 <ShoppingCart className="w-5 h-5 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 text-sm mb-0.5">30-Day Hassle-Free Returns</h3>
@@ -90,7 +90,7 @@ export default function NotFound() {
             </div>
             {/* Support */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-11 h-11 bg-[#4a6f52] rounded-full flex items-center justify-center mb-2">
+              <div className="w-11 h-11 bg-[#ea580c] rounded-full flex items-center justify-center mb-2">
                 <PhoneCall className="w-5 h-5 text-white" />
               </div>
               <h3 className="font-bold text-gray-800 text-sm mb-0.5">Dedicated Customer Support</h3>

@@ -115,9 +115,10 @@ export default function Footer() {
 
           {/* Column 4: SUBSCRIBE & SAVE */}
           <div className="lg:col-span-4">
-            <h3 className="text-[20px] md:text-[22px] font-semibold mb-2">Subscribe & Save</h3>
+            <h3 className="text-[20px] md:text-[22px] font-semibold mb-2">Subscribe & Stay Connected</h3>
             <p className="text-[13px] md:text-[14px] text-gray-400 mb-4 leading-relaxed pr-0 md:pr-10">
-              Subscribe to Houszy Newsletter and instantly receive an extra <strong className="text-white">5% off</strong> coupon on your email address.
+              Subscribe to Our Newsletter for New Arrivals, Special Deals, Exclusive Discounts, and Exciting Product Updates.
+
             </p>
 
             <form onSubmit={handleSubscribe} className="relative mb-4 max-w-sm">

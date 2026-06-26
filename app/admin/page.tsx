@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { dashboardService, DashboardPeriod, DashboardStats } from "@/lib/services/dashboard";
 
-import { formatCurrency, getImageUrl} from "./_utils/formatUtils";
+import { formatCurrency, getImageUrl } from "./_utils/formatUtils";
 import { scrollCls } from "./_utils/styles";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -22,11 +22,11 @@ import { scrollCls } from "./_utils/styles";
 type Period = { key: DashboardPeriod; label: string };
 
 const PERIODS: Period[] = [
-  { key: "today",    label: "Today"  },
-  { key: "week",     label: "7d"     },
-  { key: "month",    label: "1m"     },
-  { key: "6month",   label: "6m"     },
-  { key: "year",     label: "1y"     },
+  { key: "today", label: "Today" },
+  { key: "week", label: "7d" },
+  { key: "month", label: "1m" },
+  { key: "6month", label: "6m" },
+  { key: "year", label: "1y" },
 ];
 
 function formatRelTime(dateStr: string) {
@@ -35,7 +35,7 @@ function formatRelTime(dateStr: string) {
   const m = Math.floor(diff / 60000);
   const h = Math.floor(diff / 3600000);
   const d = Math.floor(diff / 86400000);
-  if (m < 1)  return "just now";
+  if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
   if (h < 24) return `${h}h ago`;
   return `${d}d ago`;
@@ -48,14 +48,14 @@ function getInitials(name: string) {
 }
 
 const STATUS_META: Record<string, { color: string; bg: string; icon: any; bar: string; hex: string }> = {
-  Pending:              { color: "text-amber-400",  bg: "bg-amber-500/10",  icon: Timer,        bar: "bg-amber-500", hex: "#f59e0b" },
-  Processing:           { color: "text-cyan-400",   bg: "bg-cyan-500/10",   icon: RefreshCcw,   bar: "bg-cyan-500",  hex: "#06b6d4" },
-  Shipped:              { color: "text-violet-400", bg: "bg-violet-500/10", icon: Truck,        bar: "bg-violet-500", hex: "#f38918" },
-  Delivered:            { color: "text-green-400",  bg: "bg-green-500/10",  icon: CheckCircle2, bar: "bg-green-500", hex: "#10b981" },
-  Cancelled:            { color: "text-red-400",    bg: "bg-red-500/10",    icon: XCircle,      bar: "bg-red-500",   hex: "#ef4444" },
-  Refunded:             { color: "text-pink-400",   bg: "bg-pink-500/10",   icon: RotateCcw,    bar: "bg-pink-500",  hex: "#ec4899" },
-  Collected:            { color: "text-emerald-400",bg: "bg-emerald-500/10",icon: CheckCircle2, bar: "bg-emerald-500", hex: "#10b981" },
-  CancellationRequested:{ color: "text-orange-400", bg: "bg-orange-500/10", icon: Clock,        bar: "bg-orange-500", hex: "#f97316" },
+  Pending: { color: "text-amber-400", bg: "bg-amber-500/10", icon: Timer, bar: "bg-amber-500", hex: "#f59e0b" },
+  Processing: { color: "text-cyan-400", bg: "bg-cyan-500/10", icon: RefreshCcw, bar: "bg-cyan-500", hex: "#06b6d4" },
+  Shipped: { color: "text-violet-400", bg: "bg-violet-500/10", icon: Truck, bar: "bg-violet-500", hex: "#f38918" },
+  Delivered: { color: "text-green-400", bg: "bg-green-500/10", icon: CheckCircle2, bar: "bg-green-500", hex: "#10b981" },
+  Cancelled: { color: "text-red-400", bg: "bg-red-500/10", icon: XCircle, bar: "bg-red-500", hex: "#ef4444" },
+  Refunded: { color: "text-pink-400", bg: "bg-pink-500/10", icon: RotateCcw, bar: "bg-pink-500", hex: "#ec4899" },
+  Collected: { color: "text-emerald-400", bg: "bg-emerald-500/10", icon: CheckCircle2, bar: "bg-emerald-500", hex: "#10b981" },
+  CancellationRequested: { color: "text-orange-400", bg: "bg-orange-500/10", icon: Clock, bar: "bg-orange-500", hex: "#f97316" },
 };
 const DEFAULT_META = { color: "text-slate-400", bg: "bg-slate-500/10", icon: Clock, bar: "bg-slate-500", hex: "#64748b" };
 
@@ -63,12 +63,12 @@ const DEFAULT_META = { color: "text-slate-400", bg: "bg-slate-500/10", icon: Clo
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [loading,    setLoading]    = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [period,     setPeriod]     = useState<DashboardPeriod>("month");
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [data,       setData]       = useState<DashboardStats | null>(null);
-  const [error,      setError]      = useState<string | null>(null);
+  const [data, setData] = useState<DashboardStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true); else setRefreshing(true);
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
     );
   }
 
-const d = data ?? ({} as DashboardStats);
+  const d = data ?? ({} as DashboardStats);
 
   return (
     <div className="space-y-2 p-1">
@@ -147,11 +147,10 @@ const d = data ?? ({} as DashboardStats);
               <button
                 key={p.key}
                 onClick={() => setPeriod(p.key)}
-                className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
-                  period === p.key
+                className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${period === p.key
                     ? "bg-violet-500 text-white shadow"
                     : "text-slate-400 hover:text-white"
-                }`}
+                  }`}
               >
                 {p.label}
               </button>
@@ -326,12 +325,12 @@ const d = data ?? ({} as DashboardStats);
               <AreaChart data={d.revenueChart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#f38918" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#f38918" stopOpacity={0}   />
+                    <stop offset="5%" stopColor="#f38918" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#f38918" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gOrd" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#111827" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#111827" stopOpacity={0}   />
+                    <stop offset="5%" stopColor="#111827" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#111827" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} />
@@ -345,7 +344,7 @@ const d = data ?? ({} as DashboardStats);
                   ]}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#f38918" strokeWidth={2} fillOpacity={1} fill="url(#gRev)" dot={false} />
-                <Area type="monotone" dataKey="orders"  stroke="#111827" strokeWidth={2} fillOpacity={1} fill="url(#gOrd)" dot={false} />
+                <Area type="monotone" dataKey="orders" stroke="#111827" strokeWidth={2} fillOpacity={1} fill="url(#gOrd)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -539,12 +538,12 @@ const d = data ?? ({} as DashboardStats);
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-white">Top Selling Products</h3>
-            <button
+            {/* <button
               onClick={() => router.push("/admin/products")}
               className="text-[11px] text-violet-400 hover:text-violet-300 flex items-center gap-1 font-medium transition-colors"
             >
               View All <ArrowRight className="h-3 w-3" />
-            </button>
+            </button> */}
           </div>
 
           <div className={`space-y-2 max-h-[400px] overflow-y-auto pr-1   ${scrollCls}`}>
@@ -673,7 +672,7 @@ const d = data ?? ({} as DashboardStats);
             </div>
           </div>
 
-   <div className={`space-y-2 max-h-[300px] overflow-y-auto pr-1 ${scrollCls}`}>
+          <div className={`space-y-2 max-h-[300px] overflow-y-auto pr-1 ${scrollCls}`}>
             {d.outOfStockProducts > 0 && (
               <div className="space-y-1">
                 <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Out of Stock</p>
@@ -725,17 +724,17 @@ const d = data ?? ({} as DashboardStats);
 
         {/* Loyalty Stats */}
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-4">
-        <a
-  href="/admin/loyalty-points"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="block"
->
-  <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3 hover:text-pink-400 transition">
-    <Gift className="h-4 w-4 text-pink-400" />
-    Loyalty Program
-  </h3>
-</a>
+          <a
+            href="/admin/loyalty-points"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3 hover:text-pink-400 transition">
+              <Gift className="h-4 w-4 text-pink-400" />
+              Loyalty Program
+            </h3>
+          </a>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="text-center p-2 rounded-lg bg-slate-800/40">
               <p className="text-xl font-bold text-pink-400">{d.loyaltyStats?.totalPointsIssued?.toLocaleString() ?? 0}</p>
@@ -796,14 +795,14 @@ const d = data ?? ({} as DashboardStats);
           </div>
           {d.subscriptionStats?.newThisMonth > 0 && (
             <div className="mt-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-           <a
-  href="/admin/subscriptions"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-[11px] text-emerald-400 hover:underline cursor-pointer"
->
-  +{d.subscriptionStats.newThisMonth} new subscriptions this month
-</a>
+              <a
+                href="/admin/subscriptions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-emerald-400 hover:underline cursor-pointer"
+              >
+                +{d.subscriptionStats.newThisMonth} new subscriptions this month
+              </a>
             </div>
           )}
         </div>
@@ -841,16 +840,16 @@ const d = data ?? ({} as DashboardStats);
 
         {/* Recent Activity */}
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-4">
-         <a
-  href="/admin/ActivityLogs"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="flex items-center gap-2 mb-3 text-sm font-bold text-white hover:text-blue-400 transition"
->
-  <Activity className="h-4 w-4 text-blue-400" />
-  Recent Activity
-</a>
-      <div className={`space-y-2 max-h-[250px] overflow-y-auto pr-1 ${scrollCls}`}>
+          <a
+            href="/admin/ActivityLogs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 mb-3 text-sm font-bold text-white hover:text-blue-400 transition"
+          >
+            <Activity className="h-4 w-4 text-blue-400" />
+            Recent Activity
+          </a>
+          <div className={`space-y-2 max-h-[250px] overflow-y-auto pr-1 ${scrollCls}`}>
             {d.recentActivity?.slice(0, 8).map((activity, i) => (
               <div key={i} className="p-2 rounded-lg bg-slate-800/30 border border-slate-700/50">
                 <div className="flex items-start gap-2">
@@ -872,15 +871,15 @@ const d = data ?? ({} as DashboardStats);
 
         {/* Pending Reviews */}
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-xl p-4">
-        <a
-  href="/admin/productReview"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="flex items-center gap-2 mb-3 text-sm font-bold text-white hover:text-blue-400 transition"
->
-  <Activity className="h-4 w-4 text-blue-400" />
-  Pending Reviews
-</a>
+          <a
+            href="/admin/productReview"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 mb-3 text-sm font-bold text-white hover:text-blue-400 transition"
+          >
+            <Activity className="h-4 w-4 text-blue-400" />
+            Pending Reviews
+          </a>
           <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
             {d.pendingReviews?.length > 0 ? d.pendingReviews.map((review, i) => (
               <div key={i} className="p-2 rounded-lg bg-slate-800/30 border border-slate-700/50">
@@ -920,7 +919,7 @@ const d = data ?? ({} as DashboardStats);
             Pending Actions
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {Object.entries(d.pendingActions).map(([key, value]) => 
+            {Object.entries(d.pendingActions).map(([key, value]) =>
               value > 0 && (
                 <div key={key} className="p-2 rounded-lg bg-slate-800/40 border border-slate-700/50 text-center">
                   <p className="text-lg font-bold text-amber-400">{value}</p>
@@ -971,8 +970,8 @@ function KpiCard({
       {change !== undefined && (
         <div className="flex items-center gap-1 mt-1.5 text-[11px]">
           {isPos
-            ? <TrendingUp  className="h-3 w-3 text-green-400" />
-            : <TrendingDown className="h-3 w-3 text-red-400"  />}
+            ? <TrendingUp className="h-3 w-3 text-green-400" />
+            : <TrendingDown className="h-3 w-3 text-red-400" />}
           <span className={`font-semibold ${isPos ? "text-green-400" : "text-red-400"}`}>
             {isPos ? "+" : ""}{changeNum.toFixed(1)}%
           </span>

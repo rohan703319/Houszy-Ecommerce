@@ -62,16 +62,36 @@ const MegaMenu: React.FC<MegaMenuProps> = ({ activeMainCategory }) => {
               {/* Children Accordion */}
               {hasChildren && isExpanded && (
                 <ul className="flex flex-col pb-2">
-                  {sub.subCategories!.map((child) => (
-                    <li key={child.id} className="px-8 py-1.5">
-                      <Link
-                        href={`/category/${child.slug}`}
-                        className="text-[#000000] text-[14px] font-normal hover:underline block w-full"
-                      >
-                        {child.name}
-                      </Link>
-                    </li>
-                  ))}
+                  {sub.subCategories!.map((child) => {
+                    const hasGrandChildren =
+                      Array.isArray(child.subCategories) &&
+                      child.subCategories.length > 0;
+
+                    return (
+                      <li key={child.id} className="flex flex-col px-8 py-1.5">
+                        <Link
+                          href={`/category/${child.slug}`}
+                          className="text-[#000000] text-[14px] font-normal hover:underline block w-full"
+                        >
+                          {child.name}
+                        </Link>
+                        {hasGrandChildren && (
+                          <ul className="flex flex-col pl-4 mt-1 space-y-1">
+                            {child.subCategories!.map((grandChild) => (
+                              <li key={grandChild.id}>
+                                <Link
+                                  href={`/category/${grandChild.slug}`}
+                                  className="text-[#555555] hover:text-[#000000] text-[13px] font-normal hover:underline block w-full"
+                                >
+                                  {grandChild.name}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>

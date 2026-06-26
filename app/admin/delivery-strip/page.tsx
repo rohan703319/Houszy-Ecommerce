@@ -523,7 +523,7 @@ export default function DeliveryStripPage() {
       else res = await apiClient.post<any>("/api/DeliveryStrip", payload);
 
       if (res.data?.success) {
-        toast.success(editing ? "Updated successfully" : "Created successfully");
+        toast.success(editing ? "Updated successfully, changes will reflect within 10 minutes" : "Created successfully");
         setShowModal(false);
         fetchItems();
       } else {
@@ -676,8 +676,8 @@ export default function DeliveryStripPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${item.isActive
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : "bg-slate-800/60 text-slate-500 border-slate-700"
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      : "bg-slate-800/60 text-slate-500 border-slate-700"
                       }`}>
                       {item.isActive ? "Active" : "Inactive"}
                     </span>
@@ -731,8 +731,8 @@ export default function DeliveryStripPage() {
               {TABS.map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   className={`py-3 px-4 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
-                      ? "border-violet-500 text-violet-400"
-                      : "border-transparent text-slate-500 hover:text-slate-300"
+                    ? "border-violet-500 text-violet-400"
+                    : "border-transparent text-slate-500 hover:text-slate-300"
                     }`}>
                   {tab.label}
                 </button>
@@ -762,8 +762,8 @@ export default function DeliveryStripPage() {
                         {ICONS.map(ic => (
                           <button key={ic.value} type="button" onClick={() => setForm(f => ({ ...f, icon: ic.value }))}
                             className={`flex items-center gap-1.5 px-2 py-2 rounded-lg border text-xs transition ${form.icon === ic.value
-                                ? "border-violet-500/60 bg-violet-500/10 text-violet-400 font-semibold"
-                                : "border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-600 hover:text-slate-300"
+                              ? "border-violet-500/60 bg-violet-500/10 text-violet-400 font-semibold"
+                              : "border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-600 hover:text-slate-300"
                               }`}>
                             {ic.el} {ic.label}
                           </button>

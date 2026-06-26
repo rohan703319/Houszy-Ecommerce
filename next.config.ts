@@ -62,6 +62,8 @@ const nextConfig: NextConfig = {
 
       { protocol: 'https', hostname: 'testapi.knowledgemarkg.com', pathname: '/**' },
       { protocol: 'https', hostname: 'www.direct-care.co.uk', pathname: '/**' },
+      { protocol: 'https', hostname: 'api.direct-care.co.uk', pathname: '/**' },
+      { protocol: 'http', hostname: 'api.direct-care.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'example.com', pathname: '/**' },
       { protocol: 'https', hostname: 'img.youtube.com', pathname: '/**' },
       { protocol: 'https', hostname: 'i.ytimg.com', pathname: '/**' },

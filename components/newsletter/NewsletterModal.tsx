@@ -68,7 +68,8 @@ export default function NewsletterModal({
         </h2>
 
         <p className="text-[12px] md:text-[14px] text-gray-500 text-center mb-6 max-w-[420px] leading-relaxed">
-          Subscribe to our newsletter to get 5% off on your first purchase.
+          Subscribe to Our Newsletter for New Arrivals, Special Deals, Exclusive Discounts, and Exciting Product Updates.
+
         </p>
 
         {/* Houszy Logo */}

@@ -484,6 +484,21 @@ restoreMethod: async (id: string) => {
       throw error;
     }
   },
+
+  /**
+   * Get all delivery options
+   */
+  getDeliveryOptions: async (config: any = {}) => {
+    try {
+      return await apiClient.get<any>(
+        `${API_ENDPOINTS.deliveryOptions}`,
+        config
+      );
+    } catch (error: any) {
+      console.error("Error fetching delivery options:", error);
+      throw error;
+    }
+  },
 };
 
 // ✅ HELPER UTILITIES
@@ -552,5 +567,20 @@ export const shippingHelpers = {
     }
 
     return total;
+  },
+
+  /**
+   * Get all delivery options
+   */
+  getDeliveryOptions: async (config: any = {}) => {
+    try {
+      return await apiClient.get<any>(
+        `${API_ENDPOINTS.deliveryOptions}`,
+        config
+      );
+    } catch (error: any) {
+      console.error("Error fetching delivery options:", error);
+      throw error;
+    }
   },
 };

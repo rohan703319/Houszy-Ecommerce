@@ -21,7 +21,7 @@ const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"));
 const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"));
 import type { Metadata } from "next";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 // ✅ Static feature section
 const features = [
@@ -114,7 +114,7 @@ async function getProducts(baseUrl: string) {
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=20&sortDirection=asc&isPublished=true&showOnHomepage=true&isDeleted=false`,
       {
-        next: { revalidate: 60 },
+        cache: "no-store",
       }
     );
     const result = await res.json();
@@ -308,6 +308,42 @@ export default async function Home() {
 
         {/* ===== CATEGORY OFFERS (NEW) ===== */}
         <CategoryOffersSlider categories={categories} baseUrl={baseUrl} />
+
+
+        {/* ===== OUR POPULAR COLLECTIONS ===== */}
+        <section className="w-full bg-white pt-4 pb-4 md:py-14">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+
+            {/* Heading */}
+            <div className="relative flex items-center justify-center mb-1 md:mb-8 min-h-[40px] w-full px-1">
+              <h2 className="text-[15px] md:text-[22px] font-bold text-black text-center">
+                Our Popular Collections
+              </h2>
+              {/* <div className="absolute right-0 md:right-1">
+                <Link href="/category">
+                  <Button
+                    variant="outline"
+                    className="text-[9px] md:text-[13px] font-bold border border-gray-300 text-gray-700 hover:bg-black hover:text-white hover:border-black transition-all duration-300 rounded px-1 py-0 md:px-4 md:py-2 flex items-center gap-1 shadow-sm bg-white"
+                  >
+                    <span className="md:hidden">View All</span>
+                    <span className="hidden md:inline">View All Collections</span>
+                    <ChevronRight className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
+                  </Button>
+                </Link>
+              </div> */}
+            </div>
+
+            {/* Category Slider for dynamic Swiper support across devices */}
+            <CategorySlider categories={homeCategories} baseUrl={baseUrl} />
+
+          </div>
+        </section>
+        {/* ===== FEATURED PRODUCTS ===== */}
+        <section className="w-full bg-white py-10">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
+            <FeaturedProductsSlider products={homeProducts} baseUrl={baseUrl} title="Our Top Selling Products" />
+          </div>
+        </section>
         {/* ===== PROMO BANNER ===== */}
         {seasonalBanners.length > 0 && (
           <section className="w-full py-10 md:py-14 bg-white">
@@ -339,42 +375,6 @@ export default async function Home() {
             })}
           </section>
         )}
-
-        {/* ===== OUR POPULAR COLLECTIONS ===== */}
-        <section className="w-full bg-white pt-4 pb-4 md:py-14">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
-
-            {/* Heading */}
-            <div className="relative flex items-center justify-center mb-1 md:mb-8 min-h-[40px] w-full px-1">
-              <h2 className="text-[15px] md:text-[22px] font-bold text-black text-center">
-                Our Popular Collections
-              </h2>
-              <div className="absolute right-0 md:right-1">
-                <Link href="/category">
-                  <Button
-                    variant="outline"
-                    className="text-[9px] md:text-[13px] font-bold border border-gray-300 text-gray-700 hover:bg-black hover:text-white hover:border-black transition-all duration-300 rounded px-1 py-0 md:px-4 md:py-2 flex items-center gap-1 shadow-sm bg-white"
-                  >
-                    <span className="md:hidden">View All</span>
-                    <span className="hidden md:inline">View All Collections</span>
-                    <ChevronRight className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Category Slider for dynamic Swiper support across devices */}
-            <CategorySlider categories={homeCategories} baseUrl={baseUrl} />
-
-          </div>
-        </section>
-        {/* ===== FEATURED PRODUCTS ===== */}
-        <section className="w-full bg-white py-10">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
-            <FeaturedProductsSlider products={homeProducts} baseUrl={baseUrl} title="Our Top Selling Products" />
-          </div>
-        </section>
-
         {/* <section className="w-full bg-white py-10 md:py-14">
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
             <NewArrivalsProductsSlider baseUrl={baseUrl} />

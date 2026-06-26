@@ -3,10 +3,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { 
-  Home, 
-  Search, 
-  ArrowLeft, 
+import {
+  Home,
+  Search,
+  ArrowLeft,
   AlertTriangle,
   BarChart3,
   Package,
@@ -105,12 +105,12 @@ export default function AdminNotFound() {
       label: 'Orders',
       href: '/admin/orders',
       description: 'Track Order History',
-      color: 'green',
-      bgColor: 'bg-green-500/10',
-      textColor: 'text-green-400',
-      borderColor: 'border-green-500/30',
-      hoverBg: 'hover:bg-green-500/20',
-      hoverBorder: 'hover:border-green-500'
+      color: 'orange',
+      bgColor: 'bg-orange-500/10',
+      textColor: 'text-orange-400',
+      borderColor: 'border-orange-500/30',
+      hoverBg: 'hover:bg-orange-500/20',
+      hoverBorder: 'hover:border-orange-500'
     },
     {
       icon: Users,
@@ -199,7 +199,7 @@ export default function AdminNotFound() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
       {/* ✅ Animated Background Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-      
+
       {/* ✅ Gradient Orbs */}
       <div className="absolute top-0 -left-4 w-96 h-96 bg-violet-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob" />
       <div className="absolute top-0 -right-4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000" />
@@ -208,7 +208,7 @@ export default function AdminNotFound() {
       {/* ✅ Main Content */}
       <div className="relative z-10 min-h-screen p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          
+
           {/* ✅ Header Section */}
           <div className="text-center mb-12 pt-8">
             {/* 404 Hero Animation */}
@@ -242,7 +242,7 @@ export default function AdminNotFound() {
               <h2 className="text-4xl sm:text-5xl font-bold text-white">
                 Oops! This page doesn't exist
               </h2>
-              
+
               <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto">
                 The admin page you're looking for might have been moved, deleted, or never existed.
               </p>
@@ -321,7 +321,7 @@ export default function AdminNotFound() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quickLinks.map((link) => {
                 const Icon = link.icon;
-                
+
                 return (
                   <Link
                     key={link.href}
@@ -332,7 +332,7 @@ export default function AdminNotFound() {
                     <div className={`w-14 h-14 ${link.bgColor} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                       <Icon className={`w-7 h-7 ${link.textColor}`} />
                     </div>
-                    
+
                     {/* Content */}
                     <div className="flex-1">
                       <h4 className="text-white font-bold text-lg mb-1 group-hover:text-white transition-colors">
