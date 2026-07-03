@@ -153,10 +153,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     // ✅ File validations
     const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-    const ALLOWED_TYPES = ['image/webp', 'image/avif'];
+    const ALLOWED_TYPES = ['image/webp'];
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.warning('⚠️ Unsupported image format (`WebP , Avif only)');
+      toast.warning('⚠️ Unsupported image format (WebP only)');
       return;
     }
 
@@ -3143,22 +3143,24 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       // ═══════════════════════════════════════════════════════════════════════
 
       if (formData.isRecurring) {
-        const cycleLength = parseInt(formData.recurringCycleLength) || 0;
+        if (formData.recurringCycleLength !== undefined && formData.recurringCycleLength !== null && formData.recurringCycleLength !== '') {
+          const cycleLength = parseInt(formData.recurringCycleLength) || 0;
 
-        if (cycleLength <= 0) {
-          toast.error('❌ Recurring cycle length must be greater than 0');
-          target.removeAttribute('data-submitting');
-          setIsSubmitting(false);
-          setSubmitProgress(null);
-          return;
-        }
+          if (cycleLength <= 0) {
+            toast.error('❌ Recurring cycle length must be greater than 0');
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
 
-        if (cycleLength > 365) {
-          toast.error('⚠️ Recurring cycle length seems too long (>365)');
-          target.removeAttribute('data-submitting');
-          setIsSubmitting(false);
-          setSubmitProgress(null);
-          return;
+          if (cycleLength > 365) {
+            toast.error('⚠️ Recurring cycle length seems too long (>365)');
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
         }
 
         if (formData.recurringTotalCycles) {
@@ -3755,7 +3757,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
         recurringCycleLength:
           formData.productType !== 'grouped' && formData.isRecurring
-            ? Math.max(1, parseInt(formData.recurringCycleLength as any) || 1)
+            ? (formData.recurringCycleLength ? parseInt(formData.recurringCycleLength as any) || null : null)
             : null,
 
         recurringCyclePeriod:
@@ -3799,7 +3801,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       };
       if (productData.isRecurring) {
         productData.recurringCycleLength =
-          Math.max(1, Number(productData.recurringCycleLength) || 1);
+          productData.recurringCycleLength !== null && productData.recurringCycleLength !== undefined
+            ? Math.max(1, Number(productData.recurringCycleLength) || 1)
+            : null;
 
         productData.recurringTotalCycles =
           Number(productData.recurringTotalCycles) || null;
@@ -4242,6 +4246,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       setFormData(prev => ({
         ...prev,
         productType: value,
+
+        // Auto set 'dont_track' for variable products
+        ...(value === 'variable' && {
+          manageInventory: 'dont_track',
+        }),
 
         // ✅ CLEAR GROUPED FIELDS when switching to simple
         ...(value === 'simple' && {
@@ -4793,7 +4802,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   };
 
   // ✅ REPLACE existing handleImageUpload function:
-  const ALLOWED_TYPES = ['image/webp', 'image/avif'];
+  const ALLOWED_TYPES = ['image/webp'];
 
   const MAX_SIZE = 500 * 1024;     // 500 KB hard limit
   const WARN_SIZE = 300 * 1024;    // 300 KB recommended
@@ -4868,7 +4877,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     for (const file of Array.from(files)) {
       /* ================= FORMAT & MIME ================= */
       if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.error(`❌ ${file.name}: Only WebP or Avif images allowed`);
+        toast.error(`❌ ${file.name}: Only WebP images allowed`);
         continue;
       }
 
@@ -5022,7 +5031,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     const MAX_FILE_SIZE = 2 * 1024 * 1024;
     const MAX_IMAGES = 10;
-    const ALLOWED_TYPES = ['image/webp', 'image/avif'];
+    const ALLOWED_TYPES = ['image/webp'];
 
     const baseLength = formData.productImages.length;
 
@@ -5034,7 +5043,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     files.forEach((file, index) => {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.warning(`⚠️ ${file.name} format not supported`);
+        toast.warning(`⚠️ ${file.name}: Only WebP format is supported`);
         return;
       }
 
@@ -5309,10 +5318,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   <Truck className="h-4 w-4" />
                   Shipping
                 </TabsTrigger>
-                <TabsTrigger value="related-products" className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
+                {/* <TabsTrigger value="related-products" className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
                   <LinkIcon className="h-4 w-4" />
                   Related
-                </TabsTrigger>
+                </TabsTrigger> */}
                 <TabsTrigger value="product-attributes" className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
                   <Tag className="h-4 w-4" />
                   Attributes
@@ -5398,6 +5407,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         required={true}          // ✅ Shows red asterisk
                         maxLength={5000}         // ✅ Maximum 5000 characters
                         showCharCount={true}     // ✅ Show built-in character counter
+                        showH2Tip={true}
                         showHelpText="Detailed product information with formatting (50-2000 characters)"
                       />
                     </div>
@@ -7070,8 +7080,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
 
             {/* Related Products Tab */}
-            <TabsContent value="related-products" className="space-y-6 mt-2">
-              {/* Related Products */}
+            {/* <TabsContent value="related-products" className="space-y-6 mt-2">
               <RelatedProductsSelector
                 type="related"
                 selectedProductIds={formData.relatedProducts}
@@ -7083,7 +7092,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 }}
               />
 
-              {/* Cross-sell Products */}
               <RelatedProductsSelector
                 type="cross-sell"
                 selectedProductIds={formData.crossSellProducts}
@@ -7094,7 +7102,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   }));
                 }}
               />
-              {/* Info Box */}
               <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-4">
                 <h4 className="font-semibold text-sm text-violet-400 mb-2">💡 Tips</h4>
                 <ul className="text-sm text-slate-300 space-y-1">
@@ -7104,7 +7111,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 </ul>
               </div>
 
-            </TabsContent>
+            </TabsContent> */}
             {/* ========== SHIPPING TAB ========== */}
             <TabsContent value="shipping" className="space-y-2 mt-2">
               {/* ===== SHIPPING SETTINGS ===== */}
@@ -7742,7 +7749,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Product Images <span className="text-red-500">*</span></h3>
                   <p className="text-xs text-red-400">
-                    Upload product images (WebP or Avif). Recommended size under 300 KB, maximum 500 KB per image.
+                    Upload product images (WebP only). Recommended size under 300 KB, maximum 500 KB per image.
                     Minimum resolution 800×800 (square preferred). You can upload up to 10 images.
                   </p>
 
@@ -7751,7 +7758,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/webp"
                   multiple
                   onChange={handleImageUpload}
                   disabled={!formData.name.trim() || uploadingImages}

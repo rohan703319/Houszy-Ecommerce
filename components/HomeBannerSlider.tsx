@@ -71,6 +71,7 @@ export default function HomeBannerSlider({
                   width={800}
                   height={800}
                   priority={true}
+                  unoptimized={true}
                   className="w-full h-auto object-contain md:hidden"
                 />
               )}
@@ -80,6 +81,7 @@ export default function HomeBannerSlider({
                 width={1920}
                 height={800}
                 priority={true}
+                unoptimized={true}
                 className={`w-full h-auto object-contain ${mobileSrc ? "hidden md:block" : "block"}`}
               />
             </>

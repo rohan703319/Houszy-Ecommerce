@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/toast/CustomToast";
@@ -94,17 +94,30 @@ export default function SubscriptionPurchaseCard({
 
   const subscriptionPrice = basePrice - (basePrice * product.subscriptionDiscountPercentage) / 100;
   // ----------------- NEW STATE FOR DROPDOWN -----------------
-  const [selectedFrequency, setSelectedFrequency] = useState<string>(
-    `${product.recurringCycleLength} ${product.recurringCyclePeriod}`
-  );
+  const frequencies = product?.allowedSubscriptionFrequencies
+    ? product.allowedSubscriptionFrequencies.split(",").map((f: string) => f.trim()).filter(Boolean)
+    : [];
+
+  const defaultFrequency = (() => {
+    if (product.recurringCycleLength && Number(product.recurringCycleLength) > 0) {
+      return `${product.recurringCycleLength} ${product.recurringCyclePeriod}`;
+    }
+    return frequencies[0] || '';
+  })();
+
+  const [selectedFrequency, setSelectedFrequency] = useState<string>(defaultFrequency);
+
+  useEffect(() => {
+    setSelectedFrequency(defaultFrequency);
+  }, [product.id, defaultFrequency]);
 
   const handleAddSubscriptionToCart = () => {
     let cycleLength: string | number = product.recurringCycleLength;
     let cyclePeriod: string = product.recurringCyclePeriod;
 
     if (selectedFrequency.includes(" ")) {
-      const parts = selectedFrequency.split(" "); // "30 days"
-      cycleLength = Number(parts[0]);
+      const parts = selectedFrequency.trim().split(/\s+/); // "7 days"
+      cycleLength = Number(parts[0]) || parts[0];
       cyclePeriod = parts[1];
     } else {
       cycleLength = selectedFrequency; // weekly, monthly, yearly
@@ -211,7 +224,7 @@ export default function SubscriptionPurchaseCard({
             value="subscription"
             checked={selectedPurchaseType === "subscription"}
             onChange={() => setSelectedPurchaseType("subscription")}
-            className="h-4 w-4"
+            className="h-4 w-4 accent-[#f38918] cursor-pointer"
           />
 
           <span className="font-semibold text-sm">
@@ -261,15 +274,27 @@ export default function SubscriptionPurchaseCard({
                 value={selectedFrequency}
                 onChange={(e) => setSelectedFrequency(e.target.value)}
               >
-                <option value={`${product.recurringCycleLength} ${product.recurringCyclePeriod}`}>
-                  Every {product.recurringCycleLength} {product.recurringCyclePeriod}
-                </option>
-
-                {product?.allowedSubscriptionFrequencies?.split(",").map((option: string) => (
-                  <option key={option} value={option}>
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                {product.recurringCycleLength && Number(product.recurringCycleLength) > 0 && (
+                  <option value={`${product.recurringCycleLength} ${product.recurringCyclePeriod}`}>
+                    Every {product.recurringCycleLength} {product.recurringCyclePeriod}
                   </option>
-                ))}
+                )}
+
+                {frequencies.map((option: string) => {
+                  const defaultValue = `${product.recurringCycleLength} ${product.recurringCyclePeriod}`;
+                  if (
+                    product.recurringCycleLength &&
+                    Number(product.recurringCycleLength) > 0 &&
+                    option.toLowerCase() === defaultValue.toLowerCase()
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <option key={option} value={option}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </option>
+                  );
+                })}
               </select>
 
               {/* Custom Down Arrow */}
@@ -299,7 +324,7 @@ export default function SubscriptionPurchaseCard({
                 ? "bg-red-100 text-red-700"
                 : stockDisplay.type === "low"
                   ? "bg-yellow-100 text-yellow-800"
-                  : "bg-green-100 text-green-700"
+                  : "bg-orange-50 border border-orange-200 text-orange-700"
                 }`}
             >
               <span
@@ -307,7 +332,7 @@ export default function SubscriptionPurchaseCard({
                   ? "bg-red-600"
                   : stockDisplay.type === "low"
                     ? "bg-yellow-600"
-                    : "bg-green-600"
+                    : "bg-[#f38918]"
                   }`}
               ></span>
 

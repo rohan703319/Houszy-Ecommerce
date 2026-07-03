@@ -645,6 +645,7 @@ useEffect(() => {
                       <option value="AssignedToProducts">Assigned to products</option>
                       <option value="AssignedToCategories">Assigned to categories</option>
                       <option value="AssignedToShipping">Assigned to shipping</option>
+                      <option value="UptoXPercent">Up to X% Discount</option>
                     </select>
                   </div>
 
@@ -1851,6 +1852,7 @@ useEffect(() => {
                         viewingDiscount.discountType === 'AssignedToManufacturers' ? 'bg-purple-500/10 text-purple-400' :
                         viewingDiscount.discountType === 'AssignedToOrderTotal' ? 'bg-orange-500/10 text-orange-400' :
                         viewingDiscount.discountType === 'AssignedToOrderSubTotal' ? 'bg-pink-500/10 text-pink-400' :
+                        viewingDiscount.discountType === 'UptoXPercent' ? 'bg-indigo-500/10 text-indigo-400' :
                         'bg-cyan-500/10 text-cyan-400'
                       }`}>
                         {getDiscountTypeIcon(viewingDiscount.discountType)}

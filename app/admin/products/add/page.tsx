@@ -212,32 +212,9 @@ export default function AddProductPage() {
    * Only basic fields required to save as draft
    */
   const checkDraftRequirements = (): { isValid: boolean; missing: string[] } => {
-    const missing: string[] = [];
-
-    // 1. Product Name
-    if (!formData.name?.trim()) {
-      missing.push('Product Name');
-    }
-
-    // 2. SKU (optional for variable products   €” auto-generated)
-    if (!formData.sku?.trim() && formData.productType !== 'variable') {
-      missing.push('SKU');
-    }
-
-    // 3. At least one category
-    if (!formData.categoryIds || formData.categoryIds.length === 0) {
-      missing.push('Category');
-    }
-
-    // 4. At least one brand
-    const hasBrand = (formData.brandIds && formData.brandIds.length > 0) || formData.brand?.trim();
-    if (!hasBrand) {
-      missing.push('Brand');
-    }
-
     return {
-      isValid: missing.length === 0,
-      missing
+      isValid: true,
+      missing: []
     };
   };
 
@@ -944,6 +921,21 @@ export default function AddProductPage() {
     target.setAttribute("data-submitting", "true");
     setIsSubmitting(true); // START LOADER
 
+    if (isDraft) {
+      if (!formData.name?.trim()) {
+        const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const autoName = `Untitled Draft - ${uniqueSuffix}`;
+        formData.name = autoName;
+        setFormData(prev => ({ ...prev, name: autoName }));
+      }
+      if (formData.productType !== 'variable' && !formData.sku?.trim()) {
+        const timeSuffix = Date.now().toString().slice(-6);
+        const autoSku = `DRAFT-${timeSuffix}`;
+        formData.sku = autoSku;
+        setFormData(prev => ({ ...prev, sku: autoSku }));
+      }
+    }
+
     // BACKUP TO LOCALSTORAGE
     try {
       localStorage.setItem("product_draft_backup", JSON.stringify(formData));
@@ -966,7 +958,7 @@ export default function AddProductPage() {
         percentage: 10,
       });
 
-      if (nameError) {
+      if (!isDraft && nameError) {
         toast.error('Product name already exists');
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
@@ -981,7 +973,7 @@ export default function AddProductPage() {
         setSubmitProgress(null);
         return;
       }
-      if (skuError) {
+      if (!isDraft && skuError) {
         toast.error('SKU already exists');
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
@@ -989,7 +981,7 @@ export default function AddProductPage() {
         return;
       }
 
-      if (checkingSku) {
+      if (!isDraft && checkingSku) {
         toast.warning('Checking SKU... please wait');
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
@@ -1051,7 +1043,7 @@ export default function AddProductPage() {
       }
 
       // 1.3 SKU VALIDATION (skip strict check for variable products - SKU may be auto-generated)
-      if (formData.productType !== 'variable') {
+      if (!isDraft && formData.productType !== 'variable') {
         if (formData.sku.length < 3) {
           toast.error("SKU must be at least 3 characters long.");
           target.removeAttribute("data-submitting");
@@ -1431,7 +1423,7 @@ export default function AddProductPage() {
         });
       }
 
-      if (categoryIdsArray.length === 0) {
+      if (!isDraft && categoryIdsArray.length === 0) {
         console.error("VALIDATION: No valid categories selected");
         toast.error("Please select at least one category");
         target.removeAttribute("data-submitting");
@@ -1460,7 +1452,7 @@ export default function AddProductPage() {
         }
       }
 
-      if (brandIdsArray.length === 0) {
+      if (!isDraft && brandIdsArray.length === 0) {
         toast.error("Please select at least one brand");
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
@@ -1688,10 +1680,10 @@ export default function AddProductPage() {
         price: parseFloat(formData.price.toString()) || 0,
 
         // Brands & Categories
-        brandId: brandIdsArray[0],
+        brandId: brandIdsArray[0] || null,
         brandIds: brandIdsArray,
         brands: brandsArray,
-        categoryId: categoryIdsArray[0],
+        categoryId: categoryIdsArray[0] || null,
         categoryIds: categoryIdsArray,
         categories: categoriesArray,
 
@@ -1928,8 +1920,8 @@ export default function AddProductPage() {
           status: "Draft",
           isPublished: false,
           productType: formData.productType || "simple",
-          brandId: brandIdsArray[0] || "",
-          categoryId: categoryIdsArray[0] || "",
+          brandId: brandIdsArray[0] || null,
+          categoryId: categoryIdsArray[0] || null,
           // Required for basic creation
           price: 0,
           stockQuantity: 0,
@@ -1975,7 +1967,7 @@ export default function AddProductPage() {
 
         response = await productsService.update(currentProductId, productData);
 
-        toast.success(isDraft ? "Draft saved successfully!" : "Product published successfully!", {
+        toast.success(isDraft ? "Draft saved successfully!" : "Product updated successfully!", {
           autoClose: 2000,
         });
         const snapshot = structuredClone({
@@ -2199,6 +2191,11 @@ export default function AddProductPage() {
       setFormData(prev => ({
         ...prev,
         productType: value,
+
+        // Auto set 'dont_track' for variable products
+        ...(value === 'variable' && {
+          manageInventory: 'dont_track',
+        }),
 
         // Clear grouped fields when switching to simple
         ...(value === 'simple' && {
@@ -2655,8 +2652,9 @@ export default function AddProductPage() {
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file');
+    const ALLOWED_TYPES = ['image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('❌ Only WebP images are supported.');
       return;
     }
 
@@ -2728,8 +2726,9 @@ export default function AddProductPage() {
             return null;
           }
 
-          if (!file.type.startsWith('image/')) {
-            toast.error(`${file.name} is not a valid image file.`);
+          const ALLOWED_TYPES = ['image/webp'];
+          if (!ALLOWED_TYPES.includes(file.type)) {
+            toast.error(`❌ ${file.name}: Only WebP images are supported.`);
             return null;
           }
 
@@ -2789,7 +2788,7 @@ export default function AddProductPage() {
 
     const MAX_IMAGES = 10;
     const MAX_FILE_SIZE = 2 * 1024 * 1024;
-    const ALLOWED_TYPES = ['image/webp', 'image/avif'];
+    const ALLOWED_TYPES = ['image/webp'];
 
     const uploadFormData = new FormData();
     let validImageCount = 0;
@@ -2810,7 +2809,7 @@ export default function AddProductPage() {
       const file = image.file as File;
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.warning(`${file.name}: format not supported`);
+        toast.warning(`${file.name}: Only WebP format is supported`);
         return;
       }
 
@@ -2919,7 +2918,7 @@ export default function AddProductPage() {
       }
 
       const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-      const ALLOWED_TYPES = ['image/webp', 'image/avif'];
+      const ALLOWED_TYPES = ['image/webp'];
 
       console.log(`  Found ${createdVariants.length} variants in response`);
 
@@ -2945,7 +2944,7 @@ export default function AddProductPage() {
         }
 
         if (!ALLOWED_TYPES.includes(file.type)) {
-          toast.warning(`${file.name} has unsupported format`);
+          toast.warning(`${file.name}: Only WebP format is supported`);
           return null;
         }
 
@@ -3354,10 +3353,10 @@ export default function AddProductPage() {
                     <Truck className="h-4 w-4" />
                     Shipping
                   </TabsTrigger>
-                  <TabsTrigger value="related-products" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
+                  {/* <TabsTrigger value="related-products" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
                     <LinkIcon className="h-4 w-4" />
                     Related
-                  </TabsTrigger>
+                  </TabsTrigger> */}
                   <TabsTrigger value="product-attributes" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-violet-400 border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:text-violet-400 data-[state=active]:bg-slate-800/50 whitespace-nowrap transition-all rounded-t-lg">
                     <Tag className="h-4 w-4" />
                     Attributes
@@ -3441,6 +3440,7 @@ export default function AddProductPage() {
                         // minLength={50}
                         maxLength={5000}
                         showCharCount={true}
+                        showH2Tip={true}
                       // showHelpText="Detailed product information with formatting (50-5000 characters)"
                       />
 
@@ -5090,7 +5090,7 @@ export default function AddProductPage() {
                                 const isChecked = formData.allowedDeliveryOptionIds?.includes(option.id) || false;
                                 const isStandard = option.name?.toLowerCase().includes("standard") || option.displayName?.toLowerCase().includes("standard");
                                 const isNextDay = option.name?.toLowerCase().includes("next") || option.displayName?.toLowerCase().includes("next");
-                                
+
                                 return (
                                   <div key={option.id} className="flex flex-col bg-slate-800/20 hover:bg-slate-800/30 p-3 rounded-lg border border-slate-700/50 transition-colors gap-2">
                                     <label className="flex items-start gap-2 cursor-pointer group">
@@ -5104,7 +5104,7 @@ export default function AddProductPage() {
                                             const nextIds = checked
                                               ? [...currentIds, option.id]
                                               : currentIds.filter((id) => id !== option.id);
-                                            
+
                                             const updateObj: any = {
                                               ...prev,
                                               allowedDeliveryOptionIds: nextIds,
@@ -5266,7 +5266,7 @@ export default function AddProductPage() {
               </TabsContent>
 
               {/* Related Products Tab */}
-              <TabsContent value="related-products" className="space-y-6 mt-2">
+              {/* <TabsContent value="related-products" className="space-y-6 mt-2">
                 <RelatedProductsSelector
                   type="related"
                   selectedProductIds={formData.relatedProducts}
@@ -5282,7 +5282,6 @@ export default function AddProductPage() {
                     setFormData(prev => ({ ...prev, crossSellProducts: productIds }));
                   }}
                 />
-                {/* Info Box */}
                 <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-4">
                   <h4 className="font-semibold text-sm text-violet-400 mb-2">Tips</h4>
                   <ul className="text-sm text-slate-300 space-y-1">
@@ -5291,7 +5290,7 @@ export default function AddProductPage() {
                     <li>   Select products that complement or enhance the main product</li>
                   </ul>
                 </div>
-              </TabsContent>
+              </TabsContent> */}
 
 
               {/* Product Attributes Tab */}
@@ -5407,7 +5406,7 @@ export default function AddProductPage() {
                                   : 'bg-slate-800 text-slate-400 border border-slate-600 hover:bg-slate-700'
                                   }`}>
                                 <span className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${attr.isVariation ? 'bg-violet-400 border-violet-400' : 'border-slate-500'}`} />
-                                {attr.isVariation ? 'Used for variations' : 'Used for variations'}
+                                {attr.isVariation ? 'Used for variations' : 'Use for variations'}
                               </button>
                               {attr.isVariation && (
                                 <span className="text-xs text-slate-500 italic">Goes to Variants tab</span>
@@ -5715,7 +5714,7 @@ export default function AddProductPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-white">Product Images  <span className="text-red-500">*</span></h3>
                       <p className="text-sm text-red-500">
-                        Upload product images (WebP or Avif). Minimum 5 images are required.
+                        Upload product images (WebP only). Minimum 5 images are required.
                       </p>
                     </div>
                   </div>
@@ -5724,7 +5723,7 @@ export default function AddProductPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/webp"
                     multiple
                     onChange={handleImageUpload}
                     disabled={!formData.name.trim() || uploadingImages}

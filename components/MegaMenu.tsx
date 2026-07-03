@@ -29,7 +29,7 @@ const MegaMenu: React.FC<MegaMenuProps> = ({ activeMainCategory }) => {
   };
 
   return (
-    <div className="absolute top-full left-0 mt-0 w-[280px] bg-[#f3f3f3] shadow-md py-2 z-50">
+    <div className="absolute top-full left-0 mt-0 w-[280px] bg-[#f3f3f3] shadow-md py-2 z-50 max-h-[calc(100vh-110px)] overflow-y-auto overscroll-contain scrollbar-thin">
       <ul className="flex flex-col">
         {activeMainCategory.subCategories.map((sub) => {
           const hasChildren =

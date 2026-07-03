@@ -806,7 +806,7 @@ export default function ProductVariantsManager({
                     </div>
 
                     {/* Row 3.5: Next-Day Delivery Settings */}
-                    <div className="pt-3 border-t border-slate-700/50 space-y-3">
+                    <div className="pt-3 border-t border-slate-700/50 flex flex-wrap items-center gap-4">
                       {/* Enable Next-Day Delivery Checkbox */}
                       <label className="flex items-center gap-2 cursor-pointer group">
                         <input
@@ -838,7 +838,7 @@ export default function ProductVariantsManager({
                       </label>
 
                       {variant.nextDayDeliveryEnabled && (
-                        <div className="pl-6 space-y-3">
+                        <div className="flex flex-wrap items-center gap-4 pl-4 border-l border-slate-700/50">
                           {/* Next-Day Delivery Free Checkbox */}
                           <label className="flex items-center gap-2 cursor-pointer group">
                             <input
@@ -856,8 +856,8 @@ export default function ProductVariantsManager({
                           </label>
 
                           {/* Cutoff Time Input */}
-                          <div className="max-w-[200px]">
-                            <label className="block text-xs text-slate-400 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-slate-400 whitespace-nowrap">
                               Cutoff Time (UK Time)<span className="text-red-400">*</span>
                             </label>
                             <input
@@ -867,9 +867,8 @@ export default function ProductVariantsManager({
                                 updateProductVariant(variant.id, 'nextDayDeliveryCutoffTime', e.target.value || '');
                               }}
                               disabled={disabled}
-                              className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                              className="px-3 py-1.5 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50 w-28"
                             />
-                            <p className="text-[10px] text-slate-500 mt-1">Enter UK local cutoff time for next-day delivery</p>
                           </div>
                         </div>
                       )}
@@ -911,7 +910,7 @@ export default function ProductVariantsManager({
                         <div className="flex-1">
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/webp"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleVariantImageUpload(variant.id, file);

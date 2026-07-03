@@ -172,7 +172,7 @@ export async function generateMetadata({ params, searchParams }: any) {
 
     openGraph: {
       title: category.metaTitle || category.name,
-      description: category.metaDescription,
+      description: category.metaDescription || category.description || "",
       url: `https://houszy.co.uk/category/${slug}`,
       siteName: "Houszy",
       images: [
@@ -188,7 +188,7 @@ export async function generateMetadata({ params, searchParams }: any) {
     twitter: {
       card: "summary_large_image",
       title: category.metaTitle || category.name,
-      description: category.metaDescription,
+      description: category.metaDescription || category.description || "",
       images: [category.imageUrl || "/fallback.jpg"],
     },
 
@@ -223,6 +223,7 @@ export default async function CategoryPage({
 }) {
   const { slug } = await params;
   const searchParamsResolved = await searchParams;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://houszy.co.uk";
 
   const discount = searchParamsResolved.discount
     ? Number(searchParamsResolved.discount)
@@ -391,6 +392,56 @@ export default async function CategoryPage({
               }}
             />
           )}
+
+          {/* ItemList of products — enables Product / Merchant-listing rich results on the category page */}
+          {Array.isArray(productsRes.data?.items) && productsRes.data.items.length > 0 && (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "ItemList",
+                  "@id": `${siteUrl}/category/${slug}/#productlist`,
+                  "url": `${siteUrl}/category/${slug}/`,
+                  "name": category.name,
+                  "numberOfItems": productsRes.data.items.length,
+                  "itemListElement": productsRes.data.items.map((p: any, i: number) => {
+                    const img = p.images?.[0]?.imageUrl;
+                    const imageUrl = img
+                      ? (img.startsWith("http") ? img : `${process.env.NEXT_PUBLIC_API_URL}${img}`)
+                      : undefined;
+                    const inStock = p.manageInventoryMethod === "donttrack" || (p.stockQuantity ?? 0) > 0;
+                    const productObj: any = {
+                      "@type": "Product",
+                      "name": p.name,
+                      "url": `${siteUrl}/product/${p.slug}/`,
+                      ...(imageUrl ? { "image": imageUrl } : {}),
+                      "offers": {
+                        "@type": "Offer",
+                        "price": Number(p.price ?? 0).toFixed(2),
+                        "priceCurrency": "GBP",
+                        "availability": inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                        "url": `${siteUrl}/product/${p.slug}/`
+                      }
+                    };
+                    if ((p.reviewCount ?? 0) > 0 && (p.averageRating ?? 0) > 0) {
+                      productObj.aggregateRating = {
+                        "@type": "AggregateRating",
+                        "ratingValue": Number(p.averageRating).toFixed(1),
+                        "reviewCount": p.reviewCount
+                      };
+                    }
+                    return {
+                      "@type": "ListItem",
+                      "position": i + 1,
+                      "item": productObj
+                    };
+                  })
+                })
+              }}
+            />
+          )}
+
         </>
       )}
 

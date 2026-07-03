@@ -1,6 +1,20 @@
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
 import SearchTracker from "./SearchTracker";
 import SearchClient from "./SearchClient";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+  const query = resolvedSearchParams.q ?? "";
+  return {
+    title: query ? `Search results for "${query}" | Houszy` : "Search | Houszy",
+    description: `Browse search results for "${query}" at Houszy. Shop quality homeware, kitchenware, fitness equipment, and toys.`,
+    robots: {
+      index: false,
+      follow: true,
+    },
+  };
+}
 
 interface SearchParams {
   q?: string;

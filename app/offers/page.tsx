@@ -21,6 +21,9 @@ interface Discount {
 }
 
 function formatDiscount(d: Discount): string {
+  if (d.discountType === "UptoXPercent" && d.discountPercentage) {
+    return `UP TO ${d.discountPercentage}% OFF`;
+  }
   if (d.usePercentage && d.discountPercentage) return `${d.discountPercentage}% OFF`;
   if (d.discountAmount > 0) return `£${d.discountAmount.toFixed(2)} OFF`;
   return "Special Offer";
@@ -159,7 +162,7 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
   const bannerUrl = d.desktopBannerImageUrl || d.mobileBannerImageUrl;
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-  const isProductLevel = d.discountType === "AssignedToProducts" || d.discountType === "AssignedToCategories";
+  const isProductLevel = d.discountType === "AssignedToProducts" || d.discountType === "AssignedToCategories" || d.discountType === "UptoXPercent";
   const href = isProductLevel && d.slug ? `/offers/${d.slug}` : "#";
 
   return (
@@ -168,20 +171,20 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
       className={`group flex flex-col bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all duration-300 ${isProductLevel ? "cursor-pointer" : "cursor-default"}`}
     >
       {/* Banner Image */}
-      <div className="relative w-full bg-gray-50 flex items-center justify-center overflow-hidden border-b border-gray-100">
+      <div className="relative w-full h-48 md:h-52 bg-gray-50 flex items-center justify-center overflow-hidden border-b border-gray-100">
         {bannerUrl ? (
           <>
             <img
               src={`${apiBase}${bannerUrl}`}
               alt={d.name}
-              className="w-full h-auto block group-hover:scale-105 transition-transform duration-500 ease-in-out"
+              className="w-full h-full object-contain block group-hover:scale-105 transition-transform duration-500 ease-in-out"
             />
             <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-300" />
           </>
         ) : (
-          <div className={`relative w-full aspect-[16/8] bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center`}>
+          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative">
             <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/40 via-transparent to-transparent"></div>
-            <Percent className={`h-16 w-16 text-gray-200 opacity-50 transform group-hover:scale-110 transition-transform duration-500`} />
+            <Percent className="h-16 w-16 text-gray-200 opacity-50 transform group-hover:scale-110 transition-transform duration-500" />
           </div>
         )}
       </div>

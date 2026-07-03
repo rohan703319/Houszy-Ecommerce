@@ -191,10 +191,15 @@ class ApiClient {
         responseData: error?.response?.data || null
       };
 
-      console.error('❌ Request failed:', JSON.stringify(errorDetails, null, 2));
+      const status = error?.response?.status;
+
+      if (status === 400 || status === 401 || status === 403 || status === 404) {
+        console.warn(`⚠️ Request warning (${status}):`, errorDetails.message, endpoint);
+      } else {
+        console.error('❌ Request failed:', JSON.stringify(errorDetails, null, 2));
+      }
 
       let errorMessage = 'An unexpected error occurred';
-      let status = error?.response?.status;
 
       // ✅ Error Response Scenarios
       if (error?.response) {

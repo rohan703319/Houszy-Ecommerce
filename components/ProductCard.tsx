@@ -99,9 +99,17 @@ export default function ProductCard({
 
   const finalPrice = getDiscountedPrice(product, basePrice);
   const discountBadge = getDiscountBadge(product);
+  const currentDisplayType =
+    defaultVariant?.displayDiscountType ??
+    product.displayDiscountType ??
+    "None";
+
   // 🔥 NEW: oldPrice fallback logic
   const oldPriceValue =
-    defaultVariant?.oldPrice ?? product.oldPrice;
+    defaultVariant?.compareAtPrice ??
+    defaultVariant?.oldPrice ??
+    product.compareAtPrice ??
+    product.oldPrice;
 
   const oldPriceData = getOldPriceDiscount(
     finalPrice,
@@ -228,23 +236,20 @@ export default function ProductCard({
       priceBeforeDiscount: basePrice,
       finalPrice,
       discountAmount:
-        (
-          defaultVariant?.displayDiscountType ??
-          product.displayDiscountType
-        ) === "System"
+        currentDisplayType === "System"
           ? +(basePrice - finalPrice).toFixed(2)
           : 0,
       oldPrice: hasActiveCoupon
         ? undefined
-        : (defaultVariant?.oldPrice ??
+        : (defaultVariant?.compareAtPrice ??
+          defaultVariant?.oldPrice ??
+          product.compareAtPrice ??
           product.oldPrice ??
           undefined),
 
       displayDiscountType: hasActiveCoupon
         ? "None"
-        : (defaultVariant?.displayDiscountType ??
-          product.displayDiscountType ??
-          "None"),
+        : currentDisplayType,
 
       hasSystemDiscount:
         defaultVariant?.hasSystemDiscount ??
@@ -328,7 +333,7 @@ export default function ProductCard({
             />
           )}
           {/* DISCOUNT BADGE — smaller */}
-          {product.displayDiscountType === "System" && discountBadge && (
+          {currentDisplayType === "System" && discountBadge && (
             <div className="absolute z-20 left-2 top-2">
               <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                 <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
@@ -361,7 +366,7 @@ export default function ProductCard({
             </div>
           )}
           {/* 🔥 OLD PRICE BADGE */}
-          {product.displayDiscountType === "OldPrice" &&
+          {currentDisplayType === "OldPrice" &&
             !hasActiveCoupon &&
             oldPriceData && (
               <div className="absolute z-20 left-2 top-2">
@@ -410,18 +415,19 @@ export default function ProductCard({
                 priceBeforeDiscount: basePrice,
                 finalPrice: finalPrice,
                 discountAmount:
-                  product.displayDiscountType === "System"
+                  currentDisplayType === "System"
                     ? +(basePrice - finalPrice).toFixed(2)
                     : 0,
                 appliedDiscountId: null,
                 couponCode: null,
                 oldPrice:
+                  defaultVariant?.compareAtPrice ??
                   defaultVariant?.oldPrice ??
+                  product.compareAtPrice ??
                   product.oldPrice ??
                   null,
 
-                displayDiscountType:
-                  product.displayDiscountType ?? "None",
+                displayDiscountType: currentDisplayType,
 
                 hasSystemDiscount:
                   product.hasSystemDiscount ?? false,
@@ -517,21 +523,21 @@ export default function ProductCard({
           <span className="text-sm md:text-xl font-bold text-[#f38918]">
             £{
               (
-                product.displayDiscountType === "System"
+                currentDisplayType === "System"
                   ? finalPrice
                   : basePrice
               ).toFixed(2)
             }
           </span>
           {/* 🔥 CASE 1: REAL DISCOUNT */}
-          {product.displayDiscountType === "System" && discountBadge && (
+          {currentDisplayType === "System" && discountBadge && (
             <span className="text-xs md:text-sm text-gray-400 line-through">
               £{basePrice.toFixed(2)}
             </span>
           )}
 
           {/* 🔥 CASE 2: OLD PRICE */}
-          {product.displayDiscountType === "OldPrice" &&
+          {currentDisplayType === "OldPrice" &&
             !hasActiveCoupon &&
             oldPriceData && (
               <span className="text-xs md:text-sm text-gray-400 line-through">

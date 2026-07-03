@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 
-const SITE_URL = 'https://www.direct-care.co.uk'
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.athlits.co.uk'
+const SITE_URL = 'https://houszy.co.uk'
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.houszy.co.uk'
 
 async function fetchSlugs<T>(url: string, extract: (item: T) => string): Promise<string[]> {
   try {

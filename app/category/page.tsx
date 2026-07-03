@@ -2,6 +2,15 @@
 export const revalidate = 300;
 
 import CategoriesClient from "@/components/CategoriesClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "All Categories | Houszy",
+  description: "Browse all product categories at Houszy. Find quality homeware, kitchenware, fitness equipment, household essentials, toys & games.",
+  alternates: {
+    canonical: "https://www.houszy.co.uk/category",
+  },
+};
 
 interface Category {
   id: string;

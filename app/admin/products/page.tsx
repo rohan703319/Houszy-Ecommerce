@@ -1,6 +1,6 @@
 //app\admin\products\page.tsx
 "use client";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import Select from "react-select";
@@ -96,6 +96,7 @@ interface FormattedProduct {
   discountLabel: string;
   discountTitle: string;
   assignedDiscounts?: any[]; // Add this for discount filtering
+  variants?: any[];
 
   // Raw date for sorting
   rawCreatedAt: string;
@@ -189,6 +190,17 @@ export default function ProductsPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+
+  const toggleExpandProduct = (productId: string) => {
+    const newSet = new Set(expandedProducts);
+    if (newSet.has(productId)) {
+      newSet.delete(productId);
+    } else {
+      newSet.add(productId);
+    }
+    setExpandedProducts(newSet);
+  };
   // Add these near your other state declarations (around line where you have searchTerm)
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearchTerm = useDebounce(searchInput, 500); // 500ms delay
@@ -587,12 +599,13 @@ export default function ProductsPage() {
               : null;
 
           const resolvedStockQuantity: number =
-            typeof defaultVariant?.stockQuantity ===
-              "number"
-              ? defaultVariant.stockQuantity
-              : typeof p.stockQuantity === "number"
-                ? p.stockQuantity
-                : 0;
+            p.productType === "variable" && Array.isArray(p.variants)
+              ? p.variants.reduce((sum: number, v: any) => sum + (v.stockQuantity || 0), 0)
+              : typeof defaultVariant?.stockQuantity === "number"
+                ? defaultVariant.stockQuantity
+                : typeof p.stockQuantity === "number"
+                  ? p.stockQuantity
+                  : 0;
           const resolvedPrice: number =
             typeof defaultVariant?.price === "number"
               ? defaultVariant.price
@@ -605,10 +618,12 @@ export default function ProductsPage() {
               stockQuantity: resolvedStockQuantity,
 
               trackQuantity:
-                typeof defaultVariant?.trackInventory ===
-                  "boolean"
-                  ? defaultVariant.trackInventory
-                  : Boolean(p.trackQuantity),
+                p.productType === "variable"
+                  ? true
+                  : typeof defaultVariant?.trackInventory ===
+                    "boolean"
+                    ? defaultVariant.trackInventory
+                    : Boolean(p.trackQuantity),
 
               lowStockThreshold:
                 typeof p.lowStockThreshold === "number"
@@ -691,7 +706,7 @@ export default function ProductsPage() {
             standardDeliveryEnabled: p.standardDeliveryEnabled === true,
             sameDayDeliveryEnabled: p.sameDayDeliveryEnabled === true,
             allowedDeliveryOptionIds: p.allowedDeliveryOptionIds || [],
-            trackQuantity: p.trackQuantity ?? false,
+            trackQuantity: p.productType === "variable" ? true : (p.trackQuantity ?? false),
             lowStockThreshold: p.lowStockThreshold ?? 0,
             notifyAdminForQuantityBelow: p.notifyAdminForQuantityBelow ?? false,
             notifyQuantityBelow: p.notifyQuantityBelow ?? 0,
@@ -703,6 +718,7 @@ export default function ProductsPage() {
             rawCreatedAt: p.createdAt,
             rawUpdatedAt: p.updatedAt,
             assignedDiscounts: p.assignedDiscounts || [],
+            variants: p.variants || [],
           };
         });
 
@@ -2150,9 +2166,9 @@ export default function ProductsPage() {
                       : `${API_BASE_URL}${product.image?.startsWith("/") ? "" : "/"}${product.image}`;
 
                   return (
-                    <tr
-                      key={product.id}
-                      className={`border-b border-slate-800 transition-colors
+                    <Fragment key={product.id}>
+                      <tr
+                        className={`border-b border-slate-800 transition-colors
   ${product.isDeleted
                           ? 'bg-red-500/5'
                           : ''
@@ -2263,35 +2279,42 @@ export default function ProductsPage() {
 
                       {/* SKU */}
                       <td className="py-1.5 px-2 text-center">
-                        <span
-                          onClick={() => {
-                            // ❌ variable product में copy नहीं करना
-                            if (product.productType === "variable") return;
-                            navigator.clipboard.writeText(product.sku);
-                            setCopiedId(product.id);
-
-                            setTimeout(() => {
-                              setCopiedId(null);
-                            }, 1200);
-                          }}
-                          className={`inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded transition ${product.productType === "variable"
-                            ? "text-cyan-400 bg-slate-800/30 cursor-default"
-                            : "text-slate-300 bg-slate-800/50 cursor-pointer hover:bg-slate-700"
-                            }`}
-                          title={
-                            product.productType === "variable"
-                              ? "Variant product"
-                              : "Click to copy"
-                          }
-                        >
-                          {product.productType === "variable" ? (
+                        {product.productType === "variable" ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleExpandProduct(product.id);
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition cursor-pointer select-none"
+                            title="Click to toggle variants list"
+                          >
                             <span>{product.variantsCount} Variants</span>
-                          ) : copiedId === product.id ? (
-                            <span className="text-emerald-400">Copied ✓</span>
-                          ) : (
-                            product.sku || "-"
-                          )}
-                        </span>
+                            {expandedProducts.has(product.id) ? (
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        ) : (
+                          <span
+                            onClick={() => {
+                              navigator.clipboard.writeText(product.sku);
+                              setCopiedId(product.id);
+
+                              setTimeout(() => {
+                                setCopiedId(null);
+                              }, 1200);
+                            }}
+                            className={`inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded transition text-slate-300 bg-slate-800/50 cursor-pointer hover:bg-slate-700`}
+                            title="Click to copy SKU"
+                          >
+                            {copiedId === product.id ? (
+                              <span className="text-emerald-400">Copied ✓</span>
+                            ) : (
+                              product.sku || "-"
+                            )}
+                          </span>
+                        )}
                       </td>
 
                       {/* PRICE */}
@@ -2527,7 +2550,57 @@ Updated By: ${product.updatedBy || "N/A"}`}
                         </div>
                       </td>
                     </tr>
-                  );
+                    {expandedProducts.has(product.id) && product.variants && product.variants.length > 0 && (
+                      <tr className="bg-slate-900/50">
+                        <td colSpan={9} className="p-0">
+                          <div className="bg-slate-950/40 px-8 py-2 border-l-4 border-cyan-500/50">
+                            <div className="grid grid-cols-5 gap-4 text-xs font-semibold text-slate-400 border-b border-slate-800/60 pb-1 mb-1">
+                              <div className="col-span-2 text-left">Variant Name</div>
+                              <div className="text-center font-mono">SKU</div>
+                              <div className="text-center">Price</div>
+                              <div className="text-center">Stock Quantity</div>
+                            </div>
+                            {product.variants.map((variant: any) => {
+                              const variantStock = variant.stockQuantity ?? 0;
+                              return (
+                                <div key={variant.id} className="grid grid-cols-5 gap-4 py-1 border-b border-slate-800/20 last:border-b-0 text-slate-300 hover:text-white transition">
+                                  <div className="col-span-2 text-left font-medium">
+                                    {variant.name || [variant.option1Value, variant.option2Value, variant.option3Value].filter(Boolean).join(" / ") || "Default"}
+                                  </div>
+                                  <div
+                                    onClick={() => {
+                                      if (variant.sku) {
+                                        navigator.clipboard.writeText(variant.sku);
+                                        toast.success("SKU copied to clipboard!");
+                                      }
+                                    }}
+                                    className="text-center font-mono text-[11px] text-slate-400 cursor-pointer hover:text-cyan-400 hover:underline transition-all"
+                                    title="Click to copy SKU"
+                                  >
+                                    {variant.sku || "-"}
+                                  </div>
+                                  <div className="text-center font-semibold">£{(variant.price || 0).toFixed(2)}</div>
+                                  <div className="text-center">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                      variantStock === 0 
+                                        ? "bg-red-500/10 text-red-400 border border-red-500/20" 
+                                        : variantStock <= 5 
+                                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" 
+                                          : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                    }`}>
+                                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                      {variantStock === 0 ? "Out of Stock" : variantStock <= 5 ? `Low Stock (${variantStock})` : `In Stock (${variantStock})`}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
                 })}
               </tbody>
             </table>

@@ -256,7 +256,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
         
         menubar: 'edit view insert format tools',
         
-        toolbar: 'undo redo | formatselect | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image deleteimage | removeformat code',
+        toolbar: 'undo redo | formatselect | h1 h2 h3 | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image deleteimage | removeformat code',
         
         skin: isDark ? 'oxide-dark' : 'oxide',
         content_css: isDark ? 'dark' : 'default',
@@ -970,7 +970,8 @@ export const ProductDescriptionEditor = ({
   className = "",
   minLength = 0,
   maxLength = Infinity,
-  showCharCount = true
+  showCharCount = true,
+  showH2Tip = false
 }: {
   label?: string;
   value: string;
@@ -983,15 +984,23 @@ export const ProductDescriptionEditor = ({
   minLength?: number;
   maxLength?: number;
   showCharCount?: boolean;
+  showH2Tip?: boolean;
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   return (
     <div className={className}>
       {label && (
-        <label className={`block text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'} mb-2`}>
-          {label} {required && <span className="text-red-400">*</span>}
-        </label>
+        <div className="flex flex-col gap-1 mb-2">
+          <label className={`block text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            {label} {required && <span className="text-red-400">*</span>}
+          </label>
+          {showH2Tip && (
+            <span className={`text-[11px] font-normal leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              💡 <strong className="text-violet-400 font-semibold">Tip:</strong> Use the <strong className="text-violet-400 font-semibold">H2</strong> style button above for headings. The first H2 section stays open by default, and any subsequent H2 sections (e.g. Ingredients, Warnings) will automatically transform into interactive accordions on the product details page.
+            </span>
+          )}
+        </div>
       )}
       <SelfHostedTinyMCE
         value={value}

@@ -858,6 +858,7 @@ const hasActiveFilters =
       AssignedToShipping: "Shipping",
       AssignedToManufacturers: "",
       AssignedToOrderSubTotal: "",
+      UptoXPercent: "Up to X% Off",
     };
     return labels[type];
   };
@@ -870,6 +871,7 @@ const hasActiveFilters =
       AssignedToShipping: "🚚",
       AssignedToManufacturers: "🏭",
       AssignedToOrderSubTotal: "💵",
+      UptoXPercent: "⚡",
     };
     return icons[type];
   };

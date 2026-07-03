@@ -4,20 +4,39 @@ import { API_BASE_URL } from "@/lib/api";
 
 
 /**
+ * Parse date string safely, ensuring UTC treatment if missing timezone offset
+ */
+export const parseDateSafely = (dateString?: string | null): Date | null => {
+  if (!dateString) return null;
+  let cleanString = dateString;
+  if (
+    cleanString.includes("T") &&
+    !cleanString.endsWith("Z") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("+") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("-")
+  ) {
+    cleanString = `${cleanString}Z`;
+  }
+  const date = new Date(cleanString);
+  if (isNaN(date.getTime())) return null;
+  return date;
+};
+
+/**
  * Format date to readable string format
  * @param dateString - Date string or null/undefined
  * @returns Formatted date string or "N/A" if invalid
  */
 export const formatDate = (dateString?: string | null): string => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "N/A";
+  const date = parseDateSafely(dateString);
+  if (!date) return "N/A";
   return date.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/London",
   });
 };
 
@@ -31,9 +50,8 @@ export const formatDateCustom = (
   dateString?: string | null,
   options?: Intl.DateTimeFormatOptions
 ): string => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "N/A";
+  const date = parseDateSafely(dateString);
+  if (!date) return "N/A";
   
   const defaultOptions: Intl.DateTimeFormatOptions = {
     month: "short",
@@ -41,9 +59,13 @@ export const formatDateCustom = (
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/London",
   };
   
-  return date.toLocaleString("en-US", options || defaultOptions);
+  return date.toLocaleString("en-US", {
+    timeZone: "Europe/London",
+    ...(options || defaultOptions),
+  });
 };
 
 /**
@@ -121,8 +143,12 @@ export const getProductImage = (images: any[]): string => {
 export const formatValue = (value: any) => {
   if (value === null || value === undefined) return "-";
   if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "string" && value.includes("T") && value.includes(":"))
-    return new Date(value).toLocaleString();
+  if (typeof value === "string" && value.includes("T") && value.includes(":")) {
+    const date = parseDateSafely(value);
+    if (date) {
+      return date.toLocaleString("en-US", { timeZone: "Europe/London" });
+    }
+  }
   return value.toString();
 };
 
@@ -244,11 +270,13 @@ export const getInitials = (name: string): string => {
 
 export const formatDateOnly = (dateString: string) => {
   try {
-    const date = new Date(dateString);
+    const date = parseDateSafely(dateString);
+    if (!date) return dateString;
     return date.toLocaleString('en-GB', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'Europe/London'
     });
   } catch {
     return dateString;
@@ -257,11 +285,13 @@ export const formatDateOnly = (dateString: string) => {
 
 export const formatTime = (dateString: string) => {
   try {
-    const date = new Date(dateString);
+    const date = parseDateSafely(dateString);
+    if (!date) return '';
     return date.toLocaleString('en-GB', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: 'Europe/London'
     });
   } catch {
     return '';

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { CreditCard, RefreshCw, ExternalLink, AlertCircle, CheckCircle, Clock, XCircle, RotateCcw } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/app/admin/_context/auth-context';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 

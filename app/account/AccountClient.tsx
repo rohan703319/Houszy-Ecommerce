@@ -12,9 +12,11 @@ import { Eye, EyeOff, ShoppingBag, User, Mail, Phone, Lock, ArrowRight, CheckCir
 import AccountDashboard from "./components/AccountDashboard";
 import { forgotPassword } from "@/app/lib/api/auth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/components/toast/CustomToast";
 
 export default function AccountClient() {
   const router = useRouter();
+  const toast = useToast();
   const searchParams = useSearchParams();
   const fromCheckout = searchParams.get("from") === "checkout";
   const fromBuyNow = searchParams.get("from") === "buy-now";
@@ -33,6 +35,7 @@ export default function AccountClient() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Forgot Password
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -112,10 +115,12 @@ export default function AccountClient() {
     setLoading(true);
     try {
       await login(loginEmail, loginPassword);
+      toast.success("Login successful!");
+      setIsRedirecting(true);
       if (fromCheckout || fromBuyNow) {
         router.replace("/checkout");
       } else {
-        router.replace("/account");
+        router.replace("/");
       }
     } catch (error: any) {
       setLoginError(error?.message || "Invalid email or password");
@@ -180,6 +185,7 @@ export default function AccountClient() {
         phoneNumber: "+44" + regPhone,
       };
       await register(payload);
+      setIsRedirecting(true);
       if (fromCheckout || fromBuyNow) {
         router.replace("/checkout");
       } else {
@@ -197,6 +203,15 @@ export default function AccountClient() {
   const tabParam = searchParams.get("tab");
   const activeTab = tabParam === "register" ? "register" : "login";
   const [tab, setTab] = useState(activeTab);
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-[60vh] w-full flex flex-col items-center justify-center">
+        <div className="h-8 w-8 border-4 border-[#f38918] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray-500 text-sm">Logging in...</p>
+      </div>
+    );
+  }
 
   if (!isReady) return null;
   if (isAuthenticated && user) return <AccountDashboard />;

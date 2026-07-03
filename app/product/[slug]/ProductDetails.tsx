@@ -4,14 +4,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
-const RatingReviews = dynamic(() => import("@/components/product/RatingReviews"));
-const RelatedProductCard = dynamic(() => import("@/components/product/RelatedProductCard"));
-const CrossSellProductCard = dynamic(() => import("@/components/product/CrossSellProductCard"));
-const RecentlyViewedSlider = dynamic(() => import("@/components/recently-viewed/RecentlyViewedSlider"));
-const BackInStockModal = dynamic(() => import("@/components/backorder/BackInStockModal"));
-
-import { Review, getRecentApprovedReviews } from "@/components/product/RatingReviews";
+import RelatedProductCard from "@/components/product/RelatedProductCard";
+import CrossSellProductCard from "@/components/product/CrossSellProductCard";
+import RecentlyViewedSlider from "@/components/recently-viewed/RecentlyViewedSlider";
+import BackInStockModal from "@/components/backorder/BackInStockModal";
+import RatingReviews, { Review, getRecentApprovedReviews } from "@/components/product/RatingReviews";
 import SubscriptionPurchaseCard from "@/components/product/SubscriptionPurchaseCard";
 import QuantitySelector from "@/components/shared/QuantitySelector";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -21,7 +18,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Heart, Star, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon } from "lucide-react";
-const ShareMenu = dynamic(() => import("@/components/share/ShareMenu"));
+import ShareMenu from "@/components/share/ShareMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductFeatures from "@/components/product/ProductFeatures";
 import { Badge } from "@/components/ui/badge";
@@ -33,14 +30,14 @@ import { useWishlist } from "@/context/WishlistContext";
 import { addRecentlyViewed } from "@/app/hooks/useRecentlyViewed";
 import { normalizePrice } from "@/lib/price";
 import CouponModal from "@/components/product/CouponModal";
-const ProductImageModal = dynamic(() => import("@/components/product/ProductImageModal"));
+import ProductImageModal from "@/components/product/ProductImageModal";
 import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers";
 import { usePathname } from "next/navigation";
 import { detectUKRegion } from "@/app/lib/region";
 // import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
-const PharmaQuestionsModal = dynamic(() => import("@/components/pharma/PharmaQuestionsModal"));
-const APlusContentRenderer = dynamic(() => import("@/components/aplus/APlusContentRenderer"));
+import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
+import APlusContentRenderer from "@/components/aplus/APlusContentRenderer";
 import { useCartActivity } from "@/context/CartContext";
 import { trackViewItem } from "@/lib/analytics";
 import { shippingService } from "@/lib/services/shipping";
@@ -154,6 +151,8 @@ interface Product {
     displayOrder?: number;
   }[];
   brandName: string;
+  brandId?: string;
+  brandSlug?: string;
   manufacturerName: string;
   images: ProductImage[];
   averageRating: number;
@@ -329,6 +328,31 @@ const getYouTubeEmbedUrl = (url: string) => {
   return null;
 };
 
+// ---------- Skeletons ----------
+const RelatedProductSkeleton = () => {
+  return (
+    <div className="relative border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col bg-white animate-pulse h-full min-h-[350px]">
+      {/* IMAGE PLACEHOLDER */}
+      <div className="h-[176px] sm:h-[200px] md:h-[224px] bg-gray-100 rounded-lg w-full mb-3" />
+      {/* TITLE PLACEHOLDER */}
+      <div className="h-3.5 bg-gray-150 rounded w-11/12 mb-2" />
+      <div className="h-3.5 bg-gray-150 rounded w-2/3 mb-3" />
+      {/* RATING PLACEHOLDER */}
+      <div className="flex gap-2 items-center mb-3">
+        <div className="h-4 bg-gray-150 rounded w-8" />
+        <div className="h-3 bg-gray-150 rounded w-10" />
+      </div>
+      {/* PRICE PLACEHOLDER */}
+      <div className="h-5 bg-gray-150 rounded w-20 mb-4" />
+      {/* BUTTONS PLACEHOLDER */}
+      <div className="flex gap-2 mt-auto items-center">
+        <div className="h-8 bg-gray-150 rounded w-14" />
+        <div className="h-8 bg-gray-150 rounded flex-1" />
+      </div>
+    </div>
+  );
+};
+
 // ---------- Component ----------
 const LiveCartActivityBanner = ({ activity }: { activity: { message: string, timestamp: number } | null }) => {
   const [show, setShow] = useState(false);
@@ -436,6 +460,11 @@ export default function ProductDetails({
     );
   }
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   console.log("🧪 productType:", product.productType);
   console.log("🧪 requireOtherProducts:", product.requireOtherProducts);
   console.log("🧪 groupedProducts:", product.groupedProducts);
@@ -472,12 +501,12 @@ export default function ProductDetails({
 
   const allowedOptions = useMemo(() => {
     if (!deliveryOptions || deliveryOptions.length === 0) return [];
-    
+
     const restrictionIds = product.allowedDeliveryOptionIds || [];
     if (restrictionIds.length === 0) {
       return deliveryOptions;
     }
-    
+
     return deliveryOptions.filter((opt) => restrictionIds.includes(opt.id));
   }, [deliveryOptions, product.allowedDeliveryOptionIds]);
   const [subscriptionStockError, setSubscriptionStockError] = useState<string | null>(null);
@@ -494,10 +523,14 @@ export default function ProductDetails({
   const [showZoom, setShowZoom] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
+  const [hasTriggeredRelatedFetch, setHasTriggeredRelatedFetch] = useState(false);
+  const relatedSectionRef = useRef<HTMLDivElement | null>(null);
   const [crossSellProducts, setCrossSellProducts] = useState<CrossSellProduct[]>([]);
+  const [openDescriptionSections, setOpenDescriptionSections] = useState<{ [key: number]: boolean }>({});
   const shouldShowRelatedNav = relatedProducts.length > 4;
   const shouldShowCrossNav = crossSellProducts.length > 4;
-  const [activeTab, setActiveTab] = useState<"description" | "specifications" | "delivery">("description");
+  const [activeTab, setActiveTab] = useState<"description" | "delivery">("description");
   const [purchaseType, setPurchaseType] = useState<"one" | "subscription">("one");
   // Use vatRate directly from API response
   const vatRate: number | null = (product as any).vatRate ?? null;
@@ -1060,6 +1093,8 @@ export default function ProductDetails({
     setShowImageModal(false);
     setActiveTab("description");
     setRelatedProducts([]);
+    setHasTriggeredRelatedFetch(false);
+    setIsLoadingRelated(false);
     setCouponCode("");
     setAppliedCoupon(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1275,12 +1310,114 @@ export default function ProductDetails({
       id => groupedSelections[id]?.selected === true
     );
   }, [isGroupedProduct, requiredProductIds, groupedSelections]);
-  // Fetch related products
+
+  // Reset description accordion states when product changes
   useEffect(() => {
-    if (product.relatedProductIds) {
-      fetchRelatedProducts(product.relatedProductIds);
+    setOpenDescriptionSections({});
+  }, [product.id]);
+
+  const parsedDescription = useMemo(() => {
+    if (!product.description) {
+      return { introduction: "", sections: [] };
     }
-  }, [product.relatedProductIds]);
+
+    if (!isMounted || typeof window === "undefined") {
+      return { introduction: product.description, sections: [] };
+    }
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(product.description, "text/html");
+      const body = doc.body;
+
+      const hasH2 = body.querySelector("h2");
+      if (!hasH2) {
+        return { introduction: product.description, sections: [] };
+      }
+
+      const sections: { title: string; html: string }[] = [];
+      let introductionHtml = "";
+      let currentSectionTitle = "";
+      let currentSectionHtml = "";
+      let passedFirstHeader = false;
+
+      const childNodes = Array.from(body.childNodes);
+
+      for (const node of childNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as HTMLElement;
+          if (element.tagName.toLowerCase() === "h2") {
+            if (currentSectionTitle) {
+              sections.push({
+                title: currentSectionTitle,
+                html: currentSectionHtml
+              });
+            }
+            currentSectionTitle = element.textContent || "";
+            currentSectionHtml = "";
+            passedFirstHeader = true;
+          } else {
+            if (!passedFirstHeader) {
+              introductionHtml += element.outerHTML;
+            } else {
+              currentSectionHtml += element.outerHTML;
+            }
+          }
+        } else if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent || "";
+          if (!passedFirstHeader) {
+            introductionHtml += text;
+          } else {
+            currentSectionHtml += text;
+          }
+        }
+      }
+
+      if (currentSectionTitle) {
+        sections.push({
+          title: currentSectionTitle,
+          html: currentSectionHtml
+        });
+      }
+
+      return { introduction: introductionHtml, sections };
+    } catch (e) {
+      console.error("Error parsing product description:", e);
+      return { introduction: product.description, sections: [] };
+    }
+  }, [product.description, isMounted]);
+  // Fetch related products when section is near viewport (Performance & Production Safe Lazy Loading)
+  useEffect(() => {
+    const primaryCategory =
+      product.categories?.find((c) => c.isPrimary === true) ??
+      product.categories?.[0];
+    const categorySlug = primaryCategory?.categorySlug;
+    if (!categorySlug || hasTriggeredRelatedFetch) return;
+
+    const observerTarget = relatedSectionRef.current;
+    if (!observerTarget) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setHasTriggeredRelatedFetch(true);
+            setIsLoadingRelated(true);
+            fetchRelatedProducts(categorySlug);
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: "200px" } // Pre-fetch 200px before section comes into viewport
+    );
+
+    observer.observe(observerTarget);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [product.id, hasTriggeredRelatedFetch, product.categories]);
+
   // Fetch cross-sell products
   useEffect(() => {
     if (product.crossSellProductIds) {
@@ -1288,36 +1425,49 @@ export default function ProductDetails({
     }
   }, [product.crossSellProductIds]);
 
-  const fetchRelatedProducts = async (relatedIds: string) => {
+  const fetchRelatedProducts = async (categorySlug: string) => {
+    setIsLoadingRelated(true);
     try {
-      const ids = relatedIds.split(',').map(id => id.trim());
-      const promises = ids.slice(0, 8).map(id =>
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Products/${id}`, {
-          next: { revalidate: 60 }
-        }).then(res => res.json())
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/Products?categorySlug=${categorySlug}&sortBy=price&sortDirection=asc&stockStatus=InStock&isPublished=true&pageSize=12`
       );
-      const results = await Promise.all(promises);
-      const validProducts = results
-        .filter((r: any) => r.success && r.data?.isPublished === true)
-        .map((r: any) => r.data);
-      setRelatedProducts(
-        validProducts.filter(
-          (p: any, index: number, self: any[]) => index === self.findIndex(x => x.id === p.id)
-        )
-      );
+      const json = await res.json();
+      if (json.success && json.data?.items) {
+        const items = json.data.items;
 
+        const isProductInStock = (p: any) => {
+          if (!p) return false;
+          const defaultVariant =
+            p.variants?.find((v: any) => v.isDefault) ??
+            p.variants?.[0];
+
+          const isTracked = defaultVariant
+            ? defaultVariant.trackInventory !== false
+            : p.manageInventoryMethod !== "donttrack";
+
+          const stock = defaultVariant?.stockQuantity ?? p.stockQuantity ?? 0;
+
+          return !isTracked || stock > 0;
+        };
+
+        const filtered = items
+          .filter((p: any) => p && p.id !== product.id && isProductInStock(p))
+          .slice(0, 8);
+        setRelatedProducts(filtered);
+      }
     } catch (error) {
       console.error("Error fetching related products:", error);
+    } finally {
+      setIsLoadingRelated(false);
     }
   };
+
   // Fetch cross-sell products
   const fetchCrossSellProducts = async (crossIds: string) => {
     try {
       const ids = crossIds.split(',').map(id => id.trim());
       const promises = ids.slice(0, 8).map(id =>
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Products/${id}`, {
-          next: { revalidate: 60 }
-        }).then(res => res.json())
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Products/${id}`).then(res => res.json())
       );
       const results = await Promise.all(promises);
       const validProducts = results
@@ -2338,10 +2488,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   ].filter(Boolean).join(", ")})`
                   : product.name}
               </h1>
-              {/* SKU & Sold Badge */}
-              {(product.sku || soldText) && (
+              {(selectedVariant?.sku || product.sku || soldText) && (
                 <div className="flex flex-wrap items-center gap-3 mt-1">
-                  {product.sku && (
+                  {(selectedVariant?.sku || product.sku) && (
                     <p className="text-xs md:text-sm text-gray-500">
                       Sku: {selectedVariant?.sku ?? product.sku}
                     </p>
@@ -2363,7 +2512,17 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               {/* Brand */}
               {product.brandName && (
                 <p className="text-sm text-gray-600">
-                  by <span className="font-semibold text-gray-800">{product.brandName}</span>
+                  by{" "}
+                  {product.brandSlug ? (
+                    <Link
+                      href={`/brands/${product.brandSlug}`}
+                      className="font-semibold text-orange-600 hover:text-orange-700 hover:underline transition-colors"
+                    >
+                      {product.brandName}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-gray-800">{product.brandName}</span>
+                  )}
                 </p>
               )}
               {/* Rating + Reviews */}
@@ -2657,7 +2816,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               value="one"
                               checked={purchaseType === "one"}
                               onChange={() => setPurchaseType("one")}
-                              className="h-4 w-4"
+                              className="h-4 w-4 accent-[#f38918] cursor-pointer"
                             />
                             <span className="font-semibold text-sm">One-Time Purchase</span>
                           </label>
@@ -2702,7 +2861,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                     ? "bg-red-600"
                                     : stockDisplay.type === "low"
                                       ? "bg-yellow-600"
-                                      : "bg-green-600"
+                                      : "bg-[#f38918]"
                                     }`}
                                 ></span>
                                 {stockDisplay.text}
@@ -3283,57 +3442,80 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
           </section>
         )}
         {/* RELATED PRODUCTS */}
-        {relatedProducts.length > 0 && (
-          <section className="mt-10">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
-                Related Products
-              </h2>
-            </div>
-            <div className="relative">
-              {/* Desktop-only prev/next chevrons */}
-              {shouldShowRelatedNav && (
-                <>
-                  <button
-                    id="related-prev"
-                    className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20"
-                  >
-                    <ChevronLeft className="w-7 h-7 text-gray-700" />
-                  </button>
+        <section
+          ref={relatedSectionRef}
+          className={(hasTriggeredRelatedFetch && (isLoadingRelated || relatedProducts.length > 0)) ? "mt-10 scroll-mt-24" : "h-px opacity-0 overflow-hidden"}
+        >
+          {(isLoadingRelated || relatedProducts.length > 0) && (
+            <>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
+                  Related Products
+                </h2>
+              </div>
 
-                  <button
-                    id="related-next"
-                    className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20"
+              {isLoadingRelated ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <RelatedProductSkeleton />
+                  <RelatedProductSkeleton />
+                  <div className="hidden sm:block">
+                    <RelatedProductSkeleton />
+                  </div>
+                  <div className="hidden md:block">
+                    <RelatedProductSkeleton />
+                  </div>
+                  <div className="hidden lg:block">
+                    <RelatedProductSkeleton />
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Desktop-only prev/next chevrons */}
+                  {shouldShowRelatedNav && (
+                    <>
+                      <button
+                        id="related-prev"
+                        className="hidden md:block absolute -left-4 top-1/2 -translate-y-1/2 z-20"
+                      >
+                        <ChevronLeft className="w-7 h-7 text-gray-700" />
+                      </button>
+
+                      <button
+                        id="related-next"
+                        className="hidden md:block absolute -right-4 top-1/2 -translate-y-1/2 z-20"
+                      >
+                        <ChevronRight className="w-7 h-7 text-gray-700" />
+                      </button>
+                    </>
+                  )}
+                  <Swiper
+                    modules={[Autoplay, Pagination, Navigation]}
+                    onSwiper={(swiper) => { relatedSwiperRef.current = swiper; }}
+                    navigation={{ prevEl: "#related-prev", nextEl: "#related-next" }}
+                    pagination={{ clickable: true, dynamicBullets: true }}
+                    autoplay={{ delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true }}
+                    loop
+                    spaceBetween={16}
+                    slidesPerView={2}
+                    breakpoints={{
+                      640: { slidesPerView: 2, spaceBetween: 16 },
+                      768: { slidesPerView: 3, spaceBetween: 20 },
+                      1024: { slidesPerView: 4, spaceBetween: 22 },
+                      1280: { slidesPerView: 5, spaceBetween: 24 },
+                    }}
+                    className="pb-10"
                   >
-                    <ChevronRight className="w-7 h-7 text-gray-700" />
-                  </button>
-                </>
+                    {relatedProducts.map((p) => (
+                      <SwiperSlide key={p.id}>
+                        <RelatedProductCard product={p} getImageUrl={getImageUrl} />
+                      </SwiperSlide>
+                    ))}
+                  </Swiper>
+                </div>
               )}
-              <Swiper
-                modules={[Autoplay, Pagination]}
-                onSwiper={(swiper) => { relatedSwiperRef.current = swiper; }}
-                pagination={{ clickable: true, dynamicBullets: true }}
-                autoplay={{ delay: 2600, disableOnInteraction: false, pauseOnMouseEnter: true, }}
-                loop
-                spaceBetween={16}
-                slidesPerView={2}
-                breakpoints={{
-                  640: { slidesPerView: 2, spaceBetween: 16 },
-                  768: { slidesPerView: 3, spaceBetween: 20 },
-                  1024: { slidesPerView: 4, spaceBetween: 22 },
-                  1280: { slidesPerView: 5, spaceBetween: 24 },
-                }}
-                className="pb-10"
-              >
-                {relatedProducts.map((p) => (
-                  <SwiperSlide key={p.id}>
-                    <RelatedProductCard product={p} getImageUrl={getImageUrl} />
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            </div>
-          </section>
-        )}
+            </>
+          )}
+        </section>
 
         {/* recently viewed product section */}
         <RecentlyViewedSlider
@@ -3347,9 +3529,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               <button onClick={() => setActiveTab("description")} className={`px-4 sm:px-6 py-3 text-sm sm:text-base font-bold whitespace-nowrap transition ${activeTab === "description" ? "border-b-2 border-black text-black" : "text-gray-500 hover:text-black"}`}>
                 Product Description
               </button>
-              <button onClick={() => setActiveTab("specifications")} className={`px-4 sm:px-6 py-3 text-sm sm:text-base font-bold whitespace-nowrap transition ${activeTab === "specifications" ? "border-b-2 border-black text-black" : "text-gray-500 hover:text-black"}`}>
-                Specifications
-              </button>
+
               <button onClick={() => setActiveTab("delivery")} className={`px-4 sm:px-6 py-3 text-sm sm:text-base font-bold whitespace-nowrap transition ${activeTab === "delivery" ? "border-b-2 border-black text-black" : "text-gray-500 hover:text-black"}`}>
                 Delivery
               </button>
@@ -3357,7 +3537,65 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             <div className="p-4 sm:p-6">
               {activeTab === "description" && (
                 <div>
-                  <div className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5" dangerouslySetInnerHTML={{ __html: product.description }} />
+                  {parsedDescription.sections.length > 0 ? (
+                    <div className="space-y-4">
+                      {parsedDescription.introduction && (
+                        <div
+                          className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5 mb-5"
+                          dangerouslySetInnerHTML={{ __html: parsedDescription.introduction }}
+                        />
+                      )}
+
+                      {/* First H2 section: rendered statically without accordion */}
+                      <div className="mb-6">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3">
+                          {parsedDescription.sections[0].title}
+                        </h3>
+                        <div
+                          className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5"
+                          dangerouslySetInnerHTML={{ __html: parsedDescription.sections[0].html }}
+                        />
+                      </div>
+
+                      {/* Subsequent H2 sections: rendered as accordions */}
+                      {parsedDescription.sections.length > 1 && (
+                        <div className="border-b border-gray-150">
+                          {parsedDescription.sections.slice(1).map((section, index) => {
+                            const sectionIndex = index + 1;
+                            const isOpen = !!openDescriptionSections[sectionIndex];
+                            return (
+                              <div key={sectionIndex} className="border-t border-gray-150 py-3.5">
+                                <button
+                                  onClick={() => {
+                                    setOpenDescriptionSections(prev => ({
+                                      ...prev,
+                                      [sectionIndex]: !prev[sectionIndex]
+                                    }));
+                                  }}
+                                  className="flex items-center justify-between w-full text-left font-bold text-gray-900 hover:text-black py-1 focus:outline-none transition-colors"
+                                >
+                                  <span className="text-base sm:text-lg">{section.title}</span>
+                                  {isOpen ? (
+                                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                                  ) : (
+                                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                                  )}
+                                </button>
+                                {isOpen && (
+                                  <div
+                                    className="mt-3 prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5 transition-all duration-300"
+                                    dangerouslySetInnerHTML={{ __html: section.html }}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5" dangerouslySetInnerHTML={{ __html: product.description }} />
+                  )}
                   {(product.aPlusTemplateId || aplusTemplate) && aplusContent && (
                     <div className="mt-2 pt-2 border-t border-gray-100">
                       <APlusContentRenderer
@@ -3368,42 +3606,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   )}
                 </div>
               )}
-              {activeTab === "specifications" && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  {(product.attributes && product.attributes.length > 0 ? (
-                    product.attributes
-                      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-                      .map((attr, idx) => (
-                        <div
-                          key={attr.id}
-                          className={`flex items-start sm:items-center justify-between gap-4 px-4 py-3
-              ${idx !== product.attributes!.length - 1 ? "border-b" : ""}
-              hover:bg-gray-50 transition`}
-                        >
-                          <span className="text-sm font-semibold text-gray-700">
-                            {attr.displayName || attr.name}
-                          </span>
-                          <span className="text-sm text-gray-600 text-right max-w-[60%]">
-                            {attr.value}
-                          </span>
-                        </div>
-                      ))
-                  ) : (
-                    <>
-                      <div className="flex justify-between px-4 py-3 border-b">
-                        <span className="text-sm font-semibold text-gray-700">Weight</span>
-                        <span className="text-sm text-gray-600">
-                          {product.weight} {product.weightUnit}
-                        </span>
-                      </div>
-                      <div className="flex justify-between px-4 py-3">
-                        <span className="text-sm font-semibold text-gray-700">SKU</span>
-                        <span className="text-sm text-gray-600">{product.sku}</span>
-                      </div>
-                    </>
-                  ))}
-                </div>
-              )}
+
               {activeTab === "delivery" && (
                 <div className="space-y-8">
 
@@ -3425,7 +3628,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                           const isNextDay = name.toLowerCase().includes("next");
                           const isFree = isNextDay && product.nextDayDeliveryFree;
                           const priceStr = isFree ? "FREE" : (opt.price !== undefined ? `£${opt.price.toFixed(2)}` : "");
-                          
+
                           return (
                             <li key={opt.id}>
                               <strong>{name}:</strong> {priceStr ? priceStr : "Available"}

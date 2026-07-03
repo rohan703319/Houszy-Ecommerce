@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
 import FeaturedProductsSlider from "@/components/FeaturedProductsSlider";
 import NewArrivalsProductsSlider from "@/components/NewArrivalsProductsSlider";
-import Image from "next/image";
 import TopBrandsSlider from "@/components/TopBrandsSlider";
 import CategorySlider from "@/components/CategorySlider";
 import NewsletterWrapper from "@/components/NewsletterWrapper";
@@ -209,7 +208,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Shop Kitchenware, Fitness Equipment, Home Essentials & Toys - Houszy",
     description:
-      "Order medicines and healthcare products online in the UK with fast delivery and trusted brands.",
+      "Buy quality homeware, kitchenware, fitness gear, and toys. Find glass containers, cookware, gym gear, bedding, and games for everyone. Explore our wide range today!",
     url: "https://www.houszy.co.uk",
     siteName: "Houszy",
     locale: "en_GB", // ✅ VERY IMPORTANT
@@ -298,7 +297,7 @@ export default async function Home() {
 
       <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 overflow-x-hidden">
         <h1 className="sr-only">
-          Buy Medicines & Healthcare Products Online in the UK - Houszy
+          Shop Kitchenware, Fitness Equipment, Home Essentials & Toys - Houszy
         </h1>
 
         {/* ===== HERO SLIDER ===== */}
@@ -307,7 +306,7 @@ export default async function Home() {
         </section>
 
         {/* ===== CATEGORY OFFERS (NEW) ===== */}
-        <CategoryOffersSlider categories={categories} baseUrl={baseUrl} />
+        {/* <CategoryOffersSlider categories={categories} baseUrl={baseUrl} /> */}
 
 
         {/* ===== OUR POPULAR COLLECTIONS ===== */}
@@ -338,43 +337,43 @@ export default async function Home() {
 
           </div>
         </section>
+        {/* ===== PROMO BANNER ===== */}
+        {seasonalBanners.length > 0 && (
+          <section className="w-full py-5 md:py-10 bg-white">
+            <div className="w-full">
+              {seasonalBanners.map((banner) => {
+                const desktopSrc = `${baseUrl}${banner.imageUrl}`;
+                const mobileSrc = banner.mobileImageUrl ? `${baseUrl}${banner.mobileImageUrl}` : null;
+
+                const pictureEl = (
+                  <picture className="block w-full">
+                    {mobileSrc && <source media="(max-width: 767px)" srcSet={mobileSrc} />}
+                    <img
+                      src={desktopSrc}
+                      alt={banner.title || "Houszy Promotion Banner"}
+                      className="w-full h-auto object-contain"
+                    />
+                  </picture>
+                );
+
+                return banner.link ? (
+                  <Link key={banner.id} href={banner.link} className="block cursor-pointer mb-6 last:mb-0">
+                    {pictureEl}
+                  </Link>
+                ) : (
+                  <div key={banner.id} className="mb-6 last:mb-0">{pictureEl}</div>
+                );
+              })}
+            </div>
+          </section>
+        )}
         {/* ===== FEATURED PRODUCTS ===== */}
         <section className="w-full bg-white py-10">
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
             <FeaturedProductsSlider products={homeProducts} baseUrl={baseUrl} title="Our Top Selling Products" />
           </div>
         </section>
-        {/* ===== PROMO BANNER ===== */}
-        {seasonalBanners.length > 0 && (
-          <section className="w-full py-10 md:py-14 bg-white">
-            {seasonalBanners.map((banner) => {
-              const desktopSrc = `${baseUrl}${banner.imageUrl}`;
-              const mobileSrc = banner.mobileImageUrl ? `${baseUrl}${banner.mobileImageUrl}` : null;
 
-              const pictureEl = (
-                <picture className="block w-full">
-                  {mobileSrc && <source media="(max-width: 767px)" srcSet={mobileSrc} />}
-                  <Image
-                    src={desktopSrc}
-                    alt={banner.title || "Healthcare Banner"}
-                    width={1200}
-                    height={400}
-                    priority
-                    className="w-full h-auto object-contain"
-                  />
-                </picture>
-              );
-
-              return banner.link ? (
-                <Link key={banner.id} href={banner.link} className="block cursor-pointer">
-                  {pictureEl}
-                </Link>
-              ) : (
-                <div key={banner.id}>{pictureEl}</div>
-              );
-            })}
-          </section>
-        )}
         {/* <section className="w-full bg-white py-10 md:py-14">
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
             <NewArrivalsProductsSlider baseUrl={baseUrl} />

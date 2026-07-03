@@ -34,7 +34,9 @@ interface Product {
   weightUnit: string;
   specificationAttributes: string;
   relatedProductIds: string;
-   crossSellProductIds: string; // ✅ ADD THIS
+  crossSellProductIds: string; // ✅ ADD THIS
+  brandId?: string;
+  brandSlug?: string;
 }
 
 
@@ -53,6 +55,25 @@ async function getProduct(slug: string, isAdmin: boolean = false) {
     if (!json.success) return null;
 
     const product = json.data;
+
+    // Fetch brand slug if brandId is present
+    if (product && product.brandId) {
+      try {
+        const brandsRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/Brands?includeUnpublished=false`,
+          { next: { revalidate: 600 } }
+        ).then((r) => r.json());
+        const dataArray = Array.isArray(brandsRes.data)
+          ? brandsRes.data
+          : brandsRes.data?.items || [];
+        const matchedBrand = dataArray.find((b: any) => b.id === product.brandId);
+        if (matchedBrand) {
+          product.brandSlug = matchedBrand.slug;
+        }
+      } catch (err) {
+        console.error("Failed to fetch brand slug on server:", err);
+      }
+    }
 
     // ✅ PRODUCTION SAFE CHECK — Admin can bypass published check
     if (
@@ -222,9 +243,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           : `${process.env.NEXT_PUBLIC_API_URL}${img?.imageUrl || ""}`
       ),
 
-      description: (data.product.shortDescription || "")
+      description: (data.product.shortDescription || data.product.description || "")
         .replace(/<[^>]*>/g, "")
-       .slice(0, 155),
+        .slice(0, 155),
 
       sku: data.product.sku,
 

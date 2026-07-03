@@ -234,7 +234,7 @@ async function getErrorMessage(res: Response, fallback: string): Promise<string>
         return text;
       }
     }
-  } catch {}
+  } catch { }
   return fallback;
 }
 
@@ -1124,7 +1124,9 @@ export default function CheckoutPage() {
               productId: item.productId ?? item.id,
               productVariantId: item.variantId ?? null,
               quantity: item.quantity,
-              frequency: item.frequencyPeriod,
+              frequency: item.frequency && !isNaN(Number(item.frequency))
+                ? `${item.frequency} ${item.frequencyPeriod}`
+                : item.frequencyPeriod,
               shippingFirstName: shippingSameAsBilling ? billingFirstName : shippingFirstName,
               shippingLastName: shippingSameAsBilling ? billingLastName : shippingLastName,
               shippingPhone: `+44${shippingSameAsBilling ? billingPhone : shippingPhone}`,
@@ -1721,7 +1723,7 @@ export default function CheckoutPage() {
                           {it.frequency && !isNaN(Number(it.frequency))
                             ? `${it.frequency} `
                             : ""}
-                          {it.frequencyPeriod} • {it.subscriptionTotalCycles} cycles
+                          {it.frequencyPeriod} {it.subscriptionTotalCycles}
                         </p>
                       )}
 

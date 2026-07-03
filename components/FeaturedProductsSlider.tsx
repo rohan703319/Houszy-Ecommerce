@@ -366,10 +366,15 @@ export default function FeaturedProductsSlider({
       )}
 
       <Swiper
-        modules={[Navigation]}
+        modules={[Navigation, Autoplay]}
         spaceBetween={16}
         slidesPerView={2}
         className="featured-products-slider"
+        autoplay={{
+          delay: 3000,
+          disableOnInteraction: true,
+          pauseOnMouseEnter: true,
+        }}
         breakpoints={{
           640: { slidesPerView: 2, spaceBetween: 16 },
           768: { slidesPerView: 3, spaceBetween: 20 },

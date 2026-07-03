@@ -949,7 +949,7 @@ export default function CartPage() {
                             )}
                             {item.type === "subscription" && (
                               <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                Sub • {item.frequency && !isNaN(Number(item.frequency)) ? `${item.frequency} ` : ""}{item.frequencyPeriod}
+                                Subscription • {item.frequency && !isNaN(Number(item.frequency)) ? `${item.frequency} ` : ""}{item.frequencyPeriod}
                               </span>
                             )}
                           </div>

@@ -2,6 +2,15 @@
 export const revalidate = 300;
 
 import BrandsClient from "@/components/BrandsClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "All Brands | Houszy",
+  description: "Explore premium and trusted brands at Houszy UK. Shop top-quality items from kitchenware, fitness, homeware, and games brands.",
+  alternates: {
+    canonical: "https://www.houszy.co.uk/brands",
+  },
+};
 
 interface Brand {
   id: string;
