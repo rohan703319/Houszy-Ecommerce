@@ -4,11 +4,180 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { formatDate } from "@/lib/services/orders";
 import { ArrowRight, MapPin, Package, PackageCheck, PackageIcon, ShoppingBag, Store } from "lucide-react";
 import { trackAdsPurchase, trackPurchase } from "@/lib/analytics";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 function formatCurrency(n = 0) {
   return `£${n.toFixed(2)}`;
+}
+
+/* === Stripe wrapper component === */
+function StripeWrapper({
+  children,
+  clientSecret,
+}: {
+  children: React.ReactNode;
+  clientSecret?: string;
+}) {
+  const [stripePromise, setStripePromise] = useState<Promise<any> | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/config`);
+        const json = await res.json();
+        const pk = json?.data?.publishableKey;
+
+        if (mounted) setStripePromise(loadStripe(pk));
+      } catch (err) {
+        console.error("Stripe config load failed", err);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!stripePromise) return <div>Loading Stripe...</div>;
+
+  const options = clientSecret
+    ? { clientSecret, locale: "en-GB" as const }
+    : undefined;
+
+  return (
+    <Elements stripe={stripePromise} options={options as any}>
+      {children}
+    </Elements>
+  );
+}
+
+/* === CARD PAYMENT COMPONENT === */
+function CheckoutPayment({
+  orderPayload,
+  payAmount,
+  clientSecret,
+  orderId,
+  onPaymentSuccess,
+  onError,
+}: any) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [paymentElementReady, setPaymentElementReady] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements || !paymentElementReady) return;
+
+    setProcessing(true);
+
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/order/success?orderId=${orderId}`,
+        payment_method_data: {
+          billing_details: {
+            name: `${orderPayload.billingFirstName} ${orderPayload.billingLastName}`,
+            email: orderPayload.customerEmail,
+            address: {
+              line1: orderPayload.billingAddressLine1,
+              country: "GB",
+            },
+          },
+        },
+      },
+      redirect: "if_required",
+    });
+
+    if (result.error) {
+      onError(result.error);
+      setProcessing(false);
+      return;
+    }
+    if (!result.paymentIntent?.id) {
+      onError({ message: "Payment failed" });
+      setProcessing(false);
+      return;
+    }
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/confirm/${result.paymentIntent.id}`, {
+      method: "POST",
+    });
+
+    onPaymentSuccess({ data: { id: orderId } });
+    setProcessing(false);
+  };
+
+  const isButtonDisabled = !stripe || !elements || !paymentElementReady || processing;
+
+  return (
+    <div className="space-y-2.5">
+      <PaymentElement onReady={() => setPaymentElementReady(true)} options={{ layout: "tabs" }} />
+      <button
+        onClick={handlePay}
+        disabled={isButtonDisabled}
+        className={`w-full py-2 rounded flex items-center justify-center gap-2 transition ${isButtonDisabled
+          ? "bg-gray-400 cursor-not-allowed opacity-75 text-white"
+          : "bg-[#f38918] hover:bg-black text-white font-semibold text-sm"
+          }`}
+      >
+        {processing ? (
+          <>
+            <svg
+              className="animate-spin h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            Processing payment
+          </>
+        ) : !paymentElementReady ? (
+          <>
+            <svg
+              className="animate-spin h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8z"
+              />
+            </svg>
+            Loading payment options...
+          </>
+        ) : (
+          `Pay ${formatCurrency(payAmount)}`
+        )}
+      </button>
+    </div>
+  );
 }
 function getStatusColor(status?: string) {
   if (!status) return "text-gray-600";
@@ -72,6 +241,21 @@ export default function SuccessClient() {
 
   const { accessToken, isAuthenticated } = useAuth();
 
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  const latestPayment = order?.payments?.length
+    ? [...order.payments].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+    : null;
+
+  const isOnlinePayment = order?.paymentMethod?.toLowerCase() === "stripe" || 
+                          order?.payments?.some((p: any) => p.paymentMethod?.toLowerCase() === "stripe");
+
+  const isPaymentPending = order?.status === "Pending" && 
+                           order?.totalAmount > 0 && 
+                           isOnlinePayment && 
+                           (latestPayment?.status === "Pending" || latestPayment?.status === "Failed" || order?.paymentStatus === "Pending");
+
   useEffect(() => {
     if (!orderId) {
       setLoading(false);
@@ -104,6 +288,41 @@ export default function SuccessClient() {
 
     fetchOrder();
   }, [orderId, isAuthenticated, accessToken]);
+
+  useEffect(() => {
+    if (isPaymentPending && orderId && order) {
+      setPaymentLoading(true);
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/create-intent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: order.totalAmount,
+          currency: order.currency || "GBP",
+          customerEmail: order.customerEmail,
+          orderId: orderId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json?.data?.clientSecret) {
+            setClientSecret(json.data.clientSecret);
+          }
+        })
+        .catch((err) => console.error("Error creating payment intent:", err))
+        .finally(() => setPaymentLoading(false));
+    }
+  }, [isPaymentPending, orderId, order]);
+
+  useEffect(() => {
+    if (order) {
+      const isPaid = order.status !== "Pending" || order.payments?.some((p: any) => p.status === "Successful" || p.status === "Completed");
+      if (isPaid && typeof window !== "undefined") {
+        sessionStorage.removeItem("pending_order_id");
+      }
+    }
+  }, [order]);
 
   useEffect(() => {
     if (!order) return;
@@ -158,40 +377,108 @@ export default function SuccessClient() {
 
         {/* SUCCESS HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
-          {/* LEFT: Order confirmed */}
+          {/* LEFT: Order confirmed or Payment Pending */}
           <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded bg-orange-50 flex items-center justify-center text-green-700 font-bold">
-              ✓
-            </div>
+            {isPaymentPending ? (
+              <div className="h-12 w-12 rounded bg-amber-50 flex items-center justify-center text-amber-600 text-2xl font-bold">
+                ⚠️
+              </div>
+            ) : (
+              <div className="h-12 w-12 rounded bg-orange-50 flex items-center justify-center text-green-700 font-bold">
+                ✓
+              </div>
+            )}
 
             <div>
               <h1 className="text-2xl font-semibold text-black">
-                Order confirmed
+                {isPaymentPending ? "Payment Pending" : "Order confirmed"}
               </h1>
               <p className="text-sm text-[#f38918]">
-                Confirmation sent to <strong>{order.customerEmail}</strong>
+                {isPaymentPending ? (
+                  "Please complete your payment below to process the order."
+                ) : (
+                  <>
+                    Confirmation sent to <strong>{order.customerEmail}</strong>
+                  </>
+                )}
               </p>
             </div>
           </div>
 
-          <div
-            className={`flex items-start sm:items-center gap-2 rounded px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm ${loyaltyPointsEarned > 0
-              ? "bg-gradient-to-br from-orange-600 to-[#f38918] text-white"
-              : "bg-orange-100 text-orange-700 "
-              }`}
-          >
-            <span className="text-xl leading-none">
-              {loyaltyPointsEarned > 0 ? "🎁" : "ℹ️"}
-            </span>
-            <span className="tracking-tight">
-              You have earned{" "}
-              <span className="font-bold">
-                {loyaltyPointsEarned.toLocaleString()}
-              </span>{" "}
-              loyalty points on this order
-            </span>
-          </div>
+          {loyaltyPointsEarned > 0 && (
+            <div
+              className="flex items-start sm:items-center gap-2 rounded px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm bg-gradient-to-br from-orange-600 to-[#f38918] text-white"
+            >
+              <span className="text-xl leading-none">🎁</span>
+              <span className="tracking-tight">
+                You have earned{" "}
+                <span className="font-bold">
+                  {loyaltyPointsEarned.toLocaleString()}
+                </span>{" "}
+                loyalty points on this order
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* PENDING PAYMENT FORM (HORIZONTAL TOP BANNER) */}
+        {isPaymentPending && (
+          <div className="border border-amber-200 bg-amber-50/20 rounded p-4 shadow-sm mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+              {/* Left side: Information */}
+              <div className="md:col-span-2 space-y-2 md:pr-4">
+                <div className="flex items-center gap-1.5 text-amber-800 font-bold text-base">
+                  <span className="text-xl">💳</span>
+                  <span>Complete Your Payment</span>
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Your order is currently pending. Please complete the payment of{" "}
+                  <strong className="text-black font-semibold text-sm">
+                    {formatCurrency(order.totalAmount)}
+                  </strong>{" "}
+                  to finalize and process your order.
+                </p>
+                <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-100 p-2 rounded">
+                  Orders are processed and dispatched immediately after verification.
+                </div>
+              </div>
+
+              {/* Right side: Payment form */}
+              <div className="md:col-span-3 bg-white border rounded p-3 shadow-sm">
+                {paymentLoading && (
+                  <div className="flex justify-center py-4">
+                    <div className="w-6 h-6 border-2 border-[#f38918] border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+
+                {!paymentLoading && clientSecret && (
+                  <StripeWrapper clientSecret={clientSecret}>
+                    <CheckoutPayment
+                      clientSecret={clientSecret}
+                      orderId={orderId}
+                      payAmount={order.totalAmount}
+                      orderPayload={{
+                        billingFirstName: order.billingAddress?.firstName || "",
+                        billingLastName: order.billingAddress?.lastName || "",
+                        customerEmail: order.customerEmail,
+                        billingAddressLine1: order.billingAddress?.addressLine1 || "",
+                      }}
+                      onPaymentSuccess={() => {
+                        if (typeof window !== "undefined") {
+                          sessionStorage.removeItem("pending_order_id");
+                        }
+                        window.location.reload();
+                      }}
+                      onError={(err: any) => {
+                        alert(err?.message ?? "Payment failed");
+                      }}
+                    />
+                  </StripeWrapper>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* LEFT */}
@@ -216,7 +503,7 @@ export default function SuccessClient() {
 
                 <div className="flex justify-between">
                   <span>Ordered On:</span>
-                  <span>{new Date(order.orderDate).toLocaleString()}</span>
+                  <span>{formatDate(order.orderDate)}</span>
                 </div>
 
                 <div className="flex justify-between">
@@ -527,6 +814,8 @@ export default function SuccessClient() {
           {/* RIGHT */}
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-24 space-y-6">
+
+
 
               {/* PAYMENT */}
               <section>

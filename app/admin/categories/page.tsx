@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Edit, Trash2, Search, FolderTree, Eye, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, CheckCircle, ChevronDown, ChevronRight as ChevronRightIcon, X, Award, Package, Copy, RotateCcw, MessageCircle, HelpCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Search, FolderTree, Eye, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, CheckCircle, ChevronDown, ChevronRight as ChevronRightIcon, X, Award, Package, Copy, RotateCcw, MessageCircle, HelpCircle, ShieldAlert } from "lucide-react";
 
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
@@ -12,10 +12,12 @@ import CategoryModal from "./CategoryModal";
 import { categoryFaqsService, Faq } from "@/lib/services/categoryFaqs";
 import { extractFilename, formatDate, getImageUrl } from "../_utils/formatUtils";
 import React from "react";
+import { useAuth } from "@/app/admin/_context/auth-context";
 
 export default function CategoriesPage() {
   const toast = useToast();
   const router = useRouter();
+  const { hasPermission, permissions } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -917,15 +919,26 @@ export default function CategoriesPage() {
 
         {/* STATUS */}
         <td className="py-2 px-3 text-center">
-          <button
-            onClick={() => onStatusToggle(category)}
-            className={`px-2 py-0.5 text-[10px] rounded-md border transition-all ${category.isActive
-              ? "bg-green-500/10 text-green-400 border-green-500/20"
-              : "bg-red-500/10 text-red-400 border-red-500/20"
-              }`}
-          >
-            {category.isActive ? "Active" : "Inactive"}
-          </button>
+          {hasPermission("categories", "edit") ? (
+            <button
+              onClick={() => onStatusToggle(category)}
+              className={`px-2 py-0.5 text-[10px] rounded-md border transition-all ${category.isActive
+                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                : "bg-red-500/10 text-red-400 border-red-500/20"
+                }`}
+            >
+              {category.isActive ? "Active" : "Inactive"}
+            </button>
+          ) : (
+            <span
+              className={`px-2 py-0.5 text-[10px] rounded-md border ${category.isActive
+                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                : "bg-red-500/10 text-red-400 border-red-500/20"
+                }`}
+            >
+              {category.isActive ? "Active" : "Inactive"}
+            </span>
+          )}
         </td>
 
         {/* SORT */}
@@ -953,24 +966,28 @@ export default function CategoriesPage() {
           <div className="flex justify-center gap-1">
 
             {/* Add */}
-            <button
-              onClick={() =>
-                canAddSubcategory &&
-                onAddSubcategory(category.id, category.name)
-              }
-              disabled={!canAddSubcategory}
-              title="Add Subcategory"
-              className="p-1 text-green-400 hover:bg-green-500/10 rounded-md disabled:opacity-40"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => onOpenFaq(category)}
-              title="Manage FAQs"
-              className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded-md"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
+            {hasPermission("categories", "create") && (
+              <button
+                onClick={() =>
+                  canAddSubcategory &&
+                  onAddSubcategory(category.id, category.name)
+                }
+                disabled={!canAddSubcategory}
+                title="Add Subcategory"
+                className="p-1 text-green-400 hover:bg-green-500/10 rounded-md disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {hasPermission("categories", "edit") && (
+              <button
+                onClick={() => onOpenFaq(category)}
+                title="Manage FAQs"
+                className="p-1.5 text-violet-400 hover:bg-violet-500/10 rounded-md"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+            )}
 
             {/* View */}
             <button
@@ -982,31 +999,35 @@ export default function CategoriesPage() {
             </button>
 
             {/* Edit */}
-            <button
-              onClick={() => onEdit(category)}
-              className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded-md"
-              title="Edit Category"
-            >
-              <Edit className="h-3.5 w-3.5" />
-            </button>
+            {hasPermission("categories", "edit") && (
+              <button
+                onClick={() => onEdit(category)}
+                className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded-md"
+                title="Edit Category"
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </button>
+            )}
 
             {/* Delete / Restore */}
-            {category.isDeleted ? (
-              <button
-                onClick={() => onRestore(category)}
-                className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-md"
-                title="Restore Category"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <button
-                onClick={() => onDelete(category.id, category.name)}
-                className="p-1 text-red-400 hover:bg-red-500/10 rounded-md"
-                title="Delete Category"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+            {hasPermission("categories", "delete") && (
+              category.isDeleted ? (
+                <button
+                  onClick={() => onRestore(category)}
+                  className="p-1 text-emerald-400 hover:bg-emerald-500/10 rounded-md"
+                  title="Restore Category"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => onDelete(category.id, category.name)}
+                  className="p-1 text-red-400 hover:bg-red-500/10 rounded-md"
+                  title="Delete Category"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )
             )}
           </div>
         </td>
@@ -1260,6 +1281,27 @@ export default function CategoriesPage() {
   }, [debouncedSearch, statusFilter, levelFilter, homepageFilter]); // ← add homepageFilter here
 
 
+  if (!permissions) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
+        <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-sm mt-2">Loading permissions...</p>
+      </div>
+    );
+  }
+
+  if (!hasPermission("categories", "view")) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">
+        <ShieldAlert className="h-12 w-12 text-red-550 mb-4" />
+        <h2 className="text-lg font-semibold text-white">Access Denied</h2>
+        <p className="text-slate-400 text-sm mt-2">
+          You do not have permission to view this page. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
 
@@ -1293,16 +1335,18 @@ export default function CategoriesPage() {
             Go To  Product Page
           </button>
 
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="px-3 py-1.5 text-[11px] bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-md hover:opacity-90 transition-all flex items-center gap-1.5"
-          >
-            <Plus className="h-3 w-3" />
-            Add Category
-          </button>
+          {hasPermission("categories", "create") && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="px-3 py-1.5 text-[11px] bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-md hover:opacity-90 transition-all flex items-center gap-1.5"
+            >
+              <Plus className="h-3 w-3" />
+              Add Category
+            </button>
+          )}
 
         </div>
       </div>

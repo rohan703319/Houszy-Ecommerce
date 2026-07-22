@@ -51,13 +51,13 @@ const STATUS_STRING_MAP: Record<string, number> = {
 };
 
 const STATUS_MAP: Record<number, { label: string; color: string; icon: any }> = {
-  1: { label: 'Pending',           color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: Clock },
-  2: { label: 'Authorized',        color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',       icon: CreditCard },
-  3: { label: 'Successful',        color: 'bg-green-500/20 text-green-400 border-green-500/30',    icon: CheckCircle },
-  4: { label: 'Failed',            color: 'bg-red-500/20 text-red-400 border-red-500/30',          icon: XCircle },
-  5: { label: 'Cancelled',         color: 'bg-slate-500/20 text-slate-400 border-slate-500/30',    icon: XCircle },
-  6: { label: 'Refunded',          color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: RotateCcw },
-  7: { label: 'Partial Refund',    color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', icon: RotateCcw },
+  1: { label: 'Pending', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: Clock },
+  2: { label: 'Authorized', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: CreditCard },
+  3: { label: 'Successful', color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: CheckCircle },
+  4: { label: 'Failed', color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: XCircle },
+  5: { label: 'Cancelled', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30', icon: XCircle },
+  6: { label: 'Refunded', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', icon: RotateCcw },
+  7: { label: 'Partial Refund', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', icon: RotateCcw },
 };
 
 const convertPayment = (p: PaymentFromAPI): Payment => ({
@@ -72,8 +72,28 @@ const convertPayment = (p: PaymentFromAPI): Payment => ({
 const fmt = (n: number | null | undefined, currency = 'GBP') =>
   n != null ? `£${n.toFixed(2)}` : '—';
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const fmtDate = (d: string | null) => {
+  if (!d) return '—';
+  let cleanString = d;
+  if (
+    cleanString.includes("T") &&
+    !cleanString.endsWith("Z") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("+") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("-")
+  ) {
+    cleanString = `${cleanString}Z`;
+  }
+  const parsedDate = new Date(cleanString);
+  if (isNaN(parsedDate.getTime())) return '—';
+  return parsedDate.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/London',
+  });
+};
 
 export default function AdminPaymentsPage() {
   const { accessToken } = useAuth();
@@ -139,9 +159,9 @@ export default function AdminPaymentsPage() {
   };
 
   const totalFees = payments.reduce((s, p) => s + (p.stripeFee ?? 0), 0);
-  const totalNet  = payments.reduce((s, p) => s + (p.netAmount ?? 0), 0);
-  const totalAmt  = payments.reduce((s, p) => s + p.amount, 0);
-  
+  const totalNet = payments.reduce((s, p) => s + (p.netAmount ?? 0), 0);
+  const totalAmt = payments.reduce((s, p) => s + p.amount, 0);
+
 
   return (
     <div className="md:p-2 space-y-2">
@@ -170,10 +190,10 @@ export default function AdminPaymentsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Charged',  value: fmt(totalAmt),  color: 'text-white' },
-          { label: 'Stripe Fees',    value: fmt(totalFees), color: 'text-red-400' },
-          { label: 'Net Received',   value: fmt(totalNet),  color: 'text-green-400' },
-          { label: 'Showing',        value: `${payments.length} / ${total}`, color: 'text-slate-300' },
+          { label: 'Total Charged', value: fmt(totalAmt), color: 'text-white' },
+          { label: 'Stripe Fees', value: fmt(totalFees), color: 'text-red-400' },
+          { label: 'Net Received', value: fmt(totalNet), color: 'text-green-400' },
+          { label: 'Showing', value: `${payments.length} / ${total}`, color: 'text-slate-300' },
         ].map(c => (
           <div key={c.label} className="bg-slate-800 border border-slate-700 rounded-xl p-3">
             <p className="text-xs text-slate-400">{c.label}</p>

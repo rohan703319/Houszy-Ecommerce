@@ -606,7 +606,7 @@ export default function AddProductPage() {
     // Cart Limits
     // Cart Limits
     orderMinimumQuantity: '1',      //   NEW (matches API)
-    orderMaximumQuantity: '10',     //   NEW (matches API)
+    orderMaximumQuantity: '1000',     //   NEW (matches API)
     allowedQuantities: '',
 
     allowAddingOnlyExistingAttributeCombinations: false,
@@ -1353,30 +1353,32 @@ export default function AddProductPage() {
           }
         }
 
-        // 5.2 Check Duplicate SKUs Within Product
-        const variantSkus = productVariants.map((v) => v.sku.toUpperCase());
-        const duplicateVariant = variantSkus.find((sku, index) => variantSkus.indexOf(sku) !== index);
-        if (duplicateVariant) {
-          const duplicateVariantName = productVariants.find((v) => v.sku.toUpperCase() === duplicateVariant)?.name;
-          toast.error(`Duplicate SKU "${duplicateVariant}" found in variant "${duplicateVariantName}"`, {
-            autoClose: 8000,
-          });
-          target.removeAttribute("data-submitting");
-          setIsSubmitting(false);
-          setSubmitProgress(null);
-          return;
-        }
-
-        // 5.3 Check Variant SKU Matches Product SKU
-        for (const variant of productVariants) {
-          if (variant.sku.toUpperCase() === formData.sku.toUpperCase()) {
-            toast.error(`Variant "${variant.name}" SKU cannot be same as main product SKU`, {
+        if (formData.productType === "variable") {
+          // 5.2 Check Duplicate SKUs Within Product
+          const variantSkus = productVariants.map((v) => v.sku.toUpperCase());
+          const duplicateVariant = variantSkus.find((sku, index) => variantSkus.indexOf(sku) !== index);
+          if (duplicateVariant) {
+            const duplicateVariantName = productVariants.find((v) => v.sku.toUpperCase() === duplicateVariant)?.name;
+            toast.error(`Duplicate SKU "${duplicateVariant}" found in variant "${duplicateVariantName}"`, {
               autoClose: 8000,
             });
             target.removeAttribute("data-submitting");
             setIsSubmitting(false);
             setSubmitProgress(null);
             return;
+          }
+
+          // 5.3 Check Variant SKU Matches Product SKU
+          for (const variant of productVariants) {
+            if (formData.sku?.trim() && variant.sku.toUpperCase() === formData.sku.toUpperCase()) {
+              toast.error(`Variant "${variant.name}" SKU cannot be same as main product SKU`, {
+                autoClose: 8000,
+              });
+              target.removeAttribute("data-submitting");
+              setIsSubmitting(false);
+              setSubmitProgress(null);
+              return;
+            }
           }
         }
         if (formData.productType === "variable") {
@@ -1566,6 +1568,12 @@ export default function AddProductPage() {
           fakeSaleCount: cleanedVariant.fakeSaleCount !== undefined && cleanedVariant.fakeSaleCount !== null && cleanedVariant.fakeSaleCount !== ''
             ? parseInt(cleanedVariant.fakeSaleCount.toString())
             : null,
+          orderMinimumQuantity: cleanedVariant.orderMinimumQuantity !== undefined && cleanedVariant.orderMinimumQuantity !== null && cleanedVariant.orderMinimumQuantity !== ''
+            ? parseInt(cleanedVariant.orderMinimumQuantity.toString())
+            : null,
+          orderMaximumQuantity: cleanedVariant.orderMaximumQuantity !== undefined && cleanedVariant.orderMaximumQuantity !== null && cleanedVariant.orderMaximumQuantity !== ''
+            ? parseInt(cleanedVariant.orderMaximumQuantity.toString())
+            : null,
         };
       });
 
@@ -1610,7 +1618,7 @@ export default function AddProductPage() {
           parseInt(formData.orderMinimumQuantity || "1") || 1;
 
         cleanedCartData.orderMaximumQuantity =
-          parseInt(formData.orderMaximumQuantity || "10") || 10;
+          parseInt(formData.orderMaximumQuantity || "1000") || 1000;
       }
       // =============================
       // VALIDATE MIN MAX QUANTITY
@@ -1633,7 +1641,7 @@ export default function AddProductPage() {
         name: formData.name.trim(),
         description: formData.fullDescription || formData.shortDescription || `${formData.name} - Product description`,
         shortDescription: formData.shortDescription?.trim() || "",
-        sku: formData.sku.trim(),
+        sku: formData.productType === 'variable' ? null : (formData.sku?.trim() || null),
         displayOrder: parseInt(formData.displayOrder?.toString() ?? "1"),
 
         // Status & Visibility
@@ -1916,7 +1924,7 @@ export default function AddProductPage() {
 
         const draftPayload: any = {
           name: formData.name.trim(),
-          sku: formData.sku?.trim() || "",
+          sku: formData.productType === 'variable' ? null : (formData.sku?.trim() || null),
           status: "Draft",
           isPublished: false,
           productType: formData.productType || "simple",
@@ -2192,9 +2200,10 @@ export default function AddProductPage() {
         ...prev,
         productType: value,
 
-        // Auto set 'dont_track' for variable products
+        // Auto set 'dont_track' and clear parent SKU for variable products
         ...(value === 'variable' && {
           manageInventory: 'dont_track',
+          sku: '',
         }),
 
         // Clear grouped fields when switching to simple
@@ -3922,20 +3931,8 @@ export default function AddProductPage() {
                     {/*   ONLY SHOW IF ENABLED AND NOT GROUPED */}
                     {formData.isRecurring && formData.productType !== 'grouped' && (
                       <div className="p-4 bg-slate-800/40 border border-slate-700 rounded-lg space-y-4 transition-all duration-300">
-                        {/* Billing Cycle */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-slate-400 mb-1">Charge every</label>
-                            <input
-                              type="number"
-                              name="recurringCycleLength"
-                              value={formData.recurringCycleLength}
-                              onChange={handleChange}
-                              min="1"
-                              placeholder="30"
-                              className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                          </div>
+                        {/* Subscription Discount & Options */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-xs font-medium text-slate-400 mb-1">Period</label>
                             <select
@@ -3949,22 +3946,6 @@ export default function AddProductPage() {
                               <option value="months">Months</option>
                             </select>
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-slate-400 mb-1">Total Billing Cycles</label>
-                            <input
-                              type="number"
-                              name="recurringTotalCycles"
-                              value={formData.recurringTotalCycles}
-                              onChange={handleChange}
-                              min="0"
-                              placeholder="0 = Unlimited"
-                              className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Subscription Discount & Options */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-700">
                           <div>
                             <label className="block text-xs font-medium text-slate-400 mb-1">Subscription Discount (%)</label>
                             <input
@@ -4002,25 +3983,6 @@ export default function AddProductPage() {
                               placeholder="Save 15% with monthly billing"
                               className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                             />
-                          </div>
-                        </div>
-
-                        {/* Warning Banner */}
-                        <div className="flex items-center gap-3 text-xs text-amber-400 bg-amber-900/20 px-4 py-3 rounded border border-amber-800/50">
-                          <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.742-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          <div className="flex w-full justify-between">
-                            <span>
-                              Customer will be charged every {formData.recurringCycleLength || "?"} {formData.recurringCyclePeriod || "days"}
-                              {formData.recurringTotalCycles && parseInt(formData.recurringTotalCycles) > 0
-                                ? ` for ${formData.recurringTotalCycles} times`
-                                : " indefinitely"}
-                              {formData.subscriptionDiscountPercentage && ` with ${formData.subscriptionDiscountPercentage}% discount`}
-                            </span>
-                            <span className="text-slate-400 whitespace-nowrap">
-                              Leave 0 for unlimited recurring payments
-                            </span>
                           </div>
                         </div>
                       </div>
@@ -4791,7 +4753,7 @@ export default function AddProductPage() {
                               ...prev,
                               allowedQuantities: '',
                               orderMinimumQuantity: prev.orderMinimumQuantity || '1',
-                              orderMaximumQuantity: prev.orderMaximumQuantity || '10'
+                              orderMaximumQuantity: prev.orderMaximumQuantity || '1000'
                             }));
                           }}
                           className="w-4 h-4 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
@@ -5504,6 +5466,8 @@ export default function AddProductPage() {
                           parentNextDayDeliveryFree={formData.nextDayDeliveryFree}
                           parentNextDayDeliveryCutoffTime={formData.nextDayDeliveryCutoffTime}
                           parentFakeSaleCount={formData.fakeSaleCount}
+                          parentOrderMinimumQuantity={formData.orderMinimumQuantity}
+                          parentOrderMaximumQuantity={formData.orderMaximumQuantity}
                         />
                       </div>
                     </>

@@ -1,0 +1,15 @@
+# Houszy - Online E-Commerce Store
+
+> Houszy is a leading UK online retailer specializing in high-quality Kitchenware, Fitness Equipment, Homeware, Household Essentials, and Toys.
+
+## Main Product Categories
+- [Kitchenware](https://www.houszy.co.uk/category/kitchenware): Cookware, food storage, glass containers, and dining items.
+- [Homeware](https://www.houszy.co.uk/category/homeware): Bedding, storage solutions, and home accessories.
+- [Fitness Equipment](https://www.houszy.co.uk/category/fitness): Dumbbells, resistance bands, and home workout gear.
+- [Household Essentials](https://www.houszy.co.uk/category/household): Cleaning supplies, laundry products, and organization.
+- [Health & Personal Care](https://www.houszy.co.uk/category/health-personal-care): Toiletries, wellness, and self-care products.
+
+## Store Information & Services
+- **Website**: https://www.houszy.co.uk
+- **Delivery**: Free standard delivery available on all UK orders.
+- **Support**: 100% secure transactions with fast dispatch and customer support.

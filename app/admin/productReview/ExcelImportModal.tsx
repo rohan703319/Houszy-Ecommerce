@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Upload, X, CheckCircle, AlertCircle, Download, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/app/admin/_components/CustomToast";
-import { productReviewsService, ImportResult } from "@/lib/services/productReviews";
+import { productReviewsService } from "@/lib/services/productReviews";
 
 interface ImportResultExtended {
   total: number;
@@ -158,23 +158,26 @@ export default function ExcelImportModal({ onClose, onSuccess }: ExcelImportModa
     if (!result || result.errors.length === 0) return;
 
     try {
-      // ✅ Dynamic import of xlsx
-      const XLSX = await import('xlsx');
-      
-      const errorData = result.errors.map((err, idx) => ({
-        "Error #": idx + 1,
-        "Error Message": err
-      }));
+      // Build a small CSV locally for import errors only.
+      const escapeCsvValue = (value: string | number) =>
+        `"${String(value).replace(/"/g, '""')}"`;
 
-      const worksheet = XLSX.utils.json_to_sheet(errorData);
-      worksheet["!cols"] = [
-        { wch: 10 },  // Error #
-        { wch: 80 }   // Error Message
-      ];
+      const csv = [
+        ["Error #", "Error Message"].map(escapeCsvValue).join(","),
+        ...result.errors.map((err, idx) =>
+          [idx + 1, err].map(escapeCsvValue).join(",")
+        ),
+      ].join("\n");
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Import Errors");
-      XLSX.writeFile(workbook, `import_errors_${Date.now()}.xlsx`);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `import_errors_${Date.now()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       toast.success("📥 Error report downloaded!");
     } catch (error) {

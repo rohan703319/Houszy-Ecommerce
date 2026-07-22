@@ -649,7 +649,10 @@ export default function CartPage() {
 
   const getAllowedMaxQty = (item: any, bundleChildren: any[] = []) => {
     const stock = getItemStock(item);
-    const orderMax = item.productData?.orderMaximumQuantity ?? Infinity;
+    const variantObj = item.variantId
+      ? item.productData?.variants?.find((v: any) => v.id === item.variantId)
+      : null;
+    const orderMax = (variantObj?.orderMaximumQuantity ?? item.productData?.orderMaximumQuantity) ?? Infinity;
     const bundleMax =
       item.isBundleParent && item.bundleId
         ? getBundleMaxQty(item, bundleChildren)
@@ -660,14 +663,17 @@ export default function CartPage() {
 
   const getMaxQtyMessage = (item: any, maxQty: number) => {
     const stock = getItemStock(item);
-    const orderMax = item.productData?.orderMaximumQuantity ?? Infinity;
+    const variantObj = item.variantId
+      ? item.productData?.variants?.find((v: any) => v.id === item.variantId)
+      : null;
+    const orderMax = (variantObj?.orderMaximumQuantity ?? item.productData?.orderMaximumQuantity) ?? Infinity;
 
     if (maxQty === stock) {
       return `Only ${maxQty} items available in stock`;
     }
 
     if (maxQty === orderMax) {
-      return `Maximum order quantity is ${maxQty}`;
+      return `Allowed maximum order quantity is ${maxQty}`;
     }
 
     return `Only ${maxQty} items available in this bundle item`;
@@ -793,9 +799,14 @@ export default function CartPage() {
           {/* LEFT: items */}
           <div className="w-full lg:flex-1 space-y-4">
             {cart.map((item) => {
+              const variantObj = item.variantId
+                ? item.productData?.variants?.find((v: any) => v.id === item.variantId)
+                : null;
+              const minQty = (variantObj?.orderMinimumQuantity ?? item.productData?.orderMinimumQuantity) ?? 1;
               const basePrice = item.priceBeforeDiscount ?? item.price;
               const finalPrice = item.finalPrice ?? item.price;
-              const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+              const hasVariants = !!item.productData?.variants?.length;
+              const oldPrice = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
 
               const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
                 (d: any) => d?.requiresCouponCode === true && d?.isActive
@@ -851,7 +862,8 @@ export default function CartPage() {
                               } else if (item.couponCode && (item.discountAmount ?? 0) > 0) {
                                 comparePrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
                               } else if (item.displayDiscountType === "OldPrice" && !hasCouponRequiredDiscount) {
-                                const oldP = item.oldPrice ?? item.productData?.oldPrice;
+                                const hasVariants = !!item.productData?.variants?.length;
+                                const oldP = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
                                 if (oldP && oldP > item.price) comparePrice = oldP;
                               }
                               if (!comparePrice) return null;
@@ -874,7 +886,6 @@ export default function CartPage() {
                               ) : (
                                 <button
                                   onClick={() => {
-                                    const minQty = item.productData?.orderMinimumQuantity ?? 1;
                                     if ((item.quantity ?? 1) <= minQty) { toast.error(`Minimum order quantity is ${minQty}`); return; }
                                     const newQty = (item.quantity ?? 1) - 1;
                                     updateQuantity(item.id, newQty);
@@ -888,12 +899,11 @@ export default function CartPage() {
                               <input
                                 type="number"
                                 className="w-7 text-center bg-transparent outline-none font-bold text-xs text-gray-900"
-                                min={item.productData?.orderMinimumQuantity ?? 1}
+                                min={minQty}
                                 max={Number.isFinite(getAllowedMaxQty(item, bundleChildren)) ? getAllowedMaxQty(item, bundleChildren) : undefined}
                                 value={item.quantity}
                                 onChange={(e) => {
                                   let val = parseInt(e.target.value || "1", 10);
-                                  const minQty = item.productData?.orderMinimumQuantity ?? 1;
                                   const maxQty = getAllowedMaxQty(item, bundleChildren);
 
                                   if (Number.isNaN(val)) return;

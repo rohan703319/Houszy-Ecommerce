@@ -49,7 +49,7 @@ export default function OffersClient({
       return basePrice;
     };
 
-    const sorted = [...unique].sort((a, b) => {
+    const sorted = sortBy === "name" ? [...unique] : [...unique].sort((a, b) => {
 
       // 🔥 STOCK CHECK (MOST IMPORTANT)
       const getStock = (item: any) => {
@@ -70,14 +70,6 @@ export default function OffersClient({
       if (!isOutA && isOutB) return -1;
 
       // ===== EXISTING SORT LOGIC =====
-
-      if (sortBy === "name") {
-        const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
-        const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
-
-        const comparison = nameA.localeCompare(nameB);
-        return sortDirection === "asc" ? comparison : -comparison;
-      }
 
       if (sortBy === "price") {
         const getCardPrice = (item: any) => {

@@ -94,6 +94,11 @@ interface CartContextType {
   isInitialized: boolean;
   sessionId: string;
   cartActivity: { productId: string; message: string; timestamp: number } | null;
+  isCartOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
+  toggleCart: () => void;
+  updateCartEmail: (email: string) => Promise<boolean>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -107,12 +112,9 @@ function backendToFrontend(dto: any): CartItem {
     productId: dto.productId,
     name: dto.productName,
     price: dto.price,
-    oldPrice:
-      dto.oldPrice ??
-      dto.product?.oldPrice ??
-      dto.productData?.oldPrice ??
-      dto.variant?.oldPrice ??
-      null,
+    oldPrice: dto.variantId
+      ? (dto.variant?.compareAtPrice ?? dto.variant?.oldPrice ?? null)
+      : (dto.oldPrice ?? dto.product?.oldPrice ?? dto.productData?.oldPrice ?? null),
     priceBeforeDiscount: dto.price,
     finalPrice: dto.finalPrice,
     discountAmount: dto.discountAmount,
@@ -153,8 +155,21 @@ function backendToFrontend(dto: any): CartItem {
     individualSavings: dto.individualSavings,
     bundleInstanceId: dto.bundleInstanceId,
     bundleParentInstanceId: dto.bundleParentInstanceId,
-    nextDayDeliveryEnabled: dto.nextDayDeliveryEnabled,
-    nextDayDeliveryFree: dto.nextDayDeliveryFree ?? false, // 🔥 ADD THIS LINE
+    nextDayDeliveryEnabled:
+      dto.variant?.nextDayDeliveryEnabled ??
+      dto.nextDayDeliveryEnabled ??
+      dto.productData?.nextDayDeliveryEnabled ??
+      dto.product?.nextDayDeliveryEnabled ??
+      false,
+    nextDayDeliveryFree:
+      dto.variant?.nextDayDeliveryFree ??
+      dto.nextDayDeliveryFree ??
+      (dto.variantId && (dto.productData?.variants || dto.product?.variants)
+        ? (dto.productData?.variants || dto.product?.variants)?.find((v: any) => v.id === dto.variantId)?.nextDayDeliveryFree
+        : null) ??
+      dto.productData?.nextDayDeliveryFree ??
+      dto.product?.nextDayDeliveryFree ??
+      false,
     sameDayDeliveryEnabled: dto.sameDayDeliveryEnabled,
     shipSeparately: dto.shipSeparately,
     freeShippingThreshold: dto.freeShippingThreshold ?? null,
@@ -233,9 +248,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [sessionId, setSessionId] = useState<string>(() => getSessionId());
   const [cartActivity, setCartActivity] = useState<{ productId: string; message: string; timestamp: number } | null>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const hubRef = useRef<signalR.HubConnection | null>(null);
   const addToCartAnalyticsRef = useRef<{ signature: string; timestamp: number } | null>(null);
   const toast = useToast();
+
+  const openCart = useCallback(() => setIsCartOpen(true), []);
+  const closeCart = useCallback(() => setIsCartOpen(false), []);
+  const toggleCart = useCallback(() => setIsCartOpen((prev) => !prev), []);
 
   const sendAddToCartAnalytics = useCallback((item: CartItem) => {
     const signature = [
@@ -364,10 +384,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           batchTimeout = setTimeout(() => {
             if (batchCount > 1) {
               // Update with grouped message
-              setCartActivity({ 
-                productId: payload.productId, 
-                message: `🔥 ${batchCount - 1} more people just added this to their cart!`, 
-                timestamp: Date.now() 
+              setCartActivity({
+                productId: payload.productId,
+                message: `🔥 ${batchCount - 1} more people just added this to their cart!`,
+                timestamp: Date.now()
               });
               // Clear after another 5 seconds
               setTimeout(() => {
@@ -417,6 +437,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ── ADD TO CART ────────────────────────────────────────────────────────────
   const addToCart = (item: CartItem) => {
+    // Automatically open mini-cart popup on header
+    setIsCartOpen(true);
+
     // 🔥 FOOLPROOF LOCAL FLAG (to strictly prevent own events from showing)
     if (typeof window !== "undefined") {
       sessionStorage.setItem(`lastAdded_${item.productId ?? item.id}`, Date.now().toString());
@@ -458,16 +481,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (existing) {
         const product = item.productData;
-        const mainMax = product?.orderMaximumQuantity ?? Infinity;
+        const variantObj = item.variantId
+          ? product?.variants?.find((v: any) => v.id === item.variantId)
+          : null;
+        const mainMax = (variantObj?.orderMaximumQuantity ?? product?.orderMaximumQuantity) ?? Infinity;
         const variantStock = item.variantId
-          ? product?.variants?.find((v: any) => v.id === item.variantId)?.stockQuantity
+          ? variantObj?.stockQuantity
           : product?.stockQuantity;
         const maxStock = item.maxStock ?? variantStock ?? product?.stockQuantity ?? Infinity;
         const allowedMax = Math.min(mainMax, maxStock);
         const newQty = existing.quantity + item.quantity;
 
         if (newQty > allowedMax) {
-          toast.error(`Maximum order quantity is ${allowedMax}`);
+          toast.error(`Allowed maximum order quantity is ${allowedMax}`);
           return prev;
         }
 
@@ -606,12 +632,15 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       if (target.parentProductId) return prev; // block child updates
 
       const product = target.productData;
+      const variantObj = target.variantId
+        ? product?.variants?.find((v: any) => v.id === target.variantId)
+        : null;
       const variantStock = target.variantId
-        ? product?.variants?.find((v: any) => v.id === target.variantId)?.stockQuantity
+        ? variantObj?.stockQuantity
         : product?.stockQuantity;
       const maxStock = target.maxStock ?? variantStock ?? product?.stockQuantity ?? 9999;
-      const mainMin = product?.orderMinimumQuantity ?? 1;
-      const mainMax = product?.orderMaximumQuantity ?? Infinity;
+      const mainMin = (variantObj?.orderMinimumQuantity ?? product?.orderMinimumQuantity) ?? 1;
+      const mainMax = (variantObj?.orderMaximumQuantity ?? product?.orderMaximumQuantity) ?? Infinity;
 
       let finalQty = qty;
       if (qty === 0) finalQty = 0;
@@ -686,6 +715,27 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const updateCartEmail = async (email: string): Promise<boolean> => {
+    if (!sessionId) return false;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/Cart/${sessionId}/email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        return resData?.success || false;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error updating cart email:", error);
+      return false;
+    }
+  };
+
   // ── Computed values ────────────────────────────────────────────────────────
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce(
@@ -707,6 +757,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         isInitialized,
         sessionId,
         cartActivity,
+        isCartOpen,
+        openCart,
+        closeCart,
+        toggleCart,
+        updateCartEmail,
       }}
     >
       {children}

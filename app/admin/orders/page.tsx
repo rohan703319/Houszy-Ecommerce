@@ -152,6 +152,7 @@ export default function OrdersListPage() {
     pharmacyVerificationStatus: "" as PharmacyVerificationStatus | "",
     isGuestOrder: "",
     isPharmaProduct: "",
+    source: "",
   });
   const selectedOrderObjects = orders.filter(o =>
     selectedOrders.includes(o.id)
@@ -302,8 +303,8 @@ export default function OrdersListPage() {
           filters.shippingMethodName === "ClickAndCollect"
             ? true
             : filters.shippingMethodName !== ""
-            ? false
-            : undefined,
+              ? false
+              : undefined,
         shippingMethodName:
           filters.shippingMethodName !== "" && filters.shippingMethodName !== "ClickAndCollect"
             ? filters.shippingMethodName
@@ -312,6 +313,7 @@ export default function OrdersListPage() {
           filters.isPharmaProduct !== ""
             ? filters.isPharmaProduct === "true"
             : undefined,
+        source: filters.source || undefined,
       });
 
       const responseData = response?.data;
@@ -330,11 +332,22 @@ export default function OrdersListPage() {
         // Client-side filter for paymentStatus
         if (filters.paymentStatus) {
           items = items.filter((o) => {
-            const status = o.paymentStatus || (o.payments && o.payments.length > 0 ? o.payments[0]?.status : null) || "";
-            return status === filters.paymentStatus;
+            // Smart resolve: agar koi bhi payment Successful hai to Successful
+            const resolveStatus = (order: typeof o): string => {
+              if (order.paymentStatus && order.paymentStatus !== 'Pending') return order.paymentStatus;
+              const pays = order.payments ?? [];
+              if (pays.length === 0) return order.paymentStatus ?? '';
+              const priority = ['Successful', 'Completed', 'PartiallyRefunded', 'Refunded', 'Failed', 'Pending'];
+              for (const p of priority) {
+                if (pays.some((pay: any) => pay.status === p)) return p;
+              }
+              return '';
+            };
+            return resolveStatus(o) === filters.paymentStatus;
           });
         }
 
+        console.log("Fetched Orders from API:", items);
         setOrders(items);
         setStats(responseData.stats);
         setTotalCount(responseData.totalCount || 0);
@@ -361,6 +374,7 @@ export default function OrdersListPage() {
     filters.isPharmaProduct,
     debouncedSearch,
     filters.isGuestOrder,
+    filters.source,
   ]);
 
 
@@ -564,6 +578,7 @@ export default function OrdersListPage() {
       pharmacyVerificationStatus: "",
       isGuestOrder: "",
       isPharmaProduct: "",
+      source: "",
     });
     setCurrentPage(1); // ✅ Optional but recommended
   };
@@ -1125,6 +1140,25 @@ export default function OrdersListPage() {
             <option value="Refunded">Refunded</option>
             <option value="Cancelled">Cancelled</option>
           </select>
+
+          {/* ORDER SOURCE */}
+          <select
+            value={filters.source}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                source: e.target.value,
+              }))
+            }
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+        ${filters.source ? "border-green-500 bg-green-500/10" : "border-slate-700"}`}
+          >
+            <option value="">Order Source: All</option>
+            <option value="paid">Paid</option>
+            <option value="organic">Organic</option>
+            <option value="direct">Direct</option>
+          </select>
+
           {/* SHIPPING METHOD */}
           <select
             value={filters.shippingMethodName}
@@ -1416,8 +1450,18 @@ export default function OrdersListPage() {
                   const paymentMethodStr =
                     order.paymentMethod || order.payments?.[0]?.paymentMethod;
 
-                  const paymentStatusStr =
-                    order.paymentStatus || order.payments?.[0]?.status;
+                  // Smart resolve: agar koi bhi payment Successful hai to Successful
+                  const resolvePaymentStatus = (): string => {
+                    if (order.paymentStatus && order.paymentStatus !== 'Pending') return order.paymentStatus;
+                    const pays = order.payments ?? [];
+                    if (pays.length === 0) return order.paymentStatus ?? '';
+                    const priority = ['Successful', 'Completed', 'PartiallyRefunded', 'Refunded', 'Failed', 'Pending'];
+                    for (const p of priority) {
+                      if (pays.some((pay: any) => pay.status === p)) return p;
+                    }
+                    return '';
+                  };
+                  const paymentStatusStr = resolvePaymentStatus();
 
                   const methodInfo = getPaymentMethodInfo(paymentMethodStr);
 
@@ -1560,6 +1604,24 @@ export default function OrdersListPage() {
                             >
                               {order.shippingAddress?.addressLine1}
                             </p>
+
+                            {/* SOURCE BADGE */}
+                            {order.orderSource && (
+                              <div className="mt-1 flex items-center">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold leading-none ${/ads|paid/i.test(order.orderSource)
+                                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                                      : "bg-slate-700/50 text-slate-300 border border-slate-700"
+                                    }`}
+                                  title={`Source: ${order.orderSource}${order.utmCampaign ? ` | Campaign: ${order.utmCampaign}` : ""
+                                    }${order.gclid ? ` | Gclid: ${order.gclid}` : ""}`}
+                                >
+                                  <span className={`w-1 h-1 rounded-full ${/ads|paid/i.test(order.orderSource) ? "bg-green-400" : "bg-slate-400"
+                                    }`} />
+                                  {order.orderSource}
+                                </span>
+                              </div>
+                            )}
 
                           </div>
                         </div>

@@ -1,7 +1,7 @@
 // app/admin/layout.tsx
 "use client";
 
-import { ReactNode, useState, useEffect, useRef } from "react";
+import { ReactNode, useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import { usePathname, useRouter } from "next/navigation";
@@ -73,44 +73,45 @@ interface NavigationItem {
   name: string;
   href?: string;
   icon: any;
+  permissionKey?: string;
   children?: NavigationItem[];
 }
 
 
-// Navigation with clean group organization
+// Navigation with clean group organization mapped to permission keys
 const navigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, permissionKey: 'dashboard' },
 
   {
     name: 'Catalog',
     icon: Layers,
     children: [
-      { name: 'Products', href: '/admin/products', icon: Package },
-      { name: 'Inventory', href: '/admin/inventory', icon: Warehouse },
-      { name: 'Categories', href: '/admin/categories', icon: FolderTree },
-      { name: 'Brands', href: '/admin/brands', icon: Tag },
-      { name: 'Product Reviews', href: '/admin/productReview', icon: Star },
-      { name: 'Pharmacy Q&A', href: '/admin/pharmacy-questions', icon: ClipboardList },
+      { name: 'Products', href: '/admin/products', icon: Package, permissionKey: 'products' },
+      { name: 'Inventory', href: '/admin/inventory', icon: Warehouse, permissionKey: 'inventory' },
+      { name: 'Categories', href: '/admin/categories', icon: FolderTree, permissionKey: 'categories' },
+      { name: 'Brands', href: '/admin/brands', icon: Tag, permissionKey: 'brands' },
+      { name: 'Product Reviews', href: '/admin/productReview', icon: Star, permissionKey: 'reviews' },
+      { name: 'Pharmacy Q&A', href: '/admin/pharmacy-questions', icon: ClipboardList, permissionKey: 'pharmacy' },
     ],
   },
   {
     name: 'Sales',
     icon: TrendingUp,
     children: [
-      { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-      { name: 'Payments', href: '/admin/payments', icon: CreditCard },
-      { name: 'Customers', href: '/admin/customers', icon: Users },
+      { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, permissionKey: 'orders' },
+      { name: 'Payments', href: '/admin/payments', icon: CreditCard, permissionKey: 'orders' },
+      { name: 'Customers', href: '/admin/customers', icon: Users, permissionKey: 'customers' },
     ],
   },
   {
     name: 'Marketing',
     icon: Gift,
     children: [
-      { name: 'Discounts', href: '/admin/discounts', icon: Percent },
-      { name: 'Subscriptions', href: '/admin/subscriptions', icon: PackageOpen },
-      { name: 'Newsletter', href: '/admin/newsletter', icon: Mail },
-      { name: 'Loyalty Points', href: '/admin/loyalty-points', icon: Coins },
-      { name: 'Loyalty Config', href: '/admin/loyalty-config', icon: Sliders },
+      { name: 'Discounts', href: '/admin/discounts', icon: Percent, permissionKey: 'discounts' },
+      { name: 'Subscriptions', href: '/admin/subscriptions', icon: PackageOpen, permissionKey: 'subscriptions' },
+      { name: 'Newsletter', href: '/admin/newsletter', icon: Mail, permissionKey: 'newsletter' },
+      { name: 'Loyalty Points', href: '/admin/loyalty-points', icon: Coins, permissionKey: 'loyalty' },
+      { name: 'Loyalty Config', href: '/admin/loyalty-config', icon: Sliders, permissionKey: 'loyalty' },
     ],
   },
 
@@ -119,9 +120,8 @@ const navigation: NavigationItem[] = [
     name: 'Shipping',
     icon: Truck,
     children: [
-      { name: 'Shipping Settings', href: '/admin/shipping', icon: Settings },
-      { name: 'Delivery Strips', href: '/admin/DeliveryStrip', icon: PackageOpen }, // ✅ ADDED
-      // { name: 'Shipping Zones', href: '/admin/shipping-zones', icon: MapPin }, // Optional future
+      { name: 'Shipping Settings', href: '/admin/shipping', icon: Settings, permissionKey: 'shipping' },
+      { name: 'Delivery Strips', href: '/admin/DeliveryStrip', icon: PackageOpen, permissionKey: 'shipping' },
     ],
   },
 
@@ -129,32 +129,33 @@ const navigation: NavigationItem[] = [
     name: 'Finance',
     icon: PoundSterling,
     children: [
-      { name: 'VAT Rates', href: '/admin/vatRates', icon: PoundSterling },
+      { name: 'VAT Rates', href: '/admin/vatRates', icon: PoundSterling, permissionKey: 'settings' },
     ],
   },
-  { name: 'Import / Export', href: '/admin/import-export', icon: FileSpreadsheet },
+  { name: 'Import / Export', href: '/admin/import-export', icon: FileSpreadsheet, permissionKey: 'products' },
   {
     name: 'Content',
     icon: FileText,
     children: [
-      { name: 'Banners', href: '/admin/banners', icon: ImageIcon },
+      { name: 'Banners', href: '/admin/banners', icon: ImageIcon, permissionKey: 'banners' },
 
       // ✅ ADDED
-      { name: 'Homepage Preview', href: '/admin/HomepagePreview', icon: Monitor },
+      { name: 'Homepage Preview', href: '/admin/HomepagePreview', icon: Monitor, permissionKey: 'banners' },
 
-      { name: 'A+ Templates', href: '/admin/aplus-templates', icon: Sparkles },
-      { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban },
-      { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText },
-      { name: 'Blog Comments', href: '/admin/comments', icon: MessageSquare },
-      { name: 'Contact Requests', href: '/admin/contact', icon: Mail },
+      { name: 'A+ Templates', href: '/admin/aplus-templates', icon: Sparkles, permissionKey: 'products' },
+      { name: 'Blog Categories', href: '/admin/BlogCategories', icon: FolderKanban, permissionKey: 'blogs' },
+      { name: 'Blog Posts', href: '/admin/BlogPosts', icon: FileText, permissionKey: 'blogs' },
+      { name: 'Blog Comments', href: '/admin/comments', icon: MessageSquare, permissionKey: 'blogs' },
+      { name: 'Contact Requests', href: '/admin/contact', icon: Mail, permissionKey: 'contact' },
     ],
   },
   {
     name: 'Staff Management',
     icon: Users,
     children: [
-      { name: 'Staff', href: '/admin/staff', icon: User },
-      { name: 'Staff Roles', href: '/admin/staff-roles', icon: ShieldCheck },
+      { name: 'Staff', href: '/admin/staff', icon: User, permissionKey: 'staff' },
+      { name: 'Staff Roles', href: '/admin/staff-roles', icon: ShieldCheck, permissionKey: 'staff' },
+      { name: 'Page Permissions', href: '/admin/permissions', icon: LockKeyhole, permissionKey: 'staff' },
     ],
   },
 
@@ -163,21 +164,79 @@ const navigation: NavigationItem[] = [
     name: 'System',
     icon: Shield,
     children: [
-      { name: 'Activity Logs', href: '/admin/ActivityLogs', icon: Activity },
-      { name: 'Settings', href: '/admin/settings', icon: Settings },
+      { name: 'Activity Logs', href: '/admin/ActivityLogs', icon: Activity, permissionKey: 'activitylogs' },
+      { name: 'Settings', href: '/admin/settings', icon: Settings, permissionKey: 'settings' },
     ],
   },
 ];
 
 
 
+const getRoutePermissionKey = (path: string): string | null => {
+  if (path === '/admin') return 'dashboard';
+  if (path.startsWith('/admin/products')) return 'products';
+  if (path.startsWith('/admin/categories')) return 'categories';
+  if (path.startsWith('/admin/brands')) return 'brands';
+  if (path.startsWith('/admin/productReview')) return 'reviews';
+  if (path.startsWith('/admin/inventory')) return 'inventory';
+  if (path.startsWith('/admin/orders')) return 'orders';
+  if (path.startsWith('/admin/payments')) return 'orders';
+  if (path.startsWith('/admin/customers')) return 'customers';
+  if (path.startsWith('/admin/discounts')) return 'discounts';
+  if (path.startsWith('/admin/subscriptions')) return 'subscriptions';
+  if (path.startsWith('/admin/shipping') || path.startsWith('/admin/DeliveryStrip')) return 'shipping';
+  if (path.startsWith('/admin/loyalty-points') || path.startsWith('/admin/loyalty-config')) return 'loyalty';
+  if (path.startsWith('/admin/banners') || path.startsWith('/admin/HomepagePreview')) return 'banners';
+  if (path.startsWith('/admin/pharmacy-questions')) return 'pharmacy';
+  if (path.startsWith('/admin/newsletter')) return 'newsletter';
+  if (path.startsWith('/admin/contact')) return 'contact';
+  if (path.startsWith('/admin/staff') || path.startsWith('/admin/staff-roles') || path.startsWith('/admin/permissions')) return 'staff';
+  if (path.startsWith('/admin/settings') || path.startsWith('/admin/vatRates')) return 'settings';
+  if (path.startsWith('/admin/ActivityLogs')) return 'activitylogs';
+  if (path.startsWith('/admin/BlogCategories') || path.startsWith('/admin/BlogPosts') || path.startsWith('/admin/comments')) return 'blogs';
+  return null;
+};
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const toast = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout, hasPermission, permissions } = useAuth();
   const { theme, setTheme } = useTheme();
+
+  const routeKey = getRoutePermissionKey(pathname);
+  const isViewAllowed = routeKey && hasPermission ? hasPermission(routeKey, 'view') : true;
+
+  const showPermissionsLoading = isAuthenticated && !permissions;
+
+  const filteredNavigation = useMemo(() => {
+    if (!permissions || !hasPermission) return [];
+
+    return navigation
+      .map((item: NavigationItem) => {
+        if (item.children) {
+          const filteredChildren = item.children.filter((child: NavigationItem) => {
+            if (!child.permissionKey) return true;
+            return hasPermission(child.permissionKey, "view");
+          });
+          
+          if (filteredChildren.length === 0) return null;
+          
+          return {
+            ...item,
+            children: filteredChildren,
+          };
+        }
+
+        if (item.permissionKey && !hasPermission(item.permissionKey, "view")) {
+          return null;
+        }
+
+        return item;
+      })
+      .filter(Boolean) as NavigationItem[];
+  }, [permissions, hasPermission]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
@@ -465,7 +524,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
             {/* NAVIGATION WITH HOVER AUTO-EXPAND */}
             <nav className={cn("flex-1 space-y-0.5 overflow-y-auto custom-scrollbar py-2", isSidebarExpanded ? "px-1.5" : "px-1")}>
-              {navigation.map((item) => {
+              {filteredNavigation.map((item) => {
                 const hasChildren = item.children && item.children.length > 0;
                 const isExpanded = expandedMenus[item.name];
                 const isParentItemActive = hasChildren && isParentActive(item.children);
@@ -965,7 +1024,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
             <main className="flex-1 overflow-y-auto p-6 custom-scrollbar transition-colors duration-500">
               <div className="transition-all duration-150">
-                {children}
+                {showPermissionsLoading ? (
+                  <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
+                    <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-slate-400 text-sm">Loading permissions...</p>
+                  </div>
+                ) : !isViewAllowed ? (
+                  <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">
+                    <Shield className="h-12 w-12 text-red-500 mb-4 animate-pulse" />
+                    <h2 className="text-lg font-semibold text-white">Access Denied</h2>
+                    <p className="text-slate-400 text-sm mt-2">
+                      You do not have permission to view this page. Please contact your administrator.
+                    </p>
+                  </div>
+                ) : (
+                  children
+                )}
                 <ScrollToTopButton />
               </div>
             </main>

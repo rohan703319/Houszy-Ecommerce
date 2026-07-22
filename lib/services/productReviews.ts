@@ -308,15 +308,15 @@ export const productReviewsService = {
 // ✅ NEW API 1: Download Sample Excel Template
 downloadSample: async (): Promise<Blob> => {
   try {
-    const response = await apiClient.get(
+    const response = await apiClient.getRawClient().get<Blob>(
       `${API_ENDPOINTS.productReviews}/download-sample`,
       {
         responseType: 'blob', // ✅ Important for file download
       }
     );
     
-    // ✅ Fix: Explicitly cast to Blob
-    return response.data as Blob;
+    // Backend returns the sample file as a blob.
+    return response.data;
   } catch (error: any) {
     console.error('❌ Error downloading sample:', error);
     throw new Error(error?.response?.data?.message || 'Failed to download sample file');
@@ -340,6 +340,14 @@ importExcel: async (file: File): Promise<ApiResponse<ImportResult>> => {
     );
 
     // ✅ Fix: Handle undefined response
+    if (response.error) {
+      throw {
+        message: response.error,
+        errors: response.errors || [],
+        data: response.data
+      };
+    }
+
     if (!response.data) {
       throw new Error('No response data received from server');
     }
@@ -349,8 +357,8 @@ importExcel: async (file: File): Promise<ApiResponse<ImportResult>> => {
     console.error('❌ Error importing Excel:', error);
     
     // ✅ Return backend error message
-    const errorMessage = error?.response?.data?.message || 'Failed to import Excel file';
-    const errors = error?.response?.data?.errors || [];
+    const errorMessage = error?.message || error?.response?.data?.message || 'Failed to import Excel file';
+    const errors = error?.errors || error?.response?.data?.errors || [];
     
     // ✅ Fix: Throw proper error structure
     throw {

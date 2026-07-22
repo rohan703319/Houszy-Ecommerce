@@ -98,12 +98,7 @@ export default function SubscriptionPurchaseCard({
     ? product.allowedSubscriptionFrequencies.split(",").map((f: string) => f.trim()).filter(Boolean)
     : [];
 
-  const defaultFrequency = (() => {
-    if (product.recurringCycleLength && Number(product.recurringCycleLength) > 0) {
-      return `${product.recurringCycleLength} ${product.recurringCyclePeriod}`;
-    }
-    return frequencies[0] || '';
-  })();
+  const defaultFrequency = frequencies[0] || "";
 
   const [selectedFrequency, setSelectedFrequency] = useState<string>(defaultFrequency);
 
@@ -115,11 +110,12 @@ export default function SubscriptionPurchaseCard({
     let cycleLength: string | number = product.recurringCycleLength;
     let cyclePeriod: string = product.recurringCyclePeriod;
 
-    if (selectedFrequency.includes(" ")) {
-      const parts = selectedFrequency.trim().split(/\s+/); // "7 days"
-      cycleLength = Number(parts[0]) || parts[0];
-      cyclePeriod = parts[1];
-    } else {
+    const selectedFrequencyMatch = selectedFrequency.match(/^(?:every\s+)?(\d+)\s+(.+)$/i);
+
+    if (selectedFrequencyMatch) {
+      cycleLength = Number(selectedFrequencyMatch[1]);
+      cyclePeriod = selectedFrequencyMatch[2];
+    } else if (selectedFrequency) {
       cycleLength = selectedFrequency; // weekly, monthly, yearly
       cyclePeriod = selectedFrequency;
     }
@@ -128,7 +124,7 @@ export default function SubscriptionPurchaseCard({
       product.stockQuantity ??
       0;
 
-    const maxQty = product.orderMaximumQuantity ?? Infinity;
+    const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
 
     // 🔥 STOCK CHECK
     if (quantity > stockQty) {
@@ -193,24 +189,24 @@ export default function SubscriptionPurchaseCard({
       nextDayDeliveryFree: nextDayDeliveryFree ?? false,
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
     });
-    toast.success(
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {product.name} added to cart!
-        </span>
+    // toast.success(
+    //   <div className="flex items-center justify-between gap-2">
+    //     <span className="text-sm font-medium">
+    //       {product.name} added to cart!
+    //     </span>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.clearAll();
-            router.push("/cart");
-          }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
-        >
-          Cart→
-        </button>
-      </div>
-    );
+    //     <button
+    //       onClick={(e) => {
+    //         e.stopPropagation();
+    //         toast.clearAll();
+    //         router.push("/cart");
+    //       }}
+    //       className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
+    //     >
+    //       Cart→
+    //     </button>
+    //   </div>
+    // );
   };
 
   return (
@@ -274,27 +270,11 @@ export default function SubscriptionPurchaseCard({
                 value={selectedFrequency}
                 onChange={(e) => setSelectedFrequency(e.target.value)}
               >
-                {product.recurringCycleLength && Number(product.recurringCycleLength) > 0 && (
-                  <option value={`${product.recurringCycleLength} ${product.recurringCyclePeriod}`}>
-                    Every {product.recurringCycleLength} {product.recurringCyclePeriod}
+                {frequencies.map((option: string) => (
+                  <option key={option} value={option}>
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
                   </option>
-                )}
-
-                {frequencies.map((option: string) => {
-                  const defaultValue = `${product.recurringCycleLength} ${product.recurringCyclePeriod}`;
-                  if (
-                    product.recurringCycleLength &&
-                    Number(product.recurringCycleLength) > 0 &&
-                    option.toLowerCase() === defaultValue.toLowerCase()
-                  ) {
-                    return null;
-                  }
-                  return (
-                    <option key={option} value={option}>
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
-                    </option>
-                  );
-                })}
+                ))}
               </select>
 
               {/* Custom Down Arrow */}

@@ -17,7 +17,7 @@ import { getBackorderUIState } from "@/app/lib/backorderHelpers";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { Heart, Star, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon } from "lucide-react";
+import { Heart, Star, StarHalf, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon, Bell } from "lucide-react";
 import ShareMenu from "@/components/share/ShareMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductFeatures from "@/components/product/ProductFeatures";
@@ -88,6 +88,8 @@ interface Variant {
 
   fakeSaleCount?: number | null;
   saleCount?: number;
+  orderMinimumQuantity?: number | null;
+  orderMaximumQuantity?: number | null;
   displaySaleCount?: number;
   monthlySaleCount?: number;
   weeklySaleCount?: number;
@@ -476,6 +478,29 @@ export default function ProductDetails({
   const { isAuthenticated } = useAuth();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const sliderRef = useRef<HTMLDivElement>(null);
+
+  // Find first active assigned discount to link to its offer page
+  const activeDiscountForOffer = useMemo(() => {
+    if (!product.assignedDiscounts || product.assignedDiscounts.length === 0) return null;
+    const now = new Date();
+    return product.assignedDiscounts.find(d =>
+      d.isActive &&
+      (!d.startDate || new Date(d.startDate) <= now) &&
+      (!d.endDate || new Date(d.endDate) >= now)
+    ) || product.assignedDiscounts[0];
+  }, [product.assignedDiscounts]);
+
+  // Convert discount name to URL slug
+  const discountSlug = useMemo(() => {
+    if (!activeDiscountForOffer || !activeDiscountForOffer.name) return "";
+    return activeDiscountForOffer.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  }, [activeDiscountForOffer]);
+
   // Normal purchase quantity state
   const [normalQty, setNormalQty] = useState(
     product.orderMinimumQuantity ?? 1
@@ -619,18 +644,16 @@ export default function ProductDetails({
     : (product.monthlySaleCount || 0);
 
   const activeDisplaySaleCount = selectedVariant
-    ? (((hasVariantFakeOverride ? selectedVariant.fakeSaleCount : (product.fakeSaleCount || 0)) as number) + (selectedVariant.saleCount || 0))
-    : (product.displaySaleCount || 0);
+    ? (selectedVariant.saleCount || 0)
+    : (product.saleCount || 0);
 
-  const soldText = hasVariantFakeOverride
-    ? (activeDisplaySaleCount > 0 ? `${activeDisplaySaleCount} qty sold` : null)
-    : activeWeeklySaleCount > 0
-      ? `${activeWeeklySaleCount} qty sold this week`
-      : activeMonthlySaleCount > 0
-        ? `${activeMonthlySaleCount} qty sold this month`
-        : activeDisplaySaleCount > 0
-          ? `${activeDisplaySaleCount} qty sold`
-          : null;
+  const soldText = activeWeeklySaleCount > 0
+    ? `${activeWeeklySaleCount} qty sold this week`
+    : activeMonthlySaleCount > 0
+      ? `${activeMonthlySaleCount} qty sold this month`
+      : activeDisplaySaleCount > 0
+        ? `${activeDisplaySaleCount} qty sold`
+        : null;
 
   const [shipDate, setShipDate] = useState<string | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<string | null>(null);
@@ -1180,8 +1203,8 @@ export default function ProductDetails({
     // ❌ Always dominant
     if (stock === 0) {
       return {
-        show: false, // 🔥 HIDE BADGE
-        text: "",
+        show: true,
+        text: "Out of Stock",
         type: "out",
       };
     }
@@ -1630,10 +1653,10 @@ export default function ProductDetails({
       return;
     }
 
-    const mainMin = product.orderMinimumQuantity ?? 1;
+    const mainMin = (selected?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
 
     // 🔥 MAX ORDER CHECK (IMPORTANT FIX)
-    const mainMax = product.orderMaximumQuantity ?? Infinity;
+    const mainMax = (selected?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
 
     if (existingCartQty + normalQty > mainMax) {
       toast.error(`Maximum order quantity is ${mainMax}`);
@@ -1843,24 +1866,6 @@ export default function ProductDetails({
         productData: JSON.parse(JSON.stringify(product)),
       });
     }
-    toast.success(
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {normalQty} × {product.name} added to cart!
-        </span>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.clearAll();
-            router.push("/cart");
-          }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-[#f38918] text-black hover:bg-black hover:text-white transition shadow-sm"
-        >
-          Cart→
-        </button>
-      </div>
-    );
   }, [
     addToCart,
     normalQty,
@@ -1887,8 +1892,8 @@ export default function ProductDetails({
     }
     const selected = selectedVariant ?? null;
     const stockQty = selected?.stockQuantity ?? product.stockQuantity ?? 0;
-    const mainMin = product.orderMinimumQuantity ?? 1;
-    const mainMax = product.orderMaximumQuantity ?? Infinity;
+    const mainMin = (selected?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
+    const mainMax = (selected?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
     if (normalQty < mainMin) {
       toast.error(`Minimum order quantity is ${mainMin}`);
       return;
@@ -2528,15 +2533,15 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               {/* Rating + Reviews */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`h-4 w-4 ${star <= product.averageRating
-                        ? "fill-[#f2ad43] text-[#f2ad43]"
-                        : "text-gray-300"
-                        }`}
-                    />
-                  ))}
+                  {[...Array(5)].map((_, i) => {
+                    const rating = product.averageRating || 0;
+                    if (rating >= i + 1) {
+                      return <Star key={i} className="h-4 w-4 fill-[#f2ad43] text-[#f2ad43] flex-shrink-0" />;
+                    } else if (rating > i && rating < i + 1) {
+                      return <StarHalf key={i} className="h-4 w-4 fill-[#f2ad43] text-[#f2ad43] flex-shrink-0" />;
+                    }
+                    return <Star key={i} className="h-4 w-4 text-gray-300 flex-shrink-0" />;
+                  })}
                 </div>
                 <div
                   className="relative group inline-block"
@@ -2821,7 +2826,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             <span className="font-semibold text-sm">One-Time Purchase</span>
                           </label>
                           {/* Price + VAT + Loyalty — all compact inline */}
-                          <div className="flex flex-wrap items-baseline gap-2 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
                             {/* 🔥 CASE 1: DISCOUNT */}
                             {(appliedCoupon || activeAutoDiscount) ? (
                               <span className="text-xs text-gray-400 line-through">
@@ -2836,9 +2841,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             <span className="text-sm font-medium text-[#e57e25]">
                               £{finalPrice.toFixed(2)} GBP
                             </span>
-                            {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-                              <span className="text-[10px] text-gray-500 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded font-semibold">
-                                {vatRate}% VAT
+                            {discountPercentage > 0 && (
+                              <span className="bg-[#E31B23] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm leading-none flex items-center justify-center">
+                                -{discountPercentage}%
                               </span>
                             )}
                             {loyaltyPoints && (
@@ -2847,9 +2852,39 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 Earn {loyaltyPoints} pts
                               </span>
                             )}
+                          </div>
+
+                          {/* 🔥 OFFER PAGE BADGE — show when product has assigned discount */}
+                          {discountSlug && (
+                            <Link
+                              href={`/offers/${discountSlug}`}
+                              className="inline-flex items-center gap-1.5 mt-1.5 mb-2 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm hover:shadow transition-all duration-150 group w-fit"
+                            >
+                              <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
+                              <span>Qualifying Items — View Offer</span>
+                              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                            </Link>
+                          )}
+
+                          {/* Qty + Stock — same row */}
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <QuantitySelector
+                              quantity={normalQty}
+                              setQuantity={setNormalQty}
+                              maxStock={groupedMaxQty}
+                              stockError={normalStockError}
+                              setStockError={setNormalStockError}
+                              minQty={product.orderMinimumQuantity ?? 1}
+                              maxQty={product.orderMaximumQuantity}
+                            />
+                            {vatRate !== null && vatRate > 0 && !product.vatExempt && (
+                              <span className="text-[10px] text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap">
+                                {vatRate}% VAT
+                              </span>
+                            )}
                             {stockDisplay.show && (
                               <span
-                                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-semibold border ${stockDisplay.type === "out"
+                                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-semibold border whitespace-nowrap ${stockDisplay.type === "out"
                                   ? "bg-red-50 border-red-200 text-red-700"
                                   : stockDisplay.type === "low"
                                     ? "bg-yellow-50 border-yellow-200 text-yellow-800"
@@ -2867,20 +2902,6 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 {stockDisplay.text}
                               </span>
                             )}
-                          </div>
-
-                          {/* Qty + Stock — same row */}
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <QuantitySelector
-                              quantity={normalQty}
-                              setQuantity={setNormalQty}
-                              maxStock={groupedMaxQty}
-                              stockError={normalStockError}
-                              setStockError={setNormalStockError}
-                              minQty={product.orderMinimumQuantity ?? 1}
-                              maxQty={product.orderMaximumQuantity}
-                            />
-
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -2904,13 +2925,12 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 Buy Now &gt;&gt;
                               </Button>
                             )}
-                            {purchaseType === "one" && !backorderState.canBuy && !backorderState.showNotify && (
-                              <Button disabled className="flex-1 py-2 rounded-xl bg-red-400 cursor-not-allowed opacity-70 text-white text-sm">
-                                Out of Stock
-                              </Button>
-                            )}
-                            {purchaseType === "one" && backorderState.showNotify && (
-                              <Button variant="outline" className="flex-1 py-2 rounded-xl border-yellow-500 text-yellow-700 hover:bg-yellow-50 text-sm" onClick={() => setShowNotifyModal(true)}>
+                            {purchaseType === "one" && !backorderState.canBuy && (
+                              <Button
+                                onClick={() => setShowNotifyModal(true)}
+                                className="flex-1 h-10 rounded-md text-sm font-bold uppercase bg-white border border-orange-200 hover:bg-orange-50 text-orange-500 flex items-center justify-center gap-2"
+                              >
+                                <Bell className="h-4 w-4 animate-pulse text-amber-200" />
                                 Notify me
                               </Button>
                             )}
@@ -2989,6 +3009,18 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               )}
                             </div>
 
+                            {/* 🔥 OFFER PAGE BADGE — show when product has assigned discount */}
+                            {discountSlug && (
+                              <Link
+                                href={`/offers/${discountSlug}`}
+                                className="inline-flex items-center gap-1.5 mt-1.5 mb-2 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm hover:shadow transition-all duration-150 group w-fit"
+                              >
+                                <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
+                                <span>Qualifying Items — View Offer</span>
+                                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                              </Link>
+                            )}
+
                             {/* Delivery Truck Line */}
                             {(() => {
                               const standardThresholdOpt = product.freeShippingThresholds?.find((x: any) => {
@@ -3062,7 +3094,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                     size="sm"
                                     className="h-full px-3 text-gray-600 hover:bg-transparent"
                                     onClick={() => {
-                                      const minQty = product.orderMinimumQuantity ?? 1;
+                                      const minQty = (selectedVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
                                       if (normalQty <= minQty) {
                                         toast.error(`Minimum order quantity is ${minQty}`);
                                         return;
@@ -3084,9 +3116,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                         return;
                                       }
                                       let num = parseInt(val, 10);
-                                      const minQty = product.orderMinimumQuantity ?? 1;
+                                      const minQty = (selectedVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
                                       const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
-                                      const maxQty = product.orderMaximumQuantity ?? maxStock;
+                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? maxStock;
                                       const limit = Math.min(maxQty, maxStock);
                                       if (num < minQty) {
                                         toast.error(`Minimum order quantity is ${minQty}`);
@@ -3101,9 +3133,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                       setNormalQty(num);
                                     }}
                                     onBlur={() => {
-                                      const minQty = product.orderMinimumQuantity ?? 1;
+                                      const minQty = (selectedVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
                                       const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
-                                      const maxQty = product.orderMaximumQuantity ?? maxStock;
+                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? maxStock;
                                       const limit = Math.min(maxQty, maxStock);
                                       let val = normalQty;
                                       if (!val || val < minQty) val = minQty;
@@ -3120,7 +3152,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                     className="h-full px-3 text-gray-600 hover:bg-transparent"
                                     onClick={() => {
                                       const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
-                                      const maxQty = product.orderMaximumQuantity ?? maxStock;
+                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? maxStock;
                                       const limit = Math.min(maxQty, maxStock);
                                       if (normalQty >= limit) {
                                         toast.error(`only ${limit} quantity left in stock`);
@@ -3157,26 +3189,15 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                     </Button>
                                   )}
 
-                                  {/* OUT OF STOCK */}
-                                  {purchaseType === "one" && !backorderState.canBuy && !backorderState.showNotify && (
+                                  {purchaseType === "one" && !backorderState.canBuy && (
                                     <Button
-                                      disabled
-                                      className="flex-1 h-12 rounded-md bg-red-400 cursor-not-allowed opacity-70 text-white font-bold text-xs uppercase"
-                                    >
-                                      Out of Stock
-                                    </Button>
-                                  )}
-
-                                  {/* NOTIFY ME */}
-                                  {purchaseType === "one" && backorderState.showNotify && (
-                                    <Button
-                                      variant="outline"
-                                      className="flex-1 h-12 rounded-md border border-gray-300 hover:bg-gray-50 text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center justify-center gap-2"
                                       onClick={() => setShowNotifyModal(true)}
+                                      className="flex-1 h-12 rounded-md bg-white border border-[#f38918] hover:bg-orange-50 text-[#f38918] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2"
                                     >
-                                      <BellRing className="h-4 w-4" />
+                                      <Bell className="h-4 w-4 animate-pulse text-[#f38918]" />
                                       Notify me
                                     </Button>
+
                                   )}
                                 </div>
 

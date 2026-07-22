@@ -26,7 +26,7 @@ export default function QuantitySelector({
   maxQty,
 }: Props) {
   const toast = useToast();
-const [hasShownMaxToast, setHasShownMaxToast] = useState(false);
+  const [hasShownMaxToast, setHasShownMaxToast] = useState(false);
 
 
   /* =============================
@@ -62,24 +62,24 @@ const [hasShownMaxToast, setHasShownMaxToast] = useState(false);
             type="number"
             className="w-8 text-center font-semibold outline-none border-l border-r border-gray-300 text-sm"
             value={quantity === 0 ? "" : quantity}
-   onChange={(e) => {
-  let val = e.target.value;
-  if (!/^\d*$/.test(val)) return;
+            onChange={(e) => {
+              let val = e.target.value;
+              if (!/^\d*$/.test(val)) return;
 
-  if (val === "") {
-    setQuantity(0);
-    return;
-  }
+              if (val === "") {
+                setQuantity(0);
+                return;
+              }
 
-  let num = parseInt(val, 10);
+              let num = parseInt(val, 10);
 
-  if (num > maxStock) {
-    num = maxStock;
-  }
+              if (num > maxStock) {
+                num = maxStock;
+              }
 
-  setHasShownMaxToast(false);
-  setQuantity(num);
-}}
+              setHasShownMaxToast(false);
+              setQuantity(num);
+            }}
             onBlur={() => {
               if (!quantity || quantity < 1) setQuantity(1);
               if (quantity > maxStock) setQuantity(maxStock);
@@ -89,39 +89,38 @@ const [hasShownMaxToast, setHasShownMaxToast] = useState(false);
           />
 
           {/* PLUS */}
-         <Button
-  variant="ghost"
-  size="sm"
-  className={`px-1.5 h-full ${
-    quantity >= maxStock ? "opacity-50 cursor-not-allowed" : ""
-  }`}
- onClick={() => {
-  const limit = maxQty ?? maxStock;
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`px-1.5 h-full ${quantity >= maxStock ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            onClick={() => {
+              const limit = maxQty ?? maxStock;
 
-  // 🔥 STOCK LIMIT
-  if (quantity >= maxStock) {
-    if (!hasShownMaxToast) {
-      toast.error(`Only ${maxStock} items available in stock`);
-      setHasShownMaxToast(true);
-    }
-    return;
-  }
+              // 🔥 STOCK LIMIT
+              if (quantity >= maxStock) {
+                if (!hasShownMaxToast) {
+                  toast.error(`Only ${maxStock} items available in stock`);
+                  setHasShownMaxToast(true);
+                }
+                return;
+              }
 
-  // 🔥 ORDER LIMIT
-  if (quantity >= limit) {
-    toast.error(`Maximum order quantity is ${limit}`);
-    return;
-  }
+              // 🔥 ORDER LIMIT
+              if (quantity >= limit) {
+                toast.error(`Allowed Maximum order quantity is ${limit}`);
+                return;
+              }
 
-  setHasShownMaxToast(false);
-  setQuantity(Math.min(quantity + 1, maxStock));
-}}
->
-  <Plus className="h-3 w-3" />
-</Button>
+              setHasShownMaxToast(false);
+              setQuantity(Math.min(quantity + 1, maxStock));
+            }}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
         </div>
 
-       
+
       </div>
     </div>
   );

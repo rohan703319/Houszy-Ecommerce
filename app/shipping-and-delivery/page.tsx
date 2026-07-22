@@ -53,9 +53,9 @@ export default function ShippingPage() {
           </h2>
 
           <ul className="list-disc pl-5 text-base text-gray-700 space-y-2">
-            <li><strong>Standard Delivery:</strong> Free</li>
-            <li><strong>Next Day Delivery:</strong> £3.99</li>
-            <li><strong>Royal Mail Special Delivery Guaranteed 1PM:</strong> £10.99</li>
+            <li><strong>Standard Delivery:</strong> £2.95</li>
+            <li><strong>Next Day Delivery:</strong> £3.49</li>
+
           </ul>
 
           <p className="text-base text-gray-700 mt-4">
@@ -70,7 +70,7 @@ export default function ShippingPage() {
           </h2>
 
           <p className="text-base text-gray-700 leading-relaxed">
-            For any order placed before 1 pm on Monday to Friday, they will be dispatched the very same day and delivered the next working day. Orders placed after 1 pm on a Friday or over the weekend will be delivered on the next working day.
+            For any order placed before 3 pm on Monday to Friday, they will be dispatched the very same day and delivered the next working day. Orders placed after 3 pm on a Friday or over the weekend will be delivered on the next working day.
           </p>
         </div>
 

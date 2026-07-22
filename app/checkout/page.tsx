@@ -13,6 +13,7 @@ import SavedAddressesSection from "@/components/checkout/SavedAddressesSection";
 import LoyaltyRedemptionBox from "@/components/checkout/LoyaltyRedemptionBox";
 import { getPharmaSessionId } from "@/app/lib/pharmaSession";
 import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from "@/lib/analytics";
+import { getAttributionPayload } from "@/lib/attribution";
 // ---------- Types ----------
 type AddressSuggestion = {
   id: string;
@@ -242,7 +243,8 @@ async function getErrorMessage(res: Response, fallback: string): Promise<string>
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, updateCart, updateQuantity, clearCart } = useCart();
-  const { user, accessToken, isAuthenticated } = useAuth();
+  const { user, accessToken, isAuthenticated, isReady } = useAuth();
+  const guestPrefilledRef = useRef(false);
   // Billing fields
   const [billingFirstName, setBillingFirstName] = useState("");
   const [billingLastName, setBillingLastName] = useState("");
@@ -300,6 +302,25 @@ export default function CheckoutPage() {
       setError(null);
     }
   }, [fieldErrors]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const pendingOrderId = sessionStorage.getItem("pending_order_id");
+      if (pendingOrderId) {
+        // If there are items in the cart, buyNow, or reorder, the user wants to place a new order.
+        // We should clear the pending_order_id from sessionStorage.
+        const hasCartItems = cart && cart.length > 0;
+        const hasBuyNow = !!sessionStorage.getItem("buyNowItem");
+        const hasReorder = !!sessionStorage.getItem("reorderItems");
+
+        if (hasCartItems || hasBuyNow || hasReorder) {
+          sessionStorage.removeItem("pending_order_id");
+        } else {
+          router.replace(`/order/success?orderId=${pendingOrderId}&payment_pending=true`);
+        }
+      }
+    }
+  }, [router, cart]);
   const handleAddressSelect = (addr: any | null) => {
     if (!addr) {
       // Clear form for new address
@@ -549,7 +570,8 @@ export default function CheckoutPage() {
       }
 
       if (item.displayDiscountType === "OldPrice") {
-        const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
+        const hasVariants = !!item.productData?.variants?.length;
+        const oldPrice = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
         if (oldPrice && oldPrice > item.price) {
           return sum + oldPrice * qty;
         }
@@ -566,9 +588,8 @@ export default function CheckoutPage() {
       const qty = item.quantity ?? 1;
       if (item.displayDiscountType === "OldPrice") {
 
-        const oldPrice =
-          item.oldPrice ??
-          item.productData?.oldPrice;
+        const hasVariants = !!item.productData?.variants?.length;
+        const oldPrice = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
 
         if (oldPrice && oldPrice > item.price) {
           return sum + (oldPrice - item.price) * qty;
@@ -586,15 +607,33 @@ export default function CheckoutPage() {
 
   // ✅ TOTAL DISCOUNT (bundle + all)
   const totalCombinedDiscount = cartBundleDiscount + finalDiscount;
-  // Delivery type availability — ALL cart items must support the type
   const allSupportNextDay = useMemo(() =>
-    checkoutItems.length > 0 && checkoutItems.every(i => i.nextDayDeliveryEnabled === true),
+    checkoutItems.length > 0 &&
+    checkoutItems.every(i => {
+      if (i.variantId && i.productData?.variants?.length) {
+        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
+        if (v && typeof v.nextDayDeliveryEnabled === "boolean") {
+          return v.nextDayDeliveryEnabled === true;
+        }
+      }
+      return i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
+    }),
     [checkoutItems]);
+
   const allNextDayFree = useMemo(() =>
     checkoutItems.length > 0 &&
-    checkoutItems.every(i => i.nextDayDeliveryFree === true),
+    checkoutItems.every(i => {
+      if (i.variantId && i.productData?.variants?.length) {
+        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
+        if (v && typeof v.nextDayDeliveryFree === "boolean") {
+          return v.nextDayDeliveryFree === true;
+        }
+      }
+      return i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+    }),
     [checkoutItems]
   );
+
   const allSupportSameDay = useMemo(() =>
     checkoutItems.length > 0 && checkoutItems.every(i => i.sameDayDeliveryEnabled === true),
     [checkoutItems]);
@@ -603,6 +642,7 @@ export default function CheckoutPage() {
     if (!selectedShippingOption) return 0;
 
     const isNextDay =
+      (selectedShippingOption?.name || selectedShippingOption?.displayName || selectedShippingOption?.title || selectedShippingOption?.methodName || "").toLowerCase().includes("next") ||
       selectedShippingOption?.deliveryOptionId === "451bb725-19f7-441a-9dd0-d282cf268397";
 
     if (isNextDay && allNextDayFree) {
@@ -809,6 +849,135 @@ export default function CheckoutPage() {
       if (savedEmail) setBillingEmail(savedEmail);
     }
   }, [isAuthenticated, user]);
+
+  // --- Guest Checkout Prefill Address Details ---
+  useEffect(() => {
+    if (isReady && !isAuthenticated && !guestPrefilledRef.current) {
+      guestPrefilledRef.current = true;
+
+      const savedFirstName = localStorage.getItem("guestBillingFirstName");
+      if (savedFirstName) setBillingFirstName(savedFirstName);
+
+      const savedLastName = localStorage.getItem("guestBillingLastName");
+      if (savedLastName) setBillingLastName(savedLastName);
+
+      const savedPhone = localStorage.getItem("guestBillingPhone");
+      if (savedPhone) setBillingPhone(savedPhone);
+
+      const savedCompany = localStorage.getItem("guestBillingCompany");
+      if (savedCompany) setBillingCompany(savedCompany);
+
+      const savedAddress1 = localStorage.getItem("guestBillingAddress1");
+      if (savedAddress1) setBillingAddress1(savedAddress1);
+
+      const savedAddress2 = localStorage.getItem("guestBillingAddress2");
+      if (savedAddress2) setBillingAddress2(savedAddress2);
+
+      const savedCity = localStorage.getItem("guestBillingCity");
+      if (savedCity) setBillingCity(savedCity);
+
+      const savedState = localStorage.getItem("guestBillingState");
+      if (savedState) setBillingState(savedState);
+
+      const savedPostalCode = localStorage.getItem("guestBillingPostalCode");
+      if (savedPostalCode) setBillingPostalCode(savedPostalCode);
+
+      const savedCountry = localStorage.getItem("guestBillingCountry");
+      if (savedCountry) setBillingCountry(savedCountry);
+
+      const savedShippingSameAsBilling = localStorage.getItem("guestShippingSameAsBilling");
+      if (savedShippingSameAsBilling !== null) {
+        setShippingSameAsBilling(savedShippingSameAsBilling === "true");
+      }
+
+      const savedShippingFirstName = localStorage.getItem("guestShippingFirstName");
+      if (savedShippingFirstName) setShippingFirstName(savedShippingFirstName);
+
+      const savedShippingLastName = localStorage.getItem("guestShippingLastName");
+      if (savedShippingLastName) setShippingLastName(savedShippingLastName);
+
+      const savedShippingCompany = localStorage.getItem("guestShippingCompany");
+      if (savedShippingCompany) setShippingCompany(savedShippingCompany);
+
+      const savedShippingAddress1 = localStorage.getItem("guestShippingAddress1");
+      if (savedShippingAddress1) setShippingAddress1(savedShippingAddress1);
+
+      const savedShippingAddress2 = localStorage.getItem("guestShippingAddress2");
+      if (savedShippingAddress2) setShippingAddress2(savedShippingAddress2);
+
+      const savedShippingCity = localStorage.getItem("guestShippingCity");
+      if (savedShippingCity) setShippingCity(savedShippingCity);
+
+      const savedShippingState = localStorage.getItem("guestShippingState");
+      if (savedShippingState) setShippingState(savedShippingState);
+
+      const savedShippingPostalCode = localStorage.getItem("guestShippingPostalCode");
+      if (savedShippingPostalCode) setShippingPostalCode(savedShippingPostalCode);
+
+      const savedShippingCountry = localStorage.getItem("guestShippingCountry");
+      if (savedShippingCountry) setShippingCountry(savedShippingCountry);
+
+      const savedShippingPhone = localStorage.getItem("guestShippingPhone");
+      if (savedShippingPhone) setShippingPhone(savedShippingPhone);
+
+      const savedNotes = localStorage.getItem("guestNotes");
+      if (savedNotes) setNotes(savedNotes);
+    }
+  }, [isReady, isAuthenticated]);
+
+  // --- Save Guest Checkout Address Details to localStorage ---
+  useEffect(() => {
+    if (isReady && !isAuthenticated && guestPrefilledRef.current) {
+      localStorage.setItem("guestBillingFirstName", billingFirstName);
+      localStorage.setItem("guestBillingLastName", billingLastName);
+      localStorage.setItem("guestBillingPhone", billingPhone);
+      localStorage.setItem("guestBillingCompany", billingCompany);
+      localStorage.setItem("guestBillingAddress1", billingAddress1);
+      localStorage.setItem("guestBillingAddress2", billingAddress2);
+      localStorage.setItem("guestBillingCity", billingCity);
+      localStorage.setItem("guestBillingState", billingState);
+      localStorage.setItem("guestBillingPostalCode", billingPostalCode);
+      localStorage.setItem("guestBillingCountry", billingCountry);
+
+      localStorage.setItem("guestShippingSameAsBilling", String(shippingSameAsBilling));
+      localStorage.setItem("guestShippingFirstName", shippingFirstName);
+      localStorage.setItem("guestShippingLastName", shippingLastName);
+      localStorage.setItem("guestShippingCompany", shippingCompany);
+      localStorage.setItem("guestShippingAddress1", shippingAddress1);
+      localStorage.setItem("guestShippingAddress2", shippingAddress2);
+      localStorage.setItem("guestShippingCity", shippingCity);
+      localStorage.setItem("guestShippingState", shippingState);
+      localStorage.setItem("guestShippingPostalCode", shippingPostalCode);
+      localStorage.setItem("guestShippingCountry", shippingCountry);
+      localStorage.setItem("guestShippingPhone", shippingPhone);
+      localStorage.setItem("guestNotes", notes);
+    }
+  }, [
+    isReady,
+    isAuthenticated,
+    billingFirstName,
+    billingLastName,
+    billingPhone,
+    billingCompany,
+    billingAddress1,
+    billingAddress2,
+    billingCity,
+    billingState,
+    billingPostalCode,
+    billingCountry,
+    shippingSameAsBilling,
+    shippingFirstName,
+    shippingLastName,
+    shippingCompany,
+    shippingAddress1,
+    shippingAddress2,
+    shippingCity,
+    shippingState,
+    shippingPostalCode,
+    shippingCountry,
+    shippingPhone,
+    notes,
+  ]);
   // Debounced autocomplete using the single API you provided
   const doAutocomplete = useCallback(async (q: string) => {
     if (!q || q.trim().length < 3) {
@@ -1059,6 +1228,7 @@ export default function CheckoutPage() {
       notes,
       pointsToRedeem: pointsToRedeem || 0,
       pointsDiscountAmount: pointsDiscount || 0,
+      ...getAttributionPayload(),
     };
   };
   const validateAndBuildPayload = async (): Promise<any | null> => {
@@ -1072,32 +1242,31 @@ export default function CheckoutPage() {
       errors.billingEmail = "Enter a valid email address";
     }
     if (!billingFirstName.trim()) errors.billingFirstName = "First name is required";
-    if (!billingPhone.trim()) errors.billingPhone = "Phone number is required";
+    if (!billingPhone.trim()) {
+      errors.billingPhone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(billingPhone.trim())) {
+      errors.billingPhone = "Phone number must be exactly 10 digits";
+    }
 
     if (!billingAddress1.trim()) errors.billingAddress1 = "Address line 1 is required";
     if (!billingPostalCode.trim()) errors.billingPostalCode = "Postcode is required";
-    // ✅ ADD THESE TWO LINES
-    if (!billingCity.trim())
-      errors.billingCity = "City is required";
-
+    if (!billingCity.trim()) errors.billingCity = "City is required";
 
     // ✅ SHIPPING VALIDATION (same as billing)
     if (deliveryMethod === "HomeDelivery" && !shippingSameAsBilling) {
-      // ✅ ADD THIS
       if (!shippingFirstName.trim())
         errors.shippingFirstName = "Shipping first name is required";
-      if (!shippingPhone.trim())
+      if (!shippingPhone.trim()) {
         errors.shippingPhone = "Shipping phone number is required";
+      } else if (!/^\d{10}$/.test(shippingPhone.trim())) {
+        errors.shippingPhone = "Phone number must be exactly 10 digits after +44";
+      }
       if (!shippingAddress1.trim())
         errors.shippingAddress1 = "Shipping address line 1 is required";
-
       if (!shippingPostalCode.trim())
         errors.shippingPostalCode = "Shipping postcode is required";
-
       if (!shippingCity.trim())
         errors.shippingCity = "Shipping city is required";
-
-
     }
 
 
@@ -1172,6 +1341,9 @@ export default function CheckoutPage() {
   };
 
   const onPaymentSuccess = (createdOrder: any) => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("pending_order_id");
+    }
     if (createdOrder?.data) {
       setOrderSummary({
         subtotalAmount: createdOrder.data.subtotalAmount,
@@ -1197,6 +1369,29 @@ export default function CheckoutPage() {
     // 🔥 CLEAR PHARMA SESSION AFTER SUCCESS (GUEST ONLY)
     if (!isAuthenticated) {
       localStorage.removeItem("pharmacy_session_id");
+      localStorage.removeItem("guestEmail");
+      localStorage.removeItem("guestBillingFirstName");
+      localStorage.removeItem("guestBillingLastName");
+      localStorage.removeItem("guestBillingPhone");
+      localStorage.removeItem("guestBillingCompany");
+      localStorage.removeItem("guestBillingAddress1");
+      localStorage.removeItem("guestBillingAddress2");
+      localStorage.removeItem("guestBillingCity");
+      localStorage.removeItem("guestBillingState");
+      localStorage.removeItem("guestBillingPostalCode");
+      localStorage.removeItem("guestBillingCountry");
+      localStorage.removeItem("guestShippingSameAsBilling");
+      localStorage.removeItem("guestShippingFirstName");
+      localStorage.removeItem("guestShippingLastName");
+      localStorage.removeItem("guestShippingCompany");
+      localStorage.removeItem("guestShippingAddress1");
+      localStorage.removeItem("guestShippingAddress2");
+      localStorage.removeItem("guestShippingCity");
+      localStorage.removeItem("guestShippingState");
+      localStorage.removeItem("guestShippingPostalCode");
+      localStorage.removeItem("guestShippingCountry");
+      localStorage.removeItem("guestShippingPhone");
+      localStorage.removeItem("guestNotes");
     }
     router.push(`/order/success?orderId=${createdOrder.data.id}`);
   };
@@ -1264,18 +1459,45 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div className="flex flex-col space-y-0.5 col-span-2">
-                  <label className="text-xs font-medium text-gray-700">Phone (UK) *</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-700">Phone (UK) *</label>
+                    <span className={`text-[10px] font-semibold tabular-nums transition-colors ${billingPhone.length === 10
+                      ? "text-green-600"
+                      : billingPhone.length > 0
+                        ? "text-orange-500"
+                        : "text-gray-400"
+                      }`}>
+                      {billingPhone.length}/10 digits
+                    </span>
+                  </div>
                   <div className="flex">
-                    <span className="flex items-center bg-gray-100 border border-r-0 border-gray-300 px-2 rounded text-xs text-gray-700">+44</span>
+                    <span className={`flex items-center bg-gray-100 border border-r-0 px-2 rounded text-xs font-semibold transition-colors ${fieldErrors.billingPhone
+                      ? "border-red-400 text-red-600"
+                      : "border-gray-300 text-gray-700"
+                      }`}>+44</span>
                     <input
                       type="tel"
                       value={billingPhone}
-                      onChange={(e) => { const cleaned = e.target.value.replace(/\D/g, ""); setBillingPhone(cleaned); clearFieldError("billingPhone"); }}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, "");
+                        if (cleaned.length <= 10) {
+                          setBillingPhone(cleaned);
+                          clearFieldError("billingPhone");
+                        }
+                      }}
                       placeholder="7xxxxxxxxx"
-                      className="w-full border border-gray-300 p-1.5 text-sm rounded-r focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
                       maxLength={10}
+                      className={`w-full border p-1.5 text-sm rounded-r focus:ring-2 transition-all ${fieldErrors.billingPhone
+                        ? "border-red-400 focus:ring-red-200 focus:border-red-500"
+                        : "border-gray-300 focus:ring-[#f38918]/20 focus:border-[#f38918]"
+                        }`}
                     />
                   </div>
+                  {billingPhone.length > 0 && billingPhone.length < 10 && (
+                    <p className="text-[11px] text-orange-500 flex items-center gap-1 mt-0.5">
+                      <span>⚠</span> {10 - billingPhone.length} more digit{10 - billingPhone.length !== 1 ? "s" : ""} needed
+                    </p>
+                  )}
                   <ErrorText error={fieldErrors.billingPhone} />
                 </div>
                 <div className="flex flex-col space-y-0.5 col-span-2">
@@ -1286,6 +1508,7 @@ export default function CheckoutPage() {
                     className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
                   />
                 </div>
+                {/*
                 <div className="flex flex-col space-y-0.5 col-span-2 relative z-[40]">
                   <label className="text-xs font-medium text-gray-700">Search address or postcode</label>
                   <input
@@ -1303,6 +1526,7 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
+                */}
                 <div className="flex flex-col space-y-0.5 col-span-2">
                   <label className="text-xs font-medium text-gray-700">Address line 1 *</label>
                   <input
@@ -1400,6 +1624,7 @@ export default function CheckoutPage() {
                 </div>
                 {!shippingSameAsBilling ? (
                   <div className="grid grid-cols-2 gap-2">
+                    {/*
                     <div className="flex flex-col space-y-0.5 mt-2 col-span-2 relative z-[40]">
                       <label className="text-xs font-medium text-gray-700">
                         Search shipping address or postcode
@@ -1461,6 +1686,7 @@ export default function CheckoutPage() {
                         </div>
                       )}
                     </div>
+                    */}
                     <div className="flex flex-col space-y-0.5">
                       <label className="text-xs font-medium text-gray-700">First name *</label>
                       <input value={shippingFirstName} onChange={(e) => { setShippingFirstName(e.target.value); clearFieldError("shippingFirstName"); }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all" />
@@ -1471,24 +1697,45 @@ export default function CheckoutPage() {
                       <input value={shippingLastName} onChange={(e) => setShippingLastName(e.target.value)} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all" />
                     </div>
                     <div className="flex flex-col space-y-0.5 col-span-2">
-                      <label className="text-xs font-medium text-gray-700">Phone (UK) *</label>
-                      <div className="flex">
-                        <span className="flex items-center bg-gray-100 border border-r-0 border-gray-300 px-2 rounded text-xs text-gray-700">
-                          +44
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-gray-700">Phone (UK) *</label>
+                        <span className={`text-[10px] font-semibold tabular-nums transition-colors ${shippingPhone.length === 10
+                          ? "text-green-600"
+                          : shippingPhone.length > 0
+                            ? "text-orange-500"
+                            : "text-gray-400"
+                          }`}>
+                          {shippingPhone.length}/10 digits
                         </span>
+                      </div>
+                      <div className="flex">
+                        <span className={`flex items-center bg-gray-100 border border-r-0 px-2 rounded text-xs font-semibold transition-colors ${fieldErrors.shippingPhone
+                          ? "border-red-400 text-red-600"
+                          : "border-gray-300 text-gray-700"
+                          }`}>+44</span>
                         <input
                           type="tel"
                           value={shippingPhone}
                           onChange={(e) => {
                             const cleaned = e.target.value.replace(/\D/g, "");
-                            setShippingPhone(cleaned);
-                            clearFieldError("shippingPhone");
+                            if (cleaned.length <= 10) {
+                              setShippingPhone(cleaned);
+                              clearFieldError("shippingPhone");
+                            }
                           }}
                           placeholder="7xxxxxxxxx"
-                          className="w-full border border-gray-300 p-1.5 text-sm rounded-r focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
                           maxLength={10}
+                          className={`w-full border p-1.5 text-sm rounded-r focus:ring-2 transition-all ${fieldErrors.shippingPhone
+                            ? "border-red-400 focus:ring-red-200 focus:border-red-500"
+                            : "border-gray-300 focus:ring-[#f38918]/20 focus:border-[#f38918]"
+                            }`}
                         />
                       </div>
+                      {shippingPhone.length > 0 && shippingPhone.length < 10 && (
+                        <p className="text-[11px] text-orange-500 flex items-center gap-1 mt-0.5">
+                          <span>⚠</span> {10 - shippingPhone.length} more digit{10 - shippingPhone.length !== 1 ? "s" : ""} needed
+                        </p>
+                      )}
                       <ErrorText error={fieldErrors.shippingPhone} />
                     </div>
                     <div className="flex flex-col space-y-0.5 col-span-2">
@@ -1544,15 +1791,15 @@ export default function CheckoutPage() {
                     <input type="radio" className="accent-[#f38918]" name="deliveryMethod" checked={deliveryMethod === "HomeDelivery"} onChange={() => setDeliveryMethod("HomeDelivery")} />
                     Home Delivery
                   </label>
-                  <label className="flex items-center gap-2 text-sm">
+                  {/* <label className="flex items-center gap-2 text-sm">
                     <input type="radio" className="accent-[#f38918]" name="deliveryMethod" checked={deliveryMethod === "ClickAndCollect"} onChange={() => setDeliveryMethod("ClickAndCollect")} />
                     Click & Collect (Collect from store)
-                  </label>
+                  </label> */}
                 </div>
               </div>
             </fieldset>
           )}
-          {deliveryMethod === "ClickAndCollect" && (
+          {/* {deliveryMethod === "ClickAndCollect" && (
             <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
               <div className="bg-white p-3 rounded shadow">
                 <h2 className="text-sm font-semibold mb-2">Select Store</h2>
@@ -1574,7 +1821,6 @@ export default function CheckoutPage() {
                             : "border-gray-200 hover:border-[#f38918]/40"
                             }`}
                         >
-                          {/* Radio */}
                           <input
                             type="radio"
                             name="store"
@@ -1583,7 +1829,6 @@ export default function CheckoutPage() {
                             className="mt-1 accent-[#f38918]"
                           />
 
-                          {/* Content */}
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-semibold text-gray-900">
@@ -1614,7 +1859,7 @@ export default function CheckoutPage() {
                 )}
               </div>
             </fieldset>
-          )}
+          )} */}
           {/* SHIPPING OPTIONS */}
           {deliveryMethod === "HomeDelivery" && shippingOptions.length > 0 && (
             <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
@@ -1655,9 +1900,10 @@ export default function CheckoutPage() {
                             )}
                           </div>
                         </div>
-                        <span className={`text-xs font-bold shrink-0 ${opt.isFree ? "text-orange-600" : "text-gray-800"}`}>
+                        <span className={`text-xs font-bold shrink-0 ${opt.isFree || (allNextDayFree && (opt.name || opt.displayName || opt.title || "").toLowerCase().includes("next")) ? "text-orange-600" : "text-gray-800"}`}>
                           {(() => {
                             const isNextDay =
+                              (opt.name || opt.displayName || opt.title || opt.methodName || "").toLowerCase().includes("next") ||
                               opt.deliveryOptionId === "451bb725-19f7-441a-9dd0-d282cf268397";
 
                             if (isNextDay && allNextDayFree) return "FREE";
@@ -1755,9 +2001,8 @@ export default function CheckoutPage() {
                             // OLD PRICE
                             else if (it.displayDiscountType === "OldPrice") {
 
-                              const oldPrice =
-                                it.oldPrice ??
-                                it.productData?.oldPrice;
+                              const hasVariants = !!it.productData?.variants?.length;
+                              const oldPrice = hasVariants ? (it.oldPrice ?? null) : (it.oldPrice ?? it.productData?.oldPrice ?? null);
 
                               if (oldPrice && oldPrice > it.price) {
                                 comparePrice = oldPrice * it.quantity;
@@ -1849,6 +2094,7 @@ export default function CheckoutPage() {
                     <span className={`font-semibold ${shippingCost === 0 ? "text-orange-600" : ""}`}>
                       {(() => {
                         const isNextDay =
+                          (selectedShippingOption?.name || selectedShippingOption?.displayName || selectedShippingOption?.title || selectedShippingOption?.methodName || "").toLowerCase().includes("next") ||
                           selectedShippingOption?.deliveryOptionId === "451bb725-19f7-441a-9dd0-d282cf268397";
 
                         if (isNextDay && allNextDayFree) return "FREE";
@@ -2009,6 +2255,9 @@ export default function CheckoutPage() {
                         }
 
                         const orderId = orderJson.data.id;
+                        if (typeof window !== "undefined") {
+                          sessionStorage.setItem("pending_order_id", orderId);
+                        }
                         const totalAmount = orderJson.data.totalAmount;
 
                         // ✅ STRIPE PAYMENT INTENT

@@ -4,10 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
-import FeaturedProductsSlider from "@/components/FeaturedProductsSlider";
 import NewArrivalsProductsSlider from "@/components/NewArrivalsProductsSlider";
 import TopBrandsSlider from "@/components/TopBrandsSlider";
-import CategorySlider from "@/components/CategorySlider";
 import NewsletterWrapper from "@/components/NewsletterWrapper";
 import CategoryOffersSlider from "@/components/CategoryOffersSlider";
 import { getActiveBanners } from "@/lib/bannerUtils";
@@ -15,12 +13,30 @@ import Script from "next/script";
 import { TrendingUp, Zap, Gift, Shield, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { BlogPost } from "@/components/LatestBlogs";
-const WhyChooseUs = dynamic(() => import("@/components/WhyChooseUs"));
-const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"));
-const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"));
+
+const FeaturedProductsSlider = dynamic(() => import("@/components/FeaturedProductsSlider"), {
+  loading: () => <div className="h-[400px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
+  ssr: true
+});
+const CategorySlider = dynamic(() => import("@/components/CategorySlider"), {
+  loading: () => <div className="h-[180px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
+  ssr: true
+});
+const WhyChooseUs = dynamic(() => import("@/components/WhyChooseUs"), {
+  loading: () => <div className="h-[120px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
+  ssr: true
+});
+const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"), {
+  loading: () => <div className="h-[320px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
+  ssr: true
+});
+const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"), {
+  loading: () => <div className="h-[400px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
+  ssr: true
+});
 import type { Metadata } from "next";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 // ✅ Static feature section
 const features = [
@@ -113,7 +129,7 @@ async function getProducts(baseUrl: string) {
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=20&sortDirection=asc&isPublished=true&showOnHomepage=true&isDeleted=false`,
       {
-        cache: "no-store",
+        next: { revalidate: 60 },
       }
     );
     const result = await res.json();
@@ -351,6 +367,8 @@ export default async function Home() {
                     <img
                       src={desktopSrc}
                       alt={banner.title || "Houszy Promotion Banner"}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-auto object-contain"
                     />
                   </picture>

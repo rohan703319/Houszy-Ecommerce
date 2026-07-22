@@ -8,6 +8,7 @@ interface Props {
   onChange: (value: string) => void;
   productId?: string;
   isVariableProduct?: boolean;
+  disabled?: boolean;
   onErrorChange?: (hasError: boolean) => void;
   onCheckingChange?: (checking: boolean) => void;
 }
@@ -31,6 +32,7 @@ export default function SKUInput({
   onChange,
   productId,
   isVariableProduct = false,
+  disabled = false,
   onErrorChange,
   onCheckingChange
 }: Props) {
@@ -41,42 +43,47 @@ export default function SKUInput({
   const lastCheckedRef = useRef<string>(''); // ✅ cache
   const requestIdRef = useRef(0); // ✅ prevent race
 
-  useEffect(() => {
-    onErrorChange?.(!!error);
-  }, [error]);
+  const isDisabled = isVariableProduct || disabled;
 
   useEffect(() => {
-    onCheckingChange?.(checking);
-  }, [checking]);
+    onErrorChange?.(isDisabled ? false : !!error);
+  }, [error, isDisabled]);
 
-const checkSkuExists = async (sku: string) => {
-  if (lastCheckedRef.current === sku) return;
-  lastCheckedRef.current = sku;
+  useEffect(() => {
+    onCheckingChange?.(isDisabled ? false : checking);
+  }, [checking, isDisabled]);
 
-  const currentRequestId = ++requestIdRef.current;
+  const checkSkuExists = async (sku: string) => {
+    if (isDisabled) return;
+    if (lastCheckedRef.current === sku) return;
+    lastCheckedRef.current = sku;
 
-  try {
-    setChecking(true);
+    const currentRequestId = ++requestIdRef.current;
 
-    const res = await productsService.searchSummary({
-      sku: sku.trim(),
-    });
+    try {
+      setChecking(true);
 
-    if (currentRequestId !== requestIdRef.current) return;
+      const res = await productsService.searchSummary({
+        sku: sku.trim(),
+      });
 
-    const exists = res.data?.data?.skuFound ?? false;
+      if (currentRequestId !== requestIdRef.current) return;
 
-    setError(exists ? 'SKU already exists' : '');
+      const exists = res.data?.data?.skuFound ?? false;
 
-  } catch (err) {
-    console.warn(err);
-  } finally {
-    if (currentRequestId === requestIdRef.current) {
-      setChecking(false);
+      setError(exists ? 'SKU already exists' : '');
+
+    } catch (err) {
+      console.warn(err);
+    } finally {
+      if (currentRequestId === requestIdRef.current) {
+        setChecking(false);
+      }
     }
-  }
-};
+  };
+
   const handleChange = (input: string) => {
+    if (isDisabled) return;
     const sanitized = input.toUpperCase().replace(/[^A-Z0-9-]/g, '');
 
     onChange(sanitized);
@@ -103,31 +110,34 @@ const checkSkuExists = async (sku: string) => {
     <div>
       <label className="block text-sm text-slate-300 mb-2">
         SKU{' '}
-        {isVariableProduct
-          ? <span className="text-xs text-slate-500">(optional)</span>
+        {isDisabled
+          ? <span className="text-xs text-amber-400 font-normal">(Auto-managed per variant)</span>
           : <span className="text-red-500">*</span>}
       </label>
 
       <div className="relative">
         <input
-          value={value}
+          value={isDisabled ? '' : value}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder="PROD-001"
-          className={`w-full px-4 py-2 pr-10 rounded-lg bg-slate-800 text-white ${
-            error ? 'border-red-500' : 'border-slate-700'
+          disabled={isDisabled}
+          placeholder={isDisabled ? 'Disabled for Variable Product' : 'PROD-001'}
+          className={`w-full px-4 py-2 pr-10 rounded-lg bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-900/80 ${
+            error && !isDisabled ? 'border-red-500' : 'border-slate-700'
           }`}
         />
 
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          {checking && <span className="text-yellow-400 animate-pulse">...</span>}
-          {!checking && error && <span className="text-red-500">❌</span>}
-          {!checking && !error && value.length >= 3 && <span className="text-green-500">✔</span>}
-        </div>
+        {!isDisabled && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {checking && <span className="text-yellow-400 animate-pulse">...</span>}
+            {!checking && error && <span className="text-red-500">❌</span>}
+            {!checking && !error && value.length >= 3 && <span className="text-green-500">✔</span>}
+          </div>
+        )}
       </div>
 
-      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+      {!isDisabled && error && <p className="text-red-400 text-xs mt-1">{error}</p>}
 
-      {!error && value.length >= 3 && !checking && (
+      {!isDisabled && !error && value.length >= 3 && !checking && (
         <p className="text-green-400 text-xs mt-1">SKU is available</p>
       )}
     </div>

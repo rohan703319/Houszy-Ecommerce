@@ -143,6 +143,11 @@ export interface FullRefundRequest {
  * Partial Refund Request
  * @see API Documentation Section 3
  */
+export interface RefundItemDto {
+  orderItemId: string;
+  quantity: number;
+}
+
 export interface PartialRefundRequest {
   orderId: string;
   refundAmount: number;
@@ -151,6 +156,9 @@ export interface PartialRefundRequest {
   adminNotes?: string | null;
   sendCustomerNotification?: boolean;
   currentUser?: string;
+  // Item-wise refund (By Item tab)
+  items?: RefundItemDto[];
+  restoreInventory?: boolean;
 }
 
 /**

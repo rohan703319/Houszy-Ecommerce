@@ -111,6 +111,11 @@ export default function ManageBanners() {
 
 
   const handleImageFileChange = (file: File) => {
+    const isWebp = file.type === "image/webp" || file.name.toLowerCase().endsWith(".webp");
+    if (!isWebp) {
+      toast.error("Only WebP images (.webp) are allowed for banners!");
+      return;
+    }
     setImageFile(file);
     const previewUrl = URL.createObjectURL(file);
     setImagePreview(previewUrl);
@@ -118,6 +123,11 @@ export default function ManageBanners() {
   };
 
   const handleMobileImageFileChange = (file: File) => {
+    const isWebp = file.type === "image/webp" || file.name.toLowerCase().endsWith(".webp");
+    if (!isWebp) {
+      toast.error("Only WebP images (.webp) are allowed for banners!");
+      return;
+    }
     setMobileImageFile(file);
     const previewUrl = URL.createObjectURL(file);
     setMobileImagePreview(previewUrl);
@@ -1355,7 +1365,7 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                             Change Image
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/webp,.webp"
                               disabled={!formData.title}
                               className="hidden"
                               onChange={(e) => {
@@ -1408,12 +1418,12 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                               )}
                             </p>
                             {formData.title && (
-                              <p className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</p>
+                              <p className="text-xs text-amber-400 font-medium">Only WebP (.webp) images allowed</p>
                             )}
                           </div>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/webp,.webp"
                             disabled={!formData.title}
                             className="hidden"
                             onChange={(e) => {
@@ -1425,12 +1435,15 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                       </div>
                     )}
 
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 space-y-1">
                       <p className="text-xs text-blue-400 flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
+                        <AlertCircle className="h-4 w-4 shrink-0" />
                         {editingBanner
                           ? "Uploading new image will automatically delete the old one from server"
                           : "Desktop banner image is required for creation"}
+                      </p>
+                      <p className="text-xs text-amber-400 font-medium pl-6">
+                        • Format: Only .webp images are allowed.
                       </p>
                     </div>
                   </div>
@@ -1474,7 +1487,7 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                             Change
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="image/webp,.webp"
                               className="hidden"
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
@@ -1506,11 +1519,11 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                             <p className="text-sm text-slate-500">
                               <span className="font-semibold">Click to upload</span> mobile image
                             </p>
-                            <p className="text-xs text-slate-500 mt-1">Recommended: 768×400px or similar portrait/narrow ratio</p>
+                            <p className="text-xs text-amber-400 font-medium mt-1">Only WebP (.webp) images allowed</p>
                           </div>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/webp,.webp"
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];

@@ -28,14 +28,29 @@ export const googleMerchantService = {
   },
 
   // ✅ NEW
-getFeedXml: async () => {
-  return apiClient.get(
-    `${API_ENDPOINTS.GoogleMerchantCenter}/feed.xml`,
-    {
-      responseType: "text",
-    }
-  );
-},
+  getFeedXml: async () => {
+    return apiClient.get(
+      `${API_ENDPOINTS.GoogleMerchantCenter}/feed.xml`,
+      {
+        responseType: "text",
+      }
+    );
+  },
+
+  cleanResync: async () => {
+    return apiClient.post<GoogleMerchantResponse>(
+      `${API_ENDPOINTS.GoogleMerchantCenter}/clean-resync`
+    );
+  },
+
+  getReviewsFeedXml: async () => {
+    return apiClient.get(
+      `${API_ENDPOINTS.GoogleMerchantCenter}/reviews-feed.xml`,
+      {
+        responseType: "text",
+      }
+    );
+  },
 };
 
 export type { GoogleMerchantResponse };

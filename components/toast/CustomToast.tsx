@@ -149,6 +149,23 @@ const ToastItem = ({
 };
 
 
+const extractTextContent = (node: ReactNode): string => {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return "";
+  }
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map(extractTextContent).join("");
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: ReactNode } | null | undefined;
+    return extractTextContent(props?.children);
+  }
+  return "";
+};
+
 /* ================= PROVIDER ================= */
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -190,8 +207,25 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     type: ToastType,
     duration = 3200
   ) => {
-    const id = crypto.randomUUID();
-    setToasts((prev) => [...prev, { id, message, type, duration }]);
+    setToasts((prev) => {
+      const newText = extractTextContent(message).trim();
+
+      const filtered = prev.filter((t) => {
+        if (type === "success" && t.type === "success") {
+          return false;
+        }
+        if (newText.length > 0) {
+          const existingText = extractTextContent(t.message).trim();
+          if (existingText === newText) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      const id = crypto.randomUUID();
+      return [...filtered, { id, message, type, duration }];
+    });
   };
 
   const value: ToastContextType = {
@@ -213,15 +247,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             @keyframes toastAttention {
               0% {
                 opacity: 0;
-                transform: translateX(26px) translateY(-8px) scale(0.94);
-              }
-              60% {
-                opacity: 1;
-                transform: translateX(-4px) translateY(0) scale(1.02);
+                transform: translateY(-16px) scale(0.96);
               }
               100% {
                 opacity: 1;
-                transform: translateX(0) translateY(0) scale(1);
+                transform: translateY(0) scale(1);
               }
             }
           `}</style>
@@ -229,7 +259,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
           {/* ===== TOP TOASTS (SUCCESS / ERROR / WARNING SAME) ===== */}
           <div
             style={{ top: `${topOffset}px` }}
-            className="fixed right-4 z-[9999] flex flex-col gap-3 items-end"
+            className="fixed left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 items-center"
           >
             {toasts
               .filter((t) => t.type !== "info")

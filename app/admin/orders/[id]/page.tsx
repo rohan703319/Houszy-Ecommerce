@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Package,
   User,
+  Trash2,
   Mail,
   Phone,
   Calendar,
@@ -55,6 +56,7 @@ import {
   formatCurrency,
   formatDate,
   getPaymentMethodInfo,
+  OrderAdminComment,
 } from '@/lib/services/orders';
 import { useToast } from '@/app/admin/_components/CustomToast';
 import OrderActionsModal from '../OrderActionsModal';
@@ -787,6 +789,82 @@ export default function OrderDetailPage() {
   const [loadingRefundHistory, setLoadingRefundHistory] = useState(false);
   const [loadingEditHistory, setLoadingEditHistory] = useState(false);
 
+  // Admin Comments States & Actions
+  const [comments, setComments] = useState<OrderAdminComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newCommentText, setNewCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState("");
+
+  const fetchComments = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      setLoadingComments(true);
+      const res = await orderService.getOrderAdminComments(orderId);
+      if (res?.success && res.data) {
+        setComments(res.data);
+      }
+    } catch (err: any) {
+      console.error("Error fetching comments:", err);
+      toast.error(err?.message || "Failed to load comments");
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [orderId, toast]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  const handleAddComment = async () => {
+    if (!newCommentText.trim()) return;
+    try {
+      setSubmittingComment(true);
+      const res = await orderService.addOrderAdminComment(orderId, newCommentText.trim());
+      if (res?.success && res.data) {
+        setComments(prev => [res.data, ...prev]);
+        setNewCommentText("");
+        toast.success("Comment added successfully");
+      }
+    } catch (err: any) {
+      console.error("Error adding comment:", err);
+      toast.error(err?.message || "Failed to add comment");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editingCommentText.trim()) return;
+    try {
+      const res = await orderService.updateOrderAdminComment(commentId, editingCommentText.trim());
+      if (res?.success && res.data) {
+        setComments(prev => prev.map(c => c.id === commentId ? res.data : c));
+        setEditingCommentId(null);
+        setEditingCommentText("");
+        toast.success("Comment updated successfully");
+      }
+    } catch (err: any) {
+      console.error("Error updating comment:", err);
+      toast.error(err?.message || "Failed to update comment");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
+    try {
+      const res = await orderService.deleteOrderAdminComment(commentId);
+      if (res?.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        toast.success("Comment deleted successfully");
+      }
+    } catch (err: any) {
+      console.error("Error deleting comment:", err);
+      toast.error(err?.message || "Failed to delete comment");
+    }
+  };
+
   // Refund Modal States
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundTab, setRefundTab] = useState<'full' | 'partial' | 'shipping'>('full');
@@ -1168,6 +1246,61 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleItemRefund = async (
+    items: import('@/lib/services/OrderEdit').RefundItemDto[],
+    restoreInventory: boolean,
+    reason: import('@/lib/services/OrderEdit').RefundReason,
+    notes: string
+  ) => {
+    if (!items || items.length === 0) {
+      toast.error('Please select at least one item to refund');
+      return;
+    }
+
+    if (!notes?.trim()) {
+      toast.error('Please provide refund notes');
+      return;
+    }
+
+    if (!order) return;
+
+    try {
+      setProcessingRefund(true);
+
+      const result = await orderEditService.processPartialRefund({
+        orderId,
+        refundAmount: 0, // ignored by backend when items are provided
+        reason,
+        reasonDetails: orderEditService.getRefundReasonLabel(reason),
+        adminNotes: notes,
+        sendCustomerNotification: true,
+        currentUser,
+        items,
+        restoreInventory,
+      });
+
+      if (!result?.success) {
+        throw new Error(result?.message || 'Refund failed');
+      }
+
+      toast.success(result.message || 'Item refund processed successfully');
+
+      setShowRefundModal(false);
+      await refreshAllOrderData();
+
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors?.[0] ||
+        error?.message ||
+        'Failed to process item refund';
+
+      toast.error(backendMessage);
+    } finally {
+      setProcessingRefund(false);
+    }
+  };
+
   const handlePaymentSubmit = async (data: any) => {
     if (!order) return;
 
@@ -1317,7 +1450,18 @@ export default function OrderDetailPage() {
   }
 
   const statusInfo = getOrderStatusInfo(order.status);
-  const paymentStatusStr = order.paymentStatus || (order.payments?.[0]?.status);
+  // Smart resolve: payments array mein agar koi Successful hai to Successful dikhao
+  const resolvePaymentStatus = (): string => {
+    if (order.paymentStatus && order.paymentStatus !== 'Pending') return order.paymentStatus;
+    const pays = order.payments ?? [];
+    if (pays.length === 0) return order.paymentStatus ?? '';
+    const priority = ['Successful', 'Completed', 'PartiallyRefunded', 'Refunded', 'Failed', 'Pending'];
+    for (const p of priority) {
+      if (pays.some((pay: any) => pay.status === p)) return p;
+    }
+    return order.paymentStatus ?? '';
+  };
+  const paymentStatusStr = resolvePaymentStatus();
   const paymentStatusInfo = paymentStatusStr ? getPaymentStatusInfo(paymentStatusStr as PaymentStatus) : null;
   const collectionStatusInfo = order.collectionStatus
     ? getCollectionStatusInfo(order.collectionStatus as CollectionStatus)
@@ -1454,27 +1598,27 @@ export default function OrderDetailPage() {
       {/* ✅ Pharmacy Section — Unified */}
       {order.pharmacyVerificationStatus && (
         <div className={`rounded-xl border overflow-hidden mb-3 ${order.pharmacyVerificationStatus === 'Approved'
-            ? 'border-green-500/30 bg-green-500/5'
-            : order.pharmacyVerificationStatus === 'Rejected'
-              ? 'border-red-500/30 bg-red-500/5'
-              : 'border-amber-500/30 bg-amber-500/5'
+          ? 'border-green-500/30 bg-green-500/5'
+          : order.pharmacyVerificationStatus === 'Rejected'
+            ? 'border-red-500/30 bg-red-500/5'
+            : 'border-amber-500/30 bg-amber-500/5'
           }`}>
 
           {/* ── Compact Header Row ── */}
           <div className="flex items-center gap-3 px-4 py-3">
             {/* Icon */}
             <div className={`p-1.5 rounded-lg ${order.pharmacyVerificationStatus === 'Approved' ? 'bg-green-500/20' :
-                order.pharmacyVerificationStatus === 'Rejected' ? 'bg-red-500/20' : 'bg-amber-500/20'
+              order.pharmacyVerificationStatus === 'Rejected' ? 'bg-red-500/20' : 'bg-amber-500/20'
               }`}>
               <FlaskConical className={`w-4 h-4 ${order.pharmacyVerificationStatus === 'Approved' ? 'text-green-400' :
-                  order.pharmacyVerificationStatus === 'Rejected' ? 'text-red-400' : 'text-amber-400'
+                order.pharmacyVerificationStatus === 'Rejected' ? 'text-red-400' : 'text-amber-400'
                 }`} />
             </div>
 
             {/* Text */}
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-semibold ${order.pharmacyVerificationStatus === 'Approved' ? 'text-green-400' :
-                  order.pharmacyVerificationStatus === 'Rejected' ? 'text-red-400' : 'text-amber-400'
+                order.pharmacyVerificationStatus === 'Rejected' ? 'text-red-400' : 'text-amber-400'
                 }`}>
                 {order.pharmacyVerificationStatus === 'Pending'
                   ? 'Pharmacy Verification Pending'
@@ -1491,10 +1635,10 @@ export default function OrderDetailPage() {
 
             {/* Status Badge */}
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${order.pharmacyVerificationStatus === 'Approved'
-                ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                : order.pharmacyVerificationStatus === 'Rejected'
-                  ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              ? 'bg-green-500/10 text-green-400 border-green-500/30'
+              : order.pharmacyVerificationStatus === 'Rejected'
+                ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
               }`}>
               {order.pharmacyVerificationStatus}
             </span>
@@ -1504,8 +1648,8 @@ export default function OrderDetailPage() {
               onClick={() => setShowPharmaQA(!showPharmaQA)}
               title={showPharmaQA ? 'Hide Responses' : 'View Responses'}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${showPharmaQA
-                  ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
-                  : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:text-white hover:border-slate-500'
+                ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                : 'bg-slate-700/50 border-slate-600 text-slate-400 hover:text-white hover:border-slate-500'
                 }`}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -1536,10 +1680,10 @@ export default function OrderDetailPage() {
                             <div key={i} className="flex items-start justify-between gap-4 bg-slate-800/60 rounded-lg px-3 py-2.5 border border-slate-700/40">
                               <p className="text-slate-300 text-xs flex-1">{r.questionText}</p>
                               <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${r.answerText?.toLowerCase() === 'yes'
-                                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                                  : r.answerText?.toLowerCase() === 'no'
-                                    ? 'bg-green-500/15 text-green-400 border border-green-500/30'
-                                    : 'bg-slate-700 text-slate-300 border border-slate-600'
+                                ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                                : r.answerText?.toLowerCase() === 'no'
+                                  ? 'bg-green-500/15 text-green-400 border border-green-500/30'
+                                  : 'bg-slate-700 text-slate-300 border border-slate-600'
                                 }`}>
                                 {r.answerText || '—'}
                               </span>
@@ -1559,8 +1703,8 @@ export default function OrderDetailPage() {
               {/* Approved/Rejected Note */}
               {order.pharmacyVerificationStatus !== 'Pending' && order.pharmacyVerificationNote && (
                 <div className={`flex items-start gap-2 p-3 rounded-lg border text-xs ${order.pharmacyVerificationStatus === 'Approved'
-                    ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                  ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
                   }`}>
                   <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   <p>{order.pharmacyVerificationNote}</p>
@@ -1635,8 +1779,8 @@ export default function OrderDetailPage() {
               </p>
               <span
                 className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium ${order.isGuestOrder
-                    ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                  ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                   }`}
                 title={order.isGuestOrder ? 'Guest checkout - no account created' : 'Registered user with account'}
               >
@@ -1710,8 +1854,8 @@ export default function OrderDetailPage() {
 
                 <span
                   className={`font-medium ${(order.clickAndCollectFee ?? 0) === 0
-                      ? 'text-slate-500 text-xs'
-                      : 'text-white'
+                    ? 'text-slate-500 text-xs'
+                    : 'text-white'
                     }`}
                 >
                   {(order.clickAndCollectFee ?? 0) === 0
@@ -1927,8 +2071,8 @@ export default function OrderDetailPage() {
 
                   <span
                     className={`font-medium text-right flex items-center gap-1 ${isCollectionExpired()
-                        ? "text-red-400"
-                        : "text-white"
+                      ? "text-red-400"
+                      : "text-white"
                       }`}
                   >
                     {formatDate(order.collectionExpiryDate)}
@@ -2571,6 +2715,163 @@ export default function OrderDetailPage() {
           </p>
         </div>
       )}
+
+      {/* ✅ Admin Comments Section */}
+      <div className="bg-white dark:bg-[#0b1329] border border-slate-200 dark:border-slate-800 rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-700 transition-all mt-4 w-full">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-100 dark:border-amber-500/20 rounded-lg flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-800 dark:text-white text-left">Comments</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-left mt-0.5">Internal notes & discussions</p>
+            </div>
+          </div>
+          <span className="text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20 px-3 py-1 rounded-full font-semibold">
+            {comments.length} comment{comments.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* Add Comment Input Row */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white shrink-0 shadow-md">
+            <User className="h-4.5 w-4.5" />
+          </div>
+          <div className="flex-1 flex items-center gap-3">
+            <input
+              type="text"
+              value={newCommentText}
+              onChange={(e) => setNewCommentText(e.target.value)}
+              placeholder="Add an internal note or comment..."
+              className="flex-1 bg-slate-50 dark:bg-[#060b18] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500/50 px-4 py-3 text-sm transition-all focus:bg-white dark:focus:bg-[#060b18]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddComment();
+              }}
+            />
+            <button
+              onClick={handleAddComment}
+              disabled={submittingComment || !newCommentText.trim()}
+              className="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-medium text-sm px-5 py-3 rounded-lg transition-all flex items-center gap-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submittingComment ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4" />
+              )}
+              Post Comment
+            </button>
+          </div>
+        </div>
+
+        {/* Comments List */}
+        {loadingComments ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 text-amber-500 animate-spin" />
+          </div>
+        ) : comments.length === 0 ? (
+          <div className="text-center py-6 text-slate-400 dark:text-slate-555 bg-slate-50/50 dark:bg-[#060b18]/40 border border-slate-100 dark:border-slate-850 rounded-lg">
+            No internal comments added yet.
+          </div>
+        ) : (
+          <div className="space-y-3.5">
+            {comments.map((comment) => (
+              <div
+                key={comment.id}
+                className="p-4 rounded-xl bg-slate-50/70 dark:bg-[#060b18]/60 border border-slate-200 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800 transition-all flex gap-3"
+              >
+                {/* Avatar */}
+                <div className="w-9 h-9 rounded-full bg-amber-500 border border-amber-500/20 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                  {comment.createdByName ? comment.createdByName.charAt(0).toUpperCase() : 'A'}
+                </div>
+
+                {/* Comment Content Area */}
+                <div className="flex-1 min-w-0">
+                  {/* Author Header */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-slate-800 dark:text-white">{comment.createdByName}</span>
+
+                      {comment.isMine && (
+                        <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20 px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1">
+                          You
+                        </span>
+                      )}
+
+                      {comment.updatedAt && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-550 italic">(edited)</span>
+                      )}
+
+                      {/* Actions (Edit / Delete) */}
+                      {comment.isMine && editingCommentId !== comment.id && (
+                        <div className="flex items-center gap-2 ml-1">
+                          <button
+                            onClick={() => {
+                              setEditingCommentId(comment.id);
+                              setEditingCommentText(comment.comment);
+                            }}
+                            className="p-0.5 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+                            title="Edit comment"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="p-0.5 text-slate-400 hover:text-red-500 transition-colors"
+                            title="Delete comment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Timestamp */}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 text-left">
+                    {formatDate(comment.createdAt)}
+                  </p>
+
+                  {/* Comment Body / Edit Field */}
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-2 space-y-2">
+                      <input
+                        type="text"
+                        value={editingCommentText}
+                        onChange={(e) => setEditingCommentText(e.target.value)}
+                        className="w-full bg-white dark:bg-[#060b18] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-white px-3 py-2 text-sm focus:outline-none focus:border-amber-500/50"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleUpdateComment(comment.id)}
+                          className="bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs px-3.5 py-1.5 rounded-md transition-all"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingCommentId(null);
+                            setEditingCommentText("");
+                          }}
+                          className="bg-slate-105 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium text-xs px-3.5 py-1.5 rounded-md transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap text-left leading-relaxed">
+                      {comment.comment}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Modals */}
       <OrderEditModal
         isOpen={editModalOpen}
@@ -2628,6 +2929,7 @@ export default function OrderDetailPage() {
         onFullRefund={(reason, notes) => handleFullRefund(notes, reason)}
         onPartialRefund={(amount, reason, notes) => handlePartialRefund(amount, reason, notes)}
         onShippingRefund={(notes) => handleShippingRefund(notes)}
+        onItemRefund={(items, restoreInventory, reason, notes) => handleItemRefund(items, restoreInventory, reason, notes)}
       />
 
       <PaymentModal

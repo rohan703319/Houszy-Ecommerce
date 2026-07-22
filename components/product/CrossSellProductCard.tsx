@@ -64,16 +64,16 @@ const getCrossSellProductImage = (
 
 export default function CrossSellProductCard({ product, getImageUrl }: any) {
   const { addToCart, cart } = useCart();
-  const minQty = product.orderMinimumQuantity ?? 1;
+  const defaultVariant =
+    product.variants?.find((v: any) => v.isDefault) ??
+    product.variants?.[0] ??
+    null;
+  const minQty = (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
   const [qty, setQty] = useState(minQty);
   const [stockError, setStockError] = useState<string | null>(null);
   const toast = useToast();
   const router = useRouter();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const defaultVariant =
-    product.variants?.find((v: any) => v.isDefault) ??
-    product.variants?.[0] ??
-    null;
 
   useEffect(() => {
     if (qty < minQty) {
@@ -92,11 +92,17 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
   // 🔥 NEW: oldPrice fallback logic
   const oldPriceValue =
-    defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
-    product.compareAtPrice ?? product.oldPrice;
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ?? undefined)
+      : (product.compareAtPrice ?? product.oldPrice ?? undefined);
+
+  const currentDisplayType =
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.displayDiscountType ?? "None")
+      : (product.displayDiscountType ?? "None");
 
   const oldPriceData =
-    (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
+    currentDisplayType === "OldPrice"
       ? getOldPriceDiscount(
         basePrice,
         oldPriceValue,
@@ -165,7 +171,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
     if (!handlePharmaGuard("cart")) return;
 
     const variantId = defaultVariant?.id ?? null;
-    const maxQty = product.orderMaximumQuantity ?? Infinity;
+    const maxQty = (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
 
     const existingCartQty = cart
       .filter(
@@ -251,25 +257,6 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
       productData: JSON.parse(JSON.stringify(product)),
     });
-
-    toast.success(
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {qty} × {product.name} added to cart!
-        </span>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.clearAll();
-            router.push("/cart");
-          }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-black hover:bg-[#f39a16] hover:text-black transition shadow-sm"
-        >
-          Cart→
-        </button>
-      </div>
-    );
   };
 
   const wishlistId = defaultVariant?.id ?? product.id;
@@ -324,8 +311,8 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
       productData: JSON.parse(JSON.stringify(product)),
 
-      orderMaximumQuantity: product.orderMaximumQuantity ?? null,
-      orderMinimumQuantity: product.orderMinimumQuantity ?? null,
+      orderMaximumQuantity: (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? null,
+      orderMinimumQuantity: (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? null,
     });
   };
 

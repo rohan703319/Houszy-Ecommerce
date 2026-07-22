@@ -18,7 +18,7 @@ import ConfirmDialog from "../_components/ConfirmDialog";
 import { googleMerchantService } from "@/lib/services/GoogleMerchant";
 import { Product, productsService } from "@/lib/services/products";
 
-type ActionType = "sync-all" | "sync-selected" | "delete-selected";
+type ActionType = "sync-all" | "sync-selected" | "delete-selected" | "clean-resync";
 
 interface MerchantProductRow {
   id: string;
@@ -227,6 +227,26 @@ const handleOpenFeed = async () => {
     setButtonLoading(null);
   }
 };
+
+const handleOpenReviewsFeed = async () => {
+  try {
+    setButtonLoading("reviews-feed");
+    const response = await googleMerchantService.getReviewsFeedXml();
+    const xmlData = response.data as string;
+    const xmlBlob = new Blob([xmlData], {
+      type: "application/xml",
+    });
+    const url = URL.createObjectURL(xmlBlob);
+    window.open(url, "_blank");
+    toast.success("Google Merchant reviews feed opened");
+  } catch (error: any) {
+    toast.error(
+      error?.message || "Failed to open reviews feed XML"
+    );
+  } finally {
+    setButtonLoading(null);
+  }
+};
   const loadProducts = async () => {
     try {
       setLoadingProducts(true);
@@ -374,6 +394,14 @@ const handleOpenFeed = async () => {
         setSelectedDeleteIds([]);
         closeDeleteModal();
       }
+
+      if (confirmState.action === "clean-resync") {
+        const response = await googleMerchantService.cleanResync();
+        if (response.error || response.data?.success === false) {
+          throw new Error(response.error || response.data?.message || "Clean resync failed");
+        }
+        toast.success(response.data?.message || "Clean resync completed successfully");
+      }
     } catch (error: any) {
       toast.error(error?.message || "Action failed");
     } finally {
@@ -395,101 +423,167 @@ const handleOpenFeed = async () => {
       return `Are you sure you want to remove ${selectedDeleteIds.length} selected product(s) from Google Merchant Center?`;
     }
 
+    if (confirmState.action === "clean-resync") {
+      return "Are you sure you want to clean and resync all products to Google Merchant Center? This will delete existing products and push a fresh sync.";
+    }
+
     return "";
   }, [confirmState.action, selectedDeleteIds.length, selectedSyncIds.length]);
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-white">
-              Google Merchant Center
-            </h3>
-            <p className="mt-1 text-sm text-slate-400">
-              Sync products to Google Merchant or remove products by SKU.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setConfirmState({ open: true, action: "sync-all" })}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-emerald-500/20"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Sync All
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSyncModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-violet-500/20"
-            >
-              <Send className="h-4 w-4" />
-              Sync Products
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDeleteModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-rose-500/20"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete Products
-            </button>
-      <button
-  type="button"
-  onClick={handleOpenFeed}
-  disabled={buttonLoading === "feed"}
-  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-cyan-500/20"
->
-  {buttonLoading === "feed" ? (
-  <Loader2 className="h-4 w-4 animate-spin" />
-) : (
-  <Globe className="h-4 w-4" />
-)}
-{buttonLoading === "feed"
-  ? "Downloading..."
-  : "Feed XML"}
-</button>
-          </div>
+        <div>
+          <h3 className="text-lg font-semibold text-white">
+            Google Merchant Center
+          </h3>
+          <p className="mt-1 text-sm text-slate-400">
+            Sync products to Google Merchant or remove products by SKU.
+          </p>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-4">
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-emerald-300">
-              Sync All
-            </p>
-            <p className="mt-2 text-sm text-slate-200">
-              Push all available products to Google Merchant Center.
-            </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {/* Card 1: Sync All */}
+          <div className="flex flex-col justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                Sync All
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setConfirmState({ open: true, action: "sync-all" })}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-emerald-500/20"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Sync All
+              </button>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
+                Push all available products to Google Merchant Center.
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-violet-300">
-              Sync Selected
-            </p>
-            <p className="mt-2 text-sm text-slate-200">
-              Search by product name or SKU and sync only selected items.
-            </p>
-          </div>
-          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-rose-300">
-              Delete by SKU
-            </p>
-            <p className="mt-2 text-sm text-slate-200">
-              Search products and remove selected SKUs from Google Merchant.
-            </p>
-          </div>
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-  <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">
-    Feed XML
-  </p>
 
-  <p className="mt-2 text-sm text-slate-200">
-    Open and verify generated Google Merchant XML feed.
-  </p>
-</div>
+          {/* Card 2: Sync Selected */}
+          <div className="flex flex-col justify-between rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">
+                Sync Selected
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-violet-500/20"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Sync Products
+              </button>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
+                Search by product name or SKU and sync only selected items.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Delete by SKU */}
+          <div className="flex flex-col justify-between rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-300">
+                Delete by SKU
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-rose-500/20"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete Products
+              </button>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
+                Search products and remove selected SKUs from Google Merchant.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 4: Feed XML */}
+          <div className="flex flex-col justify-between rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">
+                Feed XML
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={handleOpenFeed}
+                disabled={buttonLoading === "feed"}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-cyan-500/20 disabled:opacity-50"
+              >
+                {buttonLoading === "feed" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Globe className="h-3.5 w-3.5" />
+                )}
+                {buttonLoading === "feed" ? "Downloading..." : "Feed XML"}
+              </button>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
+                Open and verify generated Google Merchant XML feed.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 5: Clean Resync */}
+          <div className="flex flex-col justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-300">
+                Clean Resync
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => setConfirmState({ open: true, action: "clean-resync" })}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-indigo-500/20"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Clean Resync
+              </button>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
+                Perform a clean resync by purging and re-pushing all products.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 6: Reviews Feed */}
+          <div className="flex flex-col justify-between rounded-xl border border-pink-500/20 bg-pink-500/5 p-4 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-pink-300">
+                Reviews Feed
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={handleOpenReviewsFeed}
+                disabled={buttonLoading === "reviews-feed"}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-pink-500/20 disabled:opacity-50"
+              >
+                {buttonLoading === "reviews-feed" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Globe className="h-3.5 w-3.5" />
+                )}
+                {buttonLoading === "reviews-feed" ? "Loading..." : "Reviews Feed"}
+              </button>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
+                Open the product reviews XML feed in a new browser tab.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

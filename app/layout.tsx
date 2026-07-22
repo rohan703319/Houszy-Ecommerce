@@ -39,16 +39,28 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let categories: any[] = [];
+  let deliveryStrip: any[] = [];
 
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/Categories?includeInactive=false&includeSubCategories=true&isActive=true&isDeleted=false`,
-      {
-        next: { revalidate: 600 },
-      }
-    );
-    if (res.ok) {
-      const json = await res.json();
+    const [categoriesRes, deliveryStripRes] = await Promise.all([
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/Categories?includeInactive=false&includeSubCategories=true&isActive=true&isDeleted=false`,
+        { next: { revalidate: 600 } }
+      ).catch(err => {
+        console.error("❌ Categories fetch failed:", err);
+        return null;
+      }),
+      fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/DeliveryStrip`,
+        { next: { revalidate: 600 } }
+      ).catch(err => {
+        console.error("❌ DeliveryStrip fetch failed:", err);
+        return null;
+      })
+    ]);
+
+    if (categoriesRes && categoriesRes.ok) {
+      const json = await categoriesRes.json();
       if (json?.success) {
         const items = json.data?.items || [];
         categories = items
@@ -56,23 +68,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
       }
     }
-  } catch (error) {
-    console.error("❌ Categories API failed:", error);
-  }
 
-  let deliveryStrip: any[] = [];
-
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/DeliveryStrip`,
-      {
-        next: { revalidate: 600 },
-      }
-    );
-
-    if (res.ok) {
-      const json = await res.json();
-
+    if (deliveryStripRes && deliveryStripRes.ok) {
+      const json = await deliveryStripRes.json();
       if (json?.success) {
         deliveryStrip = json.data
           .filter((item: any) => item.isActive && !item.isDeleted)
@@ -83,15 +81,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       }
     }
   } catch (error) {
-    console.error("❌ DeliveryStrip API failed:", error);
+    console.error("❌ RootLayout data loading failed:", error);
   }
 
   return (
     <html lang="en" className={lato.variable} suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://api.houszy.co.uk" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.houszy.co.uk" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
         <Script
           id="google-consent-mode"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -114,16 +115,29 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `,
           }}
         />
-        {/* Google Tag Manager */}
+        {/* Google Tag Manager - Deferred via requestIdleCallback to eliminate TBT */}
         <Script
           id="google-tag-manager"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
-            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-MW6WZQBM');`,
+            __html: `
+              (function() {
+                var loadGTM = function() {
+                  if (window.__gtm_loaded) return;
+                  window.__gtm_loaded = true;
+                  (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                  })(window,document,'script','dataLayer','GTM-MW6WZQBM');
+                };
+                if ('requestIdleCallback' in window) {
+                  requestIdleCallback(loadGTM, { timeout: 3000 });
+                } else {
+                  setTimeout(loadGTM, 1500);
+                }
+              })();
+            `,
           }}
         />
       </head>

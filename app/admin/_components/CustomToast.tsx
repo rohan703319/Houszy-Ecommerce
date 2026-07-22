@@ -384,6 +384,14 @@ const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     const position = options.position || 'top-right';
 
     setToasts(prev => {
+      const isDuplicate = prev.some((t) => {
+        if (typeof t.message === "string" && typeof message === "string") {
+          return t.message.trim() === message.trim();
+        }
+        return t.message === message;
+      });
+      if (isDuplicate) return prev;
+
       const samePosition = prev.filter(t => t.position === position);
       let updatedToasts = [...prev];
 

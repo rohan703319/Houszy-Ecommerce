@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useEffect, useState } from "react";
+import { captureAttribution } from "@/lib/attribution";
 
 export default function ClientLayout({
   children,
@@ -19,6 +20,11 @@ export default function ClientLayout({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Capture UTM/Attribution parameters on navigation
+  useEffect(() => {
+    captureAttribution();
+  }, [pathname]);
 
   // Ye routes par layout nahi dikhana
   const hideLayoutRoutes = [

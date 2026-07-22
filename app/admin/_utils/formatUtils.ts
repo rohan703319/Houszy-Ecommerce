@@ -297,3 +297,25 @@ export const formatTime = (dateString: string) => {
     return '';
   }
 };
+
+/**
+ * Format out of stock duration (e.g. "Out today", "Out 1 day", "Out 5 days")
+ * @param dateString - Date string when product went out of stock
+ * @returns Formatted duration string or empty string
+ */
+export const formatOutOfStockDuration = (dateString?: string | null): string => {
+  const date = parseDateSafely(dateString);
+  if (!date) return "";
+  
+  const now = new Date();
+  const diffTime = Math.max(0, now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return "Out today";
+  } else if (diffDays === 1) {
+    return "Out 1 day";
+  } else {
+    return `Out ${diffDays} days`;
+  }
+};

@@ -22,6 +22,8 @@ interface ProductVariantsManagerProps {
   parentNextDayDeliveryFree?: boolean;
   parentNextDayDeliveryCutoffTime?: string | null;
   parentFakeSaleCount?: number | string | null;
+  parentOrderMinimumQuantity?: number | string | null;
+  parentOrderMaximumQuantity?: number | string | null;
 }
 
 export default function ProductVariantsManager({
@@ -38,6 +40,8 @@ export default function ProductVariantsManager({
   parentNextDayDeliveryFree = false,
   parentNextDayDeliveryCutoffTime = null,
   parentFakeSaleCount = 0,
+  parentOrderMinimumQuantity = 1,
+  parentOrderMaximumQuantity = 10000,
 }: ProductVariantsManagerProps) {
   const toast = useToast();
   const [collapsedVariants, setCollapsedVariants] = useState<Set<string>>(new Set());
@@ -142,6 +146,8 @@ export default function ProductVariantsManager({
       nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
       fakeSaleCount: null,
       saleCount: 0,
+      orderMinimumQuantity: null,
+      orderMaximumQuantity: null,
     };
 
     onVariantsChange([...variants, newVariant]);
@@ -187,6 +193,8 @@ export default function ProductVariantsManager({
       nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
       fakeSaleCount: null,
       saleCount: 0,
+      orderMinimumQuantity: null,
+      orderMaximumQuantity: null,
     };
 
     onVariantsChange([...variants, newVariant]);
@@ -294,7 +302,9 @@ export default function ProductVariantsManager({
         nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
         nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
         fakeSaleCount: null,
-        saleCount: 0
+        saleCount: 0,
+        orderMinimumQuantity: null,
+        orderMaximumQuantity: null
       };
 
       newVariants.push(newVariant);
@@ -874,6 +884,60 @@ export default function ProductVariantsManager({
                       )}
                     </div>
 
+                    {/* Row 3.6: Order Limits */}
+                    <div className="pt-3 border-t border-slate-700/50 grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Order Min Qty
+                        </label>
+                        <input
+                          type="number"
+                          value={variant.orderMinimumQuantity ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateProductVariant(
+                              variant.id,
+                              'orderMinimumQuantity',
+                              val === '' ? null : parseInt(val) || 1
+                            );
+                          }}
+                          placeholder={
+                            parentOrderMinimumQuantity !== undefined && parentOrderMinimumQuantity !== null
+                              ? `Inherit (${parentOrderMinimumQuantity})`
+                              : 'Inherit (1)'
+                          }
+                          min="1"
+                          disabled={disabled}
+                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Order Max Qty
+                        </label>
+                        <input
+                          type="number"
+                          value={variant.orderMaximumQuantity ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateProductVariant(
+                              variant.id,
+                              'orderMaximumQuantity',
+                              val === '' ? null : parseInt(val) || 10000
+                            );
+                          }}
+                          placeholder={
+                            parentOrderMaximumQuantity !== undefined && parentOrderMaximumQuantity !== null
+                              ? `Inherit (${parentOrderMaximumQuantity})`
+                              : 'Inherit (10000)'
+                          }
+                          min="1"
+                          disabled={disabled}
+                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+
 
                     {/* Row 4: Variant Image (Full Width) */}
                     <div className="pt-3 border-t border-slate-700/50">
@@ -888,7 +952,7 @@ export default function ProductVariantsManager({
                               src={
                                 variant.imageUrl?.startsWith("blob:")
                                   ? variant.imageUrl
-                                  : `${getImageUrl(variant.imageUrl)}?t=${Date.now()}`
+                                  : getImageUrl(variant.imageUrl)
                               }
                               alt={variant?.name || "Variant"}
                               className="w-16 h-16 object-cover rounded-lg border-2 border-slate-700"

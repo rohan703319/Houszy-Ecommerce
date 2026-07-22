@@ -414,12 +414,25 @@ export const formatExpiryDate = (expiresAt: string | null | undefined): {
 };
 
 export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-GB', {
+  if (!dateString) return "N/A";
+  let cleanString = dateString;
+  if (
+    cleanString.includes("T") &&
+    !cleanString.endsWith("Z") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("+") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("-")
+  ) {
+    cleanString = `${cleanString}Z`;
+  }
+  const parsedDate = new Date(cleanString);
+  if (isNaN(parsedDate.getTime())) return "N/A";
+
+  return parsedDate.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/London',
   });
 };

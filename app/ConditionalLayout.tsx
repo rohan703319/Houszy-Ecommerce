@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
 import CookieConsent from "@/components/CookieConsent";
+import { captureAttribution } from "@/lib/attribution";
 
 export default function ConditionalLayout({
   children,
@@ -16,6 +18,11 @@ export default function ConditionalLayout({
   deliveryStrip: any[];
 }) {
   const pathname = usePathname();
+
+  // Capture UTM/Attribution parameters on navigation
+  useEffect(() => {
+    captureAttribution();
+  }, [pathname]);
 
   // Routes jahan Header/Footer NAHI chahiye
   const hideLayoutRoutes = [

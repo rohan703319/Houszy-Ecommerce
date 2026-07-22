@@ -181,9 +181,7 @@ const EDITABLE_FIELDS: { key: string; label: string }[] = [
   { key: 'dimensionUnit', label: 'Dimension Unit' },
 
   { key: 'isRecurring', label: 'Is Recurring' },
-  { key: 'recurringCycleLength', label: 'Recurring Cycle Length' },
   { key: 'recurringCyclePeriod', label: 'Recurring Cycle Period' },
-  { key: 'recurringTotalCycles', label: 'Recurring Total Cycles' },
   { key: 'subscriptionDiscountPercentage', label: 'Subscription Discount %' },
   { key: 'allowedSubscriptionFrequencies', label: 'Subscription Frequencies' },
   { key: 'subscriptionDescription', label: 'Subscription Description' },

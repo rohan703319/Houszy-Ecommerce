@@ -19,6 +19,8 @@ interface RatingReviewsProps {
   productId: string;
   allowCustomerReviews: boolean;
   highlightReviewId?: string | null; // 🔥 ADD
+  variantSku?: string | null;
+  productSku?: string | null;
 }
 
 interface ReviewReply {
@@ -49,7 +51,8 @@ export interface Review {
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
-export default function RatingReviews({ productId, allowCustomerReviews, highlightReviewId }: RatingReviewsProps) {
+export default function RatingReviews({ productId, allowCustomerReviews, highlightReviewId, variantSku, productSku }: RatingReviewsProps) {
+  const activeSku = variantSku || productSku || "";
   const [swiperInstance, setSwiperInstance] = useState<any>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const recentReviews = useMemo(() => {
@@ -235,8 +238,9 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
   };
   const fetchReviews = useCallback(async () => {
     try {
+      const skuParam = activeSku ? `?sku=${encodeURIComponent(activeSku)}` : "";
       const res = await fetch(
-        `${API_BASE_URL}/api/ProductReviews/product/${productId}`, {
+        `${API_BASE_URL}/api/ProductReviews/product/${productId}${skuParam}`, {
         next: { revalidate: 60 },
       });
 
@@ -245,7 +249,7 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
     } catch (err) {
       console.log("Fetch reviews error:", err);
     }
-  }, [productId]);
+  }, [productId, activeSku]);
 
   useEffect(() => {
     fetchReviews();
@@ -293,6 +297,7 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
           },
           body: JSON.stringify({
             productId,
+            sku: activeSku || null,
             title,
             comment,
             rating,

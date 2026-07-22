@@ -136,6 +136,10 @@ export interface ProductVariant {
   nextDayDeliveryFree?: boolean | null;
   nextDayDeliveryCutoffTime?: string | null;
 
+  // Order Quantity Limits overrides (null = inherit from parent product)
+  orderMinimumQuantity?: number | null;
+  orderMaximumQuantity?: number | null;
+
   // Sale Count overrides
   fakeSaleCount?: number | null;
   saleCount?: number;
@@ -463,6 +467,7 @@ export interface ProductQueryParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   sortDirection?: 'asc' | 'desc';
+  outOfStockDays?: number;
 }
 export interface PaginatedResponse<T> {
   success: boolean;
@@ -518,6 +523,9 @@ getAll: async (params?: ProductQueryParams) => {
 
   if (params?.stockStatus)
     queryParams.append("stockStatus", params.stockStatus);
+
+  if (params?.outOfStockDays !== undefined)
+    queryParams.append("outOfStockDays", params.outOfStockDays.toString());
 
   if (params?.isPharmaProduct !== undefined)
     queryParams.append(

@@ -482,7 +482,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     // Cart Limits
     orderMinimumQuantity: '1',      // ✅ Changed from minCartQuantity
-    orderMaximumQuantity: '10',     // ✅ Changed from maxCartQuantity
+    orderMaximumQuantity: '1000',     // ✅ Changed from maxCartQuantity
     allowedQuantities: '',
     allowAddingOnlyExistingAttributeCombinations: false,
     notReturnable: false,
@@ -1261,6 +1261,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               nextDayDeliveryCutoffTime: variant.nextDayDeliveryCutoffTime || null,
               fakeSaleCount: variant.fakeSaleCount !== undefined && variant.fakeSaleCount !== null ? variant.fakeSaleCount : null,
               saleCount: variant.saleCount || 0,
+              orderMinimumQuantity: variant.orderMinimumQuantity !== undefined ? variant.orderMinimumQuantity : null,
+              orderMaximumQuantity: variant.orderMaximumQuantity !== undefined ? variant.orderMaximumQuantity : null,
             };
           });
 
@@ -2881,7 +2883,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
       if (hasRange) {
         const minCartQty = parseInt(formData.orderMinimumQuantity) || 1;
-        const maxCartQty = parseInt(formData.orderMaximumQuantity) || 10;
+        const maxCartQty = parseInt(formData.orderMaximumQuantity) || 1000;
 
         if (minCartQty < 1) {
           toast.error('❌ Minimum cart quantity must be at least 1');
@@ -3364,7 +3366,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         }
       }
       // Next-Day Delivery Validation for Variants
-      if (productVariants.length > 0) {
+      if (formData.productType === 'variable' && productVariants.length > 0) {
         for (const variant of productVariants) {
           if (variant.nextDayDeliveryEnabled === true) {
             const effectiveCutoff = variant.nextDayDeliveryCutoffTime;
@@ -3379,36 +3381,37 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         }
       }
 
-      const variantsArray = productVariants?.map(variant => {
-        // ========== VALIDATION (SAME AS BEFORE) ==========
-        if (!variant.name || variant.name.trim().length === 0) {
-          toast.error('All variants must have a name');
-          return null;
-        }
+      const variantsArray = formData.productType === 'variable'
+        ? (productVariants?.map(variant => {
+            // ========== VALIDATION (SAME AS BEFORE) ==========
+            if (!variant.name || variant.name.trim().length === 0) {
+              toast.error('All variants must have a name');
+              return null;
+            }
 
-        if (!variant.sku || variant.sku.trim().length === 0) {
-          toast.error(`Variant "${variant.name}" must have a SKU`);
-          return null;
-        }
+            if (!variant.sku || variant.sku.trim().length === 0) {
+              toast.error(`Variant "${variant.name}" must have a SKU`);
+              return null;
+            }
 
-        // Check duplicate variant SKU
-        const duplicateVariant = productVariants.find(
-          v => v.id !== variant.id && v.sku.trim().toUpperCase() === variant.sku.trim().toUpperCase()
-        );
-        if (duplicateVariant) {
-          toast.error(`Duplicate variant SKU "${variant.sku}" is already used by variant "${duplicateVariant.name}"`, {
-            autoClose: 8000
-          });
-          return null;
-        }
+            // Check duplicate variant SKU
+            const duplicateVariant = productVariants.find(
+              v => v.id !== variant.id && v.sku.trim().toUpperCase() === variant.sku.trim().toUpperCase()
+            );
+            if (duplicateVariant) {
+              toast.error(`Duplicate variant SKU "${variant.sku}" is already used by variant "${duplicateVariant.name}"`, {
+                autoClose: 8000
+              });
+              return null;
+            }
 
-        // Check if variant SKU matches product SKU
-        if (variant.sku.trim().toUpperCase() === formData.sku.trim().toUpperCase()) {
-          toast.error(`Variant SKU "${variant.sku}" cannot be the same as main product SKU`, {
-            autoClose: 8000
-          });
-          return null;
-        }
+            // Check if variant SKU matches product SKU
+            if (formData.sku?.trim() && variant.sku.trim().toUpperCase() === formData.sku.trim().toUpperCase()) {
+              toast.error(`Variant SKU "${variant.sku}" cannot be the same as main product SKU`, {
+                autoClose: 8000
+              });
+              return null;
+            }
 
         // Price validation
         // const variantPrice = typeof variant.price === 'number' ? variant.price : parseNumber(variant.price, 'variant.price') ?? 0;
@@ -3480,6 +3483,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           fakeSaleCount: cleanedVariant.fakeSaleCount !== undefined && cleanedVariant.fakeSaleCount !== null && cleanedVariant.fakeSaleCount !== ''
             ? parseInt(cleanedVariant.fakeSaleCount.toString())
             : null,
+          orderMinimumQuantity: cleanedVariant.orderMinimumQuantity !== undefined && cleanedVariant.orderMinimumQuantity !== null && cleanedVariant.orderMinimumQuantity !== ''
+            ? parseInt(cleanedVariant.orderMinimumQuantity.toString())
+            : null,
+          orderMaximumQuantity: cleanedVariant.orderMaximumQuantity !== undefined && cleanedVariant.orderMaximumQuantity !== null && cleanedVariant.orderMaximumQuantity !== ''
+            ? parseInt(cleanedVariant.orderMaximumQuantity.toString())
+            : null,
         };
 
         // Add ID for existing variants
@@ -3488,7 +3497,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         }
 
         return variantData;
-      });
+      }) || [])
+        : [];
 
 
 
@@ -3608,7 +3618,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           parseInt(formData.orderMinimumQuantity) || 1;
 
         cleanedCartData.orderMaximumQuantity =
-          parseInt(formData.orderMaximumQuantity) || 10;
+          parseInt(formData.orderMaximumQuantity) || 1000;
       }
       // unlimited mode → sab null
       // else unlimited → sab null
@@ -3626,7 +3636,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         name: formData.name.trim(),
         description: formData.fullDescription || formData.shortDescription || `${formData.name} - Product description`,
         shortDescription: formData.shortDescription?.trim() || '',
-        sku: formData.sku.trim(),
+        sku: formData.productType === 'variable' ? null : (formData.sku?.trim() || null),
         gtin: formData.gtin?.trim() || null,
         manufacturerPartNumber: formData.manufacturerPartNumber?.trim() || null,
         status: isDraft ? 'Draft' : 'Active',
@@ -4247,9 +4257,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         ...prev,
         productType: value,
 
-        // Auto set 'dont_track' for variable products
+        // Auto set 'dont_track' and clear parent SKU for variable products
         ...(value === 'variable' && {
           manageInventory: 'dont_track',
+          sku: '',
         }),
 
         // ✅ CLEAR GROUPED FIELDS when switching to simple
@@ -5930,20 +5941,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   {/* ✅ ONLY SHOW IF ENABLED AND NOT GROUPED */}
                   {formData.isRecurring && formData.productType !== 'grouped' && (
                     <div className="p-4 bg-slate-800/40 border border-slate-700 rounded-lg space-y-4 transition-all duration-300">
-                      {/* Billing Cycle */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Charge every</label>
-                          <input
-                            type="number"
-                            name="recurringCycleLength"
-                            value={formData.recurringCycleLength}
-                            onChange={handleChange}
-                            min="1"
-                            placeholder="30"
-                            className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                          />
-                        </div>
+                      {/* Subscription Discount & Options */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-xs font-medium text-slate-400 mb-1">Period</label>
                           <select
@@ -5957,22 +5956,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             <option value="months">Months</option>
                           </select>
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Total Billing Cycles</label>
-                          <input
-                            type="number"
-                            name="recurringTotalCycles"
-                            value={formData.recurringTotalCycles}
-                            onChange={handleChange}
-                            min="0"
-                            placeholder="0 = Unlimited"
-                            className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Subscription Discount & Options */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-700">
                         <div>
                           <label className="block text-xs font-medium text-slate-400 mb-1">Subscription Discount (%)</label>
                           <input
@@ -6010,25 +5993,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             placeholder="Save 15% with monthly billing"
                             className="w-full px-3 py-2 bg-slate-900/70 border border-slate-700 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                           />
-                        </div>
-                      </div>
-
-                      {/* Warning Banner */}
-                      <div className="flex items-center gap-3 text-xs text-amber-400 bg-amber-900/20 px-4 py-3 rounded border border-amber-800/50">
-                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.742-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        <div className="flex w-full justify-between">
-                          <span>
-                            Customer will be charged every {formData.recurringCycleLength || "?"} {formData.recurringCyclePeriod || "days"}
-                            {formData.recurringTotalCycles && parseInt(formData.recurringTotalCycles) > 0
-                              ? ` for ${formData.recurringTotalCycles} times`
-                              : " indefinitely"}
-                            {formData.subscriptionDiscountPercentage && ` with ${formData.subscriptionDiscountPercentage}% discount`}
-                          </span>
-                          <span className="text-slate-400 whitespace-nowrap">
-                            Leave 0 for unlimited recurring payments
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -6901,7 +6865,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             ...prev,
                             allowedQuantities: '',
                             orderMinimumQuantity: prev.orderMinimumQuantity || '1',
-                            orderMaximumQuantity: prev.orderMaximumQuantity || '10'
+                            orderMaximumQuantity: prev.orderMaximumQuantity || '1000'
                           }));
                         }}
                         className="w-4 h-4 text-violet-500 focus:ring-violet-500"
@@ -7550,6 +7514,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         parentNextDayDeliveryFree={formData.nextDayDeliveryFree}
                         parentNextDayDeliveryCutoffTime={formData.nextDayDeliveryCutoffTime}
                         parentFakeSaleCount={formData.fakeSaleCount}
+                        parentOrderMinimumQuantity={formData.orderMinimumQuantity}
+                        parentOrderMaximumQuantity={formData.orderMaximumQuantity}
                       />
                     </div>
                   </>

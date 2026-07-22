@@ -7,6 +7,7 @@ import { Menu, Search, Heart, ShoppingBag, User, X, ChevronDown, ChevronRight, T
 import MegaMenu from "./MegaMenu";
 import { useToast } from "@/components/toast/CustomToast";
 import { useCart } from "@/context/CartContext";
+import HeaderCartDropdown from "@/components/HeaderCartDropdown";
 import { useWishlist } from "@/context/WishlistContext";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -71,7 +72,7 @@ export default function Header({
   const headerRef = useRef<HTMLElement>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const toast = useToast();
-  const { cartCount, isInitialized } = useCart();
+  const { cartCount, isInitialized, toggleCart } = useCart();
   const { wishlistCount } = useWishlist();
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuth();
@@ -156,15 +157,13 @@ export default function Header({
     return () => clearInterval(t);
   }, [mobileTopMessages]);
 
-  const [results, setResults] = useState<any[]>([]);
-  const [flattenedResults, setFlattenedResults] = useState<any[]>([]);
+  const [quickResults, setQuickResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const debouncedSearch = useDebounce(searchValue, 500);
+  const debouncedSearch = useDebounce(searchValue, 400);
   useEffect(() => {
     if (!debouncedSearch || debouncedSearch.length < 3) {
-      setResults([]);
-      setFlattenedResults([]);
+      setQuickResults([]);
       setShowSearchDropdown(false);
       return;
     }
@@ -174,18 +173,20 @@ export default function Header({
         setSearchLoading(true);
         setShowSearchDropdown(true);
         const res = await fetch(
-          `/api/Products?page=1&pageSize=10&searchTerm=${encodeURIComponent(debouncedSearch)}&sortDirection=asc&isPublished=true`,
+          `/api/Products/quick-search?query=${encodeURIComponent(debouncedSearch)}&limit=10`,
           { signal: controller.signal }
         );
         const json = await res.json();
+        const items = json?.data || [];
+        
+        // Filter out parent product if its variants are present in the results
+        const filteredItems = items.filter((item: any) => {
+          if (item.isVariantResult) return true;
+          const hasVariants = items.some((other: any) => other.id === item.id && other.isVariantResult);
+          return !hasVariants;
+        });
 
-        const products = json?.data?.items || [];
-
-        setResults(products);
-
-        const flattened = flattenProductsForListing(products);
-
-        setFlattenedResults(flattened);
+        setQuickResults(filteredItems);
       } catch (error: any) {
         if (error?.name !== "AbortError") {
           console.error("Search error:", error);
@@ -494,7 +495,7 @@ export default function Header({
               <Search size={20} />
             </button>
             {/* Wishlist */}
-            <Link href="/wishlist" className="relative p-1 text-gray-700 hover:text-red-500 transition">
+            <Link href="/wishlist" aria-label="Wishlist" className="relative p-1 text-gray-700 hover:text-red-500 transition">
               <Heart
                 size={22}
                 className={wishlistCount > 0 ? "fill-red-500 text-[#f38918]" : ""}
@@ -505,19 +506,24 @@ export default function Header({
                 </span>
               )}
             </Link>
-            <button
-              className="relative text-gray-700 hover:text-[#f38918] transition p-1"
-              onClick={() => router.push("/cart")}
-            >
-              <ShoppingBag size={22} />
-              {isInitialized && cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-1 bg-[#f38918] text-white text-[9px] rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            <div className="relative">
+              <button
+                aria-label="Shopping Cart"
+                data-cart-toggle="true"
+                className="relative text-gray-700 hover:text-[#f38918] transition p-1"
+                onClick={toggleCart}
+              >
+                <ShoppingBag size={22} />
+                {isInitialized && cartCount > 0 && (
+                  <span className="absolute -top-0.5 -right-1 bg-[#f38918] text-white text-[9px] rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+              <HeaderCartDropdown />
+            </div>
             {isAuthenticated && user ? (
-              <button onClick={handleAccountClick} className="flex items-center gap-1 text-gray-700 p-1">
+              <button onClick={handleAccountClick} aria-label="Account" className="flex items-center gap-1 text-gray-700 p-1">
                 <div className="w-7 h-7 rounded-full bg-[#f38918] text-white flex items-center justify-center text-[11px] font-bold">
                   {user.firstName?.[0]?.toUpperCase() ?? "U"}
                 </div>
@@ -525,6 +531,7 @@ export default function Header({
             ) : (
               <button
                 onClick={() => router.push("/account")}
+                aria-label="Login"
                 className="px-2 py-1 text-[10px] font-semibold text-white bg-[#f38918] rounded"
               >
                 Login
@@ -589,18 +596,22 @@ export default function Header({
             </Link>
 
             {/* Cart */}
-            <button
-              className="relative hover:text-[#f38918] transition flex items-center gap-1"
-              onClick={() => router.push("/cart")}
-              aria-label="Cart"
-            >
-              <ShoppingBag size={22} strokeWidth={1.5} />
-              {isInitialized && cartCount > 0 && (
-                <span className="absolute -bottom-1 -right-2 bg-black text-white text-[10px] font-bold rounded-full w-[16px] h-[16px] flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            <div className="relative flex items-center">
+              <button
+                className="relative hover:text-[#f38918] transition flex items-center gap-1"
+                data-cart-toggle="true"
+                onClick={toggleCart}
+                aria-label="Cart"
+              >
+                <ShoppingBag size={22} strokeWidth={1.5} />
+                {isInitialized && cartCount > 0 && (
+                  <span className="absolute -bottom-1 -right-2 bg-black text-white text-[10px] font-bold rounded-full w-[16px] h-[16px] flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+              <HeaderCartDropdown />
+            </div>
           </div>
         </div>
 
@@ -620,7 +631,7 @@ export default function Header({
                   placeholder="Search"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  onFocus={() => results.length > 0 && setShowSearchDropdown(true)}
+                  onFocus={() => quickResults.length > 0 && setShowSearchDropdown(true)}
                   className="w-full border border-black pl-4 pr-10 py-2.5 text-[15px] text-black focus:outline-none placeholder:text-gray-400 font-normal rounded-none"
                 />
                 <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black">
@@ -642,52 +653,24 @@ export default function Header({
               {showSearchDropdown && (
                 <div className="absolute top-full left-0 right-8 mt-1 bg-white border border-gray-200 shadow-2xl max-h-[55vh] overflow-y-auto z-[70] rounded-none">
                   {searchLoading && <div className="p-4 text-sm text-gray-500">Searching...</div>}
-                  {!searchLoading && results.length === 0 && (
+                  {!searchLoading && quickResults.length === 0 && (
                     <div className="p-4 text-sm text-gray-500">No products found</div>
                   )}
-                  {!searchLoading && flattenedResults.map((item) => {
-
-                    const product = item.productData;
-                    const defaultVariant = item.variantForCard;
-                    const cardSlug = item.cardSlug;
-
-
-
-                    const basePrice =
-                      typeof defaultVariant?.price === "number" &&
-                        defaultVariant.price > 0
-                        ? defaultVariant.price
-                        : product.price;
-
-                    const finalPrice = getDiscountedPrice(product, basePrice);
-
-                    const discountBadge = getDiscountBadge(product);
-
-                    const oldPriceValue =
-                      defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
-                      product.compareAtPrice ?? product.oldPrice;
-
-                    const oldPriceData =
-                      (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
-                        ? getOldPriceDiscount(
-                          basePrice,
-                          oldPriceValue,
-                          false
-                        )
-                        : null;
-
-                    const productImage =
-                      defaultVariant?.imageUrl ||
-                      product.images?.find((img: any) => img.isMain)?.imageUrl ||
-                      product.images?.[0]?.imageUrl;
-
-                    const stockQty = defaultVariant?.stockQuantity ?? product.stockQuantity ?? 0;
-                    const isInStock = stockQty > 0;
-
+                  {!searchLoading && quickResults.map((item: any) => {
+                    const imageUrl = item.mainImageUrl?.startsWith("http")
+                      ? item.mainImageUrl
+                      : `${process.env.NEXT_PUBLIC_API_URL}${item.mainImageUrl}`;
+                      
+                    const linkUrl = item.isVariantResult 
+                      ? `/product/${item.slug}?variant=${item.variantSku}` 
+                      : `/product/${item.slug}`;
+                      
+                    const itemKey = item.isVariantResult ? item.variantSku : item.sku || item.id;
+                    
                     return (
                       <Link
-                        key={`${product.id}-${cardSlug}`}
-                        href={`/product/${cardSlug}`}
+                        key={itemKey}
+                        href={linkUrl}
                         onClick={() => {
                           setShowSearchDropdown(false);
                           setSearchValue("");
@@ -695,128 +678,44 @@ export default function Header({
                         }}
                         className="flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 hover:bg-gray-50"
                       >
-
-                        {/* IMAGE */}
                         <img
-                          src={
-                            productImage?.startsWith("http")
-                              ? productImage
-                              : `${process.env.NEXT_PUBLIC_API_URL}${productImage}`
-                          }
-                          alt={product.name}
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = "/placeholder.png";
-                          }}
+                          src={imageUrl}
+                          alt={item.name}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.png"; }}
                           className="w-10 h-10 object-contain flex-shrink-0 rounded"
                         />
-
                         <div className="flex flex-col flex-1 min-w-0">
-
-                          {/* NAME + RATING */}
-                          <div className="flex items-center gap-1 flex-wrap">
-
-                            <span className="text-sm font-medium text-gray-800 line-clamp-1">
-                              {defaultVariant
-                                ? `${product.name} (${[
-                                  defaultVariant.option1Value,
-                                  defaultVariant.option2Value,
-                                  defaultVariant.option3Value,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")})`
-                                : product.name}
-                            </span>
-
-                            {/* â­ RATING */}
-                            {typeof product.averageRating === "number" &&
-                              product.averageRating > 0 && (
-                                <div className="flex items-center gap-0.5">
-                                  {renderStars(product.averageRating)}
-                                  <span className="text-[10px] text-gray-500">
-                                    ({product.approvedReviewCount ?? product.reviewCount ?? 0})
-                                  </span>
-                                </div>
-                              )}
-                          </div>
-
-                          {/* CATEGORY + DISCOUNT */}
-                          <div className="flex items-center gap-2 flex-wrap">
-
-                            <span className="text-xs text-gray-500">
-                              {
-                                product.categories?.find((c: any) => c.isPrimary)?.categoryName ??
-                                product.categories?.[0]?.categoryName ??
-                                ""
-                              }
-                            </span>
-
-                            {/* SYSTEM DISCOUNT */}
-                            {product.displayDiscountType === "System" &&
-                              discountBadge && (
-                                <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">
-                                  {discountBadge.type === "percent"
-                                    ? `${discountBadge.value}% OFF`
-                                    : `£${discountBadge.value} OFF`}
+                          <span className="text-sm font-medium text-gray-800 line-clamp-1">{item.name}</span>
+                          <span className="text-[10px] text-gray-400">SKU: {item.isVariantResult ? item.variantSku : item.sku}</span>
+                          
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            {item.averageRating > 0 && (
+                              <div className="flex items-center gap-0.5">
+                                {renderStars(item.averageRating)}
+                                <span className="text-[10px] text-gray-500">
+                                  ({item.approvedReviewCount ?? item.reviewCount ?? 0})
                                 </span>
-                              )}
-
-                            {/* OLD PRICE DISCOUNT */}
-                            {!discountBadge && oldPriceData && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">
-                                {oldPriceData.discount}% OFF
-                              </span>
+                              </div>
+                            )}
+                            {item.categoryName && (
+                              <span className="text-xs text-gray-500">{item.categoryName}</span>
+                            )}
+                            {item.hasDiscount && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-semibold">SALE</span>
+                            )}
+                            {!item.inStock && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-semibold">Out of Stock</span>
                             )}
                           </div>
-
-                          {/* PRICE + LOYALTY */}
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-
-                            <span className="text-sm font-semibold text-[#f38918]">
-                              £
-                              {(
-                                product.displayDiscountType === "System"
-                                  ? finalPrice
-                                  : basePrice
-                              ).toFixed(2)}
-                            </span>
-
-                            {/* SYSTEM CUT PRICE */}
-                            {product.displayDiscountType === "System" &&
-                              discountBadge && (
-                                <span className="text-xs text-gray-400 line-through">
-                                  £{basePrice.toFixed(2)}
-                                </span>
-                              )}
-
-                            {/* OLD PRICE CUT */}
-                            {!discountBadge && oldPriceData && (
-                              <span className="text-xs text-gray-400 line-through">
-                                £{oldPriceData.oldPrice.toFixed(2)}
-                              </span>
-                            )}
-
-                            {/* LOYALTY */}
-                            {product.loyaltyPointsMessage && (
+                            <span className="text-sm font-semibold text-[#f38918]">£{item.price.toFixed(2)}</span>
+                            {item.loyaltyPointsMessage && (
                               <span className="text-[10px] px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">
-                                {product.loyaltyPointsMessage}
+                                {item.loyaltyPointsMessage}
                               </span>
                             )}
                           </div>
                         </div>
-
-                        {/* STOCK */}
-                        <div className="ml-auto flex-shrink-0 self-start">
-                          {isInStock ? (
-                            <span className="text-[10px] px-2 py-1 rounded bg-orange-100 text-orange-600 font-semibold">
-                              In Stock
-                            </span>
-                          ) : (
-                            <span className="text-[10px] px-2 py-1 rounded bg-red-100 text-red-600 font-semibold">
-                              Out of Stock
-                            </span>
-                          )}
-                        </div>
-
                       </Link>
                     );
                   })}
@@ -839,19 +738,21 @@ export default function Header({
         />
 
         {/* Drawer Panel */}
-        <aside
+        <div
           className={`absolute top-0 left-0 h-full w-[82vw] max-w-[320px] bg-white flex flex-col transform transition-transform duration-300 shadow-2xl ${menuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           role="dialog"
           aria-modal="true"
+          aria-label="Mobile Navigation Menu"
         >
-          {/* â”€â”€ Header â”€â”€ */}
+          {/* ── Header ── */}
           <div className="bg-white px-4 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-200">
             <Link href="/" onClick={() => setMenuOpen(false)}>
               <Image src="/logo/logo.png?v=3" alt="logo" width={80} height={25} className="object-contain w-20 h-auto" />
             </Link>
             <button
               onClick={() => setMenuOpen(false)}
+              aria-label="Close menu"
               className="text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-full p-1.5 transition"
             >
               <X size={20} />
@@ -1121,7 +1022,7 @@ export default function Header({
 
             </div>
           </div>
-        </aside>
+        </div>
       </div>
       {showLogoutModal && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">

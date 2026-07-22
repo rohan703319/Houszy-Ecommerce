@@ -38,11 +38,12 @@ import MediaViewerModal, { MediaItem } from "./MediaViewerModal";
 import { RelatedProduct, Product, productsService, productHelpers } from "@/lib/services";
 import ProductExcelImportModal from "./ProductExcelImportModal";
 import { useDebounce } from "../_hooks/useDebounce";
-import { formatDate, getProductImage } from "../_utils/formatUtils";
+import { formatDate, getProductImage, formatOutOfStockDuration } from "../_utils/formatUtils";
 
 import { vatratesService } from "@/lib/services/vatrates";
 import { scrollCls, getSelectStyles } from "../_utils/styles";
 import { useTheme } from "@/app/admin/_context/theme-provider";
+import { useAuth } from "@/app/admin/_context/auth-context";
 
 // ✅ INTERFACES
 interface FormattedProduct {
@@ -101,6 +102,7 @@ interface FormattedProduct {
   // Raw date for sorting
   rawCreatedAt: string;
   rawUpdatedAt: string;
+  outOfStockSince?: string | null;
 }
 interface CategoryData {
   id: string;
@@ -127,6 +129,7 @@ export default function ProductsPage() {
   const toast = useToast();
   const router = useRouter();
   const { theme } = useTheme();
+  const { hasPermission, permissions } = useAuth();
   const selectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
   const productSelectStyles = useMemo(() => {
     return {
@@ -220,6 +223,7 @@ export default function ProductsPage() {
 
   // Second row filters
   const [statusFilter, setStatusFilter] = useState<SelectOption>({ value: "all", label: "All Stock Status" });
+  const [outOfStockDaysFilter, setOutOfStockDaysFilter] = useState<SelectOption>({ value: "all", label: "Out of Stock: Any Duration" });
   const [publishedFilter, setPublishedFilter] = useState<SelectOption>({ value: "all", label: "All Visibility" });
   const [deliveryFilter, setDeliveryFilter] = useState<SelectOption>({ value: "all", label: "All Delivery" });
   const [markAsNewFilter, setMarkAsNewFilter] = useState<SelectOption>({ value: "all", label: "Mark as New: All" });
@@ -261,6 +265,14 @@ export default function ProductsPage() {
     { value: "InStock", label: "In Stock" },
     { value: "LowStock", label: "Low Stock" },
     { value: "OutOfStock", label: "Out of Stock" },
+  ];
+
+  const outOfStockDaysOptions: SelectOption[] = [
+    { value: "all", label: "Out of Stock: Any Duration" },
+    { value: "7", label: "Out of Stock 7+ days" },
+    { value: "14", label: "Out of Stock 14+ days" },
+    { value: "30", label: "Out of Stock 30+ days" },
+    { value: "60", label: "Out of Stock 60+ days" },
   ];
 
   const pharmaOptions: SelectOption[] = [
@@ -492,9 +504,13 @@ export default function ProductsPage() {
         pageSize: itemsPerPage,
         sortBy,
         sortDirection,
+        outOfStockLast: false,
       };
       if (statusFilter.value !== "all") {
         params.stockStatus = statusFilter.value;
+      }
+      if (statusFilter.value === "OutOfStock" && outOfStockDaysFilter.value !== "all") {
+        params.outOfStockDays = Number(outOfStockDaysFilter.value);
       }
 
       delete params.isDeleted;
@@ -717,6 +733,7 @@ export default function ProductsPage() {
             isDeleted: p.isDeleted === true,
             rawCreatedAt: p.createdAt,
             rawUpdatedAt: p.updatedAt,
+            outOfStockSince: p.outOfStockSince || null,
             assignedDiscounts: p.assignedDiscounts || [],
             variants: p.variants || [],
           };
@@ -1357,6 +1374,29 @@ export default function ProductsPage() {
     }
   };
 
+  if (!permissions) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasPermission("products", "view")) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4 animate-bounce" />
+        <h2 className="text-lg font-semibold text-white">Access Denied</h2>
+        <p className="text-slate-400 text-sm mt-2">
+          You do not have permission to view this page. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   // ✅ LOADING
   if (loading && products.length === 0) {
     return (
@@ -1525,16 +1565,18 @@ export default function ProductsPage() {
 
 
 
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-[13px]
-    bg-slate-800 border border-slate-700
-    hover:bg-slate-700
-    text-white rounded-xl font-medium transition"
-          >
-            <Upload className="w-4 h-4" />
-            Import Excel
-          </button>
+          {hasPermission("products", "create") && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px]
+      bg-slate-800 border border-slate-700
+      hover:bg-slate-700
+      text-white rounded-xl font-medium transition"
+            >
+              <Upload className="w-4 h-4" />
+              Import Excel
+            </button>
+          )}
 
           {/* REQUESTS */}
           {statusCounts.Pending > 0 && (
@@ -1557,16 +1599,18 @@ export default function ProductsPage() {
 
 
           {/* ADD PRODUCT */}
-          <Link href="/admin/products/add">
-            <button className="flex items-center gap-2 px-3 py-1.5 text-[13px]
-    bg-gradient-to-r from-violet-500 to-cyan-500
-    text-white rounded-lg font-semibold shadow
-    hover:shadow-violet-500/40 transition-all"
-              title="Add new product">
-              <Plus className="w-4 h-4" />
-              Add Product
-            </button>
-          </Link>
+          {hasPermission("products", "create") && (
+            <Link href="/admin/products/add">
+              <button className="flex items-center gap-2 px-3 py-1.5 text-[13px]
+      bg-gradient-to-r from-violet-500 to-cyan-500
+      text-white rounded-lg font-semibold shadow
+      hover:shadow-violet-500/40 transition-all"
+                title="Add new product">
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
+            </Link>
+          )}
 
         </div>
       </div>
@@ -1937,7 +1981,12 @@ export default function ProductsPage() {
                 value={statusFilter.value}
                 onChange={(e) => {
                   const option = statusOptions.find(opt => opt.value === e.target.value);
-                  if (option) setStatusFilter(option);
+                  if (option) {
+                    setStatusFilter(option);
+                    if (option.value !== "OutOfStock") {
+                      setOutOfStockDaysFilter({ value: "all", label: "Out of Stock: Any Duration" });
+                    }
+                  }
                 }}
                 className={`w-full px-3 py-2.5 bg-slate-800/90 border rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all ${statusFilter.value !== "all"
                   ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50"
@@ -1950,6 +1999,26 @@ export default function ProductsPage() {
                   </option>
                 ))}
               </select>
+
+              {statusFilter.value === "OutOfStock" && (
+                <select
+                  value={outOfStockDaysFilter.value}
+                  onChange={(e) => {
+                    const option = outOfStockDaysOptions.find(opt => opt.value === e.target.value);
+                    if (option) setOutOfStockDaysFilter(option);
+                  }}
+                  className={`w-full px-3 py-2.5 bg-slate-800/90 border rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all ${outOfStockDaysFilter.value !== "all"
+                    ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/50"
+                    : "border-slate-600"
+                    }`}
+                >
+                  {outOfStockDaysOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               <select
                 value={deliveryFilter.value}
@@ -2407,6 +2476,12 @@ export default function ProductsPage() {
                                 )}
                               </div>
 
+                              {qty === 0 && product.outOfStockSince && (
+                                <span className="text-[10px] text-rose-400 font-medium">
+                                  {formatOutOfStockDuration(product.outOfStockSince)}
+                                </span>
+                              )}
+
                               {showAdminAlert && (
                                 <span
                                   title="Admin notification threshold reached"
@@ -2516,7 +2591,7 @@ Updated By: ${product.updatedBy || "N/A"}`}
                           )}
 
                           {/* EDIT */}
-                          {!isDeleted && (
+                          {hasPermission("products", "edit") && !isDeleted && (
                             <Link href={`/admin/products/edit/${product.id}`}>
                               <button className="p-1 text-cyan-400 hover:bg-cyan-500/10 rounded-md">
                                 <Edit className="h-3.5 w-3.5" />
@@ -2525,27 +2600,29 @@ Updated By: ${product.updatedBy || "N/A"}`}
                           )}
 
                           {/* DELETE / RESTORE */}
-                          <button
-                            onClick={() =>
-                              openProductActionModal({
-                                id: product.id,
-                                name: product.name,
-                                isDeleted: product.isDeleted,
-                              })
-                            }
-                            className={`p-1 rounded-md transition-all ${product.isDeleted
-                              ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 ring-1 ring-emerald-500/30' // ✅ FIXED
-                              : 'text-red-400 hover:bg-red-500/10'
-                              }`}
-                          >
-                            {isBusy ? (
-                              <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            ) : product.isDeleted ? (
-                              <CheckCircle className="h-3.5 w-3.5 shadow shadow-emerald-500/20" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                          {hasPermission("products", "delete") && (
+                            <button
+                              onClick={() =>
+                                openProductActionModal({
+                                  id: product.id,
+                                  name: product.name,
+                                  isDeleted: product.isDeleted,
+                                })
+                              }
+                              className={`p-1 rounded-md transition-all ${product.isDeleted
+                                ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 ring-1 ring-emerald-500/30' // ✅ FIXED
+                                : 'text-red-400 hover:bg-red-500/10'
+                                }`}
+                            >
+                              {isBusy ? (
+                                <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : product.isDeleted ? (
+                                <CheckCircle className="h-3.5 w-3.5 shadow shadow-emerald-500/20" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
 
                         </div>
                       </td>

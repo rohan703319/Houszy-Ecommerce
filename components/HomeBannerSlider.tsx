@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -51,7 +50,7 @@ export default function HomeBannerSlider({
         }
         className="w-full"
       >
-        {banners.map((banner) => {
+        {banners.map((banner, index) => {
           // If imageUrl is relative (starts with /), use it directly — Next.js rewrites will proxy it
           // If absolute (starts with http), use as-is
           const cleanBaseUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
@@ -62,29 +61,23 @@ export default function HomeBannerSlider({
             ? banner.mobileImageUrl
             : banner.mobileImageUrl ? `${cleanBaseUrl}${banner.mobileImageUrl.startsWith('/') ? '' : '/'}${banner.mobileImageUrl}` : null;
 
+          const isFirstSlide = index === 0;
+
           const pictureEl = (
-            <>
-              {mobileSrc && (
-                <Image
-                  src={mobileSrc}
-                  alt={banner.title || "Banner"}
-                  width={800}
-                  height={800}
-                  priority={true}
-                  unoptimized={true}
-                  className="w-full h-auto object-contain md:hidden"
-                />
-              )}
-              <Image
+            <picture className="w-full block">
+              {mobileSrc && <source media="(max-width: 767px)" srcSet={mobileSrc} />}
+              <img
                 src={desktopSrc}
                 alt={banner.title || "Banner"}
                 width={1920}
                 height={800}
-                priority={true}
-                unoptimized={true}
-                className={`w-full h-auto object-contain ${mobileSrc ? "hidden md:block" : "block"}`}
+                {...(isFirstSlide
+                  ? { fetchPriority: "high" as const, loading: "eager" as const }
+                  : { loading: "lazy" as const })}
+                decoding="async"
+                className="w-full h-auto object-contain block"
               />
-            </>
+            </picture>
           );
 
           return (

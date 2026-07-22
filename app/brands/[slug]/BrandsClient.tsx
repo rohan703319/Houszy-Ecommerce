@@ -167,6 +167,10 @@ export default function BrandsClient({
 
   const displayRange: [number, number] = dragRange ?? committedRange;
 
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
   const filteredAndSortedProducts = useMemo(() => {
     // Categories, rating, and price bounds filters are applied server-side.
     return products;
@@ -231,6 +235,11 @@ export default function BrandsClient({
       }
 
       if (sortBy === "name") {
+        const saleA = a.variantForCard?.saleCount ?? a.productData.saleCount ?? 0;
+        const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
+        if (saleA !== saleB) {
+          return saleB - saleA;
+        }
         const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
         const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
         const comparison = nameA.localeCompare(nameB);
@@ -246,7 +255,9 @@ export default function BrandsClient({
         return sortDirection === "asc" ? comparison : -comparison;
       }
 
-      return 0;
+      const saleA = a.variantForCard?.saleCount ?? a.productData.saleCount ?? 0;
+      const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
+      return saleB - saleA;
     });
 
     return sorted;
@@ -534,9 +545,7 @@ export default function BrandsClient({
                   </span>
                 </summary>
                 <div className="pb-3 max-h-60 overflow-y-auto pr-1 hide-scrollbar space-y-0">
-                  {[...categories]
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((cat) => (
+                  {sortedCategories.map((cat) => (
                       <label
                         key={cat.id}
                         className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
@@ -704,7 +713,7 @@ export default function BrandsClient({
                           </span>
                         </summary>
                         <div className="pb-4 space-y-0">
-                          {categories.map((cat) => (
+                          {sortedCategories.map((cat) => (
                             <label
                               key={cat.id}
                               className="flex items-center gap-3 cursor-pointer py-2"

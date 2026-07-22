@@ -89,21 +89,29 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
   }, [products]);
 
   // Categories / Brands from loaded products
+  // Categories / Brands from loaded products (Sorted A-Z)
   const categories = useMemo(() => {
     const map = new Map<string, any>();
     products.forEach(p => p.categories?.forEach((c: any) => {
       if (!map.has(c.categoryId)) map.set(c.categoryId, { id: c.categoryId, name: c.categoryName });
     }));
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 
+  // Brands (Sorted A-Z, filtered by selected categories)
   const brands = useMemo(() => {
     const map = new Map<string, any>();
-    products.forEach(p => p.brands?.forEach((b: any) => {
-      if (!map.has(b.brandId)) map.set(b.brandId, { id: b.brandId, name: b.brandName });
-    }));
-    return Array.from(map.values());
-  }, [products]);
+    products.forEach(p => {
+      if (selectedCategories.length > 0) {
+        const matchesCategory = p.categories?.some((c: any) => selectedCategories.includes(c.categoryId));
+        if (!matchesCategory) return;
+      }
+      p.brands?.forEach((b: any) => {
+        if (!map.has(b.brandId)) map.set(b.brandId, { id: b.brandId, name: b.brandName });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, selectedCategories]);
 
   // Filter + flatten + sort
   const flattenedProducts = useMemo(() => {
@@ -179,10 +187,14 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
 
       // ✅ DEFAULT (MOST IMPORTANT)
       if (sortBy === "default") {
-        return 0;
+        const saleA = a.variantForCard?.saleCount ?? a.productData.saleCount ?? 0;
+        const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
+        return saleB - saleA;
       }
 
-      return 0;
+      const saleA = a.variantForCard?.saleCount ?? a.productData.saleCount ?? 0;
+      const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
+      return saleB - saleA;
     });
   }, [products, selectedCategories, selectedBrands, priceRange, minRating, sortBy, sortDirection]);
 
@@ -242,6 +254,32 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
                 />
                 <span className={`text-[13px] truncate transition ${selectedCategories.includes(cat.id) ? "font-semibold text-black" : "text-gray-600 group-hover/item:text-black"}`}>
                   {cat.name}
+                </span>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* Brand */}
+      {brands.length > 0 && (
+        <details className="group border-b border-gray-200" open>
+          <summary className="flex items-center justify-between py-3 cursor-pointer list-none select-none">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Brand</span>
+            <span className="text-gray-400 text-base leading-none group-open:hidden">+</span>
+            <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
+          </summary>
+          <div className="pb-3 space-y-0 max-h-56 overflow-y-auto">
+            {brands.map(brand => (
+              <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item">
+                <input
+                  type="checkbox"
+                  className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black flex-shrink-0"
+                  checked={selectedBrands.includes(brand.id)}
+                  onChange={e => setSelectedBrands(e.target.checked ? [...selectedBrands, brand.id] : selectedBrands.filter(b => b !== brand.id))}
+                />
+                <span className={`text-[13px] truncate transition ${selectedBrands.includes(brand.id) ? "font-semibold text-black" : "text-gray-600 group-hover/item:text-black"}`}>
+                  {brand.name}
                 </span>
               </label>
             ))}
@@ -348,6 +386,32 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
                   />
                   <span className={`text-[13px] transition ${selectedCategories.includes(cat.id) ? "font-semibold text-black" : "text-gray-600"}`}>
                     {cat.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </details>
+        )}
+
+        {/* Brand */}
+        {brands.length > 0 && (
+          <details className="group border-b border-gray-200">
+            <summary className="flex items-center justify-between py-4 cursor-pointer list-none select-none">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Brand</span>
+              <span className="text-gray-400 text-base leading-none group-open:hidden">+</span>
+              <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
+            </summary>
+            <div className="pb-4 space-y-0 max-h-48 overflow-y-auto">
+              {brands.map(brand => (
+                <label key={brand.id} className="flex items-center gap-3 cursor-pointer py-2">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black"
+                    checked={selectedBrands.includes(brand.id)}
+                    onChange={e => setSelectedBrands(e.target.checked ? [...selectedBrands, brand.id] : selectedBrands.filter(b => b !== brand.id))}
+                  />
+                  <span className={`text-[13px] transition ${selectedBrands.includes(brand.id) ? "font-semibold text-black" : "text-gray-600"}`}>
+                    {brand.name}
                   </span>
                 </label>
               ))}

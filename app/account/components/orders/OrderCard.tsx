@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Info from "../ui/Info";
 import { getOrderStatusBadge, getCollectionStatusTextColor, getOrderStatusLabel } from "./orderUtils";
 import { useAuth } from "@/context/AuthContext";
+import { formatDate } from "@/lib/services/orders";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast/CustomToast";
@@ -607,7 +608,7 @@ export default function OrderCard({
         <div>
           <p className="font-semibold">Order Number: #{order.orderNumber}</p>
           <p className="text-xs text-gray-500">
-            Ordered on: {new Date(order.orderDate).toLocaleDateString()}
+            Ordered on: {formatDate(order.orderDate)}
           </p>
         </div>
 

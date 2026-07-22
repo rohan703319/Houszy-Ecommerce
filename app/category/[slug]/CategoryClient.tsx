@@ -179,30 +179,7 @@ export default function CategoryClient({
     initialSortDirection as "asc" | "desc"
   );
 
-  const [selectedBrands, setSelectedBrands] = useState<string[]>(() => {
-    const brandsParam = searchParams.get("brands");
-    if (!brandsParam) return [];
-    const slugs = brandsParam.split(",").filter(Boolean);
-    return brands.filter(b => slugs.includes(b.slug)).map(b => b.id);
-  });
-  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
-
-  // dragRange: local override while user is actively dragging (cleared after debounce commits)
-  const [dragRange, setDragRange] = useState<[number, number] | null>(null);
-
-  const [minRating, setMinRating] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
-  const [gridCols, setGridCols] = useState(3);
-
-
-  const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(0);
-  const availableBrands = useMemo(
-    () => brands.filter((b) => b.productCount > 0),
-    [brands]
-  );
-
-  const flattenSubCategories = (cat: Category | null): Category[] => {
+  const flattenSubCategories = useCallback((cat: Category | null): Category[] => {
     if (!cat) return [];
     const result: Category[] = [];
     const stack = [...(cat.subCategories || [])];
@@ -216,9 +193,155 @@ export default function CategoryClient({
     }
 
     return result;
-  };
+  }, []);
 
-  const allSubCategories = flattenSubCategories(category);
+  const allSubCategories = useMemo(() => flattenSubCategories(category), [category, flattenSubCategories]);
+
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(() => {
+    const brandsParam = searchParams.get("brands");
+    if (!brandsParam) return [];
+    const slugs = brandsParam.split(",").filter(Boolean);
+    return brands.filter(b => slugs.includes(b.slug)).map(b => b.id);
+  });
+
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(() => {
+    const subParam = searchParams.get("subCategorySlug");
+    if (!subParam) return [];
+    const slugs = subParam.split(",").filter(Boolean);
+    return allSubCategories.filter(s => slugs.includes(s.slug)).map(s => s.id);
+  });
+
+  const [displayBrands, setDisplayBrands] = useState<Brand[]>(() => {
+    return [...brands]
+      .filter(b => b.productCount > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const [displaySubCategories, setDisplaySubCategories] = useState<Category[]>(() => {
+    return [...allSubCategories]
+      .filter(sub => sub.productCount > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const [filtersLoading, setFiltersLoading] = useState(false);
+
+  // Sync selected filters state when searchParams URL changes (handles browser Back/Forward navigation)
+  useEffect(() => {
+    const brandsParam = searchParams.get("brands");
+    if (!brandsParam) {
+      setSelectedBrands([]);
+    } else {
+      const slugs = brandsParam.split(",").filter(Boolean);
+      const ids = brands.filter(b => slugs.includes(b.slug)).map(b => b.id);
+      setSelectedBrands(ids);
+    }
+    
+    const subParam = searchParams.get("subCategorySlug");
+    if (!subParam) {
+      setSelectedSubCategories([]);
+    } else {
+      const slugs = subParam.split(",").filter(Boolean);
+      const ids = allSubCategories.filter(s => slugs.includes(s.slug)).map(s => s.id);
+      setSelectedSubCategories(ids);
+    }
+  }, [searchParams, brands, allSubCategories]);
+
+  // Fetch dynamic filter options from API whenever selections change
+  useEffect(() => {
+    let active = true;
+    
+    const fetchFilterOptions = async () => {
+      setFiltersLoading(true);
+      try {
+        const query = new URLSearchParams();
+        query.set("categorySlug", urlSlug);
+        
+        const subSlugs = selectedSubCategories
+          .map((id) => allSubCategories.find((s) => s.id === id)?.slug ?? "")
+          .filter(Boolean)
+          .join(",");
+        if (subSlugs) {
+          query.set("subCategorySlug", subSlugs);
+        }
+        
+        const brandSlugs = selectedBrands
+          .map(id => brands.find(b => b.id === id)?.slug ?? "")
+          .filter(Boolean)
+          .join(",");
+        if (brandSlugs) {
+          query.set("brands", brandSlugs);
+        }
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/Products/filter-options?${query.toString()}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch filter options");
+        const json = await res.json();
+        
+        if (json?.success && json.data && active) {
+          const apiBrands: any[] = json.data.brands || [];
+          const apiSubCats: any[] = json.data.subCategories || [];
+          
+          // Map and sort brands
+          const updatedBrands = apiBrands.map(ab => {
+            const matchedBrand = brands.find(b => b.id === ab.id);
+            return {
+              id: ab.id,
+              name: ab.name,
+              slug: ab.slug,
+              logoUrl: ab.logoUrl || matchedBrand?.logoUrl || "",
+              isPublished: matchedBrand?.isPublished ?? true,
+              productCount: ab.productCount
+            };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          
+          setDisplayBrands(updatedBrands);
+          
+          // Map and sort subcategories
+          const updatedSubCats = apiSubCats.map(asc => {
+            const matchedSub = allSubCategories.find(s => s.id === asc.id);
+            return {
+              id: asc.id,
+              name: asc.name,
+              slug: asc.slug,
+              description: matchedSub?.description || "",
+              imageUrl: matchedSub?.imageUrl || "",
+              isActive: matchedSub?.isActive ?? true,
+              sortOrder: asc.sortOrder,
+              productCount: asc.productCount,
+              subCategories: matchedSub?.subCategories || []
+            };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          
+          setDisplaySubCategories(updatedSubCats as Category[]);
+        }
+      } catch (err) {
+        console.error("Filter options fetch error:", err);
+      } finally {
+        if (active) setFiltersLoading(false);
+      }
+    };
+
+    fetchFilterOptions();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedSubCategories, selectedBrands, urlSlug, brands, allSubCategories]);
+
+  // dragRange: local override while user is actively dragging (cleared after debounce commits)
+  const [dragRange, setDragRange] = useState<[number, number] | null>(null);
+
+  const [minRating, setMinRating] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+  const [gridCols, setGridCols] = useState(3);
+
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(0);
+  const availableBrands = useMemo(
+    () => brands.filter((b) => b.productCount > 0),
+    [brands]
+  );
 
   // ---------- Compute slider bounds (min/max track) from all loaded products ----------
   // NOTE: priceRange (user selection) is NEVER touched here.
@@ -319,18 +442,6 @@ export default function CategoryClient({
 
 
 
-      // Subcategory filter (when user selects a specific subcategory)
-      // Backend already filters by categorySlug, so no need to re-check parent category here
-      if (selectedSubCategories.length > 0) {
-        const productCategoryIds =
-          product.categories?.map((c) => c.categoryId) ?? [];
-        const match = productCategoryIds.some((id) =>
-          selectedSubCategories.includes(id)
-        );
-        if (!match) return false;
-      }
-
-
       // Brand, price, rating filters are handled server-side — no client-side filter needed
 
       return true;
@@ -425,12 +536,14 @@ export default function CategoryClient({
         return isOutA ? 1 : -1;
       }
       if (sortBy === "name") {
-
+        const saleA = a.variantForCard?.saleCount ?? a.productData.saleCount ?? 0;
+        const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
+        if (saleA !== saleB) {
+          return saleB - saleA;
+        }
         const nameA = (a.cardSlug ?? a.productData.name).toLowerCase();
         const nameB = (b.cardSlug ?? b.productData.name).toLowerCase();
-
         const comparison = nameA.localeCompare(nameB);
-
         return sortDirection === "asc" ? comparison : -comparison;
       }
       if (sortBy === "rating") {
@@ -445,7 +558,9 @@ export default function CategoryClient({
         return sortDirection === "asc" ? comparison : -comparison;
       }
 
-      return 0;
+      const saleA = a.variantForCard?.saleCount ?? a.productData.saleCount ?? 0;
+      const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
+      return saleB - saleA;
     });
 
     return sorted;
@@ -751,8 +866,8 @@ export default function CategoryClient({
       // ============================
       // ⭐ MIN / MAX / STOCK LOGIC
       // ============================
-      const maxQty = product.orderMaximumQuantity ?? Infinity;
-      const finalQty = getInitialQty(product);
+      const maxQty = (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
+      const finalQty = (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
 
 
       const variantId = defaultVariant?.id ?? null;
@@ -816,9 +931,9 @@ export default function CategoryClient({
         finalPrice: finalPrice,
         oldPrice: hasActiveCoupon
           ? undefined
-          : (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
-            product.compareAtPrice ?? product.oldPrice ??
-            undefined),
+          : (product.variants && product.variants.length > 0
+            ? (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ?? undefined)
+            : (product.compareAtPrice ?? product.oldPrice ?? undefined)),
         displayDiscountType: hasActiveCoupon
           ? "None"
           : (defaultVariant?.displayDiscountType ??
@@ -845,12 +960,11 @@ export default function CategoryClient({
         productData: JSON.parse(JSON.stringify(product)),
       });
 
-      if (product.orderMinimumQuantity > 1) {
+      const minOrderQty = (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
+      if (minOrderQty > 1) {
         toast.warning(
-          `Minimum order quantity is ${product.orderMinimumQuantity}. Added ${finalQty} items to cart.`
+          `Minimum order quantity is ${minOrderQty}. Added ${finalQty} items to cart.`
         );
-      } else {
-        toast.success(`${product.name} added to cart! 🛒`);
       }
 
 
@@ -960,42 +1074,39 @@ export default function CategoryClient({
             </div>
 
             {/* ─── SUBCATEGORIES ─── */}
-            {allSubCategories.length > 0 && (
+            {displaySubCategories.length > 0 && (
               <details className="group border-b border-gray-200">
                 <summary className="flex items-center justify-between py-3 cursor-pointer list-none select-none">
                   <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Subcategories</span>
                   <span className="text-gray-400 text-base leading-none group-open:hidden">+</span>
                   <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
                 </summary>
-                <div className="pb-3 space-y-0">
-                  {[...allSubCategories]
-                    .filter((sub) => sub.productCount > 0)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((sub) => (
-                      <label
-                        key={sub.id}
-                        className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
-                      >
-                        <input
-                          type="checkbox"
-                          className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black flex-shrink-0"
-                          checked={selectedSubCategories.includes(sub.id)}
-                          onChange={(e) => handleSubCategoryChange(sub, e.target.checked)}
-                        />
-                        <span className={`text-[13px] truncate transition ${selectedSubCategories.includes(sub.id)
-                          ? "font-semibold text-black"
-                          : "text-gray-600 group-hover/item:text-black"
-                          }`}>
-                          {sub.name}
-                        </span>
-                      </label>
-                    ))}
+                <div className="pb-3 max-h-60 overflow-y-auto pr-1 hide-scrollbar space-y-0">
+                  {displaySubCategories.map((sub) => (
+                    <label
+                      key={sub.id}
+                      className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black flex-shrink-0"
+                        checked={selectedSubCategories.includes(sub.id)}
+                        onChange={(e) => handleSubCategoryChange(sub, e.target.checked)}
+                      />
+                      <span className={`text-[13px] truncate transition ${selectedSubCategories.includes(sub.id)
+                        ? "font-semibold text-black"
+                        : "text-gray-600 group-hover/item:text-black"
+                        }`}>
+                        {sub.name}
+                      </span>
+                    </label>
+                  ))}
                 </div>
               </details>
             )}
 
             {/* ─── BRANDS ─── */}
-            {availableBrands.length > 0 && (
+            {displayBrands.length > 0 && (
               <details className="group border-b border-gray-200">
                 <summary className="flex items-center justify-between py-3 cursor-pointer list-none select-none">
                   <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Brands</span>
@@ -1003,7 +1114,7 @@ export default function CategoryClient({
                   <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
                 </summary>
                 <div className="pb-3 max-h-60 overflow-y-auto pr-1 hide-scrollbar space-y-0">
-                  {availableBrands.map((brand) => (
+                  {displayBrands.map((brand) => (
                     <label
                       key={brand.id}
                       className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
@@ -1131,15 +1242,15 @@ export default function CategoryClient({
                   <div className="overflow-y-auto flex-1 px-5">
 
                     {/* Subcategories */}
-                    {allSubCategories.length > 0 && (
+                    {displaySubCategories.length > 0 && (
                       <details className="group border-b border-gray-200">
                         <summary className="flex items-center justify-between py-4 cursor-pointer list-none select-none">
                           <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Subcategories</span>
                           <span className="text-gray-400 text-base leading-none group-open:hidden">+</span>
                           <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
                         </summary>
-                        <div className="pb-4 space-y-0">
-                          {allSubCategories.filter((sub) => sub.productCount > 0).map((sub) => (
+                        <div className="pb-4 max-h-52 overflow-y-auto pr-1 hide-scrollbar space-y-0">
+                          {displaySubCategories.map((sub) => (
                             <label key={sub.id} className="flex items-center gap-3 cursor-pointer py-2">
                               <input
                                 type="checkbox"
@@ -1156,7 +1267,7 @@ export default function CategoryClient({
                     )}
 
                     {/* Brands */}
-                    {availableBrands.length > 0 && (
+                    {displayBrands.length > 0 && (
                       <details className="group border-b border-gray-200">
                         <summary className="flex items-center justify-between py-4 cursor-pointer list-none select-none">
                           <span className="text-xs font-bold uppercase tracking-widest text-gray-900">Brands</span>
@@ -1164,7 +1275,7 @@ export default function CategoryClient({
                           <span className="text-gray-400 text-base leading-none hidden group-open:inline">−</span>
                         </summary>
                         <div className="pb-4 max-h-52 overflow-y-auto space-y-0">
-                          {availableBrands.map((brand) => (
+                          {displayBrands.map((brand) => (
                             <label key={brand.id} className="flex items-center gap-3 cursor-pointer py-2">
                               <input
                                 type="checkbox"

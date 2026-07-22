@@ -57,13 +57,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     categoriesPromise,
   ]);
 
-  const allBrands = Array.isArray(brandsRes.data)
+  const allBrands = (Array.isArray(brandsRes.data)
     ? brandsRes.data
-    : brandsRes.data?.items || [];
+    : brandsRes.data?.items || [])
+    .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
 
-  const allCategories = Array.isArray(categoriesRes.data)
+  const allCategories = (Array.isArray(categoriesRes.data)
     ? categoriesRes.data
-    : categoriesRes.data?.items || [];
+    : categoriesRes.data?.items || [])
+    .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
 
   const sortBy = searchParamsResolved.sortBy || "name";
   const sortDirection = searchParamsResolved.sortDirection || "asc";

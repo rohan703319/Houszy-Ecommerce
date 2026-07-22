@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ export default function AccountClient() {
   const searchParams = useSearchParams();
   const fromCheckout = searchParams.get("from") === "checkout";
   const fromBuyNow = searchParams.get("from") === "buy-now";
-  const { cart } = useCart();
+  const { cart, updateCartEmail } = useCart();
   const { login, register, isAuthenticated, user, isReady } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +30,16 @@ export default function AccountClient() {
   // Guest Email
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+
+  // Prefill guest email if available
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedEmail = localStorage.getItem("guestEmail");
+      if (savedEmail) {
+        setEmail(savedEmail);
+      }
+    }
+  }, []);
 
   // Login
   const [loginEmail, setLoginEmail] = useState("");
@@ -106,6 +116,7 @@ export default function AccountClient() {
     }
     if (!validateEmail()) return;
     localStorage.setItem("guestEmail", email);
+    updateCartEmail(email).catch(() => { });
     router.push("/checkout");
   };
 
@@ -116,6 +127,7 @@ export default function AccountClient() {
     try {
       await login(loginEmail, loginPassword);
       toast.success("Login successful!");
+      updateCartEmail(loginEmail).catch(() => { });
       setIsRedirecting(true);
       if (fromCheckout || fromBuyNow) {
         router.replace("/checkout");
@@ -185,6 +197,7 @@ export default function AccountClient() {
         phoneNumber: "+44" + regPhone,
       };
       await register(payload);
+      updateCartEmail(regEmail).catch(() => { });
       setIsRedirecting(true);
       if (fromCheckout || fromBuyNow) {
         router.replace("/checkout");

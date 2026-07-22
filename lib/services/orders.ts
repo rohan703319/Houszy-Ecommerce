@@ -255,6 +255,13 @@ export interface Order {
     answeredAt: string;
   }[];
 
+  // ================= ATTRIBUTION =================
+  orderSource?: string | null;
+  gclid?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+
   // ================= PAYMENT =================
   paymentMethod?: string;
   paymentStatus?: string;
@@ -388,6 +395,7 @@ async getAllOrders(params?: {
   paymentMethod?: string;
   paymentStatus?: string;
   isPharmaProduct?: boolean;
+  source?: string;
 }) {
 
     try {
@@ -731,6 +739,7 @@ async exportOrders(params: {
   toDate?: string;
   searchTerm?: string;
   deliveryMethod?: string;
+  source?: string;
 }) {
   const queryParams = new URLSearchParams();
   
@@ -748,6 +757,9 @@ async exportOrders(params: {
   }
   if (params.deliveryMethod && params.deliveryMethod !== 'all') {
     queryParams.append('deliveryMethod', params.deliveryMethod);
+  }
+  if (params.source) {
+    queryParams.append('source', params.source);
   }
 
   const url = `${API_ENDPOINTS.exportOrders}${
@@ -783,6 +795,7 @@ async exportOrdersTravelbook(params: {
   toDate?: string;
   searchTerm?: string;
   deliveryMethod?: string;
+  source?: string;
 }) {
   const queryParams = new URLSearchParams();
   if (params.status && params.status !== 'all') queryParams.append('status', params.status);
@@ -790,6 +803,7 @@ async exportOrdersTravelbook(params: {
   if (params.toDate) queryParams.append('toDate', params.toDate);
   if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
   if (params.deliveryMethod && params.deliveryMethod !== 'all') queryParams.append('deliveryMethod', params.deliveryMethod);
+  if (params.source) queryParams.append('source', params.source);
 
   const url = `${API_ENDPOINTS.exportOrdersTravelbook}${
     queryParams.toString() ? `?${queryParams.toString()}` : ''
@@ -810,9 +824,65 @@ async bulkShipFromExcel(file: File) {
   });
 }
 
+// ==================== ADMIN COMMENTS ====================
+async getOrderAdminComments(orderId: string) {
+  try {
+    const response = await apiClient.get<ApiResponse<OrderAdminComment[]>>(
+      `${API_ENDPOINTS.orders}/${orderId}/admin-comments`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch admin comments');
+  }
 }
 
+async addOrderAdminComment(orderId: string, comment: string) {
+  try {
+    const response = await apiClient.post<ApiResponse<OrderAdminComment>>(
+      `${API_ENDPOINTS.orders}/${orderId}/admin-comments`,
+      { comment }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Failed to add admin comment');
+  }
+}
 
+async updateOrderAdminComment(commentId: string, comment: string) {
+  try {
+    const response = await apiClient.put<ApiResponse<OrderAdminComment>>(
+      `${API_ENDPOINTS.orders}/admin-comments/${commentId}`,
+      { comment }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Failed to update admin comment');
+  }
+}
+
+async deleteOrderAdminComment(commentId: string) {
+  try {
+    const response = await apiClient.delete<ApiResponse<boolean>>(
+      `${API_ENDPOINTS.orders}/admin-comments/${commentId}`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Failed to delete admin comment');
+  }
+}
+
+}
+
+export interface OrderAdminComment {
+  id: string;
+  orderId: string;
+  comment: string;
+  createdByName: string;
+  createdByUserId?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+  isMine: boolean;
+}
 
 export const orderService = new OrderService();
 
@@ -1010,11 +1080,25 @@ export const formatCurrency = (amount: number, currency: string = 'GBP') => {
  * Format date
  */
 export const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-GB', {
+  if (!date) return "N/A";
+  let cleanString = date;
+  if (
+    cleanString.includes("T") &&
+    !cleanString.endsWith("Z") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("+") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("-")
+  ) {
+    cleanString = `${cleanString}Z`;
+  }
+  const parsedDate = new Date(cleanString);
+  if (isNaN(parsedDate.getTime())) return "N/A";
+
+  return parsedDate.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/London',
   });
 };

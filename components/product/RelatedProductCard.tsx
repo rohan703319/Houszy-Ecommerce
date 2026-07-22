@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import QuantitySelector from "@/components/shared/QuantitySelector";
-import { Star, BadgePercent, ChevronLeft, ChevronRight, AwardIcon, Heart } from "lucide-react";
+import { Star, StarHalf, BadgePercent, ChevronLeft, ChevronRight, AwardIcon, Heart, Zap } from "lucide-react";
 
 import { useWishlist } from "@/context/WishlistContext";
 import {
@@ -68,17 +68,20 @@ const getRelatedProductImage = (
 
 export default function RelatedProductCard({ product, getImageUrl }: any) {
   const { addToCart, cart } = useCart();
-  const minQty = product.orderMinimumQuantity ?? 1;
+  const defaultVariant =
+    product.variants?.find((v: any) => v.isDefault) ??
+    product.variants?.[0] ??
+    null;
+  const minQty = (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
   const [qty, setQty] = useState(minQty);
   const [stockError, setStockError] = useState<string | null>(null);
   const toast = useToast();
   const router = useRouter();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const defaultVariant =
-    product.variants?.find((v: any) => v.isDefault) ??
-    product.variants?.[0] ??
-    null;
   const stock = defaultVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+  const isNextDayFree = defaultVariant
+    ? defaultVariant.nextDayDeliveryFree === true
+    : !!product.nextDayDeliveryFree;
   useEffect(() => {
     if (qty < minQty) {
       setQty(minQty);
@@ -94,11 +97,17 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
   const finalPrice = getDiscountedPrice(product, basePrice);
   // 🔥 NEW: oldPrice fallback logic
   const oldPriceValue =
-    defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ??
-    product.compareAtPrice ?? product.oldPrice;
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ?? undefined)
+      : (product.compareAtPrice ?? product.oldPrice ?? undefined);
+
+  const currentDisplayType =
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.displayDiscountType ?? "None")
+      : (product.displayDiscountType ?? "None");
 
   const oldPriceData =
-    (defaultVariant?.displayDiscountType ?? product.displayDiscountType) === "OldPrice"
+    currentDisplayType === "OldPrice"
       ? getOldPriceDiscount(
         basePrice,
         oldPriceValue,
@@ -172,7 +181,7 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
       product.stockQuantity ??
       0;
 
-    const maxQty = product.orderMaximumQuantity ?? Infinity;
+    const maxQty = (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
     const allowedMaxQty = Math.min(stockQty, maxQty);
 
     if (qty < minQty) {
@@ -250,25 +259,6 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
 
       productData: JSON.parse(JSON.stringify(product)),
     });
-
-    toast.success(
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">
-          {qty} × {product.name} added to cart!
-        </span>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.clearAll();
-            router.push("/cart");
-          }}
-          className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-black hover:bg-[#f39a16] hover:text-black transition shadow-sm"
-        >
-          Cart→
-        </button>
-      </div>
-    );
   };
 
   const wishlistId = defaultVariant?.id ?? product.id;
@@ -323,8 +313,8 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
 
       productData: JSON.parse(JSON.stringify(product)),
 
-      orderMaximumQuantity: product.orderMaximumQuantity ?? null,
-      orderMinimumQuantity: product.orderMinimumQuantity ?? null,
+      orderMaximumQuantity: (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? null,
+      orderMinimumQuantity: (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? null,
     });
   };
   return (
@@ -378,11 +368,13 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
               </div>
             </div>
           )}
-          {/* VAT Relief — bottom left on image */}
-          {(product.vatExempt || (product as any).vatRate === 0) && (
-            <span className="absolute bottom-1.5 left-2 z-20 inline-flex items-center gap-0.5 text-[9px] font-semibold text-white bg-black/80 border border-black/20 px-1.5 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-none backdrop-blur-sm">
-              <BadgePercent className="h-2.5 w-2.5" />
-              VAT Relief
+          {/* Free Next Day badge — bottom left on image */}
+          {isNextDayFree && stock > 0 && (
+            <span
+              className="absolute left-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
+            >
+              <Zap className="h-2.5 w-2.5 fill-white flex-shrink-0" />
+              <span>Free Next Day Delivery</span>
             </span>
           )}
           <button
@@ -448,9 +440,19 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
         <div className="flex items-center gap-1 min-h-[20px] mb-2 flex-nowrap overflow-hidden">
 
           {/* ⭐ Rating */}
-          <div className="flex items-center bg-[#f38918] text-white px-1 py-0.5 rounded text-[10px] font-semibold flex-shrink-0">
-            <span>{product.averageRating?.toFixed(1)}</span>
-            <Star className="h-2.5 w-2.5 ml-0.5 fill-white text-white" />
+          <div className="flex items-center flex-shrink-0 gap-0.5">
+            {[...Array(5)].map((_, i) => {
+              const rating = product.averageRating || 0;
+              if (rating >= i + 1) {
+                return <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />;
+              } else if (rating > i && rating < i + 1) {
+                return <StarHalf key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />;
+              }
+              return <Star key={i} className="h-3 w-3 text-gray-300 fill-gray-100 flex-shrink-0" />;
+            })}
+            <span className="text-[10px] ml-1 font-semibold text-gray-700 flex-shrink-0">
+              {(product.averageRating ?? 0).toFixed(1)}
+            </span>
           </div>
 
           {/* Reviews */}
@@ -492,11 +494,16 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
               £{oldPriceData.oldPrice.toFixed(2)}
             </span>
           )}
-          {vatRate !== null && vatRate > 0 && !product.vatExempt && (
+          {vatRate !== null && vatRate > 0 && !product.vatExempt ? (
             <span className="text-[10px] font-semibold text-black bg-gray-50 border border-gray-200 px-1 py-0.5 rounded whitespace-nowrap">
               {vatRate}% VAT
             </span>
-          )}
+          ) : (product.vatExempt || (product as any).vatRate === 0) ? (
+            <span className="text-[9px] md:text-[10px] font-semibold text-slate-800 bg-slate-50 border border-slate-200 px-1 md:px-1.5 py-0.5 rounded-md whitespace-nowrap inline-flex items-center gap-0.5">
+              <BadgePercent className="h-2.5 w-2.5 text-slate-600" />
+              VAT Relief
+            </span>
+          ) : null}
         </div>
 
 

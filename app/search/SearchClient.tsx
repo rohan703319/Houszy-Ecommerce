@@ -225,22 +225,30 @@ export default function SearchClient({
   const availableBrands = useMemo(() => {
     const brandIds = new Set<string>();
     unfilteredProducts.forEach((p) => {
-      if (p.brandId) {
+      const matchesCategory = selectedCategories.length === 0 || p.categories?.some((c: any) => selectedCategories.includes(c.categoryId));
+      if (matchesCategory && p.brandId) {
         brandIds.add(p.brandId);
       }
     });
-    return brands.filter((b) => brandIds.has(b.id));
-  }, [brands, unfilteredProducts]);
+    return brands
+      .filter((b) => brandIds.has(b.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [brands, unfilteredProducts, selectedCategories]);
 
   const availableCategories = useMemo(() => {
     const catIds = new Set<string>();
     unfilteredProducts.forEach((p) => {
-      p.categories?.forEach((c: any) => {
-        catIds.add(c.categoryId);
-      });
+      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(p.brandId);
+      if (matchesBrand) {
+        p.categories?.forEach((c: any) => {
+          catIds.add(c.categoryId);
+        });
+      }
     });
-    return allFlatCategories.filter((c) => catIds.has(c.id));
-  }, [allFlatCategories, unfilteredProducts]);
+    return allFlatCategories
+      .filter((c) => catIds.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allFlatCategories, unfilteredProducts, selectedBrands]);
 
   // Apply sorting and deduplication
   const flattenedProducts = useMemo(() => {
@@ -284,7 +292,7 @@ export default function SearchClient({
     };
 
     // Sorting
-    const sorted = [...unique].sort((a, b) => {
+    const sorted = sortBy === "name" ? [...unique] : [...unique].sort((a, b) => {
       // Stock Priority
       const stockA = a.variantForCard?.stockQuantity ?? a.productData.stockQuantity ?? 0;
       const stockB = b.variantForCard?.stockQuantity ?? b.productData.stockQuantity ?? 0;

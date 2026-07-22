@@ -44,6 +44,8 @@ interface Variant {
   loyaltyPointsMessage?: string;
   nextDayDeliveryEnabled?: boolean | null;
   nextDayDeliveryFree?: boolean | null;
+  orderMinimumQuantity?: number | null;
+  orderMaximumQuantity?: number | null;
 }
 interface Product {
   orderMinimumQuantity?: number;
@@ -238,7 +240,7 @@ export default function FeaturedProductsSlider({
       (product as any).stockQuantity ??
       0;
 
-    const maxQty = (product as any).orderMaximumQuantity ?? Infinity;
+    const maxQty = ((selected as any)?.orderMaximumQuantity ?? (product as any).orderMaximumQuantity) ?? Infinity;
 
     const nextDayDeliveryEnabled = defaultVariant
       ? defaultVariant.nextDayDeliveryEnabled === true
@@ -434,11 +436,17 @@ export default function FeaturedProductsSlider({
           const finalPrice = getDiscountedPrice(product, basePrice);
           // 🔥 NEW: oldPrice fallback logic
           const oldPriceValue =
-            (defaultVariant as any)?.compareAtPrice ?? (defaultVariant as any)?.oldPrice ??
-            (product as any).compareAtPrice ?? product.oldPrice;
+            (product.variants && product.variants.length > 0)
+              ? ((defaultVariant as any)?.compareAtPrice ?? (defaultVariant as any)?.oldPrice ?? undefined)
+              : ((product as any).compareAtPrice ?? product.oldPrice ?? undefined);
+
+          const currentDisplayType =
+            (defaultVariant as any)?.displayDiscountType ??
+            product.displayDiscountType ??
+            "None";
 
           const oldPriceData =
-            product.displayDiscountType === "OldPrice"
+            currentDisplayType === "OldPrice"
               ? getOldPriceDiscount(
                 basePrice,
                 oldPriceValue,
@@ -771,9 +779,9 @@ export default function FeaturedProductsSlider({
                                 (product as any).stockQuantity ??
                                 0;
 
-                              const finalQty = getInitialQty(product);
+                              const finalQty = (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
 
-                              const maxQty = (product as any).orderMaximumQuantity ?? Infinity;
+                              const maxQty = (defaultVariant?.orderMaximumQuantity ?? (product as any).orderMaximumQuantity) ?? Infinity;
 
                               // 🔥 MAX ORDER CHECK
                               if (existingCartQty + finalQty > maxQty) {
@@ -816,10 +824,7 @@ export default function FeaturedProductsSlider({
                                 finalPrice: finalPrice,
                                 oldPrice: hasActiveCoupon
                                   ? undefined
-                                  : ((defaultVariant as any)?.compareAtPrice ?? defaultVariant?.oldPrice ??
-                                    oldPriceValue ??
-                                    (product as any).compareAtPrice ?? product.oldPrice ??
-                                    undefined),
+                                  : (oldPriceValue ?? undefined),
                                 displayDiscountType: hasActiveCoupon
                                   ? "None"
                                   : (defaultVariant?.displayDiscountType ??
@@ -866,25 +871,6 @@ export default function FeaturedProductsSlider({
                               if (shouldShowMinWarning(product)) {
                                 toast.warning(
                                   `Minimum order quantity is ${product.orderMinimumQuantity}. Added ${finalQty} items to cart.`
-                                );
-                              } else {
-                                toast.success(
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="text-sm font-medium">
-                                      {product.name} added to cart!
-                                    </span>
-
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toast.clearAll();
-                                        router.push("/cart");
-                                      }}
-                                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-[#f38918] text-black hover:bg-black hover:text-white transition shadow-sm"
-                                    >
-                                      Cart→
-                                    </button>
-                                  </div>
                                 );
                               }
 
@@ -995,7 +981,7 @@ export default function FeaturedProductsSlider({
             } = pharmaModal;
 
             if (action === "ADD_TO_CART") {
-              const finalQty = getInitialQty(product);
+              const finalQty = (variant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
 
 
               const defaultVarId = variant?.id ?? null;
@@ -1013,7 +999,7 @@ export default function FeaturedProductsSlider({
                 (product as any).stockQuantity ??
                 0;
 
-              const maxQty = (product as any).orderMaximumQuantity ?? Infinity;
+              const maxQty = (variant?.orderMaximumQuantity ?? (product as any).orderMaximumQuantity) ?? Infinity;
 
               // 🔥 MAX ORDER CHECK
               if (existingCartQty + finalQty > maxQty) {
@@ -1073,25 +1059,6 @@ export default function FeaturedProductsSlider({
                 },
                 productData: JSON.parse(JSON.stringify(product)),
               });
-
-              toast.success(
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">
-                    {product.name} added to cart!
-                  </span>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toast.clearAll();
-                      router.push("/cart");
-                    }}
-                    className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
-                  >
-                    Cart→
-                  </button>
-                </div>
-              );
             }
 
             if (action === "BUY_NOW") {

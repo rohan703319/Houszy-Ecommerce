@@ -16,7 +16,7 @@ const categories = [
       {
         question: "What are your delivery charges?",
         answer:
-          "For all orders placed on the Houszy website, you can select either:\n\n• Standard Delivery: Free\n• Next Day Delivery: £3.99\n• Royal Mail Special Delivery Guaranteed 1PM: £10.99",
+          "For all orders placed on the Houszy website, you can select either:\n\n• Standard Delivery: £2.95\n• Next Day Delivery: £3.49\n",
       },
       {
         question: "My order arrived damaged - what should I do?",
@@ -103,13 +103,10 @@ export default function FAQPage() {
         `<div class="ml-1">• Standard Delivery: <span class="font-semibold text-black">Free</span></div>`
       )
       .replace(
-        "• Next Day Delivery: £3.99",
-        `<div class="ml-1">• Next Day Delivery: <span class="font-semibold text-black">£3.99</span></div>`
+        "• Next Day Delivery: £3.49",
+        `<div class="ml-1">• Next Day Delivery: <span class="font-semibold text-black">£3.49</span></div>`
       )
-      .replace(
-        "• Royal Mail Special Delivery Guaranteed 1PM: £10.99",
-        `<div class="ml-1">• Royal Mail Special Delivery Guaranteed 1PM: <span class="font-semibold text-black">£10.99</span></div>`
-      );
+
 
     return formatted;
   };
