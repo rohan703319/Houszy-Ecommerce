@@ -47,10 +47,11 @@ export function captureAttribution() {
       }
     }
 
-    const hasFreshSignal = !!(gclid || srsltid || utmSource || utmMedium || isExternalReferrer);
+    const hasNewQuerySignal = !!(gclid || srsltid || utmSource || utmMedium);
+    const hasFreshSignal = hasNewQuerySignal || isExternalReferrer;
 
-    // 1. If we already captured attribution in this tab session, return early unless there's a fresh signal
-    if (sessionStorage.getItem(SESSION_FLAG) === "true" && !hasFreshSignal) {
+    // 1. If we already captured attribution in this tab session, return early unless there's a fresh query signal
+    if (sessionStorage.getItem(SESSION_FLAG) === "true" && !hasNewQuerySignal) {
       return;
     }
 
@@ -68,8 +69,8 @@ export function captureAttribution() {
       }
     }
 
-    // 2. First-touch preservation rule: Do NOT overwrite existing data UNLESS we have a new fresh signal
-    if (existingData && !hasFreshSignal) {
+    // 2. First-touch preservation rule: Do NOT overwrite existing data UNLESS we have a new fresh query signal
+    if (existingData && !hasNewQuerySignal) {
       return;
     }
 

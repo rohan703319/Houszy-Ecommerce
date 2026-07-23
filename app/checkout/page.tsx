@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import EmptyCart from "@/components/cart/EmptyCart";
-import { CreditCard, FileText, Gift, ReceiptText, ShoppingBag, Truck } from "lucide-react";
+import { CreditCard, FileText, Gift, Info, ReceiptText, ShoppingBag, Truck } from "lucide-react";
 import SavedAddressesSection from "@/components/checkout/SavedAddressesSection";
 import LoyaltyRedemptionBox from "@/components/checkout/LoyaltyRedemptionBox";
 import { getPharmaSessionId } from "@/app/lib/pharmaSession";
@@ -633,6 +633,22 @@ export default function CheckoutPage() {
     }),
     [checkoutItems]
   );
+
+  const hasAnyNextDayFree = useMemo(() =>
+    checkoutItems.length > 0 &&
+    checkoutItems.some(i => {
+      if (i.variantId && i.productData?.variants?.length) {
+        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
+        if (v && typeof v.nextDayDeliveryFree === "boolean") {
+          return v.nextDayDeliveryFree === true;
+        }
+      }
+      return i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+    }),
+    [checkoutItems]
+  );
+
+  const hasMixedNextDayFree = hasAnyNextDayFree && !allNextDayFree;
 
   const allSupportSameDay = useMemo(() =>
     checkoutItems.length > 0 && checkoutItems.every(i => i.sameDayDeliveryEnabled === true),
@@ -1865,6 +1881,14 @@ export default function CheckoutPage() {
             <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
               <div className="bg-white p-3 rounded shadow">
                 <h2 className="text-sm font-semibold mb-2">Delivery options</h2>
+                {hasMixedNextDayFree && (
+                  <div className="mb-3 p-3 bg-amber-50 border border-amber-250 rounded-lg text-xs text-amber-800 flex items-start gap-2 animate-in fade-in duration-200">
+                    <Info className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-amber-900">Note on Shipping:</span> One or more products in your cart qualify for <strong className="text-amber-900">Free Next Day Delivery</strong>. To get free next day shipping on your order, please remove any other product(s) that do not support it.
+                    </div>
+                  </div>
+                )}
                 {shippingQuoteLoading ? (
                   <div className="flex items-center gap-2 text-xs text-gray-500 py-2">
                     <svg className="animate-spin h-4 w-4 text-[#f38918]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1982,6 +2006,27 @@ export default function CheckoutPage() {
                           <span className="font-medium text-[#f38918]">
                             {formatCurrency((it.finalPrice ?? it.price) * it.quantity)}
                           </span>
+
+                          {/* FREE NEXTDAY DELIVERY BADGE */}
+                          {(() => {
+                            const isItemNextDayFree = (() => {
+                              if (it.variantId && it.productData?.variants?.length) {
+                                const v = it.productData.variants.find((x: any) => x.id === it.variantId);
+                                if (v && typeof v.nextDayDeliveryFree === "boolean") {
+                                  return v.nextDayDeliveryFree === true;
+                                }
+                              }
+                              return it.nextDayDeliveryFree === true || it.productData?.nextDayDeliveryFree === true;
+                            })();
+
+                            if (!isItemNextDayFree) return null;
+
+                            return (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 ml-1 shrink-0">
+                                Free Nextday Delivery
+                              </span>
+                            );
+                          })()}
 
                           {/* CUT PRICE */}
                           {(() => {

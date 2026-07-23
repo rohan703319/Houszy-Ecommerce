@@ -250,6 +250,18 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cartActivity, setCartActivity] = useState<{ productId: string; message: string; timestamp: number } | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const hubRef = useRef<signalR.HubConnection | null>(null);
+
+  // Restore cart session from URL if present (from abandoned cart recovery email)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlSessionId = params.get("sessionId");
+      if (urlSessionId) {
+        localStorage.setItem("cart_guest", urlSessionId);
+        setSessionId(urlSessionId);
+      }
+    }
+  }, []);
   const addToCartAnalyticsRef = useRef<{ signature: string; timestamp: number } | null>(null);
   const toast = useToast();
 

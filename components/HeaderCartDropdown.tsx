@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trash2, ShoppingBag, X, Plus, Minus } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/toast/CustomToast";
+import { useAuth } from "@/context/AuthContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -14,6 +16,7 @@ export default function HeaderCartDropdown() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [apiThreshold, setApiThreshold] = useState<number>(0);
   const toast = useToast();
+  const { isAuthenticated } = useAuth();
 
   const {
     cart,
@@ -129,6 +132,20 @@ export default function HeaderCartDropdown() {
     return threshold > 0 ? threshold : apiThreshold;
   }, [cart, apiThreshold]);
 
+  const allNextDayFree = useMemo(() =>
+    cart.length > 0 &&
+    cart.every(i => {
+      if (i.variantId && i.productData?.variants?.length) {
+        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
+        if (v && typeof v.nextDayDeliveryFree === "boolean") {
+          return v.nextDayDeliveryFree === true;
+        }
+      }
+      return i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+    }),
+    [cart]
+  );
+
   if (!isCartOpen) return null;
 
   const remainingForFreeDelivery = dynamicFreeThreshold > 0 ? Math.max(0, dynamicFreeThreshold - cartTotal) : 0;
@@ -141,20 +158,28 @@ export default function HeaderCartDropdown() {
         data-cart-dropdown="true"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        className="absolute right-0 top-full mt-2 w-[92vw] max-w-[380px] bg-white rounded-xl shadow-2xl border border-gray-200 z-[100] p-4 animate-in fade-in slide-in-from-top-2 duration-200 text-gray-800"
+        className="fixed md:absolute left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 right-auto md:right-0 top-[75px] md:top-full mt-2 w-[92vw] md:w-[380px] max-w-[380px] bg-white rounded-xl shadow-2xl border border-gray-200 z-[100] p-4 animate-in fade-in slide-in-from-top-2 duration-200 text-gray-800"
       >
         {/* ── Top Header: Free Delivery & Action Buttons ── */}
         <div className="border-b border-gray-100 pb-3 mb-3">
           <div className="flex items-center justify-between mb-2.5">
-            <p className="text-xs font-semibold text-gray-700">
-              {remainingForFreeDelivery > 0 ? (
-                <>
-                  Spend <span className="font-bold text-[#f38918]">£{remainingForFreeDelivery.toFixed(2)}</span> more for <span className="font-bold">FREE delivery</span>
-                </>
+            <div className="flex flex-col gap-0.5">
+              {allNextDayFree ? (
+                <p className="text-xs font-bold text-orange-600 flex items-center gap-1 animate-in fade-in duration-200">
+                  🚚 You've unlocked FREE Next Day Delivery!
+                </p>
               ) : (
-                <span className="text-emerald-600 font-bold">🎉 You qualify for FREE delivery!</span>
+                <p className="text-xs font-semibold text-gray-700">
+                  {remainingForFreeDelivery > 0 ? (
+                    <>
+                      Spend <span className="font-bold text-[#f38918]">£{remainingForFreeDelivery.toFixed(2)}</span> more for <span className="font-bold">FREE Standard Delivery</span>
+                    </>
+                  ) : (
+                    <span className="text-emerald-600 font-bold">🎉 You qualify for FREE Standard Delivery!</span>
+                  )}
+                </p>
               )}
-            </p>
+            </div>
             <button
               onClick={closeCart}
               aria-label="Close cart preview"
@@ -173,12 +198,16 @@ export default function HeaderCartDropdown() {
               }}
               className="flex-1 py-1.5 px-3 border border-gray-300 hover:bg-gray-50 text-gray-800 text-xs font-semibold rounded-lg transition text-center shadow-sm"
             >
-              View Basket
+              View Cart
             </button>
             <button
               onClick={() => {
                 closeCart();
-                router.push("/checkout");
+                if (isAuthenticated) {
+                  router.push("/checkout");
+                } else {
+                  router.push("/account?from=checkout");
+                }
               }}
               className="flex-1 py-1.5 px-3 bg-[#f38918] hover:bg-[#d97712] text-white text-xs font-bold rounded-lg transition text-center shadow-sm"
             >
@@ -210,20 +239,30 @@ export default function HeaderCartDropdown() {
               return (
                 <div key={`${item.id}-${item.variantId ?? "no-var"}`} className="pt-3 first:pt-0 flex items-center gap-3">
                   {/* Item Image */}
-                  <div className="w-12 h-12 relative flex-shrink-0 bg-gray-50 rounded-md border border-gray-100 overflow-hidden">
+                  <Link
+                    href={`/product/${item.slug || item.productData?.slug || ""}`}
+                    onClick={() => closeCart()}
+                    className="w-12 h-12 relative flex-shrink-0 bg-gray-50 rounded-md border border-gray-100 overflow-hidden hover:opacity-80 transition cursor-pointer"
+                  >
                     <Image
                       src={imageUrl}
                       alt={item.name || "Product"}
                       fill
                       className="object-contain p-1"
                     />
-                  </div>
+                  </Link>
 
                   {/* Item Details */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-medium text-gray-800 line-clamp-2 leading-tight">
-                      {item.name}
-                    </h4>
+                    <Link
+                      href={`/product/${item.slug || item.productData?.slug || ""}`}
+                      onClick={() => closeCart()}
+                      className="hover:text-[#f38918] transition inline-block w-full"
+                    >
+                      <h4 className="text-xs font-medium text-gray-800 line-clamp-2 leading-tight hover:text-[#f38918] transition-colors">
+                        {item.name}
+                      </h4>
+                    </Link>
                     {item.type === "subscription" && (
                       <p className="text-[10px] text-[#f38918] font-semibold mt-0.5 leading-tight">
                         Subscription • {item.frequency && !isNaN(Number(item.frequency)) ? `${item.frequency} ` : ""}{item.frequencyPeriod}
@@ -344,7 +383,7 @@ export default function HeaderCartDropdown() {
               className="flex items-center gap-1 text-gray-500 hover:text-red-600 transition font-medium"
             >
               <Trash2 size={13} />
-              <span>Empty Basket</span>
+              <span>Empty Cart</span>
             </button>
 
             <div className="text-right">
