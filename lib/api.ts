@@ -123,7 +123,20 @@ class ApiClient {
 
         // ✅ AUTH HANDLING
         if (status === 401 && typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
           localStorage.removeItem('authToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('userEmail');
+          localStorage.removeItem('userData');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('userName');
+          localStorage.removeItem('userFirstName');
+          localStorage.removeItem('userLastName');
+          
+          document.cookie = "authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          
           window.location.href = '/login';
         }
 

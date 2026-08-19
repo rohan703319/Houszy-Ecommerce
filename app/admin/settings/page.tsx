@@ -70,6 +70,9 @@ interface StoreSettingsDto {
   notifyCustomerRegistration: boolean;
   notifyRefundRequest: boolean;
   notifyDailyReport: boolean;
+  // Google Merchant
+  googleMerchantSyncEnabled: boolean;
+  googleMerchantSyncTime: string;
   // Audit
   updatedAt: string | null;
   updatedBy: string | null;
@@ -91,6 +94,7 @@ const DEFAULT: StoreSettingsDto = {
   notifyNewOrder: true, notifyLowStock: true, lowStockThreshold: 5,
   notifyNewReview: false, notifyCustomerRegistration: false,
   notifyRefundRequest: true, notifyDailyReport: false,
+  googleMerchantSyncEnabled: true, googleMerchantSyncTime: '23:00',
   updatedAt: null, updatedBy: null,
 };
 

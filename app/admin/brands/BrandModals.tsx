@@ -50,6 +50,10 @@ export default function BrandModals({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [isDeletingBanner, setIsDeletingBanner] = useState(false);
+  const [bannerDeleteConfirm, setBannerDeleteConfirm] = useState(false);
   const [pendingFaqs, setPendingFaqs] = useState<any[]>([]);
   const [nameStatus, setNameStatus] = useState<"idle" | "checking" | "valid" | "duplicate">("idle");
 
@@ -72,6 +76,7 @@ const [activeTab, setActiveTab] = useState<'basic' | 'image' | 'seo' | 'settings
     name: "",
     description: "",
     logoUrl: "",
+    bannerImageUrl: "",
     isPublished: true,
      isActive: true,  
     showOnHomepage: false,
@@ -106,6 +111,24 @@ useEffect(() => {
   }
 }, [initialTab, showModal]);
 
+// 🔥 Reset previews and files on modal open/close to prevent state leaks
+useEffect(() => {
+  if (!showModal) {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    setLogoPreview(null);
+    setBannerPreview(null);
+    setLogoFile(null);
+    setBannerImageFile(null);
+  } else {
+    setLogoPreview(null);
+    setBannerPreview(null);
+    setLogoFile(null);
+    setBannerImageFile(null);
+  }
+}, [showModal]);
+
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (showModal && editingBrand) {
@@ -113,6 +136,7 @@ useEffect(() => {
         name: editingBrand.name,
         description: editingBrand.description,
         logoUrl: editingBrand.logoUrl || "",
+        bannerImageUrl: editingBrand.bannerImageUrl || "",
         isPublished: editingBrand.isPublished,
         showOnHomepage: editingBrand.showOnHomepage,
          isActive: true,  
@@ -123,11 +147,14 @@ useEffect(() => {
       });
       setLogoFile(null);
       setLogoPreview(null);
+      setBannerImageFile(null);
+      setBannerPreview(null);
     } else if (showModal && !editingBrand) {
       setFormData({
         name: "",
         description: "",
         logoUrl: "",
+        bannerImageUrl: "",
          isActive: true,  
         isPublished: true,
         showOnHomepage: false,
@@ -146,6 +173,35 @@ useEffect(() => {
     setLogoFile(file);
     const previewUrl = URL.createObjectURL(file);
     setLogoPreview(previewUrl);
+  };
+
+  const handleBannerFileChange = (file: File) => {
+    if (file.type !== "image/webp") {
+      toast.error("❌ Only WebP format allowed for banner image");
+      return;
+    }
+    setBannerImageFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setBannerPreview(previewUrl);
+  };
+
+  const handleDeleteBanner = async () => {
+    if (!editingBrand || !formData.bannerImageUrl) return;
+    setIsDeletingBanner(true);
+    try {
+      await brandsService.deleteBannerImage(formData.bannerImageUrl);
+      toast.success("Banner deleted ✅");
+      setEditingBrand((prev: any) => prev ? { ...prev, bannerImageUrl: "" } : prev);
+      setFormData((prev: any) => ({ ...prev, bannerImageUrl: "" }));
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+      setBannerPreview(null);
+      setBannerImageFile(null);
+    } catch {
+      toast.error("Banner delete failed");
+    } finally {
+      setIsDeletingBanner(false);
+      setBannerDeleteConfirm(false);
+    }
   };
 
 const handleDeleteImage = async (brandId: string, imageUrl: string) => {
@@ -217,12 +273,28 @@ if (!brandName) {
     }
 
     // =========================
+    // ✅ UPLOAD BANNER IMAGE
+    // =========================
+    let finalBannerImageUrl = formData.bannerImageUrl || "";
+    if (bannerImageFile) {
+      const bannerUploadRes = await brandsService.uploadBannerImage(bannerImageFile, {
+        name: formData.name,
+      });
+      if (!bannerUploadRes.data?.success || !bannerUploadRes.data?.data) {
+        throw new Error("Banner image upload failed");
+      }
+      finalBannerImageUrl = bannerUploadRes.data.data;
+      setBannerImageFile(null);
+    }
+
+    // =========================
     // ✅ PAYLOAD
     // =========================
     const payload: any = {
       name: brandName,
       description: formData.description.trim(),
       logoUrl: finalLogoUrl,
+      bannerImageUrl: finalBannerImageUrl || undefined,
       isPublished: formData.isPublished,
       showOnHomepage: formData.showOnHomepage,
       isActive: formData.isActive,
@@ -591,6 +663,65 @@ if (!brandName) {
                             </ul>
                           </div>
                         </div>
+                      </div>
+
+                      {/* ─── BANNER IMAGE ─── */}
+                      <div className="mt-6 border-t border-slate-700/50 pt-5 space-y-3">
+                        <label className="block text-sm font-semibold text-violet-300">🖼️ Banner Image <span className="text-xs text-slate-400 font-normal">(WebP only · displayed at top of brand page)</span></label>
+
+                        {(bannerPreview || formData.bannerImageUrl) && (
+                          <div className="relative rounded-xl overflow-hidden border border-violet-500/30 bg-slate-900/40 group">
+                            <img
+                              src={bannerPreview || (formData.bannerImageUrl?.startsWith("http") ? formData.bannerImageUrl : `${process.env.NEXT_PUBLIC_API_URL || ""}${formData.bannerImageUrl}`)}
+                              alt="Banner preview"
+                              className="w-full h-32 object-cover"
+                              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                            />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-3">
+                              {bannerPreview ? (
+                                <button
+                                  type="button"
+                                  onClick={() => { URL.revokeObjectURL(bannerPreview); setBannerPreview(null); setBannerImageFile(null); }}
+                                  className="px-3 py-1.5 bg-red-500/80 text-white rounded-lg text-xs font-medium hover:bg-red-500"
+                                >Remove</button>
+                              ) : (
+                                <>
+                                  <label className="px-3 py-1.5 bg-violet-500/80 text-white rounded-lg text-xs font-medium hover:bg-violet-500 cursor-pointer">
+                                    Change
+                                    <input type="file" accept=".webp,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBannerFileChange(f); }} />
+                                  </label>
+                                  {editingBrand && formData.bannerImageUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setBannerDeleteConfirm(true)}
+                                      className="px-3 py-1.5 bg-red-500/80 text-white rounded-lg text-xs font-medium hover:bg-red-500 flex items-center gap-1"
+                                    ><Trash2 className="h-3 w-3" />Delete</button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <div className="absolute bottom-2 left-2">
+                              <span className="px-2 py-0.5 bg-black/60 text-white text-xs rounded-full">
+                                {bannerPreview ? "New banner (save to apply)" : "Current Banner"}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {!formData.bannerImageUrl && !bannerPreview && (
+                          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-violet-500/40 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
+                            <div className="flex items-center gap-3">
+                              <Upload className="w-5 h-5 text-violet-400 group-hover:text-violet-300" />
+                              <div>
+                                <p className="text-sm text-slate-400 group-hover:text-slate-300">
+                                  <span className="font-semibold text-violet-400">Click to upload banner</span>
+                                </p>
+                                <p className="text-xs text-slate-500">WebP only · recommended 1440×320px</p>
+                              </div>
+                            </div>
+                            <input type="file" accept=".webp,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBannerFileChange(f); }} />
+                          </label>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1203,6 +1334,23 @@ ${
         iconColor="text-red-400"
         confirmButtonStyle="bg-gradient-to-r from-red-500 to-rose-500"
         isLoading={isDeletingImage}
+      />
+
+      {/* ============================================
+          BANNER DELETE CONFIRMATION
+          ============================================ */}
+      <ConfirmDialog
+        isOpen={bannerDeleteConfirm}
+        onClose={() => setBannerDeleteConfirm(false)}
+        onConfirm={handleDeleteBanner}
+        title="Delete Brand Banner"
+        message="Are you sure you want to delete the banner image for this brand? This action cannot be undone."
+        confirmText="Delete Banner"
+        cancelText="Cancel"
+        icon={Trash2}
+        iconColor="text-red-400"
+        confirmButtonStyle="bg-gradient-to-r from-red-500 to-rose-500"
+        isLoading={isDeletingBanner}
       />
     </>
   );

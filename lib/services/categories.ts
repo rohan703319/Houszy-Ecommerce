@@ -10,6 +10,7 @@ export interface Category {
   description: string;
   slug: string;
   imageUrl?: string;
+  bannerImageUrl?: string;
   isActive: boolean;
   sortOrder: number;  
   productCount: number;
@@ -38,6 +39,7 @@ export interface UpdateCategoryDto {
   name: string;
   description: string;
   imageUrl?: string;
+  bannerImageUrl?: string;
   isActive: boolean;
   showOnHomepage: boolean;
   sortOrder: number;
@@ -59,6 +61,7 @@ export interface CreateCategoryDto {
   name: string;
   description: string;
   imageUrl?: string;
+  bannerImageUrl?: string;
   isActive?: boolean;
   showOnHomepage?: boolean;
   sortOrder?: number;
@@ -124,6 +127,22 @@ uploadImage: async (file: File, params?: Record<string, any>) => {
   apiClient.delete(
     `${API_ENDPOINTS.deleteCategoryImage}/${encodeURIComponent(imageUrl)}`
   ),
+
+  // ---- Banner Image Upload ----
+  uploadBannerImage: async (file: File, params?: Record<string, any>) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const searchParams = params ? "?" + new URLSearchParams(params).toString() : "";
+    return apiClient.post<{ success: boolean; message: string; data: string }>(
+      API_ENDPOINTS.uploadCategoryBannerImage + searchParams,
+      formData
+    );
+  },
+
+  deleteBannerImage: (imageUrl: string) =>
+    apiClient.delete<{ success: boolean; message: string; data: boolean }>(
+      `${API_ENDPOINTS.deleteCategoryBannerImage}?imageUrl=${encodeURIComponent(imageUrl)}`
+    ),
   // Restore Category (Soft Delete Restore)
   restore: (id: string, config: any = {}) =>
     apiClient.post<void>(

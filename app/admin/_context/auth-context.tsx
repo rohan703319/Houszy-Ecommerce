@@ -37,12 +37,24 @@ export const AuthProvider = ({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<Record<string, Flags> | null>(null);
 
+  const handleLogout = () => {
+    // Clear React State
+    setUser(null);
+    setAccessToken(null);
+    setPermissions(null);
+
+    // Centralized Logout
+    authService.logout();
+  };
+
   useEffect(() => {
-    const loadUserData = () => {
+    const loadUserData = async () => {
       try {
-        const token =
-          localStorage.getItem("accessToken") ||
-          localStorage.getItem("authToken");
+        const token = await authService.ensureValidToken();
+        if (!token) {
+          handleLogout();
+          return;
+        }
 
         const storedUserData =
           localStorage.getItem("userData");
@@ -103,6 +115,7 @@ export const AuthProvider = ({
           "Error loading user data:",
           error
         );
+        handleLogout();
       } finally {
         setIsLoading(false);
       }
@@ -129,16 +142,6 @@ export const AuthProvider = ({
     };
     fetchPermissions();
   }, [accessToken, user?.id, pathname]);
-
-  const handleLogout = () => {
-    // Clear React State
-    setUser(null);
-    setAccessToken(null);
-    setPermissions(null);
-
-    // Centralized Logout
-    authService.logout();
-  };
 
   const hasPermission = (pageKey: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
     if (!user) return false;

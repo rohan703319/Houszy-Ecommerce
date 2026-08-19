@@ -284,11 +284,17 @@ export default function SearchClient({
     });
 
     const getCardPrice = (item: any) => {
-      const basePrice =
-        typeof item.variantForCard?.price === "number"
-          ? item.variantForCard.price
-          : item.productData.price;
-      return getDiscountedPrice(item.productData, basePrice);
+      const defaultVariant =
+        item.variantForCard ??
+        item.productData.variants?.find((v: any) => v.isDefault) ??
+        item.productData.variants?.[0] ??
+        null;
+
+      const hasVariants = item.productData.variants && item.productData.variants.length > 0;
+
+      return hasVariants
+        ? (defaultVariant?.sellPrice ?? defaultVariant?.price ?? 0)
+        : (item.productData.sellPrice ?? item.productData.price ?? 0);
     };
 
     // Sorting
@@ -408,7 +414,7 @@ export default function SearchClient({
 
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
-  }, [hasMore]);
+  }, [hasMore, page]);
 
   // Sync products when initialProducts change
   useEffect(() => {

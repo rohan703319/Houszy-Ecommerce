@@ -14,7 +14,8 @@ interface Props {
   setShowModal: (v: boolean) => void;
   imageFile: File | null;
 setImageFile: (file: File | null) => void;
-
+  bannerImageFile: File | null;
+  setBannerImageFile: (file: File | null) => void;
 
   editingCategory: any;
   setEditingCategory: any;
@@ -41,6 +42,8 @@ export default function CategoryModal({
   editingCategory,
   setEditingCategory,
   setImageFile,
+  bannerImageFile,
+  setBannerImageFile,
   formData,
   setFormData,
   handleSubmit,
@@ -51,6 +54,7 @@ export default function CategoryModal({
   isSubmitting,         // ⚠️ missing tha
 }: Props) {
   const [activeTab, setActiveTab] = useState("basic");
+  const toast = useToast();
 const dropdownRef = useRef<HTMLDivElement | null>(null);
 const homepageCount = categories.filter((c) => c.showOnHomepage).length;
 const [search, setSearch] = useState("");
@@ -67,6 +71,9 @@ const [nameStatus, setNameStatus] = useState<"idle" | "checking" | "valid" | "du
   const [isDeletingImage, setIsDeletingImage] = useState(false);
   
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [isDeletingBanner, setIsDeletingBanner] = useState(false);
+  const [bannerDeleteConfirm, setBannerDeleteConfirm] = useState<boolean>(false);
  const getParentCategoryOptions = () => {
   const result: any[] = [];
 const traverse = (cats: any[], level = 0) => {
@@ -112,46 +119,34 @@ useEffect(() => {
   const previewUrl = URL.createObjectURL(file);
   setImagePreview(previewUrl);
 };
-useEffect(() => {
-  if (openFaqCategory) {
-    setActiveTab("faqs");
-  }
-}, [openFaqCategory]);
 
-const selectedParent = parentOptions.find(
-  (c: any) => c.id === formData.parentCategoryId
-);
-useEffect(() => {
-  if (selectedParent) {
-    setSearch(selectedParent.name);
-  } else {
-    setSearch("");
+const handleBannerFileChange = (file: File) => {
+  if (file.type !== "image/webp") {
+    toast.error("❌ Only WebP format allowed for banner image");
+    return;
   }
-}, [formData.parentCategoryId, parentOptions]);
-const extractFilename = (imageUrl: string) => {
-  if (!imageUrl) return "";
-  const parts = imageUrl.split('/');
-  return parts[parts.length - 1];
+  setBannerImageFile(file);
+  const previewUrl = URL.createObjectURL(file);
+  setBannerPreview(previewUrl);
 };
 
-
-const checkDuplicateName = (name: string): boolean => {
-  const isDuplicateCategory = (categories: Category[]): boolean => {
-    for (const cat of categories) {
-      if (
-        cat.name.trim().toLowerCase() === name.toLowerCase() &&
-        cat.id !== editingCategory?.id
-      ) {
-        return true;
-      }
-      if (cat.subCategories?.length) {
-        if (isDuplicateCategory(cat.subCategories)) return true;
-      }
-    }
-    return false;
-  };
-
-  return isDuplicateCategory(categories);
+const handleDeleteBanner = async () => {
+  if (!editingCategory || !formData.bannerImageUrl) return;
+  setIsDeletingBanner(true);
+  try {
+    await categoriesService.deleteBannerImage(formData.bannerImageUrl);
+    toast.success("Banner deleted ✅");
+    setEditingCategory((prev: any) => prev ? { ...prev, bannerImageUrl: "" } : prev);
+    setFormData((prev: any) => ({ ...prev, bannerImageUrl: "" }));
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    setBannerPreview(null);
+    setBannerImageFile(null);
+  } catch {
+    toast.error("Banner delete failed");
+  } finally {
+    setIsDeletingBanner(false);
+    setBannerDeleteConfirm(false);
+  }
 };
 const handleDeleteImage = async (categoryId: string, imageUrl: string) => {
   setIsDeletingImage(true);
@@ -178,14 +173,71 @@ const handleDeleteImage = async (categoryId: string, imageUrl: string) => {
     setIsDeletingImage(false);
     setImageDeleteConfirm(null);
   }
+};useEffect(() => {
+  if (openFaqCategory) {
+    setActiveTab("faqs");
+  }
+}, [openFaqCategory]);
+
+const selectedParent = parentOptions.find(
+  (c: any) => c.id === formData.parentCategoryId
+);
+useEffect(() => {
+  if (selectedParent) {
+    setSearch(selectedParent.name);
+  } else {
+    setSearch("");
+  }
+}, [formData.parentCategoryId, parentOptions]);
+
+
+const extractFilename = (imageUrl: string) => {
+  if (!imageUrl) return "";
+  const parts = imageUrl.split('/');
+  return parts[parts.length - 1];
 };
 
+const checkDuplicateName = (name: string): boolean => {
+  const isDuplicateCategory = (categories: Category[]): boolean => {
+    for (const cat of categories) {
+      if (
+        cat.name.trim().toLowerCase() === name.toLowerCase() &&
+        cat.id !== editingCategory?.id
+      ) {
+        return true;
+      }
+      if (cat.subCategories?.length) {
+        if (isDuplicateCategory(cat.subCategories)) return true;
+      }
+    }
+    return false;
+  };
+  return isDuplicateCategory(categories);
+};
 
 useEffect(() => {
   if (showModal && !editingCategory) {
     setPendingFaqs([]);
   }
 }, [showModal, editingCategory]);
+
+// 🔥 Reset previews and files on modal open/close to prevent state leaks
+useEffect(() => {
+  if (!showModal) {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    setImagePreview(null);
+    setBannerPreview(null);
+    setImageFile(null);
+    setBannerImageFile(null);
+  } else {
+    setImagePreview(null);
+    setBannerPreview(null);
+    setImageFile(null);
+    setBannerImageFile(null);
+  }
+}, [showModal, setImageFile, setBannerImageFile]);
+
 
 useEffect(() => {
   if (!formData.name.trim()) {
@@ -212,6 +264,7 @@ useEffect(() => {
       name: editingCategory.name || "",
       description: editingCategory.description || "",
       imageUrl: editingCategory.imageUrl || "",
+      bannerImageUrl: editingCategory.bannerImageUrl || "",
       isActive: editingCategory.isActive ?? true,
       showOnHomepage: editingCategory.showOnHomepage ?? false,
       sortOrder: editingCategory.sortOrder ?? "",
@@ -225,11 +278,10 @@ useEffect(() => {
 }, [editingCategory, showModal]);
 
 
-  const toast = useToast();
   if (!showModal) return null;
   const MAX_HOMEPAGE_CATEGORIES = 50;
   return (
-   
+   <>
 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
 <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden shadow-xl flex flex-col">
         {/* HEADER */}
@@ -635,8 +687,70 @@ useEffect(() => {
                           </div>
                         </div>
                       </div>
+
+    {/* ─── BANNER IMAGE ─── */}
+    <div className="mt-6 border-t border-slate-700/50 pt-5 space-y-3">
+      <label className="block text-sm font-semibold text-violet-300">🖼️ Banner Image <span className="text-xs text-slate-400 font-normal">(WebP only · displayed at top of category page)</span></label>
+
+      {/* Preview if exists */}
+      {(bannerPreview || formData.bannerImageUrl) && (
+        <div className="relative rounded-xl overflow-hidden border border-violet-500/30 bg-slate-900/40 group">
+          <img
+            src={bannerPreview || (formData.bannerImageUrl?.startsWith("http") ? formData.bannerImageUrl : `${process.env.NEXT_PUBLIC_API_URL || ""}${formData.bannerImageUrl}`)}
+            alt="Banner preview"
+            className="w-full h-32 object-cover"
+            onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+          />
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-3">
+            {bannerPreview ? (
+              <button
+                type="button"
+                onClick={() => { URL.revokeObjectURL(bannerPreview); setBannerPreview(null); setBannerImageFile(null); }}
+                className="px-3 py-1.5 bg-red-500/80 text-white rounded-lg text-xs font-medium hover:bg-red-500"
+              >Remove</button>
+            ) : (
+              <>
+                <label className="px-3 py-1.5 bg-violet-500/80 text-white rounded-lg text-xs font-medium hover:bg-violet-500 cursor-pointer">
+                  Change
+                  <input type="file" accept=".webp,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBannerFileChange(f); }} />
+                </label>
+                {editingCategory && formData.bannerImageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setBannerDeleteConfirm(true)}
+                    className="px-3 py-1.5 bg-red-500/80 text-white rounded-lg text-xs font-medium hover:bg-red-500 flex items-center gap-1"
+                  ><Trash2 className="h-3 w-3" />Delete</button>
+                )}
+              </>
+            )}
+          </div>
+          <div className="absolute bottom-2 left-2">
+            <span className="px-2 py-0.5 bg-black/60 text-white text-xs rounded-full">
+              {bannerPreview ? "New banner (save to apply)" : "Current Banner"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Upload area (shown when no banner) */}
+      {!formData.bannerImageUrl && !bannerPreview && (
+        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-violet-500/40 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 cursor-pointer transition-all group">
+          <div className="flex items-center gap-3">
+            <Upload className="w-5 h-5 text-violet-400 group-hover:text-violet-300" />
+            <div>
+              <p className="text-sm text-slate-400 group-hover:text-slate-300">
+                <span className="font-semibold text-violet-400">Click to upload banner</span>
+              </p>
+              <p className="text-xs text-slate-500">WebP only · recommended 1440×320px</p>
+            </div>
+          </div>
+          <input type="file" accept=".webp,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBannerFileChange(f); }} />
+        </label>
+      )}
+    </div>
 </div>
   )}
+
 
   {/* ================= SEO ================= */}
   {activeTab === "seo" && ( 
@@ -903,6 +1017,19 @@ useEffect(() => {
   />
 )}
 
+{/* 🔥 Banner Delete Confirmation */}
+{bannerDeleteConfirm && (
+  <ConfirmDialog
+    isOpen={bannerDeleteConfirm}
+    onClose={() => setBannerDeleteConfirm(false)}
+    onConfirm={handleDeleteBanner}
+    title="Delete Banner Image"
+    message="Are you sure you want to delete the banner image for this category?"
+    confirmText="Delete Banner"
+    isLoading={isDeletingBanner}
+  />
+)}
+
 {selectedImageUrl && (
   <div
     className="fixed inset-0 bg-black/70 backdrop-blur-lg z-[60] flex items-center justify-center p-4"
@@ -942,5 +1069,6 @@ useEffect(() => {
 )}
       
     </div>
+  </>
   );
 }

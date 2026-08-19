@@ -55,7 +55,8 @@ export default async function OffersPage() {
     );
     if (res.ok) {
       const json = await res.json();
-      discounts = json?.data ?? [];
+      const rawDiscounts: Discount[] = json?.data ?? [];
+      discounts = rawDiscounts.filter(d => !d.requiresCouponCode);
     }
   } catch { }
 

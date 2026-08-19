@@ -46,6 +46,8 @@ interface ProductRow {
   slug: string;
   stockQuantity: number;
   price: number;
+  discountPercentage?: number;
+  sellPrice?: number;
 
   newStock: number;
   newPrice: number;
@@ -209,10 +211,12 @@ export default function InventoryPage() {
             sku: v.sku,
             stockQuantity: Number(v.stockQuantity ?? 0),
             price: Number(v.price ?? 0),
+            discountPercentage: Number(v.discountPercentage ?? 0),
+            sellPrice: Number(v.sellPrice ?? (v.price ?? 0)),
             oldPrice: Number(v.compareAtPrice ?? 0),
             newStock: Number(v.stockQuantity ?? 0),
             newPrice: Number(v.price ?? 0),
-            newOldPrice: Number(v.compareAtPrice ?? 0),
+            newOldPrice: Number(v.discountPercentage ?? 0),
             brandName: p.brandName ?? "",
             categoryName: p.categories?.[0]?.categoryName || "",
           }));
@@ -230,10 +234,12 @@ export default function InventoryPage() {
               images,
               stockQuantity: Number(p.stockQuantity ?? 0),
               price: Number(p.price ?? 0),
+              discountPercentage: Number(p.discountPercentage ?? 0),
+              sellPrice: Number(p.sellPrice ?? p.price),
               oldPrice: Number(p.oldPrice ?? 0),
               newStock: Number(p.stockQuantity ?? 0),
               newPrice: Number(p.price ?? 0),
-              newOldPrice: Number(p.oldPrice ?? 0),
+              newOldPrice: Number(p.discountPercentage ?? 0),
               brandName: p.brandName ?? "",
               categoryName: p.categories?.[0]?.categoryName || "",
               variants: variants.map((v: any) => ({
@@ -247,10 +253,12 @@ export default function InventoryPage() {
                 sku: v.sku,
                 stockQuantity: Number(v.stockQuantity ?? 0),
                 price: Number(v.price ?? 0),
+                discountPercentage: Number(v.discountPercentage ?? 0),
+                sellPrice: Number(v.sellPrice ?? (v.price ?? 0)),
                 oldPrice: Number(v.compareAtPrice ?? 0),
                 newStock: Number(v.stockQuantity ?? 0),
                 newPrice: Number(v.price ?? 0),
-                newOldPrice: Number(v.compareAtPrice ?? 0),
+                newOldPrice: Number(v.discountPercentage ?? 0),
                 image: v.imageUrl || mainImage,
                 images,
                 brandName: p.brandName ?? "",
@@ -274,10 +282,12 @@ export default function InventoryPage() {
               images,
               stockQuantity: Number(p.stockQuantity ?? 0),
               price: Number(p.price ?? 0),
+              discountPercentage: Number(p.discountPercentage ?? 0),
+              sellPrice: Number(p.sellPrice ?? p.price),
               oldPrice: Number(p.oldPrice ?? 0),
               newStock: Number(p.stockQuantity ?? 0),
               newPrice: Number(p.price ?? 0),
-              newOldPrice: Number(p.oldPrice ?? 0),
+              newOldPrice: Number(p.discountPercentage ?? 0),
               brandName: p.brandName ?? "",
               categoryName: p.categories?.[0]?.categoryName || "",
               variants: variantRows,
@@ -339,7 +349,7 @@ export default function InventoryPage() {
     return () => clearTimeout(h);
   }, [searchTerm]);
 
-  const updateInventory = async (items: { productId: string; variantId?: string; newStock: number; newPrice: number; newOldPrice: number; }[]) => {
+  const updateInventory = async (items: { productId: string; variantId?: string; newStock: number; newPrice: number; newOldPrice?: number; }[]) => {
     if (!items.length) return;
     try {
       setRowLoading(items.length === 1 ? `${items[0].productId}-${items[0].variantId || "main"}` : "bulk");
@@ -371,23 +381,16 @@ export default function InventoryPage() {
 
   const changedProducts = products.flatMap((p) => {
     const rows = [];
-    if (p.newStock !== p.stockQuantity || p.newPrice !== p.price || p.newOldPrice !== (p.oldPrice ?? 0)) rows.push(p);
+    if (p.newStock !== p.stockQuantity || p.newPrice !== p.price || p.newOldPrice !== (p.discountPercentage ?? 0)) rows.push(p);
     if ((p.variants?.length ?? 0) > 0) {
       p.variants?.forEach((v) => {
-        if (v.newStock !== v.stockQuantity || v.newPrice !== v.price || v.newOldPrice !== (v.oldPrice ?? 0)) rows.push(v);
+        if (v.newStock !== v.stockQuantity || v.newPrice !== v.price || v.newOldPrice !== (v.discountPercentage ?? 0)) rows.push(v);
       });
     }
     return rows;
   });
 
   const handleBulkUpdate = () => {
-    const invalidProducts = changedProducts.filter(p => p.newOldPrice > 0 && p.newOldPrice <= p.newPrice);
-
-    if (invalidProducts.length > 0) {
-      toast.error(`Invalid Prices: Old Price must be greater than New Price for ${invalidProducts.length} product(s).`);
-      return;
-    }
-
     const changed = changedProducts.map((p) => ({
       productId: p.id,
       variantId: p.variantId || undefined,
@@ -410,12 +413,12 @@ export default function InventoryPage() {
         ...p,
         newStock: p.stockQuantity,
         newPrice: p.price,
-        newOldPrice: p.oldPrice ?? 0,
+        newOldPrice: p.discountPercentage ?? 0,
         variants: p.variants?.map(v => ({
           ...v,
           newStock: v.stockQuantity,
           newPrice: v.price,
-          newOldPrice: v.oldPrice ?? 0,
+          newOldPrice: v.discountPercentage ?? 0,
         })) || [],
       }))
     );
@@ -451,18 +454,33 @@ export default function InventoryPage() {
       NewStock: "",
       CurrentPrice: p.price,
       NewPrice: "",
-      CurrentOldPrice: p.oldPrice ?? 0,
-      NewOldPrice: "",
+      CurrentDiscountPercentage: p.discountPercentage ?? 0,
+      NewDiscountPercentage: "",
     }));
 
   const writeExcel = (rows: any[], filename: string) => {
     try {
       const data = [
-        ["ProductId", "ProductName (ref)", "SKU (ref)", "VariantId (optional)", "VariantName (ref)", "CurrentStock (ref)", "NewStock", "CurrentPrice (ref)", "NewPrice", "CurrentOldPrice (ref)", "NewOldPrice"],
-        ...rows.map((r) => [r.ProductId || "", r.ProductName || "", r.SKU || "", r.VariantId || "", r.VariantName || "", r.CurrentStock ?? "", r.NewStock ?? "", r.CurrentPrice ?? "", r.NewPrice ?? "", r.CurrentOldPrice ?? "", r.NewOldPrice ?? ""]),
+        ["ProductId", "ProductName (ref)", "SKU (ref)", "VariantId (optional)", "VariantName (ref)", "CurrentStock (ref)", "NewStock", "CurrentPrice (ref)", "NewPrice", "CurrentDiscountPercentage (ref)", "NewDiscountPercentage"],
+        ...rows.map((r) => [
+          r.ProductId || "",
+          r.ProductName || "",
+          r.SKU || "",
+          r.VariantId || "",
+          r.VariantName || "",
+          r.CurrentStock ?? "",
+          r.NewStock ?? "",
+          r.CurrentPrice ?? "",
+          r.NewPrice ?? "",
+          r.CurrentDiscountPercentage ?? "",
+          r.NewDiscountPercentage ?? ""
+        ]),
       ];
       const ws = XLSX.utils.aoa_to_sheet(data);
-      ws["!cols"] = [{ wch: 38 }, { wch: 26 }, { wch: 14 }, { wch: 34 }, { wch: 20 }, { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 12 }];
+      ws["!cols"] = [
+        { wch: 38 }, { wch: 26 }, { wch: 14 }, { wch: 34 }, { wch: 20 },
+        { wch: 16 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 24 }, { wch: 20 }
+      ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Inventory Update");
       XLSX.writeFile(wb, filename);
@@ -506,10 +524,12 @@ export default function InventoryPage() {
             sku: p.sku,
             stockQuantity: Number(p.stockQuantity ?? 0),
             price: Number(p.price ?? 0),
+            discountPercentage: Number(p.discountPercentage ?? 0),
+            sellPrice: Number(p.sellPrice ?? p.price),
             oldPrice: Number(p.oldPrice ?? 0),
             newStock: Number(p.stockQuantity ?? 0),
             newPrice: Number(p.price ?? 0),
-            newOldPrice: Number(p.oldPrice ?? 0),
+            newOldPrice: Number(p.discountPercentage ?? 0),
             brandName: p.brandName ?? "",
             categoryName: p.categories?.[0]?.categoryName || "",
           });
@@ -526,10 +546,12 @@ export default function InventoryPage() {
               sku: v.sku,
               stockQuantity: Number(v.stockQuantity ?? 0),
               price: Number(v.price ?? 0),
+              discountPercentage: Number(v.discountPercentage ?? 0),
+              sellPrice: Number(v.sellPrice ?? (v.price ?? 0)),
               oldPrice: Number(v.compareAtPrice ?? 0),
               newStock: Number(v.stockQuantity ?? 0),
               newPrice: Number(v.price ?? 0),
-              newOldPrice: Number(v.compareAtPrice ?? 0),
+              newOldPrice: Number(v.discountPercentage ?? 0),
               brandName: p.brandName ?? "",
               categoryName: p.categories?.[0]?.categoryName || "",
             });
@@ -681,7 +703,7 @@ export default function InventoryPage() {
         <table className="w-full text-xs table-auto">
           <thead className="whitespace-nowrap">
             <tr className="border-b border-slate-800 bg-slate-900/80">
-              <th className="p-2.5 text-center w-10">
+              <th className="p-1.5 text-center w-10">
                 <input
                   type="checkbox"
                   checked={selected.size > 0 && selected.size === products.flatMap(p => [getRowKey(p), ...(p.variants?.map(v => `${p.id}-${v.variantId}`) || [])]).length}
@@ -689,34 +711,36 @@ export default function InventoryPage() {
                   className="rounded accent-violet-500 w-3.5 h-3.5"
                 />
               </th>
-              <th className="p-2.5 text-left font-semibold text-slate-400 uppercase tracking-wider min-w-[220px]">Product</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-28">SKU</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-20">Stock</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-24">New Stock</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-24">Current Price</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-24">New Price</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-24">Curr. Old</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-24">New Old</th>
-              <th className="p-2.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-12">Save</th>
+              <th className="p-1.5 text-left font-semibold text-slate-400 uppercase tracking-wider min-w-[150px]">Product</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-20">SKU</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-12">Stock</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">New Stock</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Curr. Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Curr. Discount %</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Curr. Sell Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">New Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-14">New Discount %</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">New Sell Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-10">Save</th>
             </tr>
           </thead>
           <tbody>
             {tableLoading ? (
-              <tr><td colSpan={10} className="p-12 text-center text-slate-400 text-sm">Loading inventory...</td></tr>
+              <tr><td colSpan={12} className="p-12 text-center text-slate-400 text-sm">Loading inventory...</td></tr>
             ) : products.length === 0 ? (
-              <tr><td colSpan={10} className="p-12 text-center text-slate-500 text-sm"><Package className="h-10 w-10 mx-auto mb-2 opacity-20" />No products found</td></tr>
+              <tr><td colSpan={12} className="p-12 text-center text-slate-500 text-sm"><Package className="h-10 w-10 mx-auto mb-2 opacity-20" />No products found</td></tr>
             ) : (
               products.map((p) => {
-                const changed = p.newStock !== p.stockQuantity || p.newPrice !== p.price || p.newOldPrice !== (p.oldPrice ?? 0);
-                const priceInvalid = p.newOldPrice > 0 && p.newOldPrice <= p.newPrice;
+                const changed = p.newStock !== p.stockQuantity || p.newPrice !== p.price || p.newOldPrice !== (p.discountPercentage ?? 0);
+                const priceInvalid = false;
 
                 return (
                   <React.Fragment key={getRowKey(p)}>
                     <tr className={`border-b border-slate-800/40 transition-colors ${selected.has(getRowKey(p)) ? "bg-violet-500/5" : "hover:bg-slate-800/20"} ${changed ? "bg-amber-500/5 border-l-2 border-l-amber-500/40" : ""} ${priceInvalid ? "bg-red-500/5" : ""}`}>
-                      <td className="p-2.5 text-center">
+                      <td className="p-1.5 text-center">
                         <input type="checkbox" checked={selected.has(getRowKey(p))} onChange={() => toggleSelect(p)} className="rounded accent-violet-500 w-3.5 h-3.5" />
                       </td>
-                      <td className="py-2 px-2.">
+                      <td className="py-1.5 px-1.5">
                         <div className="flex items-center gap-3">
                           <img src={getImageUrl(p.image || "")} alt={p.name} onClick={() => openMediaViewer(p.images || [], 0)} className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer bg-slate-800 flex-shrink-0 object-cover" />
                           <div className="min-w-0 flex-1">
@@ -733,25 +757,25 @@ export default function InventoryPage() {
                                       : "Show Product"
                                   }
                                   className="
-      inline-flex items-center gap-1
-      h-7 px-2
-      rounded-lg
+      inline-flex items-center gap-1
+      h-7 px-2
+      rounded-lg
 
-      border border-slate-200
-      bg-white
-      hover:bg-slate-50
+      border border-slate-200
+      bg-white
+      hover:bg-slate-50
 
-      dark:bg-slate-800
-      dark:border-slate-700
-      dark:hover:bg-slate-700
+      dark:bg-slate-800
+      dark:border-slate-700
+      dark:hover:bg-slate-700
 
-      text-[10px] font-medium
-      text-slate-700
-      dark:text-slate-200
+      text-[10px] font-medium
+      text-slate-700
+      dark:text-slate-200
 
-      transition-all duration-200
-      shadow-sm
-    "
+      transition-all duration-200
+      shadow-sm
+    "
                                 >
                                   {expandedRows.has(p.id) ? (
                                     <>
@@ -774,7 +798,7 @@ export default function InventoryPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="p-2.5 text-center">
+                      <td className="p-1.5 text-center">
                         {!p.isVariant && p.productType === "variable" ? (
                           <span className="text-xs font-semibold text-violet-300">{p.variantsCount} Var</span>
                         ) : (
@@ -790,63 +814,84 @@ export default function InventoryPage() {
                           </span>
                         )}
                       </td>
-                      <td className="p-2.5 text-center"><StockBadge qty={p.stockQuantity} /></td>
-                      <td className="p-2.5 text-center">
+                      <td className="p-1.5 text-center"><StockBadge qty={p.stockQuantity} /></td>
+                      <td className="p-1.5 text-center">
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
-                          <input type="number" min={0} value={p.newStock} onChange={(e) => handleChange(p.id, undefined, "newStock", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newStock !== p.stockQuantity ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
+                          <input type="number" min={0} value={p.newStock} onChange={(e) => handleChange(p.id, undefined, "newStock", Number(e.target.value))} className={`w-14 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${p.newStock !== p.stockQuantity ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
                         )}
                       </td>
-                      <td className="p-2.5 text-center">
+                      <td className="p-1.5 text-center">
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
-                          <span className="text-sm font-bold text-emerald-400">£{p.price.toFixed(2)}</span>
+                          <span className="text-sm font-semibold text-slate-300">£{p.price.toFixed(2)}</span>
                         )}
                       </td>
-                      <td className="p-2.5 text-center relative">
+                      <td className="p-1.5 text-center">
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : p.discountPercentage && p.discountPercentage > 0 ? (
+                          <span className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded-full">{p.discountPercentage}%</span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </td>
+                      <td className="p-1.5 text-center">
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <span className="text-sm font-bold text-cyan-400">£{(p.sellPrice ?? p.price).toFixed(2)}</span>
+                        )}
+                      </td>
+                      <td className="p-1.5 text-center relative">
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
                           <>
-                            <input type="number" min={0} step="0.01" value={p.newPrice} onChange={(e) => handleChange(p.id, undefined, "newPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newPrice !== p.price ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
+                            <input type="number" min={0} step="0.01" value={p.newPrice} onChange={(e) => handleChange(p.id, undefined, "newPrice", Number(e.target.value))} className={`w-16 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${p.newPrice !== p.price ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
                             {rowLoading === p.id && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-lg"><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}
                           </>
                         )}
                       </td>
-                      <td className="p-2.5 text-center">
+                      <td className="p-1.5 text-center">
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
-                          <span className="text-sm text-slate-500 line-through">£{(p.oldPrice ?? 0).toFixed(2)}</span>
+                          <input type="number" min={0} max={100} step="1" value={p.newOldPrice} onChange={(e) => handleChange(p.id, undefined, "newOldPrice", Number(e.target.value))} className={`w-12 bg-slate-800 border rounded text-white text-center text-xs px-1 py-1 ${p.newOldPrice !== (p.discountPercentage ?? 0) ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
                         )}
                       </td>
-                      <td className="p-2.5 text-center relative">
+                      <td className="p-1.5 text-center">
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
-                          <>
-                            <input type="number" min={0} step="0.01" value={p.newOldPrice} onChange={(e) => handleChange(p.id, undefined, "newOldPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${p.newOldPrice !== (p.oldPrice ?? 0) ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
-                            {priceInvalid && (
-                              <div className="absolute -top-1 right-0 translate-x-1/2 bg-red-600 text-white text-[8px] px-1 rounded shadow-lg z-10 font-bold" title="Old Price must be greater than New Price">
-                                ?
-                              </div>
-                            )}
-                          </>
+                          <span className="text-sm font-bold text-cyan-400">£{(p.newPrice * (1 - p.newOldPrice / 100)).toFixed(2)}</span>
                         )}
                       </td>
-                      <td className="p-2.5 text-center">{changed ? <button disabled={priceInvalid} onClick={() => updateInventory([{ productId: p.id, newStock: p.newStock, newPrice: p.newPrice, newOldPrice: p.newOldPrice }])} className={`p-2 rounded-lg transition-colors ${priceInvalid ? "bg-slate-800 text-slate-600 cursor-not-allowed border-slate-700" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"}`} title={priceInvalid ? "Old Price must be > New Price" : "Save Changes"}><Save className="h-4 w-4" /></button> : <span className="text-slate-800">—</span>}</td>
+                      <td className="p-1.5 text-center">
+                        {changed ? (
+                          <button
+                            onClick={() => updateInventory([{ productId: p.id, newStock: p.newStock, newPrice: p.newPrice, newOldPrice: p.newOldPrice }])}
+                            className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"
+                            title="Save Changes"
+                          >
+                            <Save className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <span className="text-slate-800">—</span>
+                        )}
+                      </td>
                     </tr>
                     {expandedRows.has(p.id) && p.variants?.map((v) => {
-                      const vChanged = v.newStock !== v.stockQuantity || v.newPrice !== v.price || v.newOldPrice !== (v.oldPrice ?? 0);
-                      const vPriceInvalid = v.newOldPrice > 0 && v.newOldPrice <= v.newPrice;
+                      const vChanged = v.newStock !== v.stockQuantity || v.newPrice !== v.price || v.newOldPrice !== (v.discountPercentage ?? 0);
+                      const vPriceInvalid = false;
                       return (
-                        <tr key={`${p.id}-${v.variantId}`} className={`bg-slate-950/40 border-b border-slate-800/30 transition-colors ${selected.has(`${p.id}-${v.variantId}`) ? "bg-violet-500/5" : "hover:bg-slate-900/40"} ${vPriceInvalid ? "bg-red-500/5" : ""}`}>
-                          <td className="p-2.5 text-center">
+                        <tr key={`${p.id}-${v.variantId}`} className={`bg-slate-950/40 border-b border-slate-800/30 transition-colors ${selected.has(`${p.id}-${v.variantId}`) ? "bg-violet-500/5" : "hover:bg-slate-900/40"}`}>
+                          <td className="p-1.5 text-center">
                             <input type="checkbox" checked={selected.has(`${p.id}-${v.variantId}`)} onChange={() => toggleSelect(v)} className="rounded accent-violet-500 w-3.5 h-3.5" />
                           </td>
-                          <td className="py-2 px-2.5 pl-10">
+                          <td className="py-1.5 px-1.5 pl-10">
                             <div className="flex items-center gap-3">
                               <img src={getImageUrl(v.image || p.image || "")} alt={v.name} className="w-8 h-8 rounded-lg border border-slate-700 bg-slate-800 object-cover" />
                               <a href={`/product/${v.slug || p.slug}`} target="_blank" rel="noopener noreferrer" className="group truncate" title={v.name}>
@@ -854,7 +899,7 @@ export default function InventoryPage() {
                               </a>
                             </div>
                           </td>
-                          <td className="p-2.5 text-center">
+                          <td className="p-1.5 text-center">
                             <span
                               onClick={() => {
                                 navigator.clipboard.writeText(v.sku || "");
@@ -866,22 +911,43 @@ export default function InventoryPage() {
                               {v.sku || "—"}
                             </span>
                           </td>
-                          <td className="p-2.5 text-center"><StockBadge qty={v.stockQuantity} /></td>
-                          <td className="p-2.5 text-center"><input type="number" min={0} value={v.newStock} onChange={(e) => handleChange(p.id, v.variantId, "newStock", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${v.newStock !== v.stockQuantity ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} /></td>
-                          <td className="p-2.5 text-center"><span className="text-sm font-semibold text-emerald-400/80">£{v.price.toFixed(2)}</span></td>
-                          <td className="p-2.5 text-center relative">
-                            <input type="number" min={0} step="0.01" value={v.newPrice} onChange={(e) => handleChange(p.id, v.variantId, "newPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${v.newPrice !== v.price ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"} ${vPriceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
+                          <td className="p-1.5 text-center"><StockBadge qty={v.stockQuantity} /></td>
+                          <td className="p-1.5 text-center"><input type="number" min={0} value={v.newStock} onChange={(e) => handleChange(p.id, v.variantId, "newStock", Number(e.target.value))} className={`w-14 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${v.newStock !== v.stockQuantity ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} /></td>
+                          <td className="p-1.5 text-center">
+                            <span className="text-sm font-semibold text-slate-400">£{v.price.toFixed(2)}</span>
                           </td>
-                          <td className="p-2.5 text-center"><span className="text-xs text-slate-600 line-through">£{(v.oldPrice ?? 0).toFixed(2)}</span></td>
-                          <td className="p-2.5 text-center relative">
-                            <input type="number" min={0} step="0.01" value={v.newOldPrice} onChange={(e) => handleChange(p.id, v.variantId, "newOldPrice", Number(e.target.value))} className={`w-20 bg-slate-800 border rounded-lg text-white text-center text-sm px-2 py-1.5 ${v.newOldPrice !== (v.oldPrice ?? 0) ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"} ${vPriceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
-                            {vPriceInvalid && (
-                              <div className="absolute -top-1 right-0 translate-x-1/2 bg-red-600 text-white text-[8px] px-1 rounded shadow-lg z-10 font-bold" title="Old Price must be greater than New Price">
-                                ?
-                              </div>
+                          <td className="p-1.5 text-center">
+                            {v.discountPercentage && v.discountPercentage > 0 ? (
+                              <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400/80 px-1.5 py-0.5 rounded-full">{v.discountPercentage}%</span>
+                            ) : (
+                              <span className="text-slate-600">—</span>
                             )}
                           </td>
-                          <td className="p-2.5 text-center">{vChanged ? <button disabled={vPriceInvalid} onClick={() => updateInventory([{ productId: p.id, variantId: v.variantId, newStock: v.newStock, newPrice: v.newPrice, newOldPrice: v.newOldPrice }])} className={`p-2 rounded-lg transition-colors ${vPriceInvalid ? "bg-slate-800 text-slate-600 cursor-not-allowed border-slate-700" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"}`} title={vPriceInvalid ? "Old Price must be > New Price" : "Save Changes"}><Save className="h-4 w-4" /></button> : <span className="text-slate-800">—</span>}</td>
+                          <td className="p-1.5 text-center">
+                            <span className="text-sm font-semibold text-cyan-400/90">£{(v.sellPrice ?? v.price).toFixed(2)}</span>
+                          </td>
+                          <td className="p-1.5 text-center relative">
+                            <input type="number" min={0} step="0.01" value={v.newPrice} onChange={(e) => handleChange(p.id, v.variantId, "newPrice", Number(e.target.value))} className={`w-16 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${v.newPrice !== v.price ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} />
+                          </td>
+                          <td className="p-1.5 text-center">
+                            <input type="number" min={0} max={100} step="1" value={v.newOldPrice} onChange={(e) => handleChange(p.id, v.variantId, "newOldPrice", Number(e.target.value))} className={`w-12 bg-slate-800 border rounded text-white text-center text-xs px-1 py-1 ${v.newOldPrice !== (v.discountPercentage ?? 0) ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} />
+                          </td>
+                          <td className="p-1.5 text-center">
+                            <span className="text-sm font-semibold text-cyan-400/90">£{(v.newPrice * (1 - v.newOldPrice / 100)).toFixed(2)}</span>
+                          </td>
+                          <td className="p-1.5 text-center">
+                            {vChanged ? (
+                              <button
+                                onClick={() => updateInventory([{ productId: p.id, variantId: v.variantId, newStock: v.newStock, newPrice: v.newPrice, newOldPrice: v.newOldPrice }])}
+                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"
+                                title="Save Changes"
+                              >
+                                <Save className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <span className="text-slate-800">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}

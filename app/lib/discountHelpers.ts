@@ -59,15 +59,16 @@ export function getDiscountedPrice(
   product: any,
   basePrice: number
 ): number {
+  const startPrice = product?.sellPrice && product.sellPrice > 0 ? product.sellPrice : basePrice;
   const discount = getActiveDiscount(product);
-  if (!discount || basePrice <= 0) return basePrice;
+  if (!discount || startPrice <= 0) return startPrice;
 
-  let final = basePrice;
+  let final = startPrice;
 
   if (discount.usePercentage) {
-    final = basePrice - (basePrice * discount.discountPercentage) / 100;
+    final = startPrice - (startPrice * discount.discountPercentage) / 100;
   } else {
-    final = basePrice - discount.discountAmount;
+    final = startPrice - discount.discountAmount;
   }
 
   return +(final < 0 ? 0 : final).toFixed(2);

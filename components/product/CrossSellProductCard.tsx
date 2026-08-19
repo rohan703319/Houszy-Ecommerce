@@ -81,34 +81,24 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
     }
   }, [minQty]);
 
-  const price = defaultVariant?.price ?? product.price;
   const basePrice =
-    typeof defaultVariant?.price === "number" && defaultVariant.price > 0
-      ? defaultVariant.price
-      : product.price;
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.price ?? 0)
+      : (product.price ?? 0);
+
+  const sellPriceToShow =
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.sellPrice ?? defaultVariant?.price ?? 0)
+      : (product.sellPrice ?? product.price ?? 0);
+
+  const discountPercentageToShow =
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.discountPercentage ?? 0)
+      : (product.discountPercentage ?? 0);
+
+  const hasDiscount = discountPercentageToShow > 0 && basePrice > sellPriceToShow;
 
   const discountBadge = getDiscountBadge(product);
-  const finalPrice = getDiscountedPrice(product, basePrice);
-
-  // 🔥 NEW: oldPrice fallback logic
-  const oldPriceValue =
-    product.variants && product.variants.length > 0
-      ? (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ?? undefined)
-      : (product.compareAtPrice ?? product.oldPrice ?? undefined);
-
-  const currentDisplayType =
-    product.variants && product.variants.length > 0
-      ? (defaultVariant?.displayDiscountType ?? "None")
-      : (product.displayDiscountType ?? "None");
-
-  const oldPriceData =
-    currentDisplayType === "OldPrice"
-      ? getOldPriceDiscount(
-        basePrice,
-        oldPriceValue,
-        false
-      )
-      : null;
 
   // ---------- Active Coupon Indicator ----------
   const hasActiveCoupon = (product as any).assignedDiscounts?.some((d: any) => {
@@ -208,7 +198,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       ? defaultVariant.nextDayDeliveryFree === true
       : !!product.nextDayDeliveryFree;
 
-    trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: qty });
+    trackAddToCart({ productId: product.id, name: product.name, price: sellPriceToShow, quantity: qty });
     addToCart({
       id: `${variantId ?? product.id}-one`,
       productId: product.id,
@@ -220,24 +210,17 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
         ].filter(Boolean).join(", ")})`
         : product.name,
 
-      price: finalPrice,
+      price: basePrice,
+      sellPrice: sellPriceToShow,
+      discountPercentage: discountPercentageToShow,
       priceBeforeDiscount: basePrice,
-      finalPrice,
-      oldPrice: hasActiveCoupon ? null : (oldPriceValue ?? null),
+      finalPrice: sellPriceToShow,
+      oldPrice: hasDiscount ? basePrice : null,
 
-      displayDiscountType: hasActiveCoupon
-        ? "None"
-        : (product.displayDiscountType ?? "None"),
-
-      hasSystemDiscount:
-        product.hasSystemDiscount ?? false,
-
-      systemDiscountAmount:
-        product.systemDiscountAmount ?? 0,
-      discountAmount:
-        product.displayDiscountType === "System"
-          ? +(basePrice - finalPrice).toFixed(2)
-          : 0,
+      displayDiscountType: hasDiscount ? "OldPrice" : "None",
+      hasSystemDiscount: false,
+      systemDiscountAmount: 0,
+      discountAmount: 0,
 
       quantity: qty,
       vatRate: vatRate,
@@ -278,26 +261,16 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
       slug: product.slug,
 
-      // ✅ PRICING (CRITICAL)
-      price: finalPrice,
+      price: sellPriceToShow,
       priceBeforeDiscount: basePrice,
-      finalPrice: finalPrice,
-      discountAmount:
-        product.displayDiscountType === "System"
-          ? +(basePrice - finalPrice).toFixed(2)
-          : 0,
+      finalPrice: sellPriceToShow,
+      discountAmount: hasDiscount ? +(basePrice - sellPriceToShow).toFixed(2) : 0,
       appliedDiscountId: null,
       couponCode: null,
-      oldPrice: oldPriceValue ?? null,
-
-      displayDiscountType:
-        product.displayDiscountType ?? "None",
-
-      hasSystemDiscount:
-        product.hasSystemDiscount ?? false,
-
-      systemDiscountAmount:
-        product.systemDiscountAmount ?? 0,
+      oldPrice: hasDiscount ? basePrice : null,
+      displayDiscountType: "None",
+      hasSystemDiscount: false,
+      systemDiscountAmount: 0,
       image: getCrossSellProductImage(product, defaultVariant),
       vatRate: vatRate ?? null,
       vatExempt: product.vatExempt,
@@ -324,43 +297,26 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
         {/* IMAGE SECTION */}
         <div className="h-[176px] sm:h-[200px] md:h-[224px] flex items-center justify-center overflow-hidden bg-white rounded-t-xl pt-2 relative">
 
-          {/* ✅ DISCOUNT BADGE - LEFT SIDE (Top Left) */}
-          {product.displayDiscountType === "System" && discountBadge && (
+          {/* DISCOUNT BADGE — show when discountPercentage > 0 */}
+          {hasDiscount && (
             <div className="absolute top-1 left-2 z-20">
               <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                 <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
-                  -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
+                  {discountPercentageToShow}% Off
                 </span>
               </div>
             </div>
           )}
 
-          {/* 🔥 OLD PRICE BADGE - LEFT SIDE */}
-          {!discountBadge && !hasActiveCoupon && oldPriceData && (
-            <div className="absolute top-1 left-2 z-20">
-              <div className="px-3 py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                <span className="text-[12px] md:text-[13px] font-bold leading-none tracking-wider">
-                  -{oldPriceData.discount}%
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Coupon badge - LEFT SIDE (below discount or at top if no discount) */}
-          {!discountBadge && hasActiveCoupon && (
+          {/* Coupon badge */}
+          {!hasDiscount && hasActiveCoupon && (
             <div className="absolute top-1 left-2 z-20">
               <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
                 <div className="flex flex-col items-center text-center">
-                  <span className="flex items-center gap-1 text-[9px]">
-                    Coupon
-                  </span>
-                  <span className="text-[9px] opacity-90">
-                    Available
-                  </span>
+                  <span className="flex items-center gap-1 text-[9px]">Coupon</span>
+                  <span className="text-[9px] opacity-90">Available</span>
                 </div>
-                {/* hole */}
                 <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
-                {/* string effect */}
                 <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
               </div>
             </div>
@@ -449,21 +405,14 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
 
         {/* PRICE & VAT */}
         <div className="flex items-center gap-1 mb-0.5">
+          {/* Highlighted selling price */}
           <span className="text-base font-bold text-[#f38918]">
-            £{(product.displayDiscountType === "System" ? finalPrice : basePrice).toFixed(2)}
+            £{sellPriceToShow.toFixed(2)}
           </span>
-
-          {/* 🔥 CASE 1: REAL DISCOUNT */}
-          {product.displayDiscountType === "System" && discountBadge && (
+          {/* Strikethrough base price — only if discount exists */}
+          {hasDiscount && (
             <span className="line-through text-xs text-gray-400">
               £{basePrice.toFixed(2)}
-            </span>
-          )}
-
-          {/* 🔥 CASE 2: OLD PRICE */}
-          {!discountBadge && !hasActiveCoupon && oldPriceData && (
-            <span className="line-through text-xs text-gray-400">
-              £{oldPriceData.oldPrice.toFixed(2)}
             </span>
           )}
 

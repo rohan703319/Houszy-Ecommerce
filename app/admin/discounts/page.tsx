@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, X, ExternalLink, FolderTree, Clock3, } from "lucide-react";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import {
@@ -150,6 +152,7 @@ const processCategoryData = (categories: any[]): SelectOption[] => {
 
 // ========== MAIN COMPONENT ==========
 export default function DiscountsPage() {
+  const router = useRouter();
   const toast = useToast();
   const { theme } = useTheme();
   const customSelectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
@@ -199,7 +202,7 @@ const [mobileFile, setMobileFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     isActive: true,
-    discountType: "AssignedToOrderTotal",
+    discountType: "AssignedToProducts",
     usePercentage: true,
     discountAmount: 0,
     discountPercentage: 0,
@@ -220,14 +223,6 @@ const [mobileFile, setMobileFile] = useState<File | null>(null);
     desktopBannerImageUrl: null,
     mobileBannerImageUrl: null,
   });
-
-useEffect(() => {
-  const delay = setTimeout(() => {
-    fetchProducts();
-  }, 400);
-
-  return () => clearTimeout(delay);
-}, [productSearchTerm, productCategoryFilter, productBrandFilter]);
 
 const fetchAssignedProducts = async (ids: string[]) => {
   try {
@@ -261,8 +256,10 @@ const fetchProducts = async () => {
     setProductsLoading(true);
 
     const params: any = {
-      pageSize: 100,
+      pageSize: 1000,
       isPublished: true,
+      sortBy: "name",
+      outOfStockLast: false,
     };
 
     // ===============================
@@ -305,6 +302,31 @@ const fetchProducts = async () => {
       if (productSearchTerm?.trim()) {
         params.searchTerm = productSearchTerm.trim();
       }
+
+      if (formData.discountPercentage > 0) {
+        params.exactDiscountPercentage = formData.discountPercentage;
+      }
+    }
+
+    if (formData.discountType === "UptoXPercent") {
+      // category filter
+      if (productCategoryFilter) {
+        params.categoryId = productCategoryFilter;
+      }
+
+      // brand filter
+      if (productBrandFilter) {
+        params.brandId = productBrandFilter;
+      }
+
+      // search filter
+      if (productSearchTerm?.trim()) {
+        params.searchTerm = productSearchTerm.trim();
+      }
+
+      if (formData.discountPercentage > 0) {
+        params.maxDiscountPercentage = formData.discountPercentage;
+      }
     }
 
     console.log("🔥 API PARAMS:", params);
@@ -328,6 +350,7 @@ useEffect(() => {
   showModal,
   formData.discountType,
   formData.assignedCategoryIds,
+  formData.discountPercentage,
   productCategoryFilter,
   productBrandFilter,
   productSearchTerm
@@ -335,7 +358,6 @@ useEffect(() => {
 useEffect(() => {
   fetchDiscounts();
   fetchDropdownData();
-  fetchProducts(); // ✅ add this
 }, []);
 
   // Fetch dropdown data
@@ -603,47 +625,7 @@ if (editingDiscount) {
   }
 };
 const handleEdit = (discount: Discount) => {
-setEditingDiscount(discount);
-  setFormData({
-    name: discount.name,
-    isActive: discount.isActive,
-    discountType: discount.discountType,
-    usePercentage: discount.usePercentage,
-    discountAmount: discount.discountAmount,
-    discountPercentage: discount.discountPercentage,
-    maximumDiscountAmount: discount.maximumDiscountAmount,
-    startDate: discount.startDate.slice(0, 16),
-    endDate: discount.endDate.slice(0, 16),
-    requiresCouponCode: discount.requiresCouponCode,
-    couponCode: discount.couponCode || "",
-    isCumulative: discount.isCumulative,
-    discountLimitation: discount.discountLimitation,
-    limitationTimes: discount.limitationTimes,
-    maximumDiscountedQuantity: discount.maximumDiscountedQuantity,
-    appliedToSubOrders: discount.appliedToSubOrders,
-    adminComment: discount.adminComment,
-    assignedProductIds: discount.assignedProductIds
-      ? discount.assignedProductIds.split(",").filter((id) => id.trim())
-      : [],
-    assignedCategoryIds: discount.assignedCategoryIds
-      ? discount.assignedCategoryIds.split(",").filter((id) => id.trim())
-      : [],
-    assignedManufacturerIds: discount.assignedManufacturerIds
-      ? discount.assignedManufacturerIds.split(",").filter((id) => id.trim())
-      : [],
-    desktopBannerImageUrl: discount.desktopBannerImageUrl ?? null,
-    mobileBannerImageUrl: discount.mobileBannerImageUrl ?? null,
-  });
-  if (discount.assignedProductIds) {
-  const ids = discount.assignedProductIds.split(",").filter(Boolean);
-
-  fetchAssignedProducts(ids).then(data => {
-    setAllSelectedProducts(data);
-  });
-}
-  setShowModal(true);
-  setProductCategoryFilter("");
-  setProductBrandFilter("");
+  router.push(`/admin/discounts/edit/${discount.id}`);
 };
 
   // Reset form
@@ -651,7 +633,7 @@ setEditingDiscount(discount);
     setFormData({
       name: "",
       isActive: true,
-      discountType: "AssignedToOrderTotal",
+      discountType: "AssignedToProducts",
       usePercentage: true,
       discountAmount: 0,
       discountPercentage: 0,
@@ -1020,16 +1002,13 @@ const filteredDiscounts = discounts.filter((discount) => {
     </p>
   </div>
 
-  <button
-    onClick={() => {
-      resetForm();
-      setShowModal(true);
-    }}
+  <Link
+    href="/admin/discounts/add"
     className="px-3 py-1.5 text-[11px] bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-md hover:opacity-90 transition-all flex items-center gap-1.5"
   >
     <Plus className="h-3 w-3" />
     Add Discount
-  </button>
+  </Link>
 </div>
 
 
@@ -1414,7 +1393,6 @@ const filteredDiscounts = discounts.filter((discount) => {
         <option value="AssignedToOrderTotal">Order Total</option>
         <option value="AssignedToProducts">Products</option>
         <option value="AssignedToCategories">Categories</option>
-        <option value="AssignedToShipping">Shipping</option>
       </select>
 
       <select
@@ -1831,12 +1809,12 @@ const filteredDiscounts = discounts.filter((discount) => {
           <History className="h-3.5 w-3.5" />
         </button>
 
-        <button
-          onClick={() => handleEdit(discount)}
+        <Link
+          href={`/admin/discounts/edit/${discount.id}`}
           className="p-1.5 text-cyan-400 hover:bg-cyan-500/10 rounded"
         >
           <Edit className="h-3.5 w-3.5" />
-        </button>
+        </Link>
 
         <button
           onClick={() =>

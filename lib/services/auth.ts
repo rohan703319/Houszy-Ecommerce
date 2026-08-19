@@ -52,11 +52,25 @@ const getCookie = (name: string): string | null => {
 };
 
 // ✅ Helper: set cookie value
-const setCookie = (name: string, value: string, days: number = 7): void => {
-  const expires = new Date(
-    Date.now() + days * 24 * 60 * 60 * 1000
-  ).toUTCString();
-  document.cookie = `${name}=${value}; path=/; expires=${expires}; SameSite=Lax`;
+const setCookie = (name: string, value: string, expiresAt?: number): void => {
+  const expires = expiresAt
+    ? `; expires=${new Date(expiresAt * 1000).toUTCString()}`
+    : "";
+  document.cookie = `${name}=${value}; path=/${expires}; SameSite=Lax`;
+};
+
+// ✅ Helper: parse token expiration timestamp
+const getTokenExp = (token: string): number | undefined => {
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1]));
+      return payload.exp;
+    }
+  } catch (error) {
+    console.error("Error parsing token expiry for cookie:", error);
+  }
+  return undefined;
 };
 
 // ✅ Helper: decode JWT and check expiry
@@ -96,12 +110,14 @@ export const authService = {
 
     // ✅ Safe access with optional chaining
     if (response.data?.accessToken) {
-      setCookie("authToken", response.data.accessToken);
+      const tokenExp = getTokenExp(response.data.accessToken);
+      setCookie("authToken", response.data.accessToken, tokenExp);
       localStorage.setItem("authToken", response.data.accessToken);
     }
 
     if (response.data?.refreshToken) {
-      setCookie("refreshToken", response.data.refreshToken);
+      const refreshExp = getTokenExp(response.data.refreshToken);
+      setCookie("refreshToken", response.data.refreshToken, refreshExp);
     }
 
     if (response.data?.user?.email) {
@@ -114,11 +130,20 @@ export const authService = {
 
   // ---- LOGOUT ----
   logout: (): void => {
+    localStorage.removeItem("accessToken");
     localStorage.removeItem("authToken");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("userEmail");
     localStorage.removeItem("userData");
-    document.cookie = "authToken=; path=/; max-age=0";
-    document.cookie = "refreshToken=; path=/; max-age=0";
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userFirstName");
+    localStorage.removeItem("userLastName");
+    
+    // Clear cookies with path
+    document.cookie = "authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 
     // ✅ Redirect to login page
     if (typeof window !== "undefined") {
@@ -240,9 +265,11 @@ export const authService = {
       }
 
       // Save new tokens
-      setCookie("authToken", newAccessToken);
+      const tokenExp = getTokenExp(newAccessToken);
+      const refreshExp = getTokenExp(newRefreshToken);
+      setCookie("authToken", newAccessToken, tokenExp);
       localStorage.setItem("authToken", newAccessToken);
-      setCookie("refreshToken", newRefreshToken);
+      setCookie("refreshToken", newRefreshToken, refreshExp);
 
       // Update user data
       localStorage.setItem("userData", JSON.stringify(user));
@@ -271,18 +298,11 @@ export const authService = {
       return null;
     }
 
-    // If token is expired, try to refresh
+    // If token is expired, logout immediately
     if (isTokenExpired(token)) {
-      console.log("Token expired, attempting refresh...");
-      const refreshed = await authService.refreshToken();
-      return refreshed?.accessToken || null;
-    }
-
-    // If token about to expire soon, refresh it
-    if (authService.isTokenExpiringSoon(5)) {
-      console.log("Token expiring soon, refreshing...");
-      const refreshed = await authService.refreshToken();
-      return refreshed?.accessToken || null;
+      console.log("Token expired, logging out...");
+      authService.logout();
+      return null;
     }
 
     return token;

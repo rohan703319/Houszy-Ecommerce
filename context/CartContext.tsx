@@ -34,6 +34,8 @@ export interface CartItem {
   productId?: string;
   name: string;
   price: number;
+  sellPrice?: number;
+  discountPercentage?: number;
   priceBeforeDiscount?: number;
   finalPrice?: number;
   oldPrice?: number | null;
@@ -45,6 +47,7 @@ export interface CartItem {
   systemDiscountAmount?: number;
   appliedDiscountId?: string | null;
   couponCode?: string | null;
+  isCumulative?: boolean;
   image: string;
   quantity: number;
   sku?: string;
@@ -111,21 +114,16 @@ function backendToFrontend(dto: any): CartItem {
     backendId: dto.id,
     productId: dto.productId,
     name: dto.productName,
+    // Use sellPrice as the unit price; fallback to dto.price
     price: dto.price,
-    oldPrice: dto.variantId
-      ? (dto.variant?.compareAtPrice ?? dto.variant?.oldPrice ?? null)
-      : (dto.oldPrice ?? dto.product?.oldPrice ?? dto.productData?.oldPrice ?? null),
+    sellPrice: dto.sellPrice ?? dto.price,
+    discountPercentage: dto.discountPercentage ?? 0,
     priceBeforeDiscount: dto.price,
-    finalPrice: dto.finalPrice,
-    discountAmount: dto.discountAmount,
-    displayDiscountType:
-      dto.displayDiscountType ?? "None",
-
-    hasSystemDiscount:
-      dto.hasSystemDiscount ?? false,
-
-    systemDiscountAmount:
-      dto.systemDiscountAmount ?? 0,
+    finalPrice: dto.finalPrice ?? dto.sellPrice ?? dto.price,
+    discountAmount: dto.discountAmount ?? 0,
+    displayDiscountType: dto.discountPercentage > 0 ? "OldPrice" : "None",
+    hasSystemDiscount: dto.hasSystemDiscount ?? false,
+    systemDiscountAmount: dto.systemDiscountAmount ?? 0,
     appliedDiscountId: dto.appliedDiscountId,
     couponCode: dto.couponCode,
     image: dto.productImageUrl
@@ -203,8 +201,10 @@ function frontendToBackend(item: CartItem, sessionId: string) {
     productImageUrl: item.image ?? null,
     quantity: item.quantity,
     price: item.price,
+    sellPrice: item.sellPrice ?? item.price,
+    discountPercentage: item.discountPercentage ?? 0,
 
-    finalPrice: item.finalPrice ?? item.price,
+    finalPrice: item.finalPrice ?? item.sellPrice ?? item.price,
     discountAmount: item.discountAmount ?? 0,
     oldPrice: item.oldPrice ?? null,
 
@@ -545,19 +545,16 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         {
           ...item,
           sku: item.sku,
-          priceBeforeDiscount: item.priceBeforeDiscount ?? item.price,
-          finalPrice: item.finalPrice ?? item.price,
+          price: item.price,
+          sellPrice: item.sellPrice ?? item.price,
+          discountPercentage: item.discountPercentage ?? 0,
+          priceBeforeDiscount: item.price,
+          finalPrice: item.finalPrice ?? item.sellPrice ?? item.price,
           discountAmount: item.discountAmount ?? 0,
           oldPrice: item.oldPrice ?? null,
-
-          displayDiscountType:
-            item.displayDiscountType ?? "None",
-
-          hasSystemDiscount:
-            item.hasSystemDiscount ?? false,
-
-          systemDiscountAmount:
-            item.systemDiscountAmount ?? 0,
+          displayDiscountType: item.displayDiscountType ?? "None",
+          hasSystemDiscount: item.hasSystemDiscount ?? false,
+          systemDiscountAmount: item.systemDiscountAmount ?? 0,
           type: item.type ?? "one-time",
           // 🔥🔥🔥 MAIN FIX
           nextDayDeliveryEnabled:

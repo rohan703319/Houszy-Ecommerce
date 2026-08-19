@@ -1328,3 +1328,12 @@ html:not(.dark) [data-admin] header .text-slate-400 {
 html:not(.dark) [data-admin] header .text-yellow-500 {
   color: #f38918 !important;
 }
+
+/* Hide scrollbar utility class */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}

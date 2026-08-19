@@ -1,6 +1,6 @@
 //app\admin\products\page.tsx
 "use client";
-import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment, useRef } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import Select from "react-select";
@@ -56,6 +56,7 @@ interface FormattedProduct {
   brandName: string;
   brandId: string; // Add this
   price: number;
+  sellPrice: number;
   stockQuantity: number;
   isActive: boolean;
   isPublished: boolean;
@@ -174,6 +175,10 @@ export default function ProductsPage() {
   }, [selectStyles]);
 
   // STATE MANAGEMENT
+  const productsRequestIdRef = useRef(0);
+  const productsAbortControllerRef = useRef<AbortController | null>(null);
+  const [initialProductsLoaded, setInitialProductsLoaded] = useState(false);
+
   const [products, setProducts] = useState<FormattedProduct[]>([]);
   const [allProductsMap, setAllProductsMap] = useState<Map<string, RelatedProduct>>(new Map());
   const [categories, setCategories] = useState<CategoryData[]>([]);
@@ -485,23 +490,30 @@ export default function ProductsPage() {
 
 
   useEffect(() => {
-    fetchVATRates();
-    fetchCategories();
-    fetchBrands();
-  }, [])
-
-
-
-  // ✅ FETCH PRODUCTS WITH PAGINATION AND FILTERS
+    if (initialProductsLoaded) {
+      fetchVATRates();
+      fetchCategories();
+      fetchBrands();
+    }
+  }, [initialProductsLoaded]);  // ✅ FETCH PRODUCTS WITH PAGINATION AND FILTERS
   const fetchProducts = async () => {
     // setLoading(true);
     setFilterLoading(true); // ✅ start loader
+
+    // Abort any existing in-flight request
+    if (productsAbortControllerRef.current) {
+      productsAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    productsAbortControllerRef.current = controller;
+
+    const requestId = ++productsRequestIdRef.current;
 
     try {
       // Build backend params
       const params: any = {
         page: currentPage,
-        pageSize: itemsPerPage,
+        pageSize: Math.min(itemsPerPage, 100),
         sortBy,
         sortDirection,
         outOfStockLast: false,
@@ -581,7 +593,9 @@ export default function ProductsPage() {
       if (vatFilter.value !== "all") {
         params.vatRateId = vatFilter.value;
       }
-      const response = await productsService.getAll(params);
+      const response = await productsService.getAll(params, { signal: controller.signal });
+
+      if (requestId !== productsRequestIdRef.current) return;
 
       if (response.data?.success && response.data?.data?.items) {
         const apiData = response.data.data;
@@ -628,6 +642,12 @@ export default function ProductsPage() {
               : typeof p.price === "number"
                 ? p.price
                 : 0;
+          const resolvedSellPrice: number =
+            typeof defaultVariant?.sellPrice === "number"
+              ? defaultVariant.sellPrice
+              : typeof p.price === "number"
+                ? p.price
+                : resolvedPrice;
 
           const resolvedStockStatus =
             productHelpers.getStockStatus({
@@ -689,6 +709,7 @@ export default function ProductsPage() {
             isPharmaProduct: p.isPharmaProduct === true,
             categoryName: primaryCategoryName,
             price: resolvedPrice,
+            sellPrice: resolvedSellPrice,
             stock: resolvedStockQuantity,
 
             stockQuantity: resolvedStockQuantity,
@@ -758,21 +779,36 @@ export default function ProductsPage() {
           });
         });
         setAllProductsMap(productMap);
+
+        if (!initialProductsLoaded) {
+          setInitialProductsLoaded(true);
+        }
       } else {
+        if (requestId !== productsRequestIdRef.current) return;
         toast.warning("No products found.");
         setProducts([]);
         setTotalCount(0);
         setTotalPages(1);
         setHasPrevious(false);
         setHasNext(false);
+
+        if (!initialProductsLoaded) {
+          setInitialProductsLoaded(true);
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED" || err?.name === "AbortError") {
+        return;
+      }
+      if (requestId !== productsRequestIdRef.current) return;
       console.error("Error fetching products:", err);
       toast.error("Failed to load products.");
     } finally {
-      setLoading(false);
-      setSearchLoading(false); // ✅ search complete 
-      setFilterLoading(false); // ✅ stop loader
+      if (requestId === productsRequestIdRef.current) {
+        setLoading(false);
+        setSearchLoading(false); // ✅ search complete 
+        setFilterLoading(false); // ✅ stop loader
+      }
     }
   };
   // ✅ FETCH CATEGORIES
@@ -925,20 +961,40 @@ export default function ProductsPage() {
     }
   };
 
-  // ✅ INITIAL DATA FETCH (runs once on component mount)
+  // ✅ SMART POLLING FOR TAKEOVER REQUESTS
   useEffect(() => {
+    if (!initialProductsLoaded) return;
+
     fetchMyTakeoverRequests();
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchMyTakeoverRequests();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     const pollInterval = setInterval(() => {
-      fetchMyTakeoverRequests();
+      if (document.visibilityState === "visible") {
+        fetchMyTakeoverRequests();
+      }
     }, 30000);
 
-    return () => clearInterval(pollInterval);
-  }, []);
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [initialProductsLoaded]);
 
   // ✅ EFFECT 1: Fetch products when BACKEND filters change
   useEffect(() => {
     fetchProducts();
+    return () => {
+      if (productsAbortControllerRef.current) {
+        productsAbortControllerRef.current.abort();
+      }
+    };
   }, [
     currentPage,
     itemsPerPage,
@@ -1182,7 +1238,7 @@ export default function ProductsPage() {
   );
 
   const handleItemsPerPageChange = useCallback((newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
+    setItemsPerPage(Math.min(newItemsPerPage, 100));
     setCurrentPage(1);
   }, []);
 
@@ -1735,8 +1791,6 @@ export default function ProductsPage() {
               <option value={50}>50</option>
               <option value={75}>75</option>
               <option value={100}>100</option>
-              <option value={500}>500</option>
-              <option value={1000}>1000</option>
             </select>
 
             <span className="text-xs text-slate-400">entries</span>
@@ -2388,7 +2442,12 @@ export default function ProductsPage() {
 
                       {/* PRICE */}
                       <td className="py-1.5 px-2 text-center font-semibold text-white">
-                        £{product.price.toFixed(2)}
+                        <div>£{product.sellPrice.toFixed(2)}</div>
+                        {product.price > product.sellPrice && (
+                          <div className="text-[10px] text-gray-400 line-through">
+                            £{product.price.toFixed(2)}
+                          </div>
+                        )}
                       </td>
 
                       {/* Clickable Status Cell */}
@@ -2656,7 +2715,14 @@ Updated By: ${product.updatedBy || "N/A"}`}
                                   >
                                     {variant.sku || "-"}
                                   </div>
-                                  <div className="text-center font-semibold">£{(variant.price || 0).toFixed(2)}</div>
+                                   <div className="text-center font-semibold">
+                                     <div>£{(variant.sellPrice ?? variant.price ?? 0).toFixed(2)}</div>
+                                     {(variant.price ?? 0) > (variant.sellPrice ?? 0) && (
+                                       <div className="text-[10px] text-gray-400 line-through">
+                                         £{(variant.price || 0).toFixed(2)}
+                                       </div>
+                                     )}
+                                   </div>
                                   <div className="text-center">
                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
                                       variantStock === 0 

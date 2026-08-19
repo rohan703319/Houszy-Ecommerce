@@ -135,13 +135,23 @@ export default function HeaderCartDropdown() {
   const allNextDayFree = useMemo(() =>
     cart.length > 0 &&
     cart.every(i => {
+      let isEnabled = false;
+      let isFree = false;
       if (i.variantId && i.productData?.variants?.length) {
         const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v && typeof v.nextDayDeliveryFree === "boolean") {
-          return v.nextDayDeliveryFree === true;
+        if (v) {
+          isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
+            ? v.nextDayDeliveryEnabled === true
+            : (i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true);
+          isFree = typeof v.nextDayDeliveryFree === "boolean"
+            ? v.nextDayDeliveryFree === true
+            : (i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true);
+          return isEnabled && isFree;
         }
       }
-      return i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      isEnabled = i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
+      isFree = i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      return isEnabled && isFree;
     }),
     [cart]
   );

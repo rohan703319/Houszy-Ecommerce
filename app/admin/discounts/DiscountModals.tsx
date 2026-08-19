@@ -164,15 +164,43 @@ setMobileFile,
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
   
   const filteredProducts = useMemo(() => {
-  const seen = new Set();
+    const seen = new Set();
+    return categoryFilteredProductOptions.filter(opt => {
+      if (seen.has(opt.value)) return false;
 
+      // Find product to check its discountPercentage
+      const prod = props.products.find(p => p.id === opt.value);
+      if (!prod) return false;
 
-  return categoryFilteredProductOptions.filter(opt => {
-    if (seen.has(opt.value)) return false;
-    seen.add(opt.value);
-    return true;
-  });
-}, [categoryFilteredProductOptions]);
+      const campaignPercent = Number(formData.discountPercentage) || 0;
+      const parentPct = prod.discountPercentage || 0;
+      let matches = false;
+
+      if (formData.discountType === "AssignedToProducts") {
+        matches = parentPct === campaignPercent;
+      } else if (formData.discountType === "UptoXPercent") {
+        matches = parentPct >= 1 && parentPct <= campaignPercent;
+      }
+
+      // Check variant discounts if parent didn't match and it is a variable product
+      if (!matches && prod.productType === "variable" && prod.variants && prod.variants.length > 0) {
+        matches = prod.variants.some(v => {
+          const vPct = v.discountPercentage || 0;
+          if (formData.discountType === "AssignedToProducts") {
+            return vPct === campaignPercent;
+          } else if (formData.discountType === "UptoXPercent") {
+            return vPct >= 1 && vPct <= campaignPercent;
+          }
+          return false;
+        });
+      }
+
+      if (!matches) return false;
+
+      seen.add(opt.value);
+      return true;
+    });
+  }, [categoryFilteredProductOptions, formData.discountType, formData.discountPercentage, props.products]);
   useEffect(() => {
   if (editingDiscount?.assignedProductIds) {
     const ids = editingDiscount.assignedProductIds.split(",").map(id => id.trim());
@@ -614,7 +642,9 @@ useEffect(() => {
                 </h3>
                 
                 <div className={`grid gap-4 ${
-                  formData.discountType === "AssignedToCategories" 
+                  formData.discountType === "AssignedToCategories" ||
+                  formData.discountType === "AssignedToProducts" ||
+                  formData.discountType === "UptoXPercent"
                     ? "grid-cols-1 md:grid-cols-3" 
                     : "grid-cols-1 md:grid-cols-2"
                 }`}>
@@ -641,13 +671,39 @@ useEffect(() => {
                       onChange={(e) => handleDiscountTypeChange(e.target.value as DiscountType)}
                       className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                     >
-                      <option value="AssignedToOrderTotal">Assigned to order total</option>
                       <option value="AssignedToProducts">Assigned to products</option>
                       <option value="AssignedToCategories">Assigned to categories</option>
-                      <option value="AssignedToShipping">Assigned to shipping</option>
                       <option value="UptoXPercent">Up to X% Discount</option>
                     </select>
                   </div>
+
+                  {/* Discount Percentage (Only visible if AssignedToProducts or UptoXPercent) */}
+                  {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent") && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Discount Percentage <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          required
+                          min="0.01"
+                          max="100"
+                          step="0.01"
+                          placeholder="e.g. 10"
+                          value={formData.discountPercentage || ""}
+                          onChange={(e) => {
+                            const value = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                            setFormData({ 
+                              ...formData, 
+                              discountPercentage: value,
+                              usePercentage: true
+                            });
+                          }}
+                          className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pr-12"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Category Selector (Third Column) */}
                   {formData.discountType === "AssignedToCategories" && (
@@ -696,8 +752,8 @@ useEffect(() => {
 
                 <div className="space-y-4">
                   
-                  {/* FOR ASSIGNED TO PRODUCTS */}
-                  {formData.discountType === "AssignedToProducts" && (
+                  {/* FOR ASSIGNED TO PRODUCTS OR UPTO X PERCENT */}
+                  {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent") && (
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">
                         Select Products     <span className="text-red-500">*</span>
@@ -862,7 +918,7 @@ useEffect(() => {
                   )}
 
                   {/* Settings Checkboxes */}
-                  <div className="grid grid-cols-2 gap-4 mt-6">
+                  <div className="grid grid-cols-1 gap-4 mt-6">
                     <div>
                       <label className="flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-600 rounded-xl cursor-pointer hover:border-violet-500 transition-all">
                         <input
@@ -874,23 +930,6 @@ useEffect(() => {
                         <div>
                           <p className="text-white font-medium">Active</p>
                           <p className="text-slate-400 text-xs">Enable this discount</p>
-                        </div>
-                      </label>
-                    </div>
-
-                
-
-                    <div>
-                      <label className="flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-600 rounded-xl cursor-pointer hover:border-violet-500 transition-all">
-                        <input
-                          type="checkbox"
-                          checked={formData.appliedToSubOrders}
-                          onChange={(e) => setFormData({ ...formData, appliedToSubOrders: e.target.checked })}
-                          className="w-5 h-5 rounded border-slate-600 text-violet-500 focus:ring-2 focus:ring-violet-500"
-                        />
-                        <div>
-                          <p className="text-white font-medium">Apply to Sub Orders</p>
-                          <p className="text-slate-400 text-xs">Apply discount to sub orders as well</p>
                         </div>
                       </label>
                     </div>
@@ -913,141 +952,140 @@ useEffect(() => {
   />
 
 </div>
-                </div>
-              </div>
+                          {/* SECTION 3: DISCOUNT VALUE */}
+              {formData.discountType !== "AssignedToProducts" && formData.discountType !== "UptoXPercent" && (
+                <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-sm">3</span>
+                    <span>Discount Value</span>
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
-              {/* SECTION 3: DISCOUNT VALUE */}
-              <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-sm">3</span>
-                  <span>Discount Value</span>
-                </h3>
-                
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+             {/* Percentage */}
+             <label
+               className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border
+                 ${
+                   formData.usePercentage
+                     ? "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/40"
+                     : "border-slate-600 bg-slate-900/50 hover:border-violet-500"
+                 }`}
+             >
+               <input
+                 type="radio"
+                 name="discountValueType"
+                 checked={formData.usePercentage}
+                 onChange={() =>
+                   setFormData({ ...formData, usePercentage: true })
+                 }
+                 className="w-5 h-5 text-violet-500 focus:ring-2 focus:ring-violet-500"
+               />
+               <div>
+                 <p className="text-white font-medium">Percentage</p>
+                 <p className="text-slate-400 text-xs">
+                   Discount by percentage
+                 </p>
+               </div>
+             </label>
 
-  {/* Percentage */}
-  <label
-    className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border
-      ${
-        formData.usePercentage
-          ? "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/40"
-          : "border-slate-600 bg-slate-900/50 hover:border-violet-500"
-      }`}
-  >
-    <input
-      type="radio"
-      name="discountValueType"
-      checked={formData.usePercentage}
-      onChange={() =>
-        setFormData({ ...formData, usePercentage: true })
-      }
-      className="w-5 h-5 text-violet-500 focus:ring-2 focus:ring-violet-500"
-    />
-    <div>
-      <p className="text-white font-medium">Percentage</p>
-      <p className="text-slate-400 text-xs">
-        Discount by percentage
-      </p>
-    </div>
-  </label>
+             {/* Fixed Amount */}
+             <label
+               className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border
+                 ${
+                   !formData.usePercentage
+                     ? "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/40"
+                     : "border-slate-600 bg-slate-900/50 hover:border-violet-500"
+                 }`}
+             >
+               <input
+                 type="radio"
+                 name="discountValueType"
+                 checked={!formData.usePercentage}
+                 onChange={() =>
+                   setFormData({ ...formData, usePercentage: false })
+                 }
+                 className="w-5 h-5 text-violet-500 focus:ring-2 focus:ring-violet-500"
+               />
+               <div>
+                 <p className="text-white font-medium">Fixed Amount</p>
+                 <p className="text-slate-400 text-xs">
+                   Discount by fixed amount
+                 </p>
+               </div>
+             </label>
 
-  {/* Fixed Amount */}
-  <label
-    className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all border
-      ${
-        !formData.usePercentage
-          ? "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/40"
-          : "border-slate-600 bg-slate-900/50 hover:border-violet-500"
-      }`}
-  >
-    <input
-      type="radio"
-      name="discountValueType"
-      checked={!formData.usePercentage}
-      onChange={() =>
-        setFormData({ ...formData, usePercentage: false })
-      }
-      className="w-5 h-5 text-violet-500 focus:ring-2 focus:ring-violet-500"
-    />
-    <div>
-      <p className="text-white font-medium">Fixed Amount</p>
-      <p className="text-slate-400 text-xs">
-        Discount by fixed amount
-      </p>
-    </div>
-  </label>
-
-</div>
+           </div>
 
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {formData.usePercentage ? (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Discount Percentage <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                       <input
-  type="number"
-  min="0"
-  max="100"
-  step="0.01"
-  value={formData.discountPercentage}
-  onChange={(e) => {
-    const value = Math.min(100, Math.max(0, Number(e.target.value)));
-    setFormData({ ...formData, discountPercentage: value });
-  }}
-                          className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pr-12"
-
-/>
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {formData.usePercentage ? (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Discount Percentage <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={formData.discountPercentage}
+                            onChange={(e) => {
+                              const value = Math.min(100, Math.max(0, Number(e.target.value)));
+                              setFormData({ ...formData, discountPercentage: value });
+                            }}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pr-12"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Discount Amount *</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            step="0.01"
+                            value={formData.discountAmount}
+                            onChange={(e) => setFormData({...formData, discountAmount: parseFloat(e.target.value) || 0})}
+                            placeholder="0.00"
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pl-12"
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">£</span>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Discount Amount *</label>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Maximum Discount Amount</label>
                       <div className="relative">
                         <input
                           type="number"
-                          required
                           min="0"
                           step="0.01"
-                          value={formData.discountAmount}
-                          onChange={(e) => setFormData({...formData, discountAmount: parseFloat(e.target.value) || 0})}
-                          placeholder="0.00"
+                          value={formData.maximumDiscountAmount || ''}
+                          onChange={(e) => setFormData({...formData, maximumDiscountAmount: e.target.value ? parseFloat(e.target.value) : null})}
+                          placeholder="No limit"
                           className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pl-12"
                         />
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">£</span>
                       </div>
                     </div>
-                  )}
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Maximum Discount Amount</label>
-                    <div className="relative">
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Maximum Discounted Quantity</label>
                       <input
                         type="number"
                         min="0"
-                        step="0.01"
-                        value={formData.maximumDiscountAmount || ''}
-                        onChange={(e) => setFormData({...formData, maximumDiscountAmount: e.target.value ? parseFloat(e.target.value) : null})}
+                        value={formData.maximumDiscountedQuantity || ''}
+                        onChange={(e) => setFormData({...formData, maximumDiscountedQuantity: e.target.value ? parseInt(e.target.value) : null})}
                         placeholder="No limit"
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pl-12"
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                       />
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">£</span>
                     </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Maximum Discounted Quantity</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.maximumDiscountedQuantity || ''}
-                      onChange={(e) => setFormData({...formData, maximumDiscountedQuantity: e.target.value ? parseInt(e.target.value) : null})}
-                      placeholder="No limit"
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                    />
-                  </div>
                 </div>
+              )}          </div>
               </div>
 
               {/* SECTION 4: VALID PERIOD */}
@@ -1446,7 +1484,7 @@ useEffect(() => {
               )}
             </div>
 
-            {formData.discountType === "AssignedToProducts" && (
+            {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent") && (
               <div className="flex items-center gap-2">
                 <div className="w-[260px]">
                   <Select
@@ -1682,26 +1720,77 @@ useEffect(() => {
     SKU: {product?.sku ?? "N/A"}
   </p>
 
-  <div className="flex items-center gap-2">
+  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    {/* PRICE & DISCOUNT */}
+    {product && (product.discountPercentage > 0 || (product.sellPrice && product.sellPrice < product.price)) ? (
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-red-400/60 line-through">
+          £{product.price}
+        </span>
+        <span className="text-xs text-cyan-400 font-semibold">
+          £{product.sellPrice}
+        </span>
+        <span className="bg-red-500/10 text-red-400 px-1 rounded text-[10px] font-bold">
+          {product.discountPercentage}% OFF
+        </span>
+      </div>
+    ) : (
+      <span className="text-xs text-cyan-400 font-semibold">
+        £{product?.price ?? "0.00"}
+      </span>
+    )}
 
-  {/* PRICE */}
-  <span className="text-xs text-cyan-400 font-semibold">
-    £{product?.price ?? "0.00"}
-  </span>
+    {/* STOCK */}
+    <span className={`text-[11px] font-medium ${
+      (product?.stockQuantity ?? 0) > 0
+        ? "text-green-400"
+        : "text-red-400"
+    }`}>
+      {(product?.stockQuantity ?? 0) > 0
+        ? `In Stock (${product?.stockQuantity})`
+        : "Out of Stock"}
+    </span>
+  </div>
 
-  {/* STOCK */}
-  <span className={`text-[11px] font-medium ${
-    (product?.stockQuantity ?? 0) > 0
-      ? "text-green-400"
-      : "text-red-400"
-  }`}>
-    {(product?.stockQuantity ?? 0) > 0
-      ? `In Stock (${product?.stockQuantity})`
-      : "Out of Stock"}
-  </span>
-
-</div>
-
+  {/* VARIANTS */}
+  {product?.variants && product.variants.length > 0 && (
+    <div className="mt-2 pl-3 border-l-2 border-slate-700/60 space-y-1 bg-slate-900/10 p-1.5 rounded-lg max-h-[120px] overflow-y-auto">
+      {product.variants
+        .filter((v: any) => {
+          const vPct = v.discountPercentage || 0;
+          const campaignPercent = Number(formData.discountPercentage) || 0;
+          if (formData.discountType === "AssignedToProducts") {
+            return vPct === campaignPercent;
+          } else if (formData.discountType === "UptoXPercent") {
+            return vPct >= 1 && vPct <= campaignPercent;
+          }
+          return true;
+        })
+        .map((v: any) => {
+          const hasVarDiscount = v.discountPercentage > 0 || (v.sellPrice && v.sellPrice < v.price);
+          return (
+            <div key={v.id} className="text-[11px] flex flex-wrap items-center gap-x-2 text-slate-400">
+              <span className="font-medium text-slate-300">{v.name || `Variant`}</span>
+              <span className="text-slate-500 text-[10px] font-mono">(SKU: {v.sku})</span>
+              <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                {hasVarDiscount ? (
+                  <>
+                    <span className="text-red-400/50 line-through">£{v.price}</span>
+                    <span className="text-cyan-400 font-semibold">£{v.sellPrice}</span>
+                    <span className="bg-red-500/10 text-red-400 px-1 rounded text-[9px] font-bold">{v.discountPercentage}% OFF</span>
+                  </>
+                ) : (
+                  <span className="text-cyan-400">£{v.price}</span>
+                )}
+                <span className={`text-[9px] px-1 rounded font-medium ${v.stockQuantity > 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+                  {v.stockQuantity > 0 ? `Stock: ${v.stockQuantity}` : "Out of Stock"}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  )}
 </div>
 </div>
 
@@ -1969,15 +2058,6 @@ useEffect(() => {
                         viewingDiscount.isCumulative ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
                       }`}>
                         {viewingDiscount.isCumulative ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-300 font-semibold">Applied to Sub-Orders:</span>
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        viewingDiscount.appliedToSubOrders ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
-                      }`}>
-                        {viewingDiscount.appliedToSubOrders ? 'Yes' : 'No'}
                       </span>
                     </div>
                   </div>

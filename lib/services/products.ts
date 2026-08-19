@@ -103,6 +103,8 @@ export interface ProductVariant {
   sku: string;
   slug?: string;                    // ✅ ADD THIS (from your API response)
   price: number | null;
+  discountPercentage: number | null;
+  sellPrice: number | null;
   compareAtPrice: number | null;
   weight: number | null;
   stockQuantity: number;
@@ -184,6 +186,8 @@ export interface ProductItem {
   name: string;
   sku: string;
   price: number;
+  discountPercentage?: number;
+  sellPrice?: number;
   oldPrice?: number;
   description?: string;
   shortDescription?: string;
@@ -246,6 +250,8 @@ dispatchTimeNote?:string;
   brandName: string;
   productType: string;
   price: number;
+  discountPercentage: number;
+  sellPrice: number;
   stockStatus?: string;
   oldPrice?: number;
   compareAtPrice?: number;
@@ -298,6 +304,10 @@ dispatchTimeNote?:string;
   metaDescription?: string;
   metaKeywords?: string;
   searchEngineFriendlyPageName?: string;
+  customLabel0?: string;
+  customLabel1?: string;
+  customLabel3?: string;
+  customLabel4?: string;
   tags?: string;
 allowedSubscriptionFrequencies?: string;
   averageRating?: number;
@@ -405,6 +415,10 @@ export interface CreateProductDto {
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
+  customLabel0?: string;
+  customLabel1?: string;
+  customLabel3?: string;
+  customLabel4?: string;
   tags?: string;
   allowCustomerReviews?: boolean;  
   backInStockCount?: number; // ✅ ADD THIS
@@ -462,12 +476,15 @@ export interface ProductQueryParams {
   nextDayDeliveryEnabled?: boolean;
   sameDayDeliveryEnabled?: boolean;
   standardDeliveryEnabled?: boolean;
+  exactDiscountPercentage?: number;
+  maxDiscountPercentage?: number;
 
   // Sorting
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   sortDirection?: 'asc' | 'desc';
   outOfStockDays?: number;
+  outOfStockLast?: boolean;
 }
 export interface PaginatedResponse<T> {
   success: boolean;
@@ -509,7 +526,7 @@ export const productsService = {
   // BASIC CRUD OPERATIONS
   // ==========================================
 
-getAll: async (params?: ProductQueryParams) => {
+getAll: async (params?: ProductQueryParams, options?: any) => {
   const queryParams = new URLSearchParams();
 
   if (params?.page)
@@ -614,13 +631,31 @@ getAll: async (params?: ProductQueryParams) => {
       params.sortDirection
     );
 
+  if (params?.exactDiscountPercentage !== undefined)
+    queryParams.append(
+      "exactDiscountPercentage",
+      params.exactDiscountPercentage.toString()
+    );
+
+  if (params?.maxDiscountPercentage !== undefined)
+    queryParams.append(
+      "maxDiscountPercentage",
+      params.maxDiscountPercentage.toString()
+    );
+
+  if (params?.outOfStockLast !== undefined)
+    queryParams.append(
+      "outOfStockLast",
+      params.outOfStockLast.toString()
+    );
+
   const url = `${API_ENDPOINTS.products}${
     queryParams.toString()
       ? `?${queryParams.toString()}`
       : ""
   }`;
 
-  return apiClient.get<PaginatedResponse<Product>>(url);
+  return apiClient.get<PaginatedResponse<Product>>(url, options);
 },
 
 
@@ -640,6 +675,7 @@ searchSummary: async (params: {
   name?: string;
   sku?: string;
   includeHomepageCount?: boolean;
+  excludeProductId?: string;
 }) => {
   return apiClient.get<
     ApiResponse<{
@@ -668,7 +704,7 @@ bulkUpdateInventory: async (
     variantId?: string;   // ✅ added
     newStock: number;
     newPrice: number;
-    newOldPrice: number;
+    newOldPrice?: number;
   }[]
 ) => {
   return apiClient.put<

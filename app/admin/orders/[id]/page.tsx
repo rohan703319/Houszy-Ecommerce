@@ -340,9 +340,11 @@ const getCollectionStatusInfo = (status: CollectionStatus | undefined) => {
 const StatusBadge = ({
   statusInfo,
   label,
+  description,
 }: {
-  statusInfo: ReturnType<typeof getOrderStatusInfo>;
+  statusInfo: any;
   label: string;
+  description?: string;
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -418,7 +420,7 @@ const StatusBadge = ({
               </p>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                {statusInfo.description}
+                {description || statusInfo.description}
               </p>
 
               {statusInfo.nextAction && (
@@ -796,6 +798,46 @@ export default function OrderDetailPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState("");
+  const [exportCommentsLoading, setExportCommentsLoading] = useState(false);
+
+  const handleExportComments = async () => {
+    if (!orderId) return;
+    try {
+      setExportCommentsLoading(true);
+      const response = await orderService.exportAdminCommentsForOrder(orderId);
+      const blob = response.data as Blob;
+
+      if (!blob || blob.size === 0) {
+        throw new Error("No data returned or empty file");
+      }
+
+      if (blob.type === "application/json") {
+        const text = await blob.text();
+        const json = JSON.parse(text);
+        throw new Error(json?.message || "Failed to export admin comments");
+      }
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+      );
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `order-${orderId}-admin-comments-${new Date().toISOString().split("T")[0]}.xlsx`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+      toast.success("Order admin comments exported successfully");
+    } catch (err: any) {
+      console.error("Error exporting admin comments:", err);
+      toast.error(err?.message || "Failed to export admin comments");
+    } finally {
+      setExportCommentsLoading(false);
+    }
+  };
 
   const fetchComments = useCallback(async () => {
     if (!orderId) return;
@@ -1518,7 +1560,15 @@ export default function OrderDetailPage() {
 
         {/* ✅ STATUS BADGES WITH CLEAR LABELS */}
         <div className="flex items-center gap-3 flex-wrap">
-          <StatusBadge statusInfo={statusInfo} label="Order" />
+          <StatusBadge 
+            statusInfo={statusInfo} 
+            label="Order" 
+            description={
+              order.status === 'CancellationRequested' && order.cancellationRequestedAt
+                ? `Customer has requested order cancellation on ${formatDate(order.cancellationRequestedAt)}.${order.cancellationRequestReason ? ` Reason: "${order.cancellationRequestReason}"` : ''}`
+                : undefined
+            }
+          />
 
           {paymentStatusInfo && (
             <StatusBadge
@@ -1799,6 +1849,33 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+
+        {order.subscriptionId && (
+          <div className="bg-slate-900/50 border border-indigo-500/30 rounded-lg p-4 hover:border-indigo-500 transition-all group">
+            <div className="flex items-center mb-3 pb-2 border-b border-indigo-500/20 gap-2">
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-lg group-hover:scale-110 transition-transform">
+                <RefreshCw className="h-4 w-4 text-white animate-spin-slow" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Subscription Details</h3>
+            </div>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-slate-400 flex-shrink-0">Subscription ID</span>
+                <span className="text-white font-medium break-all text-xs text-right">
+                  {order.subscriptionId}
+                </span>
+              </div>
+              {order.subscriptionFrequency && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Delivery Frequency</span>
+                  <span className="text-indigo-400 font-semibold uppercase">
+                    {order.subscriptionFrequency.replace("-", " ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Order Summary */}
         <div className="bg-slate-900/50 border  border-slate-800 rounded-lg p-4 hover:border-green-500/30 transition-all group">
@@ -2280,8 +2357,13 @@ export default function OrderDetailPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <p className="text-white font-medium text-sm hover:text-violet-400 hover:underline cursor-pointer transition-all">
+                    <p className="text-white font-medium text-sm hover:text-violet-400 hover:underline cursor-pointer transition-all flex items-center gap-2">
                       {item.productName}
+                      {item.subscriptionFrequency && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase shrink-0">
+                          Subscription ({item.subscriptionFrequency.replace("-", " ")})
+                        </span>
+                      )}
                     </p>
                   </Link>
                   <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
@@ -2729,9 +2811,24 @@ export default function OrderDetailPage() {
               <p className="text-xs text-slate-500 dark:text-slate-400 text-left mt-0.5">Internal notes & discussions</p>
             </div>
           </div>
-          <span className="text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20 px-3 py-1 rounded-full font-semibold">
-            {comments.length} comment{comments.length !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportComments}
+              disabled={exportCommentsLoading || comments.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export this order's admin comments to Excel"
+            >
+              {exportCommentsLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              Export Comments
+            </button>
+            <span className="text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20 px-3 py-1.5 rounded-full font-semibold">
+              {comments.length} comment{comments.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
 
         {/* Add Comment Input Row */}

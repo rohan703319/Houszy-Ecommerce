@@ -606,7 +606,14 @@ export default function OrderCard({
       {/* HEADER */}
       <div className="flex flex-wrap justify-between gap-2">
         <div>
-          <p className="font-semibold">Order Number: #{order.orderNumber}</p>
+          <div className="flex items-center flex-wrap gap-2">
+            <p className="font-semibold">Order Number: #{order.orderNumber}</p>
+            {order.subscriptionId && (
+              <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase leading-none">
+                Subscription
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500">
             Ordered on: {formatDate(order.orderDate)}
           </p>
@@ -668,7 +675,7 @@ export default function OrderCard({
         order.paymentStatus?.toLowerCase() === "unpaid" ||
         order.paymentStatus?.toLowerCase() === "partiallypaid") &&
         amountToPay > 0 &&
-        ["stripe", "card"].includes(order.payment?.paymentMethod?.toLowerCase() || "") && (
+        ["stripe", "card", "subscription"].includes(order.payment?.paymentMethod?.toLowerCase() || "") && (
           <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg p-4">
             <span className="text-2xl">⚠️</span>
             <div className="flex-1">

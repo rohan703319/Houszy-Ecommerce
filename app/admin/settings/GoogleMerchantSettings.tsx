@@ -12,11 +12,15 @@ import {
   Trash2,
   Upload,
   X,
+  Clock,
+  Save,
+  ChevronDown,
 } from "lucide-react";
 import { useToast } from "../_components/CustomToast";
 import ConfirmDialog from "../_components/ConfirmDialog";
 import { googleMerchantService } from "@/lib/services/GoogleMerchant";
 import { Product, productsService } from "@/lib/services/products";
+import { storeSettingsService } from "@/lib/services/storeSettingsService";
 
 type ActionType = "sync-all" | "sync-selected" | "delete-selected" | "clean-resync";
 
@@ -194,6 +198,12 @@ export default function GoogleMerchantSettings() {
   }>({ open: false, action: null });
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Daily auto-sync schedule states
+  const [syncEnabled, setSyncEnabled] = useState(true);
+  const [syncTime, setSyncTime] = useState("23:00");
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+
 const handleOpenFeed = async () => {
   try {
     setButtonLoading("feed");
@@ -273,8 +283,55 @@ const handleOpenReviewsFeed = async () => {
     }
   };
 
+  const loadSettings = async () => {
+    try {
+      setLoadingSettings(true);
+      const response = await storeSettingsService.get();
+      if (response.data && response.data.data) {
+        setSyncEnabled(response.data.data.googleMerchantSyncEnabled);
+        setSyncTime(response.data.data.googleMerchantSyncTime || "23:00");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load scheduler settings");
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    try {
+      setSavingSchedule(true);
+      const response = await storeSettingsService.update({
+        googleMerchantSyncEnabled: syncEnabled,
+        googleMerchantSyncTime: syncTime,
+      });
+      if (response.data) {
+        toast.success("Sync schedule updated successfully");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to save sync schedule");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const timeOptions = useMemo(() => {
+    return Array.from({ length: 48 }).map((_, i) => {
+      const totalMinutes = i * 30;
+      const rawHour = Math.floor(totalMinutes / 60);
+      const minute = totalMinutes % 60;
+      
+      const hour = rawHour === 0 ? 12 : rawHour > 12 ? rawHour - 12 : rawHour;
+      const ampm = rawHour >= 12 ? "PM" : "AM";
+      const display = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} ${ampm}`;
+      const value = `${rawHour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+      return { display, value };
+    });
+  }, []);
+
   useEffect(() => {
     loadProducts();
+    loadSettings();
   }, []);
 
   const filteredSyncProducts = useMemo(() => {
@@ -440,6 +497,79 @@ const handleOpenReviewsFeed = async () => {
           <p className="mt-1 text-sm text-slate-400">
             Sync products to Google Merchant or remove products by SKU.
           </p>
+        </div>
+
+        {/* Daily Auto-Sync Scheduler Panel */}
+        <div className="mt-6 border-t border-b border-slate-700/50 py-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0 text-violet-400">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-white">Daily Auto-Sync</h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Automatically syncs all products to Google Merchant Center once a day (UK time).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Toggle switch */}
+              <div className="flex items-center gap-3 bg-slate-900/40 px-3 py-2 rounded-xl border border-slate-700/40">
+                <span className="text-xs font-semibold text-slate-300">
+                  {syncEnabled ? "Enabled" : "Disabled"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSyncEnabled(!syncEnabled)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    syncEnabled ? "bg-emerald-500" : "bg-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      syncEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Time select dropdown */}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <select
+                    value={syncTime}
+                    onChange={(e) => setSyncTime(e.target.value)}
+                    className="rounded-xl border border-slate-700 bg-slate-900 pl-3 pr-9 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 appearance-none min-w-[120px]"
+                  >
+                    {timeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.display}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                </div>
+                <span className="text-xs font-bold text-slate-400">UK Time</span>
+              </div>
+
+              {/* Save Schedule Button */}
+              <button
+                type="button"
+                onClick={handleSaveSchedule}
+                disabled={savingSchedule || loadingSettings}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-orange-500/20 disabled:opacity-50"
+              >
+                {savingSchedule ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Save Schedule
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

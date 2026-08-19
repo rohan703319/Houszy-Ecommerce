@@ -45,8 +45,8 @@ export default function ProductCard({
     null;
 
   const isNextDayFree = defaultVariant
-    ? defaultVariant.nextDayDeliveryFree === true
-    : !!product.nextDayDeliveryFree;
+    ? defaultVariant.nextDayDeliveryFree === true && defaultVariant.nextDayDeliveryEnabled === true
+    : !!product.nextDayDeliveryFree && !!product.nextDayDeliveryEnabled;
 
   // ---------- Image ----------
   const mainImage = (() => {
@@ -94,29 +94,29 @@ export default function ProductCard({
   })();
 
   // ---------- Pricing ----------
+  // Base regular price (MRP / Strikethrough)
   const basePrice =
-    typeof defaultVariant?.price === "number" && defaultVariant.price > 0
-      ? defaultVariant.price
-      : product.price;
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.price ?? 0)
+      : (product.price ?? 0);
 
-  const finalPrice = getDiscountedPrice(product, basePrice);
+  // Selling price (highlighted price shown to user)
+  const sellPriceToShow =
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.sellPrice ?? defaultVariant?.price ?? 0)
+      : (product.sellPrice ?? product.price ?? 0);
+
+  // Discount percentage from DB
+  const discountPercentageToShow =
+    product.variants && product.variants.length > 0
+      ? (defaultVariant?.discountPercentage ?? 0)
+      : (product.discountPercentage ?? 0);
+
+  // Show strikethrough only when base price is higher than sell price
+  const hasDiscount = discountPercentageToShow > 0 && basePrice > sellPriceToShow;
+
+  // Coupon indicator (separate from our discount)
   const discountBadge = getDiscountBadge(product);
-  const currentDisplayType =
-    product.variants && product.variants.length > 0
-      ? (defaultVariant?.displayDiscountType ?? "None")
-      : (product.displayDiscountType ?? "None");
-
-  // 🔥 NEW: oldPrice fallback logic
-  const oldPriceValue =
-    product.variants && product.variants.length > 0
-      ? (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ?? undefined)
-      : (product.compareAtPrice ?? product.oldPrice ?? undefined);
-
-  const oldPriceData = getOldPriceDiscount(
-    finalPrice,
-    oldPriceValue,
-    !!discountBadge
-  );
   // ---------- Active Coupon (indicator only) ----------
   const hasActiveCoupon = product.assignedDiscounts?.some((d: any) => {
     if (!d.isActive) return false;
@@ -219,7 +219,7 @@ export default function ProductCard({
             .filter(Boolean)
             .join(", ")})`
           : product.name,
-        price: finalPrice,
+        price: sellPriceToShow,
         quantity: finalQty,
       }, categories: product.productCategories ?? product.categories
     });
@@ -235,34 +235,16 @@ export default function ProductCard({
           .filter(Boolean)
           .join(", ")})`
         : product.name,
-      price: finalPrice,
+      price: basePrice,
+      sellPrice: sellPriceToShow,
+      discountPercentage: discountPercentageToShow,
       priceBeforeDiscount: basePrice,
-      finalPrice,
-      discountAmount:
-        currentDisplayType === "System"
-          ? +(basePrice - finalPrice).toFixed(2)
-          : 0,
-      oldPrice: hasActiveCoupon
-        ? undefined
-        : (defaultVariant?.compareAtPrice ??
-          defaultVariant?.oldPrice ??
-          product.compareAtPrice ??
-          product.oldPrice ??
-          undefined),
-
-      displayDiscountType: hasActiveCoupon
-        ? "None"
-        : currentDisplayType,
-
-      hasSystemDiscount:
-        defaultVariant?.hasSystemDiscount ??
-        product.hasSystemDiscount ??
-        false,
-
-      systemDiscountAmount:
-        defaultVariant?.systemDiscountAmount ??
-        product.systemDiscountAmount ??
-        0,
+      finalPrice: sellPriceToShow,
+      discountAmount: 0,
+      oldPrice: hasDiscount ? basePrice : undefined,
+      displayDiscountType: hasDiscount ? "OldPrice" : "None",
+      hasSystemDiscount: false,
+      systemDiscountAmount: 0,
       quantity: finalQty,
       image: mainImage,
       sku: defaultVariant?.sku ?? product.sku,
@@ -317,18 +299,18 @@ export default function ProductCard({
               loading="lazy"
             />
           )}
-          {/* DISCOUNT BADGE — smaller */}
-          {currentDisplayType === "System" && discountBadge && (
+          {/* DISCOUNT BADGE — show when discountPercentage > 0 */}
+          {hasDiscount && (
             <div className="absolute z-20 left-2 top-2">
               <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                 <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
-                  -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
+                  {discountPercentageToShow}% Off
                 </span>
               </div>
             </div>
           )}
-          {/* COUPON BADGE — smaller */}
-          {!discountBadge && hasActiveCoupon && (
+          {/* COUPON BADGE */}
+          {!hasDiscount && hasActiveCoupon && (
             <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">
               <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
@@ -350,18 +332,6 @@ export default function ProductCard({
               </div>
             </div>
           )}
-          {/* 🔥 OLD PRICE BADGE */}
-          {currentDisplayType === "OldPrice" &&
-            !hasActiveCoupon &&
-            oldPriceData && (
-              <div className="absolute z-20 left-2 top-2">
-                <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                  <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
-                    -{oldPriceData.discount}%
-                  </span>
-                </div>
-              </div>
-            )}
           {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
           {/* Free Next Day badge — bottom left on image */}
           {isNextDayFree && stock > 0 && (
@@ -405,29 +375,19 @@ export default function ProductCard({
 
                 slug: cardSlug,
 
-                price: finalPrice,
+                price: basePrice,
+                sellPrice: sellPriceToShow,
+                discountPercentage: discountPercentageToShow,
                 priceBeforeDiscount: basePrice,
-                finalPrice: finalPrice,
-                discountAmount:
-                  currentDisplayType === "System"
-                    ? +(basePrice - finalPrice).toFixed(2)
-                    : 0,
+                finalPrice: sellPriceToShow,
+                discountAmount: 0,
                 appliedDiscountId: null,
                 couponCode: null,
-                oldPrice:
-                  defaultVariant?.compareAtPrice ??
-                  defaultVariant?.oldPrice ??
-                  product.compareAtPrice ??
-                  product.oldPrice ??
-                  null,
+                oldPrice: hasDiscount ? basePrice : null,
 
-                displayDiscountType: currentDisplayType,
-
-                hasSystemDiscount:
-                  product.hasSystemDiscount ?? false,
-
-                systemDiscountAmount:
-                  product.systemDiscountAmount ?? 0,
+                displayDiscountType: hasDiscount ? "OldPrice" : "None",
+                hasSystemDiscount: false,
+                systemDiscountAmount: 0,
                 image: mainImage,
 
                 vatRate: vatRate ?? null,
@@ -515,30 +475,16 @@ export default function ProductCard({
 
         {/* PRICE */}
         <div className="flex items-center gap-1 md:gap-2 mb-1">
+          {/* Highlighted selling price */}
           <span className="text-sm md:text-xl font-bold text-[#f38918]">
-            £{
-              (
-                currentDisplayType === "System"
-                  ? finalPrice
-                  : basePrice
-              ).toFixed(2)
-            }
+            £{sellPriceToShow.toFixed(2)}
           </span>
-          {/* 🔥 CASE 1: REAL DISCOUNT */}
-          {currentDisplayType === "System" && discountBadge && (
+          {/* Strikethrough base price — only if discount exists */}
+          {hasDiscount && (
             <span className="text-xs md:text-sm text-gray-400 line-through">
               £{basePrice.toFixed(2)}
             </span>
           )}
-
-          {/* 🔥 CASE 2: OLD PRICE */}
-          {currentDisplayType === "OldPrice" &&
-            !hasActiveCoupon &&
-            oldPriceData && (
-              <span className="text-xs md:text-sm text-gray-400 line-through">
-                £{oldPriceData.oldPrice.toFixed(2)}
-              </span>
-            )}
           {vatRate !== null && vatRate > 0 && !product.vatExempt ? (
             <span className="text-[9px] md:text-xs font-semibold text-black bg-gray-50 border border-gray-200 px-1 md:px-2 py-0.5 rounded-md whitespace-nowrap">
               {vatRate}% VAT

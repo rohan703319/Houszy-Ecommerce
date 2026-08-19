@@ -10,6 +10,8 @@ export interface WishlistItem {
   name: string;
   slug: string;
   price: number;
+  sellPrice?: number;
+  discountPercentage?: number;
   priceBeforeDiscount?: number;
   finalPrice?: number;
   discountAmount?: number;

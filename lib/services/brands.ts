@@ -9,6 +9,7 @@ export interface Brand {
   description: string;
   slug: string;
   logoUrl?: string;
+  bannerImageUrl?: string;
   isPublished: boolean;
   isDeleted: boolean;
   isActive: boolean;
@@ -60,6 +61,7 @@ export interface CreateBrandDto {
   name: string;
   description: string;
   logoUrl?: string;
+  bannerImageUrl?: string;
   isPublished?: boolean;
   isActive?: boolean;
   showOnHomepage?: boolean;
@@ -134,4 +136,21 @@ export const brandsService = {
   // Delete brand logo
   deleteLogo: (logoUrl: string) =>
     apiClient.delete<void>(API_ENDPOINTS.deleteBrandLogo, { params: { imageUrl: logoUrl } }),
+
+  // Upload brand banner image (WebP only)
+  uploadBannerImage: async (file: File, params?: Record<string, any>) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const searchParams = params ? "?" + new URLSearchParams(params).toString() : "";
+    return apiClient.post<{ success: boolean; message: string; data: string }>(
+      API_ENDPOINTS.uploadBrandBannerImage + searchParams,
+      formData
+    );
+  },
+
+  // Delete brand banner image
+  deleteBannerImage: (imageUrl: string) =>
+    apiClient.delete<{ success: boolean; message: string; data: boolean }>(
+      `${API_ENDPOINTS.deleteBrandBannerImage}?imageUrl=${encodeURIComponent(imageUrl)}`
+    ),
 };

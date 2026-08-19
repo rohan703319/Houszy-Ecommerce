@@ -234,10 +234,18 @@ export default function AddProductPage() {
     if (!formData.categoryIds || formData.categoryIds.length === 0) {
       missing.push('Category (at least 1)');
     }
-    // Price only required for non-variable products
+    // Price only required for non-variable products, otherwise all variant prices must be valid
     if (formData.productType !== 'variable') {
       const price = Number(formData.price);
       if (isNaN(price) || price <= 0) missing.push('Valid Price');
+    } else {
+      const hasInvalidVariantPrice = productVariants.some(v => {
+        const price = Number(v.price);
+        return v.price === null || v.price === undefined || isNaN(price) || price <= 0;
+      });
+      if (hasInvalidVariantPrice) {
+        missing.push('Valid Variant Price (greater than 0 for all variants)');
+      }
     }
 
     // 4. Brands
@@ -535,7 +543,8 @@ export default function AddProductPage() {
 
     // ===== PRICING =====
     price: '',
-    oldPrice: '',
+    discountPercentage: '',
+    sellPrice: '',
     cost: '',
     disableBuyButton: false,
     disableWishlistButton: false,
@@ -651,6 +660,10 @@ export default function AddProductPage() {
     metaKeywords: '',
     metaDescription: '',
     searchEngineFriendlyPageName: '',
+    customLabel0: '',
+    customLabel1: '',
+    customLabel3: '',
+    customLabel4: '',
     aPlusTemplateId: null as string | null,
     aPlusContent: null as string | null,
   });
@@ -673,7 +686,7 @@ export default function AddProductPage() {
     if (formData.fullDescription !== initialFormData.fullDescription) changes.push('Full Description');
     if (formData.productType !== initialFormData.productType) changes.push('Product Type');
     if (formData.price !== initialFormData.price) changes.push('Price');
-    if (formData.oldPrice !== initialFormData.oldPrice) changes.push('Old Price');
+    if (formData.discountPercentage !== initialFormData.discountPercentage) changes.push('Discount Percentage');
     if (formData.cost !== initialFormData.cost) changes.push('Cost');
     if (JSON.stringify(formData.categoryIds) !== JSON.stringify(initialFormData.categoryIds))
       changes.push('Categories');
@@ -685,6 +698,10 @@ export default function AddProductPage() {
     if (formData.weight !== initialFormData.weight) changes.push('Weight');
     if (formData.metaTitle !== initialFormData.metaTitle) changes.push('Meta Title');
     if (formData.metaDescription !== initialFormData.metaDescription) changes.push('Meta Description');
+    if (formData.customLabel0 !== initialFormData.customLabel0) changes.push('Custom Label 0');
+    if (formData.customLabel1 !== initialFormData.customLabel1) changes.push('Custom Label 1');
+    if (formData.customLabel3 !== initialFormData.customLabel3) changes.push('Custom Label 3');
+    if (formData.customLabel4 !== initialFormData.customLabel4) changes.push('Custom Label 4');
     if (formData.showOnHomepage !== initialFormData.showOnHomepage) changes.push('Show on Homepage');
     if (formData.adminComment !== initialFormData.adminComment) changes.push('Admin Comment');
 
@@ -1125,21 +1142,17 @@ export default function AddProductPage() {
       }
 
       // ✅ These can run for BOTH draft + publish
-      const parsedOldPrice = parseNumber(formData.oldPrice, 'oldPrice');
+      const parsedDiscountPercentage = parseNumber(formData.discountPercentage, 'discountPercentage') || 0;
       const parsedCost = parseNumber(formData.cost, 'cost');
 
-      // ✅ Skip old/cost validations for variable products
+      // ✅ Skip pricing validations for variable products
       if (!isVariableProduct) {
-        if (parsedOldPrice !== null && parsedOldPrice < 0) {
-          toast.error('❌ Old price cannot be negative');
+        if (parsedDiscountPercentage < 0 || parsedDiscountPercentage > 100) {
+          toast.error('❌ Discount percentage must be between 0 and 100');
           target.removeAttribute("data-submitting");
           setIsSubmitting(false);
           setSubmitProgress(null);
           return;
-        }
-
-        if (parsedOldPrice !== null && parsedPrice !== null && parsedOldPrice < parsedPrice) {
-          toast.warning("⚠️ Old price is less than current price. Strikethrough won't show.");
         }
 
         if (parsedCost !== null && parsedCost < 0) {
@@ -1537,7 +1550,8 @@ export default function AddProductPage() {
           name: cleanedVariant.name,
           sku: cleanedVariant.sku,
           price: parseFloat(cleanedVariant.price?.toString() ?? "0") || 0,
-          compareAtPrice: cleanedVariant.compareAtPrice ? parseFloat(cleanedVariant.compareAtPrice.toString()) : null,
+          discountPercentage: cleanedVariant.discountPercentage ? parseFloat(cleanedVariant.discountPercentage.toString()) : 0,
+          sellPrice: cleanedVariant.sellPrice ? parseFloat(cleanedVariant.sellPrice.toString()) : parseFloat(cleanedVariant.price?.toString() ?? "0") || 0,
           weight: cleanedVariant.weight ? parseFloat(cleanedVariant.weight.toString()) : null,
           stockQuantity: parseInt(cleanedVariant.stockQuantity.toString()) || 0,
           trackInventory: cleanedVariant.trackInventory ?? true,
@@ -1641,7 +1655,7 @@ export default function AddProductPage() {
         name: formData.name.trim(),
         description: formData.fullDescription || formData.shortDescription || `${formData.name} - Product description`,
         shortDescription: formData.shortDescription?.trim() || "",
-        sku: formData.productType === 'variable' ? null : (formData.sku?.trim() || null),
+        sku: formData.productType === 'variable' ? "" : (formData.sku?.trim() || null),
         displayOrder: parseInt(formData.displayOrder?.toString() ?? "1"),
 
         // Status & Visibility
@@ -1686,6 +1700,8 @@ export default function AddProductPage() {
 
         // Pricing
         price: parseFloat(formData.price.toString()) || 0,
+        discountPercentage: parseFloat(formData.discountPercentage.toString()) || 0,
+        sellPrice: parseFloat(formData.sellPrice.toString()) || parseFloat(formData.price.toString()) || 0,
 
         // Brands & Categories
         brandId: brandIdsArray[0] || null,
@@ -1745,10 +1761,7 @@ export default function AddProductPage() {
       if (formData.gender?.trim()) productData.gender = formData.gender.trim();
       else productData.gender = "";
 
-      if (formData.oldPrice) {
-        productData.oldPrice = parseFloat(formData.oldPrice.toString());
-        productData.compareAtPrice = parseFloat(formData.oldPrice.toString());
-      }
+
       if (formData.cost) productData.costPrice = parseFloat(formData.cost.toString());
       if (formData.disableBuyButton) productData.disableBuyButton = true;
       if (formData.disableWishlistButton) productData.disableWishlistButton = true;
@@ -1878,6 +1891,10 @@ export default function AddProductPage() {
       if (formData.metaTitle?.trim()) productData.metaTitle = formData.metaTitle.trim();
       if (formData.metaDescription?.trim()) productData.metaDescription = formData.metaDescription.trim();
       if (formData.metaKeywords?.trim()) productData.metaKeywords = formData.metaKeywords.trim();
+      if (formData.customLabel0?.trim()) productData.customLabel0 = formData.customLabel0.trim();
+      if (formData.customLabel1?.trim()) productData.customLabel1 = formData.customLabel1.trim();
+      if (formData.customLabel3?.trim()) productData.customLabel3 = formData.customLabel3.trim();
+      if (formData.customLabel4?.trim()) productData.customLabel4 = formData.customLabel4.trim();
       if (formData.searchEngineFriendlyPageName?.trim())
         productData.searchEngineFriendlyPageName = formData.searchEngineFriendlyPageName.trim();
 
@@ -1924,7 +1941,7 @@ export default function AddProductPage() {
 
         const draftPayload: any = {
           name: formData.name.trim(),
-          sku: formData.productType === 'variable' ? null : (formData.sku?.trim() || null),
+          sku: formData.productType === 'variable' ? "" : (formData.sku?.trim() || null),
           status: "Draft",
           isPublished: false,
           productType: formData.productType || "simple",
@@ -1939,6 +1956,9 @@ export default function AddProductPage() {
 
         try {
           const draftResponse = await productsService.create(draftPayload);
+          if (draftResponse.error) {
+            throw draftResponse;
+          }
 
           // Extract product ID
           currentProductId = (draftResponse.data as any)?.data?.id || (draftResponse.data as any)?.id || (draftResponse as any)?.id;
@@ -1974,6 +1994,9 @@ export default function AddProductPage() {
         console.log(isEditModeInitial ? "Updating existing product:" : "Updating newly created draft:", currentProductId);
 
         response = await productsService.update(currentProductId, productData);
+        if (response.error) {
+          throw response;
+        }
 
         toast.success(isDraft ? "Draft saved successfully!" : "Product updated successfully!", {
           autoClose: 2000,
@@ -2593,6 +2616,24 @@ export default function AddProductPage() {
           frequencyPresets[value] || ""
       }));
 
+      return;
+    }
+
+    if (name === 'price' || name === 'discountPercentage') {
+      setFormData(prev => {
+        const nextPrice = name === 'price' ? value : prev.price;
+        const nextDiscount = name === 'discountPercentage' ? value : prev.discountPercentage;
+
+        const priceNum = parseFloat(nextPrice) || 0;
+        const discountNum = parseFloat(nextDiscount) || 0;
+        const calculatedSellPrice = priceNum * (1 - discountNum / 100);
+
+        return {
+          ...prev,
+          [name]: value,
+          sellPrice: calculatedSellPrice > 0 ? calculatedSellPrice.toFixed(2) : '0.00'
+        };
+      });
       return;
     }
 
@@ -4128,7 +4169,7 @@ export default function AddProductPage() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">Price</h3>
 
-                  <div className="grid md:grid-cols-3 gap-4">
+                  <div className="grid md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">
                         Price (£)
@@ -4156,15 +4197,20 @@ export default function AddProductPage() {
                         className={`w-full px-3 py-2 bg-slate-800/50 border rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all
             ${formData.productType === 'variable'
                             ? 'opacity-50 border-slate-800 cursor-not-allowed'
-                            : 'border-slate-700'
+                            : (formData.price !== '' && (Number(formData.price) <= 0 || isNaN(Number(formData.price))))
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-slate-700'
                           }`}
                         required={formData.productType !== 'variable'}
                       />
+                      {formData.productType !== 'variable' && formData.price !== '' && (Number(formData.price) <= 0 || isNaN(Number(formData.price))) && (
+                        <p className="text-red-400 text-xs mt-1">Please enter a valid price (greater than 0)</p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Old Price (£)
+                        Discount (%)
                         {formData.productType !== 'variable' && (
                           <span className="text-red-500 ml-1">*</span>
                         )}
@@ -4172,48 +4218,57 @@ export default function AddProductPage() {
 
                       <input
                         type="number"
-                        name="oldPrice"
+                        name="discountPercentage"
                         disabled={formData.productType === 'variable'}
                         title={
                           formData.productType === 'variable'
-                            ? "Variable product requires old price in variable tab"
+                            ? "Variable product requires discount in variable tab"
                             : ''
                         }
                         value={
                           formData.productType === 'variable'
                             ? ""
-                            : formData.oldPrice
+                            : formData.discountPercentage
                         }
                         onChange={handleChange}
-                        placeholder="0.00"
-                        step="0.01"
-                        className={`
-      w-full px-3 py-2
-      bg-slate-800/50
-      border rounded-xl
-      text-white
-      placeholder-slate-500
-
-      focus:ring-2
-      focus:ring-violet-500
-      focus:border-transparent
-      transition-all
-
-      ${formData.productType === 'variable'
+                        placeholder="0"
+                        min="0"
+                        max="100"
+                        className={`w-full px-3 py-2 bg-slate-800/50 border rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all
+            ${formData.productType === 'variable'
                             ? 'opacity-50 border-slate-800 cursor-not-allowed'
                             : 'border-slate-700'
-                          }
-    `}
+                          }`}
                         required={formData.productType !== 'variable'}
                       />
-
                       <p className="text-xs text-slate-400 mt-1">
-                        Shows as strikethrough
+                        Percentage discount (0-100)
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-2">Product Cost (  £)</label>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Sell Price (£)
+                      </label>
+                      <input
+                        type="number"
+                        name="sellPrice"
+                        disabled={true}
+                        value={
+                          formData.productType === 'variable'
+                            ? ""
+                            : formData.sellPrice
+                        }
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 cursor-not-allowed"
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Dynamically calculated selling price
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Product Cost (£)</label>
                       <input
                         type="number"
                         name="cost"
@@ -4227,7 +4282,7 @@ export default function AddProductPage() {
                     </div>
                   </div>
 
-                  {/*   ­  ­  ­ PROFESSIONAL PRICING BREAKDOWN - SAME AS EDIT PAGE   ­  ­  ­ */}
+                  {/*   ­   ­   ­  PROFESSIONAL PRICING BREAKDOWN - SAME AS EDIT PAGE   ­   ­   ­  */}
                   {(() => {
                     const parsePrice = (value: any): number => {
                       if (!value) return 0;
@@ -4491,6 +4546,7 @@ export default function AddProductPage() {
                         </div>
                       </div>
 
+                      {/*
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-slate-300 mb-2">Low Stock Activity</label>
@@ -4509,11 +4565,9 @@ export default function AddProductPage() {
                           </p>
                         </div>
 
-                        {/*   PLACEHOLDER DIV - Keep grid balanced */}
                         <div></div>
                       </div>
 
-                      {/*   ADMIN NOTIFICATION SECTION - CONDITIONAL */}
                       <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -4540,7 +4594,6 @@ export default function AddProductPage() {
                           </div>
                         </label>
 
-                        {/*   Conditional Threshold Input */}
                         {formData.notifyAdminForQuantityBelow && (
                           <div className="ml-6 pt-2 border-t border-slate-700">
                             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -4562,7 +4615,6 @@ export default function AddProductPage() {
                         )}
                       </div>
 
-                      {/*   BACKORDER SECTION */}
                       <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -4589,7 +4641,6 @@ export default function AddProductPage() {
                           </div>
                         </label>
 
-                        {/* Conditional Dropdown */}
                         {formData.allowBackorder && (
                           <div className="ml-6 pt-2 border-t border-slate-700">
                             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -4612,6 +4663,7 @@ export default function AddProductPage() {
                           </div>
                         )}
                       </div>
+                      */}
 
                       {/* Ultra Minimal Version - Preview Only on Selected */}
                       <div className="space-y-3">
@@ -4707,6 +4759,7 @@ export default function AddProductPage() {
                         </div>
 
                         {/* Notify Me */}
+                        {/*
                         <div className="pt-3 border-t border-slate-700 mt-3">
                           <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-800/30 rounded transition-all">
                             <input
@@ -4719,6 +4772,7 @@ export default function AddProductPage() {
                             <span className="text-sm text-slate-300">Allow &quot;Notify me when available&quot;</span>
                           </label>
                         </div>
+                        */}
                       </div>
 
 
@@ -5650,6 +5704,78 @@ export default function AddProductPage() {
                       </span>
                       Leave empty to auto-generate from product name
                     </p>
+                  </div>
+
+                  {/* ===== Google Merchant Custom Labels ===== */}
+                  <div className="border-t border-slate-700/50 pt-5 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-white">Google Merchant Custom Labels</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Used for Google Shopping campaign segmentation (custom_label_0, 1, 3, 4). custom_label_2 is auto-generated from the discount percentage and isn't set here.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Custom Label 0 */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                          Custom Label 0
+                        </label>
+                        <input
+                          type="text"
+                          name="customLabel0"
+                          value={formData.customLabel0 || ""}
+                          onChange={handleChange}
+                          placeholder="e.g. Best Seller"
+                          className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      {/* Custom Label 1 */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                          Custom Label 1
+                        </label>
+                        <input
+                          type="text"
+                          name="customLabel1"
+                          value={formData.customLabel1 || ""}
+                          onChange={handleChange}
+                          placeholder="e.g. High Margin"
+                          className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      {/* Custom Label 3 */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                          Custom Label 3
+                        </label>
+                        <input
+                          type="text"
+                          name="customLabel3"
+                          value={formData.customLabel3 || ""}
+                          onChange={handleChange}
+                          placeholder="e.g. Seasonal"
+                          className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      {/* Custom Label 4 */}
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                          Custom Label 4
+                        </label>
+                        <input
+                          type="text"
+                          name="customLabel4"
+                          value={formData.customLabel4 || ""}
+                          onChange={handleChange}
+                          placeholder="e.g. Clearance"
+                          className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* ===== SEO Tips ===== */}

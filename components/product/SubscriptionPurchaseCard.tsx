@@ -92,7 +92,17 @@ export default function SubscriptionPurchaseCard({
     };
   })();
 
-  const subscriptionPrice = basePrice - (basePrice * product.subscriptionDiscountPercentage) / 100;
+  const currentSellPrice = selectedVariant
+    ? (typeof selectedVariant.sellPrice === "number" && selectedVariant.sellPrice > 0 ? selectedVariant.sellPrice : (selectedVariant.price ?? basePrice))
+    : (typeof product.sellPrice === "number" && product.sellPrice > 0 ? product.sellPrice : product.price);
+
+  const directDiscountPercentage = selectedVariant
+    ? (Number(selectedVariant.discountPercentage) || 0)
+    : (Number(product.discountPercentage) || 0);
+
+  const subscriptionDiscount = Number(product.subscriptionDiscountPercentage) || 0;
+  const totalDiscountPercentage = Number((directDiscountPercentage + subscriptionDiscount).toFixed(2));
+  const subscriptionPrice = currentSellPrice - (currentSellPrice * subscriptionDiscount) / 100;
   // ----------------- NEW STATE FOR DROPDOWN -----------------
   const frequencies = product?.allowedSubscriptionFrequencies
     ? product.allowedSubscriptionFrequencies.split(",").map((f: string) => f.trim()).filter(Boolean)
@@ -160,7 +170,12 @@ export default function SubscriptionPurchaseCard({
           .filter(Boolean)
           .join(", ")})`
         : product.name,
-      price: subscriptionPrice,
+      price: basePrice,
+      sellPrice: currentSellPrice,
+      priceBeforeDiscount: basePrice,
+      finalPrice: subscriptionPrice,
+      discountAmount: basePrice - subscriptionPrice,
+      discountPercentage: totalDiscountPercentage,
       quantity,
       variantId: selectedVariant?.id ?? null,
       slug: product.slug ?? "",
@@ -224,17 +239,24 @@ export default function SubscriptionPurchaseCard({
           />
 
           <span className="font-semibold text-sm">
-            Subscribe & Save {product.subscriptionDiscountPercentage}%
+            Subscribe & Save
           </span>
 
         </label>
-        <div className="flex flex-wrap items-baseline gap-1.5 mb-2">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-lg font-extrabold text-[#f38918]">
             £{(subscriptionPrice * quantity).toFixed(2)}
           </span>
-          <span className="text-xs font-bold text-gray-400 line-through">
-            £{(selectedVariant?.price ?? product.price).toFixed(2)}
-          </span>
+          {totalDiscountPercentage > 0 && (
+            <>
+              <span className="text-xs font-bold text-gray-400 line-through">
+                £{(basePrice * quantity).toFixed(2)}
+              </span>
+              <span className="bg-[#E31B23] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm leading-none flex items-center justify-center">
+                {totalDiscountPercentage}% Off
+              </span>
+            </>
+          )}
           {vatRate !== null && (
             <span className="text-xs text-gray-700 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded font-medium">
               {vatRate}% VAT
@@ -249,12 +271,9 @@ export default function SubscriptionPurchaseCard({
         </div>
         {/* Benefits Block */}
         <ul className="bg-[#f8faf9] border border-orange-200 rounded p-2 mb-2 text-[11px] text-gray-700 space-y-0.5">
-
           <li className="flex items-center gap-2">
-            <span className="text-orange-700 font-bold">✓</span> Pause or cancel anytime
+            <span className="text-orange-700 font-bold">✓</span> Save Upto Extra {subscriptionDiscount}%
           </li>
-
-
         </ul>
         {/* Dropdown appears ONLY if subscription selected */}
         {selectedPurchaseType === "subscription" && (

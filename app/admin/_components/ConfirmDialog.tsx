@@ -7,7 +7,7 @@ import { LucideIcon, AlertCircle, X } from 'lucide-react';
 interface ConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => any;
   title: string;
   message: string;
   confirmText?: string;
@@ -83,8 +83,16 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   // Don't render if not open and not closing
   if (!isOpen && !isClosing) return null;
 
-  const handleConfirmClick = () => {
-    onConfirm();
+  const handleConfirmClick = async () => {
+    const result = onConfirm();
+    if (result instanceof Promise) {
+      try {
+        await result;
+      } catch (err) {
+        // Errors are handled by the parent component's handler.
+        // We catch here to prevent unhandled promise rejection and ensure handleClose runs.
+      }
+    }
     handleClose();
   };
 

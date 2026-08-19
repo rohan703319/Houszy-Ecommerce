@@ -17,6 +17,8 @@ export const API_ENDPOINTS = {
   categories: '/api/Categories',
   uploadCategoryImage: '/api/Categories/upload-image',
   deleteCategoryImage: '/api/ImageManagement/category',
+  uploadCategoryBannerImage: '/api/Categories/upload-banner',
+  deleteCategoryBannerImage: '/api/Categories/delete-banner',
 
   StoreLocations: '/api/StoreLocations',
   storeSettings: "/api/StoreSettings",
@@ -28,6 +30,8 @@ export const API_ENDPOINTS = {
   brands: '/api/Brands',
   uploadBrandLogo: '/api/Brands/upload-logo',
   deleteBrandLogo: '/api/ImageManagement/brand',
+  uploadBrandBannerImage: '/api/Brands/upload-banner',
+  deleteBrandBannerImage: '/api/Brands/delete-banner',
 
   // Products
   products: '/api/Products',
@@ -57,6 +61,8 @@ export const API_ENDPOINTS = {
   // Orders
   orders: '/api/Orders',
   exportOrders: '/api/Orders/export',
+  exportAdminComments: '/api/Orders/export-admin-comments',
+  exportAdminCommentsForOrder: (orderId: string) => `/api/Orders/${orderId}/export-admin-comments`,
   bulkUpdateOrdersExcel: '/api/Orders/bulk-update-excel',
   orderCancellationrequests: '/api/Orders/cancellation-requests',
   AddressLookup: '/api/address-lookup',

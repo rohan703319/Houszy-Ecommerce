@@ -37,6 +37,7 @@ export default function CategoriesPage() {
   const [selectedParentId, setSelectedParentId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   // Add after other useState declarations
   const [homepageCategories, setHomepageCategories] = useState<Category[]>([]);
@@ -70,6 +71,7 @@ export default function CategoriesPage() {
     name: "",
     description: "",
     imageUrl: "",
+    bannerImageUrl: "",
     isActive: true,
     showOnHomepage: false,  // ✅ ADD THIS LINE
     sortOrder: "" as number | "",
@@ -384,6 +386,7 @@ export default function CategoriesPage() {
       name: "",
       description: "",
       imageUrl: "",
+      bannerImageUrl: "",
       isActive: true,
       showOnHomepage: false,  // ✅ ADD THIS LINE
       sortOrder: "" as number | "",
@@ -552,6 +555,20 @@ export default function CategoriesPage() {
       if (!imageFile) {
         console.log("Image file missing");
       }
+
+      // =========================
+      // BANNER IMAGE UPLOAD
+      // =========================
+      let finalBannerImageUrl = formData.bannerImageUrl || "";
+      if (bannerImageFile) {
+        const bannerUploadRes = await categoriesService.uploadBannerImage(bannerImageFile, { name });
+        if (!bannerUploadRes.data?.success || !bannerUploadRes.data?.data) {
+          throw new Error("Banner image upload failed");
+        }
+        finalBannerImageUrl = bannerUploadRes.data.data;
+        setBannerImageFile(null);
+      }
+
       // =========================
       // PAYLOAD
       // =========================
@@ -562,6 +579,7 @@ export default function CategoriesPage() {
         description: formData.description?.trim() || "",
 
         imageUrl: finalImageUrl || "",
+        bannerImageUrl: finalBannerImageUrl || "",
 
         isActive: !!formData.isActive,
         showOnHomepage: !!formData.showOnHomepage,
@@ -717,6 +735,7 @@ export default function CategoriesPage() {
       name: category.name,
       description: category.description,
       imageUrl: category.imageUrl || "",
+      bannerImageUrl: (category as any).bannerImageUrl || "",
       isActive: category.isActive,
       showOnHomepage: category.showOnHomepage || false,  // ✅ CATEGORY KI ACTUAL VALUE USE KARO
       sortOrder: category.sortOrder,
@@ -751,6 +770,7 @@ export default function CategoriesPage() {
       metaDescription: "",
       metaKeywords: "",
       schemaDescription: "",
+      bannerImageUrl: "",
       parentCategoryId: "",
     });
     setEditingCategory(null);
@@ -2137,6 +2157,8 @@ export default function CategoriesPage() {
         setShowModal={setShowModal}
         imageFile={imageFile}
         setImageFile={setImageFile}
+        bannerImageFile={bannerImageFile}
+        setBannerImageFile={setBannerImageFile}
         editingCategory={editingCategory}
         setEditingCategory={setEditingCategory}
         formData={formData}

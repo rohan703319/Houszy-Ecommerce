@@ -73,7 +73,8 @@ export default function AccountClient() {
   }>({});
 
   const [loading, setLoading] = useState(false);
-  const showGuestOption = fromCheckout || fromBuyNow;
+  const hasSubscription = cart?.some((c) => c.type === "subscription") ?? false;
+  const showGuestOption = (fromCheckout || fromBuyNow) && !hasSubscription;
 
   // Shake animation
   const [shake, setShake] = useState(false);
@@ -132,7 +133,12 @@ export default function AccountClient() {
       if (fromCheckout || fromBuyNow) {
         router.replace("/checkout");
       } else {
-        router.replace("/");
+        const searchStr = searchParams.toString();
+        if (searchStr) {
+          router.replace(`/account?${searchStr}`);
+        } else {
+          router.replace("/");
+        }
       }
     } catch (error: any) {
       setLoginError(error?.message || "Invalid email or password");
@@ -202,7 +208,12 @@ export default function AccountClient() {
       if (fromCheckout || fromBuyNow) {
         router.replace("/checkout");
       } else {
-        router.replace("/account");
+        const searchStr = searchParams.toString();
+        if (searchStr) {
+          router.replace(`/account?${searchStr}`);
+        } else {
+          router.replace("/account");
+        }
       }
     } catch (error: any) {
       const msg = error?.errors?.[0] || "Registration failed";

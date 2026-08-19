@@ -48,7 +48,20 @@ export default function LoginPage() {
       }
 
       // Cookie for SSR (optional)
-      document.cookie = `authToken=${token}; path=/; max-age=86400`;
+      let maxAge = 36000; // 10 hours default
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload.exp) {
+            const currentSec = Math.floor(Date.now() / 1000);
+            maxAge = Math.max(0, payload.exp - currentSec);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse token expiry in LoginPage", e);
+      }
+      document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
 
       console.log("✅ Login successful, data stored");
 

@@ -99,6 +99,34 @@ export default async function DeliveryPage({
       {/* 🔥 DYNAMIC CONTENT */}
       {parsedContent?.sections?.map((section: any, i: number) => {
         switch (section.type) {
+          case "heading": {
+            const Tag = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(section.level)
+              ? section.level
+              : 'h2') as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+            
+            const styles = {
+              h1: "text-3xl font-black mb-4 mt-8",
+              h2: "text-2xl font-bold mb-3 mt-6",
+              h3: "text-xl font-semibold mb-2 mt-4",
+              h4: "text-lg font-medium mb-2 mt-4",
+              h5: "text-base font-medium mb-2 mt-3",
+              h6: "text-sm font-medium mb-2 mt-3"
+            };
+
+            return (
+              <Tag
+                key={i}
+                className={`${styles[Tag]} text-gray-900 ${
+                  section.bold ? 'font-bold' : ''
+                } ${section.italic ? 'italic' : ''} ${
+                  section.strike ? 'line-through' : ''
+                }`}
+              >
+                {section.text}
+              </Tag>
+            );
+          }
+
           case "intro":
             return (
               <p key={i} className="mb-6 text-gray-700">

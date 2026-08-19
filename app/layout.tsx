@@ -9,6 +9,7 @@ import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import StripeCleanup from "@/components/StripeCleanup";
+import NumberInputScrollPreventer from "@/components/NumberInputScrollPreventer";
 import { GTM_ID } from "@/lib/analytics";
 
 const lato = Lato({
@@ -156,6 +157,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <CartProvider>
               <WishlistProvider>
                 <StripeCleanup />
+                <NumberInputScrollPreventer />
                 <ConditionalLayout
                   categories={categories}
                   deliveryStrip={deliveryStrip}

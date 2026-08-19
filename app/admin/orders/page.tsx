@@ -153,6 +153,7 @@ export default function OrdersListPage() {
     isGuestOrder: "",
     isPharmaProduct: "",
     source: "",
+    orderType: "",
   });
   const selectedOrderObjects = orders.filter(o =>
     selectedOrders.includes(o.id)
@@ -314,6 +315,9 @@ export default function OrdersListPage() {
             ? filters.isPharmaProduct === "true"
             : undefined,
         source: filters.source || undefined,
+        orderType: filters.orderType || undefined,
+        paymentMethod: filters.paymentMethod || undefined,
+        paymentStatus: filters.paymentStatus || undefined,
       });
 
       const responseData = response?.data;
@@ -321,31 +325,6 @@ export default function OrdersListPage() {
       if (responseData) {
         let items = responseData.items || [];
 
-        // Client-side filter for paymentMethod
-        if (filters.paymentMethod) {
-          items = items.filter((o) => {
-            const method = o.paymentMethod || o.payments?.[0]?.paymentMethod || "";
-            return method.toLowerCase().includes(filters.paymentMethod.toLowerCase());
-          });
-        }
-
-        // Client-side filter for paymentStatus
-        if (filters.paymentStatus) {
-          items = items.filter((o) => {
-            // Smart resolve: agar koi bhi payment Successful hai to Successful
-            const resolveStatus = (order: typeof o): string => {
-              if (order.paymentStatus && order.paymentStatus !== 'Pending') return order.paymentStatus;
-              const pays = order.payments ?? [];
-              if (pays.length === 0) return order.paymentStatus ?? '';
-              const priority = ['Successful', 'Completed', 'PartiallyRefunded', 'Refunded', 'Failed', 'Pending'];
-              for (const p of priority) {
-                if (pays.some((pay: any) => pay.status === p)) return p;
-              }
-              return '';
-            };
-            return resolveStatus(o) === filters.paymentStatus;
-          });
-        }
 
         console.log("Fetched Orders from API:", items);
         setOrders(items);
@@ -375,6 +354,7 @@ export default function OrdersListPage() {
     debouncedSearch,
     filters.isGuestOrder,
     filters.source,
+    filters.orderType,
   ]);
 
 
@@ -470,6 +450,46 @@ export default function OrdersListPage() {
       setBulkLoading(false);
     }
   };
+
+  const [exportCommentsLoading, setExportCommentsLoading] = useState(false);
+
+  const handleExportAdminComments = async () => {
+    try {
+      setExportCommentsLoading(true);
+      const response = await orderService.exportAdminComments();
+      const blob = response.data as Blob;
+
+      if (!blob || blob.size === 0) {
+        throw new Error("No data returned or empty file");
+      }
+
+      if (blob.type === "application/json") {
+        const text = await blob.text();
+        const json = JSON.parse(text);
+        throw new Error(json?.message || "Failed to export admin comments");
+      }
+
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+      );
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `all-orders-admin-comments-${new Date().toISOString().split("T")[0]}.xlsx`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+      toast.success("Admin comments exported successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to export admin comments");
+    } finally {
+      setExportCommentsLoading(false);
+    }
+  };
+
   // ✅ Bulk Export Selected
   const handleBulkExport = () => {
     const ordersToExport = orders.filter((o) => selectedOrders.includes(o.id));
@@ -579,6 +599,7 @@ export default function OrdersListPage() {
       isGuestOrder: "",
       isPharmaProduct: "",
       source: "",
+      orderType: "",
     });
     setCurrentPage(1); // ✅ Optional but recommended
   };
@@ -828,6 +849,21 @@ export default function OrdersListPage() {
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-300" />
               </button>
             )}
+
+            <button
+              onClick={handleExportAdminComments}
+              disabled={exportCommentsLoading}
+              className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500
+              text-white rounded-lg hover:shadow-lg hover:shadow-violet-500/30 
+              transition-all flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exportCommentsLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-4 h-4" />
+              )}
+              {exportCommentsLoading ? "Exporting..." : "Export Admin Comment"}
+            </button>
 
             {/* <button
       onClick={() => setImportWooCommerceModalOpen(true)}
@@ -1114,6 +1150,23 @@ export default function OrdersListPage() {
             <option value="">Customer Type: All</option>
             <option value="false">Registered</option>
             <option value="true">Guest</option>
+          </select>
+
+          {/* ORDER TYPE */}
+          <select
+            value={filters.orderType}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                orderType: e.target.value,
+              }))
+            }
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+        ${filters.orderType ? "border-violet-500 bg-violet-500/10" : "border-slate-700"}`}
+          >
+            <option value="">Order Type: All</option>
+            <option value="OneTime">One-time Purchase</option>
+            <option value="Subscription">Subscription Purchase</option>
           </select>
 
           {/* STATUS */}
@@ -1530,6 +1583,12 @@ export default function OrdersListPage() {
                                 {order.orderNumber}
                               </a>
 
+                              {order.subscriptionId && (
+                                <span className="bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase leading-none">
+                                  Subscription
+                                </span>
+                              )}
+
                               <span className="text-slate-600">•</span>
 
                               <span className="text-slate-500">
@@ -1713,13 +1772,12 @@ export default function OrdersListPage() {
                             <Edit className="h-4 w-4" />
                           </button>
 
-                          {/* Hard-delete is shown ONLY when the payment is still Pending. Mirrors the
-                    server-side rule so admins don't see a button that would always 409. */}
-                          {['Pending', 'Failed'].includes(order.paymentStatus || '') && (
+                          {/* Hard-delete is shown ONLY when the order is pending and the payment status is pending, failed, or N/A/empty. */}
+                          {order.status === 'Pending' && ['pending', 'failed', 'n/a', 'na', ''].includes((order.paymentStatus || '').trim().toLowerCase()) && (
                             <button
                               onClick={() => openHardDeleteModal(order)}
                               className="p-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg transition-all"
-                              title="Permanently delete (only for unpaid/failed orders)"
+                              title="Permanently delete (only for unpaid, failed, or N/A orders)"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

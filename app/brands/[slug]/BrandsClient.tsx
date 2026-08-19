@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import PremiumPriceSlider from "@/components/filters/PremiumPriceSlider";
@@ -59,7 +60,7 @@ export default function BrandsClient({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const isFetchingRef = useRef(false);
-  const fetchCbRef = useRef<() => void>(() => {});
+  const fetchCbRef = useRef<() => void>(() => { });
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [sortBy, setSortBy] = useState((initialSortBy ?? "name").toLowerCase());
@@ -193,13 +194,13 @@ export default function BrandsClient({
     const priceFiltered =
       priceMin !== null && priceMax !== null
         ? flat.filter((item: any) => {
-            const rawPrice =
-              typeof item.variantForCard?.price === "number" &&
+          const rawPrice =
+            typeof item.variantForCard?.price === "number" &&
               item.variantForCard.price > 0
-                ? item.variantForCard.price
-                : item.productData.price ?? 0;
-            return rawPrice >= priceMin! && rawPrice <= priceMax!;
-          })
+              ? item.variantForCard.price
+              : item.productData.price ?? 0;
+          return rawPrice >= priceMin! && rawPrice <= priceMax!;
+        })
         : flat;
 
     // De-duplicate
@@ -212,11 +213,17 @@ export default function BrandsClient({
     });
 
     const getCardPrice = (item: any) => {
-      const basePrice =
-        typeof item.variantForCard?.price === "number"
-          ? item.variantForCard.price
-          : item.productData.price;
-      return getDiscountedPrice(item.productData, basePrice);
+      const defaultVariant =
+        item.variantForCard ??
+        item.productData.variants?.find((v: any) => v.isDefault) ??
+        item.productData.variants?.[0] ??
+        null;
+
+      const hasVariants = item.productData.variants && item.productData.variants.length > 0;
+
+      return hasVariants
+        ? (defaultVariant?.sellPrice ?? defaultVariant?.price ?? 0)
+        : (item.productData.sellPrice ?? item.productData.price ?? 0);
     };
 
     // Sort after unique logic
@@ -425,7 +432,7 @@ export default function BrandsClient({
 
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
-  }, [hasMore]);
+  }, [hasMore, page]);
 
   const activeFilterCount =
     selectedCategories.length +
@@ -546,29 +553,28 @@ export default function BrandsClient({
                 </summary>
                 <div className="pb-3 max-h-60 overflow-y-auto pr-1 hide-scrollbar space-y-0">
                   {sortedCategories.map((cat) => (
-                      <label
-                        key={cat.id}
-                        className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
-                      >
-                        <input
-                          type="checkbox"
-                          className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black flex-shrink-0"
-                          checked={selectedCategories.includes(cat.id)}
-                          onChange={(e) =>
-                            handleCategoryChange(cat.id, e.target.checked)
-                          }
-                        />
-                        <span
-                          className={`text-[13px] truncate transition ${
-                            selectedCategories.includes(cat.id)
-                              ? "font-semibold text-black"
-                              : "text-gray-600 group-hover/item:text-black"
+                    <label
+                      key={cat.id}
+                      className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:text-black transition group/item"
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 rounded-sm border-gray-400 accent-black flex-shrink-0"
+                        checked={selectedCategories.includes(cat.id)}
+                        onChange={(e) =>
+                          handleCategoryChange(cat.id, e.target.checked)
+                        }
+                      />
+                      <span
+                        className={`text-[13px] truncate transition ${selectedCategories.includes(cat.id)
+                            ? "font-semibold text-black"
+                            : "text-gray-600 group-hover/item:text-black"
                           }`}
-                        >
-                          {cat.name}
-                        </span>
-                      </label>
-                    ))}
+                      >
+                        {cat.name}
+                      </span>
+                    </label>
+                  ))}
                 </div>
               </details>
             )}
@@ -641,22 +647,20 @@ export default function BrandsClient({
                             ))}
                           </div>
                           <span
-                            className={`text-[13px] transition ${
-                              minRating === rating
+                            className={`text-[13px] transition ${minRating === rating
                                 ? "font-semibold text-black"
                                 : "text-gray-600"
-                            }`}
+                              }`}
                           >
                             {rating}+ Stars
                           </span>
                         </>
                       ) : (
                         <span
-                          className={`text-[13px] transition ${
-                            minRating === rating
+                          className={`text-[13px] transition ${minRating === rating
                               ? "font-semibold text-black"
                               : "text-gray-600"
-                          }`}
+                            }`}
                         >
                           All Ratings
                         </span>
@@ -670,6 +674,18 @@ export default function BrandsClient({
 
           {/* MAIN PRODUCT LIST */}
           <div className="flex-1">
+            {/* ─── BRAND BANNER ─── */}
+            {brand?.bannerImageUrl && (
+              <div className="w-full mb-6">
+                <img
+                  src={brand.bannerImageUrl.startsWith("http") ? brand.bannerImageUrl : `${process.env.NEXT_PUBLIC_API_URL || ""}${brand.bannerImageUrl}`}
+                  alt={`${brand.name} banner`}
+                  className="w-full h-auto md:max-h-[270px] object-cover rounded shadow-md"
+                  onError={(e: any) => { e.currentTarget.style.display = "none"; }}
+                />
+              </div>
+            )}
+
             {/* Mobile Filter Drawer */}
             {showFilters && (
               <div className="lg:hidden fixed inset-0 z-50 flex">
@@ -727,11 +743,10 @@ export default function BrandsClient({
                                 }
                               />
                               <span
-                                className={`text-[13px] transition ${
-                                  selectedCategories.includes(cat.id)
+                                className={`text-[13px] transition ${selectedCategories.includes(cat.id)
                                     ? "font-semibold text-black"
                                     : "text-gray-600"
-                                }`}
+                                  }`}
                               >
                                 {cat.name}
                               </span>
@@ -809,22 +824,20 @@ export default function BrandsClient({
                                     )}
                                   </div>
                                   <span
-                                    className={`text-[13px] ${
-                                      minRating === rating
+                                    className={`text-[13px] ${minRating === rating
                                         ? "font-semibold text-black"
                                         : "text-gray-600"
-                                    }`}
+                                      }`}
                                   >
                                     {rating}+ Stars
                                   </span>
                                 </>
                               ) : (
                                 <span
-                                  className={`text-[13px] ${
-                                    minRating === rating
+                                  className={`text-[13px] ${minRating === rating
                                       ? "font-semibold text-black"
                                       : "text-gray-600"
-                                  }`}
+                                    }`}
                                 >
                                   All Ratings
                                 </span>
@@ -869,17 +882,14 @@ export default function BrandsClient({
               )}
 
               <div
-                className={`grid grid-cols-2 ${
-                  gridCols === 3 ? "md:grid-cols-4" : "md:grid-cols-2"
-                } gap-2 md:gap-4 mb-6 md:mb-8 ${
-                  isPending ? "opacity-40 pointer-events-none" : ""
-                }`}
+                className={`grid grid-cols-2 ${gridCols === 3 ? "md:grid-cols-4" : "md:grid-cols-2"
+                  } gap-2 md:gap-4 mb-6 md:mb-8 ${isPending ? "opacity-40 pointer-events-none" : ""
+                  }`}
               >
                 {flattenedProducts.map((item) => (
                   <ProductCard
-                    key={`${item.productData.id}-${
-                      item.variantForCard?.id ?? "parent"
-                    }`}
+                    key={`${item.productData.id}-${item.variantForCard?.id ?? "parent"
+                      }`}
                     product={item.productData}
                     variantForCard={item.variantForCard}
                     cardSlug={item.cardSlug}
@@ -892,9 +902,8 @@ export default function BrandsClient({
             {hasMore && <div ref={loadMoreRef} />}
             {isLoadingMore && (
               <div
-                className={`grid grid-cols-2 ${
-                  gridCols === 3 ? "md:grid-cols-4" : "md:grid-cols-2"
-                } gap-2 md:gap-4 mb-8`}
+                className={`grid grid-cols-2 ${gridCols === 3 ? "md:grid-cols-4" : "md:grid-cols-2"
+                  } gap-2 md:gap-4 mb-8`}
               >
                 {Array.from({ length: gridCols === 3 ? 4 : 2 }).map((_, i) => (
                   <div
@@ -944,48 +953,48 @@ export default function BrandsClient({
         {/* BRAND DESCRIPTION & FAQs */}
         {(brand?.description ||
           brand?.faqs?.filter((f: any) => f.isActive)?.length > 0) && (
-          <div className="mt-10 space-y-6">
-            {brand?.description && (
-              <div className="bg-white border rounded-xl p-4 md:p-5 shadow-sm">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-1">
-                  About {brand.name}
-                </h2>
-                <div
-                  className="text-gray-600 text-sm leading-snug [&_ul]:pl-5 [&_ul]:mt-1 [&_ul]:space-y-1 [&_li]:m-0"
-                  dangerouslySetInnerHTML={{ __html: brand.description }}
-                />
-              </div>
-            )}
-
-            {brand?.faqs?.filter((f: any) => f.isActive)?.length > 0 && (
-              <div className="bg-white border rounded-xl p-4 md:p-5 shadow-sm">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">
-                  Frequently Asked Questions
-                </h2>
-                <div className="divide-y">
-                  {brand.faqs
-                    .filter((f: any) => f.isActive)
-                    .sort((a: any, b: any) => a.displayOrder - b.displayOrder)
-                    .map((faq: any) => (
-                      <details key={faq.id} className="group py-3">
-                        <summary className="flex justify-between items-center cursor-pointer list-none">
-                          <span className="font-medium text-gray-800 text-sm md:text-base">
-                            {faq.question}
-                          </span>
-                          <span className="ml-4 text-gray-400 group-open:rotate-180 transition">
-                            ⌄
-                          </span>
-                        </summary>
-                        <p className="mt-2 text-gray-600 text-sm leading-relaxed">
-                          {faq.answer}
-                        </p>
-                      </details>
-                    ))}
+            <div className="mt-10 space-y-6">
+              {brand?.description && (
+                <div className="bg-white border rounded-xl p-4 md:p-5 shadow-sm">
+                  <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-1">
+                    About {brand.name}
+                  </h2>
+                  <div
+                    className="text-gray-600 text-sm leading-snug [&_ul]:pl-5 [&_ul]:mt-1 [&_ul]:space-y-1 [&_li]:m-0"
+                    dangerouslySetInnerHTML={{ __html: brand.description }}
+                  />
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+
+              {brand?.faqs?.filter((f: any) => f.isActive)?.length > 0 && (
+                <div className="bg-white border rounded-xl p-4 md:p-5 shadow-sm">
+                  <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">
+                    Frequently Asked Questions
+                  </h2>
+                  <div className="divide-y">
+                    {brand.faqs
+                      .filter((f: any) => f.isActive)
+                      .sort((a: any, b: any) => a.displayOrder - b.displayOrder)
+                      .map((faq: any) => (
+                        <details key={faq.id} className="group py-3">
+                          <summary className="flex justify-between items-center cursor-pointer list-none">
+                            <span className="font-medium text-gray-800 text-sm md:text-base">
+                              {faq.question}
+                            </span>
+                            <span className="ml-4 text-gray-400 group-open:rotate-180 transition">
+                              ⌄
+                            </span>
+                          </summary>
+                          <p className="mt-2 text-gray-600 text-sm leading-relaxed">
+                            {faq.answer}
+                          </p>
+                        </details>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
       </main>
     </div>
   );

@@ -608,8 +608,13 @@ export default function OrderActionsModal({
     // ✅ Handle Cancel Order separately (shows confirmation dialog)
     if (action === 'cancel-order') {
       // Validate cancellation reason
-      if (!cancelData.cancellationReason.trim()) {
+      const reason = cancelData.cancellationReason.trim();
+      if (!reason) {
         toast.error('Please enter a cancellation reason');
+        return;
+      }
+      if (reason.length < 10) {
+        toast.error('Cancellation reason must be at least 10 characters');
         return;
       }
 
@@ -1354,18 +1359,21 @@ export default function OrderActionsModal({
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Cancellation Reason <span className="text-red-500">*</span>
+                Cancellation Reason (min 10 characters) <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={cancelData.cancellationReason}
                 onChange={(e) =>
                   setCancelData({ ...cancelData, cancellationReason: e.target.value })
                 }
-                placeholder="Enter reason for cancellation..."
+                placeholder="Enter reason for cancellation (minimum 10 characters)..."
                 rows={3}
                 className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                 required
               />
+              <p className="mt-1.5 text-xs text-slate-400">
+                Minimum 10 characters required.
+              </p>
             </div>
 
             {/* <div>

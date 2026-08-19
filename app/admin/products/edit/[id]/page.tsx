@@ -33,6 +33,7 @@ import FeaturesManager from "../../_components/FeaturesManager";
 import UnsavedChangesModal from "../../_components/UnsavedChangesModal";
 import ProductLockModal from "../../_components/ProductLockModal";
 import VatRateSelector from "../../VatRateSelector";
+import { vatratesService } from "@/lib/services/vatrates";
 import { scrollCls } from "../../../_utils/styles";
 import { getBackendMessage } from "../../../_utils/errorUtils";
 type CleanCartData = {
@@ -147,7 +148,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!guidRegex.test(variantId)) {
-      toast.error('⚠️ Please save the product first, then upload variant images');
+      const previewUrl = URL.createObjectURL(file);
+      setProductVariants((prev) =>
+        prev.map((variant) =>
+          variant.id === variantId
+            ? { ...variant, imageUrl: previewUrl, imageFile: file }
+            : variant
+        )
+      );
+      toast.info('📎 Image queued — it will upload automatically when you save the product');
       return;
     }
 
@@ -271,6 +280,156 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
       const errorMessage = error.response?.data?.message || error.message || 'Upload failed';
       toast.error(`Failed to upload variant image: ${errorMessage}`);
+    }
+  };
+
+  // ==================== UPLOAD QUEUED VARIANT IMAGES ====================
+  const uploadQueuedVariantImages = async (savedVariants: any[]) => {
+    console.log('🔄 Uploading queued variant images...');
+
+    if (!Array.isArray(savedVariants) || savedVariants.length === 0) {
+      console.log('No saved variants returned from API');
+      return;
+    }
+
+    // Robust matching logic helper
+    const findMatchedSaved = (localVariant: any) => {
+      // 1. Try matching by SKU (if non-empty)
+      if (localVariant.sku && localVariant.sku.trim()) {
+        const match = savedVariants.find(
+          (sv: any) => sv.sku && sv.sku.trim().toLowerCase() === localVariant.sku.trim().toLowerCase()
+        );
+        if (match) return match;
+      }
+
+      // 2. Try matching by Name (if non-empty)
+      if (localVariant.name && localVariant.name.trim()) {
+        const match = savedVariants.find(
+          (sv: any) => sv.name && sv.name.trim().toLowerCase() === localVariant.name.trim().toLowerCase()
+        );
+        if (match) return match;
+      }
+
+      // 3. Fallback: match by index using sorted saved variants by displayOrder
+      const localIndex = productVariants.findIndex((v) => v.id === localVariant.id);
+      if (localIndex !== -1) {
+        const sortedSaved = [...savedVariants].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        return sortedSaved[localIndex] || null;
+      }
+
+      return null;
+    };
+
+    // Find local variants that have queued images (temp ID and imageFile)
+    const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const queuedVariants = productVariants.filter(
+      (v) => !guidRegex.test(v.id) && v.imageFile instanceof File
+    );
+
+    if (queuedVariants.length === 0) {
+      console.log('No queued variant images to upload');
+
+      // Update any other unsaved variant IDs to their database GUIDs even if they don't have images queued
+      setProductVariants((prev) =>
+        prev.map((v) => {
+          if (!guidRegex.test(v.id)) {
+            const matchedSaved = findMatchedSaved(v);
+            if (matchedSaved) {
+              return {
+                ...v,
+                id: matchedSaved.id,
+                imageUrl: matchedSaved.imageUrl || v.imageUrl,
+              };
+            }
+          }
+          return v;
+        })
+      );
+      return;
+    }
+
+    console.log(`Found ${queuedVariants.length} queued variant images`);
+
+    const uploadPromises = queuedVariants.map(async (localVariant) => {
+      const matchedSaved = findMatchedSaved(localVariant);
+
+      if (!matchedSaved?.id) {
+        console.warn(`Could not match queued variant: ${localVariant.name}`);
+        return null;
+      }
+
+      const file = localVariant.imageFile!;
+      const formData = new FormData();
+      formData.append('image', file);
+
+      try {
+        console.log(`Uploading queued image for variant: ${matchedSaved.name} (${matchedSaved.id})`);
+        const response = await productsService.addVariantImage(matchedSaved.id, formData);
+
+        if (response.error) {
+          console.error(`Failed to upload queued image for ${matchedSaved.name}:`, response.error);
+          return null;
+        }
+
+        let uploadedImageUrl: string | null = null;
+        if (response.data && response.data.success !== false) {
+          if (response.data.data && typeof response.data.data === 'object' && 'imageUrl' in response.data.data) {
+            uploadedImageUrl = (response.data.data as any).imageUrl;
+          } else if ('imageUrl' in response.data) {
+            uploadedImageUrl = (response.data as any).imageUrl;
+          } else if (response.data.data && typeof response.data.data === 'string') {
+            uploadedImageUrl = response.data.data;
+          }
+        }
+
+        return {
+          tempId: localVariant.id,
+          realId: matchedSaved.id,
+          imageUrl: uploadedImageUrl || matchedSaved.imageUrl,
+        };
+      } catch (error) {
+        console.error(`Error uploading queued image for ${matchedSaved.name}:`, error);
+        return null;
+      }
+    });
+
+    const uploadResults = await Promise.all(uploadPromises);
+    const successfulUploads = uploadResults.filter(Boolean) as { tempId: string; realId: string; imageUrl: string }[];
+
+    console.log(`Successful queued uploads: ${successfulUploads.length}`);
+
+    // Replace temp IDs and update imageUrl / clear imageFile in local state
+    setProductVariants((prev) =>
+      prev.map((v) => {
+        // If it was a queued variant and successfully uploaded
+        const uploadInfo = successfulUploads.find((up) => up.tempId === v.id);
+        if (uploadInfo) {
+          return {
+            ...v,
+            id: uploadInfo.realId,
+            imageUrl: uploadInfo.imageUrl,
+            imageFile: undefined,
+          };
+        }
+
+        // If it's a new variant that got saved but had no image, we still want to update its ID to the real one
+        if (!guidRegex.test(v.id)) {
+          const matchedSaved = findMatchedSaved(v);
+          if (matchedSaved) {
+            return {
+              ...v,
+              id: matchedSaved.id,
+              imageUrl: matchedSaved.imageUrl || v.imageUrl,
+            };
+          }
+        }
+
+        return v;
+      })
+    );
+
+    if (successfulUploads.length > 0) {
+      toast.success(`✅ ${successfulUploads.length} variant image(s) uploaded successfully`);
     }
   };
 
@@ -412,7 +571,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     // ===== PRICING =====
     price: '',
-    oldPrice: '',
+    discountPercentage: '',
+    sellPrice: '',
     cost: '',
     disableBuyButton: false,
     disableWishlistButton: false,
@@ -533,6 +693,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     metaKeywords: '',
     metaDescription: '',
     searchEngineFriendlyPageName: '',
+    customLabel0: '',
+    customLabel1: '',
+    customLabel3: '',
+    customLabel4: '',
 
     // ===== A+ CONTENT =====
     aPlusTemplateId: null as string | null,
@@ -575,7 +739,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     if (formData.fullDescription !== initialFormData.fullDescription) changes.push('Full Description');
     if (formData.productType !== initialFormData.productType) changes.push('Product Type');
     if (formData.price !== initialFormData.price) changes.push('Price');
-    if (formData.oldPrice !== initialFormData.oldPrice) changes.push('Old Price');
+    if (formData.discountPercentage !== initialFormData.discountPercentage) changes.push('Discount Percentage');
     if (formData.cost !== initialFormData.cost) changes.push('Cost');
     if (JSON.stringify(formData.categoryIds) !== JSON.stringify(initialFormData.categoryIds))
       changes.push('Categories');
@@ -587,6 +751,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     if (formData.weight !== initialFormData.weight) changes.push('Weight');
     if (formData.metaTitle !== initialFormData.metaTitle) changes.push('Meta Title');
     if (formData.metaDescription !== initialFormData.metaDescription) changes.push('Meta Description');
+    if (formData.customLabel0 !== initialFormData.customLabel0) changes.push('Custom Label 0');
+    if (formData.customLabel1 !== initialFormData.customLabel1) changes.push('Custom Label 1');
+    if (formData.customLabel3 !== initialFormData.customLabel3) changes.push('Custom Label 3');
+    if (formData.customLabel4 !== initialFormData.customLabel4) changes.push('Custom Label 4');
     if (formData.showOnHomepage !== initialFormData.showOnHomepage) changes.push('Show on Homepage');
     if (formData.adminComment !== initialFormData.adminComment) changes.push('Admin Comment');
 
@@ -605,10 +773,18 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     if (isEmpty(formData.fullDescription)) missing.push('Full Description');
     if (isEmpty(formData.shortDescription)) missing.push('Short Description');
 
-    // Price (not required for variable products - managed per variant)
+    // Price only required for non-variable products, otherwise all variant prices must be valid
     if (formData.productType !== 'variable') {
       const price = Number(formData.price);
       if (isNaN(price) || price <= 0) missing.push('Valid Price');
+    } else {
+      const hasInvalidVariantPrice = productVariants.some(v => {
+        const price = Number(v.price);
+        return v.price === null || v.price === undefined || isNaN(price) || price <= 0;
+      });
+      if (hasInvalidVariantPrice) {
+        missing.push('Valid Variant Price (greater than 0 for all variants)');
+      }
     }
 
     // Categories
@@ -667,7 +843,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     const { missing } = checkPublishRequirements();
     setMissingFields(missing);
-  }, [formData]);
+  }, [formData, productVariants]);
 
   const [productLock, setProductLock] = useState<{
     isLocked: boolean;
@@ -736,13 +912,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         const [
           brandsResponse,
           categoriesResponse,
-          deliveryOptionsResponse
+          deliveryOptionsResponse,
+          vatRatesResponse
           // allProductsResponse,
           // simpleProductsResponse
         ] = await Promise.allSettled([
           brandsService.getAll({ includeInactive: true }),
           categoriesService.getAll({ includeInactive: true, includeSubCategories: true }),
-          shippingService.getDeliveryOptions({ includeInactive: false })
+          shippingService.getDeliveryOptions({ includeInactive: false }),
+          vatratesService.getAll()
           // productsService.getAll({ pageSize: 1000 }),
           // productsService.getSimpleProducts()
         ]);
@@ -765,6 +943,28 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             ? deliveryOptionsResponse.value.data.data
             : [];
         setAvailableDeliveryOptions(deliveryOptionsData);
+
+        const vatRatesData =
+          vatRatesResponse.status === "fulfilled" &&
+          (vatRatesResponse.value?.data?.data || vatRatesResponse.value?.data || []);
+
+        let defaultVatRateId = '';
+        let defaultVatExempt = false;
+
+        if (Array.isArray(vatRatesData)) {
+          const activeRates = vatRatesData.filter(
+            (x: any) => (x.isActive ?? true) && !(x.isDeleted ?? false)
+          );
+          // Find standard 20% VAT rate
+          const standardRate = activeRates.find((x: any) => x.rate === 20);
+          // Fallback to default rate, then first active rate
+          const defaultRate = standardRate || activeRates.find((x: any) => x.isDefault) || activeRates[0];
+
+          if (defaultRate) {
+            defaultVatRateId = defaultRate.id;
+            defaultVatExempt = defaultRate.rate === 0;
+          }
+        }
 
         setDropdownsData({
           brands: Array.isArray(brandsData) ? brandsData : [],
@@ -1026,7 +1226,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
           // ===== PRICING =====
           price: productData.price?.toString() || '',
-          oldPrice: productData.oldPrice?.toString() || productData.compareAtPrice?.toString() || '',
+          discountPercentage: productData.discountPercentage?.toString() || '0',
+          sellPrice: productData.sellPrice?.toString() || productData.price?.toString() || '',
           cost: productData.costPrice?.toString() || '',
           disableBuyButton: productData.disableBuyButton ?? false,
           disableWishlistButton: productData.disableWishlistButton ?? false,
@@ -1053,8 +1254,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           hasDiscountsApplied: false,
 
           // ===== TAX =====
-          vatExempt: productData.vatExempt ?? false,
-          vatRateId: productData.vatRateId || '',
+          vatExempt: productData.vatRateId ? (productData.vatExempt ?? false) : defaultVatExempt,
+          vatRateId: productData.vatRateId || defaultVatRateId,
 
           // ===== LOYALTY & PHARMA =====
           excludeFromLoyaltyPoints: productData.excludeFromLoyaltyPoints ?? true,
@@ -1137,6 +1338,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           metaDescription: productData.metaDescription || '',
           metaKeywords: productData.metaKeywords || '',
           searchEngineFriendlyPageName: productData.searchEngineFriendlyPageName || productData.slug || '',
+          customLabel0: productData.customLabel0 || '',
+          customLabel1: productData.customLabel1 || '',
+          customLabel3: productData.customLabel3 || '',
+          customLabel4: productData.customLabel4 || '',
 
           // ===== REVIEWS =====
           allowCustomerReviews: productData.allowCustomerReviews ?? true,
@@ -1237,8 +1442,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               id: variant.id || `var-${Date.now()}-${Math.random()}`,
               name: variant.name || (optionValues.length > 0 ? `${productData.name} - ${optionValues.join(' / ')}` : ''),
               sku: variant.sku || '',
-              price: variant.price || 0,
-              compareAtPrice: variant.compareAtPrice || variant.oldPrice || null,
+              price: variant.price,
+              discountPercentage: variant.discountPercentage || 0,
+              sellPrice: variant.sellPrice ?? variant.price,
               weight: variant.weight || null,
               stockQuantity: variant.stockQuantity || 0,
               trackInventory: variant.trackInventory ?? true,
@@ -2640,40 +2846,30 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       }
 
       // ✅ These can run for BOTH draft + publish
-      const parsedOldPrice = parseNumber(
-        formData.oldPrice,
-        'oldPrice'
-      );
+      const parsedDiscountPercentage = parseNumber(
+        formData.discountPercentage,
+        'discountPercentage'
+      ) || 0;
 
       const parsedCost = parseNumber(
         formData.cost,
         'cost'
       );
 
-      // ✅ Skip old/cost validations for variable products
+      // ✅ Skip pricing validations for variable products
       if (!isVariableProduct) {
 
         if (
-          parsedOldPrice !== null &&
-          parsedOldPrice < 0
+          parsedDiscountPercentage < 0 ||
+          parsedDiscountPercentage > 100
         ) {
-          toast.error('❌ Old price cannot be negative');
+          toast.error('❌ Discount percentage must be between 0 and 100');
 
           target.removeAttribute('data-submitting');
           setIsSubmitting(false);
           setSubmitProgress(null);
 
           return;
-        }
-
-        if (
-          parsedOldPrice !== null &&
-          parsedPrice !== null &&
-          parsedOldPrice < parsedPrice
-        ) {
-          toast.warning(
-            '⚠️ Old price is less than current price. Strikethrough won\'t show.'
-          );
         }
 
         if (
@@ -3381,124 +3577,141 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         }
       }
 
+      // Variant validations (name, SKU, duplicate SKU)
+      if (formData.productType === 'variable' && productVariants.length > 0) {
+        for (const variant of productVariants) {
+          if (!variant.name || variant.name.trim().length === 0) {
+            toast.error('All variants must have a name');
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
+
+          if (!variant.sku || variant.sku.trim().length === 0) {
+            toast.error(`Variant "${variant.name}" must have a SKU`);
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
+
+          // Check duplicate variant SKU
+          const duplicateVariant = productVariants.find(
+            v => v.id !== variant.id && v.sku && v.sku.trim().toUpperCase() === variant.sku.trim().toUpperCase()
+          );
+          if (duplicateVariant) {
+            toast.error(`Duplicate variant SKU "${variant.sku}" is already used by variant "${duplicateVariant.name}"`, {
+              autoClose: 8000
+            });
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
+
+          // Check if variant SKU matches product SKU
+          if (formData.sku?.trim() && variant.sku && variant.sku.trim().toUpperCase() === formData.sku.trim().toUpperCase()) {
+            toast.error(`Variant SKU "${variant.sku}" cannot be the same as main product SKU`, {
+              autoClose: 8000
+            });
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
+
+          // Check variant price
+          const variantPrice = parseFloat(variant.price?.toString() || '0');
+          if (variantPrice <= 0) {
+            toast.error(`Variant "${variant.name}" must have a price greater than 0`);
+            target.removeAttribute('data-submitting');
+            setIsSubmitting(false);
+            setSubmitProgress(null);
+            return;
+          }
+        }
+      }
+
       const variantsArray = formData.productType === 'variable'
         ? (productVariants?.map(variant => {
-            // ========== VALIDATION (SAME AS BEFORE) ==========
-            if (!variant.name || variant.name.trim().length === 0) {
-              toast.error('All variants must have a name');
-              return null;
-            }
+          // ========== ✅ CLEAN VARIANT OPTIONS BEFORE BUILDING ==========
+          const cleanedVariant = cleanVariantOptions(variant, firstVariant);
 
-            if (!variant.sku || variant.sku.trim().length === 0) {
-              toast.error(`Variant "${variant.name}" must have a SKU`);
-              return null;
-            }
+          // ========== DATA PREPARATION ==========
+          const imageUrl = variant.imageUrl?.startsWith('blob') ? null : variant.imageUrl;
+          const isExistingVariant = variant.id && guidRegex.test(variant.id);
 
-            // Check duplicate variant SKU
-            const duplicateVariant = productVariants.find(
-              v => v.id !== variant.id && v.sku.trim().toUpperCase() === variant.sku.trim().toUpperCase()
-            );
-            if (duplicateVariant) {
-              toast.error(`Duplicate variant SKU "${variant.sku}" is already used by variant "${duplicateVariant.name}"`, {
-                autoClose: 8000
-              });
-              return null;
-            }
+          // ========== BUILD VARIANT OBJECT WITH CLEANED OPTIONS ==========
+          const variantData: any = {
+            name: cleanedVariant.name.trim(),
+            sku: cleanedVariant.sku.trim().toUpperCase(),
+            price: typeof cleanedVariant.price === 'number' ? cleanedVariant.price : (parseNumber(cleanedVariant.price, 'price') || 0),
+            discountPercentage: typeof cleanedVariant.discountPercentage === 'number' ? cleanedVariant.discountPercentage : (parseNumber(cleanedVariant.discountPercentage, 'discountPercentage') || 0),
+            sellPrice: typeof cleanedVariant.sellPrice === 'number' ? cleanedVariant.sellPrice : (parseNumber(cleanedVariant.sellPrice, 'sellPrice') || 0),
+            weight: typeof cleanedVariant.weight === 'number'
+              ? cleanedVariant.weight
+              : parseNumber(cleanedVariant.weight, 'cleanedVariant.weight'),
+            stockQuantity: typeof cleanedVariant.stockQuantity === 'number'
+              ? cleanedVariant.stockQuantity
+              : parseInt(String(cleanedVariant.stockQuantity)) || 0,
+            trackInventory: cleanedVariant.trackInventory ?? true,
 
-            // Check if variant SKU matches product SKU
-            if (formData.sku?.trim() && variant.sku.trim().toUpperCase() === formData.sku.trim().toUpperCase()) {
-              toast.error(`Variant SKU "${variant.sku}" cannot be the same as main product SKU`, {
-                autoClose: 8000
-              });
-              return null;
-            }
+            // NEW: Option values as comma-separated string for API
+            optionValues: variant.optionValues && variant.optionValues.length > 0
+              ? variant.optionValues.filter(v => v).join(',')
+              : null,
 
-        // Price validation
-        // const variantPrice = typeof variant.price === 'number' ? variant.price : parseNumber(variant.price, 'variant.price') ?? 0;
-        // if (variantPrice <= 0) {
-        //   toast.error(`Variant "${variant.name}" price must be greater than 0`);
-        //   return null; // ⬅ stop this variant
+            // Legacy option fields (kept for backward compatibility)
+            option1Name: cleanedVariant.option1Name,
+            option1Value: cleanedVariant.option1Value,
+            option2Name: cleanedVariant.option2Name,
+            option2Value: cleanedVariant.option2Value,
+            option3Name: cleanedVariant.option3Name,
+            option3Value: cleanedVariant.option3Value,
 
-        // }
+            // Media
+            imageUrl: imageUrl,
 
-        // ========== ✅ CLEAN VARIANT OPTIONS BEFORE BUILDING ==========
-        const cleanedVariant = cleanVariantOptions(variant, firstVariant);
+            // Settings
+            isDefault: cleanedVariant.isDefault ?? false,
+            displayOrder: cleanedVariant.displayOrder ?? 0,
+            isActive: cleanedVariant.isActive ?? true,
 
-        // ========== DATA PREPARATION ==========
-        const imageUrl = variant.imageUrl?.startsWith('blob') ? null : variant.imageUrl;
-        const isExistingVariant = variant.id && guidRegex.test(variant.id);
+            // IDENTIFIERS
+            gtin: cleanedVariant.gtin && cleanedVariant.gtin.trim()
+              ? cleanedVariant.gtin.trim()
+              : null,
+            barcode: cleanedVariant.barcode && cleanedVariant.barcode.trim()
+              ? cleanedVariant.barcode.trim().toUpperCase()
+              : cleanedVariant.sku, // Use SKU as fallback
 
-        // ========== BUILD VARIANT OBJECT WITH CLEANED OPTIONS ==========
-        const variantData: any = {
-          name: cleanedVariant.name.trim(),
-          sku: cleanedVariant.sku.trim().toUpperCase(),
-          price: cleanedVariant.price,
-          compareAtPrice: typeof cleanedVariant.compareAtPrice === 'number'
-            ? cleanedVariant.compareAtPrice
-            : parseNumber(cleanedVariant.compareAtPrice, 'cleanedVariant.compareAtPrice'),
-          weight: typeof cleanedVariant.weight === 'number'
-            ? cleanedVariant.weight
-            : parseNumber(cleanedVariant.weight, 'cleanedVariant.weight'),
-          stockQuantity: typeof cleanedVariant.stockQuantity === 'number'
-            ? cleanedVariant.stockQuantity
-            : parseInt(String(cleanedVariant.stockQuantity)) || 0,
-          trackInventory: cleanedVariant.trackInventory ?? true,
+            nextDayDeliveryEnabled: cleanedVariant.nextDayDeliveryEnabled !== undefined && cleanedVariant.nextDayDeliveryEnabled !== null
+              ? cleanedVariant.nextDayDeliveryEnabled
+              : null,
+            nextDayDeliveryFree: cleanedVariant.nextDayDeliveryFree !== undefined && cleanedVariant.nextDayDeliveryFree !== null
+              ? cleanedVariant.nextDayDeliveryFree
+              : null,
+            nextDayDeliveryCutoffTime: cleanedVariant.nextDayDeliveryCutoffTime ? cleanedVariant.nextDayDeliveryCutoffTime.substring(0, 5) : null,
+            fakeSaleCount: cleanedVariant.fakeSaleCount !== undefined && cleanedVariant.fakeSaleCount !== null && cleanedVariant.fakeSaleCount !== ''
+              ? parseInt(cleanedVariant.fakeSaleCount.toString())
+              : null,
+            orderMinimumQuantity: cleanedVariant.orderMinimumQuantity !== undefined && cleanedVariant.orderMinimumQuantity !== null && cleanedVariant.orderMinimumQuantity !== ''
+              ? parseInt(cleanedVariant.orderMinimumQuantity.toString())
+              : null,
+            orderMaximumQuantity: cleanedVariant.orderMaximumQuantity !== undefined && cleanedVariant.orderMaximumQuantity !== null && cleanedVariant.orderMaximumQuantity !== ''
+              ? parseInt(cleanedVariant.orderMaximumQuantity.toString())
+              : null,
+          };
 
-          // NEW: Option values as comma-separated string for API
-          optionValues: variant.optionValues && variant.optionValues.length > 0
-            ? variant.optionValues.filter(v => v).join(',')
-            : null,
+          // Add ID for existing variants
+          if (isExistingVariant) {
+            variantData.id = cleanedVariant.id;
+          }
 
-          // Legacy option fields (kept for backward compatibility)
-          option1Name: cleanedVariant.option1Name,
-          option1Value: cleanedVariant.option1Value,
-          option2Name: cleanedVariant.option2Name,
-          option2Value: cleanedVariant.option2Value,
-          option3Name: cleanedVariant.option3Name,
-          option3Value: cleanedVariant.option3Value,
-
-          // Media
-          imageUrl: imageUrl,
-
-          // Settings
-          isDefault: cleanedVariant.isDefault ?? false,
-          displayOrder: cleanedVariant.displayOrder ?? 0,
-          isActive: cleanedVariant.isActive ?? true,
-
-          // IDENTIFIERS
-          gtin: cleanedVariant.gtin && cleanedVariant.gtin.trim()
-            ? cleanedVariant.gtin.trim()
-            : null,
-          barcode: cleanedVariant.barcode && cleanedVariant.barcode.trim()
-            ? cleanedVariant.barcode.trim().toUpperCase()
-            : cleanedVariant.sku, // Use SKU as fallback
-
-          nextDayDeliveryEnabled: cleanedVariant.nextDayDeliveryEnabled !== undefined && cleanedVariant.nextDayDeliveryEnabled !== null
-            ? cleanedVariant.nextDayDeliveryEnabled
-            : null,
-          nextDayDeliveryFree: cleanedVariant.nextDayDeliveryFree !== undefined && cleanedVariant.nextDayDeliveryFree !== null
-            ? cleanedVariant.nextDayDeliveryFree
-            : null,
-          nextDayDeliveryCutoffTime: cleanedVariant.nextDayDeliveryCutoffTime || null,
-          fakeSaleCount: cleanedVariant.fakeSaleCount !== undefined && cleanedVariant.fakeSaleCount !== null && cleanedVariant.fakeSaleCount !== ''
-            ? parseInt(cleanedVariant.fakeSaleCount.toString())
-            : null,
-          orderMinimumQuantity: cleanedVariant.orderMinimumQuantity !== undefined && cleanedVariant.orderMinimumQuantity !== null && cleanedVariant.orderMinimumQuantity !== ''
-            ? parseInt(cleanedVariant.orderMinimumQuantity.toString())
-            : null,
-          orderMaximumQuantity: cleanedVariant.orderMaximumQuantity !== undefined && cleanedVariant.orderMaximumQuantity !== null && cleanedVariant.orderMaximumQuantity !== ''
-            ? parseInt(cleanedVariant.orderMaximumQuantity.toString())
-            : null,
-        };
-
-        // Add ID for existing variants
-        if (isExistingVariant) {
-          variantData.id = cleanedVariant.id;
-        }
-
-        return variantData;
-      }) || [])
-        : [];
+          return variantData;
+        }) || [])
+        : null; // ✅ null bhejo (not []) so backend skips variant block and preserves existing variants
 
 
 
@@ -3636,7 +3849,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         name: formData.name.trim(),
         description: formData.fullDescription || formData.shortDescription || `${formData.name} - Product description`,
         shortDescription: formData.shortDescription?.trim() || '',
-        sku: formData.productType === 'variable' ? null : (formData.sku?.trim() || null),
+        sku: formData.productType === 'variable' ? "" : (formData.sku?.trim() || null),
         gtin: formData.gtin?.trim() || null,
         manufacturerPartNumber: formData.manufacturerPartNumber?.trim() || null,
         status: isDraft ? 'Draft' : 'Active',
@@ -3690,9 +3903,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         categoryId: categoryIdsArray[0],
         categoryIds: categoryIdsArray,
         tags: formData.productTags?.trim() || null,
-        price: parsedPrice,
-        oldPrice: parsedOldPrice,
-        compareAtPrice: parsedOldPrice,
+        price: parsedPrice ?? 0,
+        discountPercentage: parseFloat(formData.discountPercentage) || 0,
+        sellPrice: parseFloat(formData.sellPrice) || parsedPrice || 0,
         costPrice: parsedCost,
         disableBuyButton: formData.disableBuyButton ?? false,
         disableWishlistButton: formData.disableWishlistButton ?? false,
@@ -3759,7 +3972,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         nextDayDeliveryEnabled: formData.nextDayDeliveryEnabled ?? false,
         nextDayDeliveryFree: formData.nextDayDeliveryFree ?? false,   // ✅ ADD
         // 🔥 ADD THIS
-        nextDayDeliveryCutoffTime: formData.nextDayDeliveryCutoffTime || null,
+        nextDayDeliveryCutoffTime: formData.nextDayDeliveryCutoffTime ? formData.nextDayDeliveryCutoffTime.substring(0, 5) : null,
         standardDeliveryEnabled: formData.standardDeliveryEnabled ?? true,
         allowedDeliveryOptionIds: formData.allowedDeliveryOptionIds || [],
         isRecurring:
@@ -3793,6 +4006,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         metaDescription: formData.metaDescription?.trim() || null,
         metaKeywords: formData.metaKeywords?.trim() || null,
         searchEngineFriendlyPageName: formData.searchEngineFriendlyPageName?.trim() || null,
+        customLabel0: formData.customLabel0?.trim() || null,
+        customLabel1: formData.customLabel1?.trim() || null,
+        customLabel3: formData.customLabel3?.trim() || null,
+        customLabel4: formData.customLabel4?.trim() || null,
         allowCustomerReviews: formData.allowCustomerReviews ?? false,
         videoUrls: formData.videoUrls && formData.videoUrls.length > 0
           ? formData.videoUrls.join(',')
@@ -3932,6 +4149,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       console.log("🚀 FINAL PAYLOAD:", productData);
       console.log('🚀 API: Updating product...');
       const response = await productsService.update(productId, productData);
+      if (response.error) {
+        throw response;
+      }
       if (response.data) {
         const apiResponse = response.data;
         if (apiResponse.success === true || apiResponse.success === undefined) {
@@ -3945,6 +4165,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             isDraft ? '💾 Product saved as draft!' : '✅ Product updated successfully!',
             { autoClose: 3000 }
           );
+
+          // Upload any locally queued variant images using real IDs from API response
+          const savedVariants = apiResponse.data?.variants || (apiResponse as any).variants;
+          if (savedVariants && Array.isArray(savedVariants)) {
+            await uploadQueuedVariantImages(savedVariants);
+          }
+
           const updatedSnapshot = JSON.parse(
             JSON.stringify({
               ...formData,
@@ -4016,14 +4243,26 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     // ================================
     // ✅ SECTION 1: PRICE FIELDS
     // ================================
-    if (name === 'price' || name === 'oldPrice' || name === 'cost') {
+    if (name === 'price' || name === 'discountPercentage' || name === 'cost') {
 
       // allow empty input
       if (value === "") {
-        setFormData(prev => ({
-          ...prev,
-          [name]: ""
-        }));
+        setFormData(prev => {
+          const nextPrice = name === 'price' ? "" : prev.price;
+          const nextDiscount = name === 'discountPercentage' ? "" : prev.discountPercentage;
+
+          const priceNum = parseFloat(nextPrice) || 0;
+          const discountNum = parseFloat(nextDiscount) || 0;
+          const calculatedSellPrice = priceNum * (1 - discountNum / 100);
+
+          return {
+            ...prev,
+            [name]: "",
+            ...(name !== 'cost' && {
+              sellPrice: calculatedSellPrice > 0 ? calculatedSellPrice.toFixed(2) : '0.00'
+            })
+          };
+        });
         return;
       }
 
@@ -4045,14 +4284,26 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const numValue = parseFloat(cleanedValue);
 
       if (!isNaN(numValue) && numValue > 10000000) {
-        toast.warning('⚠️ Price seems too high. Please verify.');
+        toast.warning('⚠️ Value seems too high. Please verify.');
         return;
       }
 
-      setFormData(prev => ({
-        ...prev,
-        [name]: cleanedValue
-      }));
+      setFormData(prev => {
+        const nextPrice = name === 'price' ? cleanedValue : prev.price;
+        const nextDiscount = name === 'discountPercentage' ? cleanedValue : prev.discountPercentage;
+
+        const priceNum = parseFloat(nextPrice) || 0;
+        const discountNum = parseFloat(nextDiscount) || 0;
+        const calculatedSellPrice = priceNum * (1 - discountNum / 100);
+
+        return {
+          ...prev,
+          [name]: cleanedValue,
+          ...(name !== 'cost' && {
+            sellPrice: calculatedSellPrice > 0 ? calculatedSellPrice.toFixed(2) : '0.00'
+          })
+        };
+      });
 
       return;
     }
@@ -6209,7 +6460,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white border-b border-slate-800 pb-2">Price</h3>
 
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm mb-2 font-semibold text-slate-700 dark:text-slate-200">
                       Price (£)
@@ -6237,60 +6488,74 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                       className={`w-full px-3 py-2 bg-slate-800/50 border rounded-xl text-white placeholder-slate-500 
   focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all
   ${formData.productType === 'variable'
-                          ? 'opacity-50 cursor-not-allowed'
-                          : ''
+                          ? 'opacity-50 cursor-not-allowed border-slate-800'
+                          : (formData.price !== '' && (Number(formData.price) <= 0 || isNaN(Number(formData.price))))
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-slate-700'
                         }`}
                       required
                     />
+                    {formData.productType !== 'variable' && formData.price !== '' && (Number(formData.price) <= 0 || isNaN(Number(formData.price))) && (
+                      <p className="text-red-400 text-xs mt-1">Please enter a valid price (greater than 0)</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm mb-2 font-semibold text-slate-700 dark:text-slate-200">
-                      Old Price (£)
-                      {formData.productType !== "variable" && (
+                      Discount (%)
+                      {formData.productType !== 'variable' && (
                         <span className="text-red-500 ml-1">*</span>
                       )}
                     </label>
 
                     <input
                       type="number"
-                      name="oldPrice"
-                      disabled={formData.productType === "variable"}
+                      name="discountPercentage"
+                      disabled={formData.productType === 'variable'}
                       title={
-                        formData.productType === "variable"
-                          ? "Variable product requires old price in variant tab"
-                          : ""
+                        formData.productType === 'variable'
+                          ? "Variable product requires discount in variable tab"
+                          : ''
                       }
                       value={
-                        formData.productType === "variable"
+                        formData.productType === 'variable'
                           ? ""
-                          : formData.oldPrice
+                          : formData.discountPercentage
                       }
                       onChange={handleChange}
-                      placeholder="0.00"
-                      step="0.01"
-                      className={`
-      w-full px-3 py-2
-      bg-slate-800/50
-      border border-slate-700
-      rounded-xl
-      text-white
-      placeholder-slate-500
-
-      focus:ring-2
-      focus:ring-violet-500
-      focus:border-transparent
-      transition-all
-
-      ${formData.productType === "variable"
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                        }
-    `}
+                      placeholder="0"
+                      min="0"
+                      max="100"
+                      className={`w-full px-3 py-2 bg-slate-800/50 border rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all
+          ${formData.productType === 'variable'
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                        }`}
+                      required={formData.productType !== 'variable'}
                     />
-
                     <p className="text-xs text-slate-400 mt-1">
-                      Shows as strikethrough
+                      Percentage discount (0-100)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Sell Price (£)
+                    </label>
+                    <input
+                      type="number"
+                      name="sellPrice"
+                      disabled={true}
+                      value={
+                        formData.productType === 'variable'
+                          ? ""
+                          : formData.sellPrice
+                      }
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 cursor-not-allowed"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Dynamically calculated selling price
                     </p>
                   </div>
 
@@ -6317,7 +6582,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   };
 
                   const mainPrice = parsePrice(formData.price);
-                  const oldPrice = parsePrice(formData.oldPrice);
                   const costPrice = parsePrice(formData.cost);
 
                   const isGrouped = formData.productType === 'grouped';
@@ -6588,6 +6852,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
 
+                    {/*
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">Low Stock Activity</label>
@@ -6606,11 +6871,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         </p>
                       </div>
 
-                      {/* ✅ PLACEHOLDER - Keep grid balanced */}
                       <div></div>
                     </div>
 
-                    {/* ✅ ADMIN NOTIFICATION SECTION - CONDITIONAL */}
                     <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -6630,7 +6893,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         </div>
                       </label>
 
-                      {/* Conditional Threshold Input */}
                       {formData.notifyAdminForQuantityBelow && (
                         <div className="ml-6 pt-2 border-t border-slate-700">
                           <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -6652,7 +6914,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                       )}
                     </div>
 
-                    {/* ✅ BACKORDER SECTION - CONDITIONAL */}
                     <div className="space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-700">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -6672,7 +6933,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         </div>
                       </label>
 
-                      {/* Conditional Dropdown */}
                       {formData.allowBackorder && (
                         <div className="ml-6 pt-2 border-t border-slate-700">
                           <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -6695,6 +6955,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         </div>
                       )}
                     </div>
+                    */}
 
                     {/* Ultra Minimal Version - Preview Only on Selected */}
                     <div className="space-y-3">
@@ -6790,6 +7051,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                       </div>
 
                       {/* Notify Me */}
+                      {/*
                       <div className="pt-3 border-t border-slate-700 mt-3">
                         <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-800/30 rounded transition-all">
                           <input
@@ -6802,6 +7064,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                           <span className="text-sm text-slate-300">Allow "Notify me when available"</span>
                         </label>
                       </div>
+                      */}
                     </div>
 
 
@@ -7168,109 +7431,113 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             )}
           </div> */}
 
-                        {/* Allowed Delivery Options Grid */}
-                        {availableDeliveryOptions.length > 0 && (
-                          <div className="space-y-3 pt-2">
-                            <label className="block text-sm font-medium text-slate-300">
-                              Restrict Allowed Delivery Options
-                            </label>
-                            <p className="text-xs text-slate-500">
-                              Select specific delivery options allowed for this product. If none are selected, all active delivery options are allowed by default.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                              {availableDeliveryOptions.map((option) => {
-                                const isChecked = formData.allowedDeliveryOptionIds?.includes(option.id) || false;
-                                const isStandard = option.name?.toLowerCase().includes("standard") || option.displayName?.toLowerCase().includes("standard");
-                                const isNextDay = option.name?.toLowerCase().includes("next") || option.displayName?.toLowerCase().includes("next");
-                                
-                                return (
-                                  <div key={option.id} className="flex flex-col bg-slate-800/20 hover:bg-slate-800/30 p-3 rounded-lg border border-slate-700/50 transition-colors gap-2">
-                                    <label className="flex items-start gap-2 cursor-pointer group">
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={(e) => {
-                                          const checked = e.target.checked;
-                                          setFormData((prev) => {
-                                            const currentIds = prev.allowedDeliveryOptionIds || [];
-                                            const nextIds = checked
-                                              ? [...currentIds, option.id]
-                                              : currentIds.filter((id) => id !== option.id);
-                                            
-                                            const updateObj: any = {
-                                              ...prev,
-                                              allowedDeliveryOptionIds: nextIds,
-                                            };
+                      {/* Allowed Delivery Options Grid */}
+                      {availableDeliveryOptions.length > 0 && (
+                        <div className="space-y-3 pt-2">
+                          <label className="block text-sm font-medium text-slate-300">
+                            Restrict Allowed Delivery Options
+                          </label>
+                          <p className="text-xs text-slate-500">
+                            Select specific delivery options allowed for this product. If none are selected, all active delivery options are allowed by default.
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            {availableDeliveryOptions.map((option) => {
+                              const isStandard = option.name?.toLowerCase().includes("standard") || option.displayName?.toLowerCase().includes("standard");
+                              const isNextDay = option.name?.toLowerCase().includes("next") || option.displayName?.toLowerCase().includes("next");
+                              const isChecked = isStandard
+                                ? (formData.standardDeliveryEnabled ?? false)
+                                : isNextDay
+                                  ? (formData.nextDayDeliveryEnabled ?? false)
+                                  : (formData.allowedDeliveryOptionIds?.includes(option.id) || false);
 
-                                            if (isStandard) {
-                                              updateObj.standardDeliveryEnabled = checked;
-                                            }
-                                            if (isNextDay) {
-                                              updateObj.nextDayDeliveryEnabled = checked;
-                                              if (!checked) {
-                                                updateObj.nextDayDeliveryFree = false;
-                                                updateObj.nextDayDeliveryCutoffTime = '';
-                                              }
-                                            }
+                              return (
+                                <div key={option.id} className="flex flex-col bg-slate-800/20 hover:bg-slate-800/30 p-3 rounded-lg border border-slate-700/50 transition-colors gap-2">
+                                  <label className="flex items-start gap-2 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setFormData((prev) => {
+                                          const currentIds = prev.allowedDeliveryOptionIds || [];
+                                          const nextIds = checked
+                                            ? [...currentIds, option.id]
+                                            : currentIds.filter((id) => id !== option.id);
 
-                                            return updateObj;
-                                          });
-                                        }}
-                                        className="rounded mt-0.5 bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                                      />
-                                      <div className="flex flex-col">
-                                        <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
-                                          {option.displayName || option.name}
+                                          const updateObj: any = {
+                                            ...prev,
+                                            allowedDeliveryOptionIds: nextIds,
+                                          };
+
+                                          if (isStandard) {
+                                            updateObj.standardDeliveryEnabled = checked;
+                                          }
+                                          if (isNextDay) {
+                                            updateObj.nextDayDeliveryEnabled = checked;
+                                            if (!checked) {
+                                              updateObj.nextDayDeliveryFree = false;
+                                              updateObj.nextDayDeliveryCutoffTime = '';
+                                            }
+                                          }
+
+                                          return updateObj;
+                                        });
+                                      }}
+                                      className="rounded mt-0.5 bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                                        {option.displayName || option.name}
+                                      </span>
+                                      {option.description && (
+                                        <span className="text-xs text-slate-500">
+                                          {option.description}
                                         </span>
-                                        {option.description && (
-                                          <span className="text-xs text-slate-500">
-                                            {option.description}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </label>
+                                      )}
+                                    </div>
+                                  </label>
 
-                                    {/* Next Day Delivery Cutoff Time & Free Option */}
-                                    {isNextDay && isChecked && (
-                                      <div className="pl-6 pt-3 mt-2 border-t border-slate-800/60 space-y-3">
-                                        {/* FREE OPTION */}
-                                        <label className="flex items-center gap-2 cursor-pointer group">
-                                          <input
-                                            type="checkbox"
-                                            name="nextDayDeliveryFree"
-                                            checked={formData.nextDayDeliveryFree || false}
-                                            onChange={handleChange}
-                                            className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
-                                          />
-                                          <span className="text-xs text-slate-300 group-hover:text-white transition-colors">
-                                            Next-Day Delivery Free
-                                          </span>
+                                  {/* Next Day Delivery Cutoff Time & Free Option */}
+                                  {isNextDay && isChecked && (
+                                    <div className="pl-6 pt-3 mt-2 border-t border-slate-800/60 space-y-3">
+                                      {/* FREE OPTION */}
+                                      <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input
+                                          type="checkbox"
+                                          name="nextDayDeliveryFree"
+                                          checked={formData.nextDayDeliveryFree || false}
+                                          onChange={handleChange}
+                                          className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
+                                        />
+                                        <span className="text-xs text-slate-300 group-hover:text-white transition-colors">
+                                          Next-Day Delivery Free
+                                        </span>
+                                      </label>
+
+                                      {/* CUTOFF TIME */}
+                                      <div className="space-y-1">
+                                        <label className="block text-xs font-medium text-slate-400">
+                                          Cutoff Time (UK Time) <span className="text-red-400">*</span>
                                         </label>
-
-                                        {/* CUTOFF TIME */}
-                                        <div className="space-y-1">
-                                          <label className="block text-xs font-medium text-slate-400">
-                                            Cutoff Time (UK Time) <span className="text-red-400">*</span>
-                                          </label>
-                                          <input
-                                            type="time"
-                                            name="nextDayDeliveryCutoffTime"
-                                            value={formData.nextDayDeliveryCutoffTime || ""}
-                                            onChange={handleChange}
-                                            className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                                          />
-                                          <p className="text-[10px] text-slate-500">
-                                            Enter UK local cutoff time for next-day delivery
-                                          </p>
-                                        </div>
+                                        <input
+                                          type="time"
+                                          name="nextDayDeliveryCutoffTime"
+                                          value={formData.nextDayDeliveryCutoffTime || ""}
+                                          onChange={handleChange}
+                                          className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                                        />
+                                        <p className="text-[10px] text-slate-500">
+                                          Enter UK local cutoff time for next-day delivery
+                                        </p>
                                       </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        )}
+                        </div>
+                      )}
 
                       <div className="flex items-start gap-2 text-xs text-blue-400 bg-blue-900/20 px-3 py-2 rounded border border-blue-800/50 mt-2">
                         <Info className="w-4 h-4 shrink-0 mt-0.5" />
@@ -7688,6 +7955,78 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     </span>
                     Leave empty to auto-generate from product name
                   </p>
+                </div>
+
+                {/* ===== Google Merchant Custom Labels ===== */}
+                <div className="border-t border-slate-700/50 pt-5 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Google Merchant Custom Labels</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Used for Google Shopping campaign segmentation (custom_label_0, 1, 3, 4). custom_label_2 is auto-generated from the discount percentage and isn't set here.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Custom Label 0 */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                        Custom Label 0
+                      </label>
+                      <input
+                        type="text"
+                        name="customLabel0"
+                        value={formData.customLabel0 || ""}
+                        onChange={handleChange}
+                        placeholder="e.g. Best Seller"
+                        className="w-full px-4 py-2.5 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Custom Label 1 */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                        Custom Label 1
+                      </label>
+                      <input
+                        type="text"
+                        name="customLabel1"
+                        value={formData.customLabel1 || ""}
+                        onChange={handleChange}
+                        placeholder="e.g. High Margin"
+                        className="w-full px-4 py-2.5 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Custom Label 3 */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                        Custom Label 3
+                      </label>
+                      <input
+                        type="text"
+                        name="customLabel3"
+                        value={formData.customLabel3 || ""}
+                        onChange={handleChange}
+                        placeholder="e.g. Seasonal"
+                        className="w-full px-4 py-2.5 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Custom Label 4 */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                        Custom Label 4
+                      </label>
+                      <input
+                        type="text"
+                        name="customLabel4"
+                        value={formData.customLabel4 || ""}
+                        onChange={handleChange}
+                        placeholder="e.g. Clearance"
+                        className="w-full px-4 py-2.5 bg-slate-900/70 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* ===== SEO Tips ===== */}

@@ -8,12 +8,13 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import EmptyCart from "@/components/cart/EmptyCart";
-import { CreditCard, FileText, Gift, Info, ReceiptText, ShoppingBag, Truck } from "lucide-react";
+import { CreditCard, FileText, Gift, Info, ReceiptText, ShoppingBag, Truck, Tag, Trash2, BadgePercent } from "lucide-react";
 import SavedAddressesSection from "@/components/checkout/SavedAddressesSection";
 import LoyaltyRedemptionBox from "@/components/checkout/LoyaltyRedemptionBox";
 import { getPharmaSessionId } from "@/app/lib/pharmaSession";
+import { useToast } from "@/components/toast/CustomToast";
 import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from "@/lib/analytics";
-import { getAttributionPayload } from "@/lib/attribution";
+import { clearAttribution, getAttributionPayload } from "@/lib/attribution";
 // ---------- Types ----------
 type AddressSuggestion = {
   id: string;
@@ -242,9 +243,251 @@ async function getErrorMessage(res: Response, fallback: string): Promise<string>
 /* === Main Checkout Page === */
 export default function CheckoutPage() {
   const router = useRouter();
+  const toast = useToast();
   const { cart, updateCart, updateQuantity, clearCart } = useCart();
   const { user, accessToken, isAuthenticated, isReady } = useAuth();
   const guestPrefilledRef = useRef(false);
+
+  const [couponInput, setCouponInput] = useState("");
+  const appliedCouponCode = useMemo(() => cart.find(i => i.couponCode)?.couponCode || "", [cart]);
+
+  const isDiscountActive = (d: any) => {
+    if (!d || !d.isActive) return false;
+    try {
+      const now = new Date();
+      const start = d.startDate ? new Date(d.startDate) : null;
+      const end = d.endDate ? new Date(d.endDate) : null;
+      if (start && now < start) return false;
+      if (end && now > end) return false;
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const applyCouponInput = async () => {
+    const code = couponInput.trim();
+    if (!code) {
+      toast.error("Enter a coupon code.");
+      return;
+    }
+
+    try {
+      const productIds = cart.map(i => i.productId || i.id).filter(Boolean);
+      const categoryIds = cart.flatMap(i => i.productData?.categories?.map((c: any) => c.categoryId) || []).filter(Boolean);
+      const orderSubtotal = cart.reduce((sum, it) => sum + ((it.priceBeforeDiscount ?? it.price) * it.quantity), 0);
+
+      const payload = {
+        couponCode: code,
+        orderSubtotal,
+        productIds,
+        categoryIds,
+      };
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/Discounts/validate-coupon`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        toast.error(result?.message || "Coupon does not apply.");
+        return;
+      }
+
+      const match = result.data;
+      const assignedProdIds = match.assignedProductIds
+        ? match.assignedProductIds.split(',').map((id: string) => id.trim().toLowerCase()).filter(Boolean)
+        : [];
+      const assignedCatIds = match.assignedCategoryIds
+        ? match.assignedCategoryIds.split(',').map((id: string) => id.trim().toLowerCase()).filter(Boolean)
+        : [];
+
+      let appliedAny = false;
+
+      const updated = cart.map((item) => {
+        if (item.type === "subscription") return item;
+
+        // Check if this item is eligible for the coupon
+        let isEligible = false;
+        const targetId = (item.productId || item.id).toLowerCase();
+        if (match.discountType === "AssignedToProducts" || match.discountType === "UptoXPercent") {
+          isEligible = assignedProdIds.includes(targetId);
+        } else if (match.discountType === "AssignedToCategories") {
+          if (assignedProdIds.includes(targetId)) {
+            isEligible = true;
+          } else {
+            const itemCatIds = (item.productData?.categories || []).map((c: any) => (c.categoryId || c.id || "").toLowerCase());
+            isEligible = itemCatIds.some((cid: string) => assignedCatIds.includes(cid));
+          }
+        } else {
+          // AssignedToOrderTotal / AssignedToOrderSubtotal - all eligible
+          isEligible = true;
+        }
+
+        if (!isEligible) return item;
+
+        // ❌ same coupon dubara apply na ho
+        if (
+          item.appliedDiscountId === match.discountId &&
+          item.couponCode?.toLowerCase() === code.toLowerCase()
+        ) {
+          return item;
+        }
+
+        const basePrice = item.priceBeforeDiscount ?? item.price;
+
+        // Find AUTO discount (non-coupon)
+        const assigns: any[] = item.productData?.assignedDiscounts ?? [];
+        const activeAutoDiscount = assigns.find(
+          (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+        );
+
+        let autoDiscountAmount = 0;
+        if (activeAutoDiscount) {
+          if (activeAutoDiscount.usePercentage) {
+            autoDiscountAmount = (basePrice * activeAutoDiscount.discountPercentage) / 100;
+          } else {
+            autoDiscountAmount = activeAutoDiscount.discountAmount ?? 0;
+          }
+        } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
+          autoDiscountAmount = item.price - item.sellPrice;
+        }
+
+        // 🔹 Coupon value (cumulative-aware)
+        let couponValue = 0;
+        if (match.isCumulative === true && autoDiscountAmount > 0) {
+          const priceForCoupon = basePrice - autoDiscountAmount;
+          couponValue = match.usePercentage
+            ? Math.round((priceForCoupon * match.discountPercentage) / 100 * 100) / 100
+            : match.discountAmount ?? 0;
+        } else {
+          couponValue = match.usePercentage
+            ? Math.round((basePrice * match.discountPercentage) / 100 * 100) / 100
+            : match.discountAmount ?? 0;
+        }
+
+        if (match.maximumDiscountAmount && couponValue > match.maximumDiscountAmount) {
+          couponValue = match.maximumDiscountAmount;
+        }
+
+        // 🔥 Cumulative logic
+        let totalDiscount = couponValue;
+        if (match.isCumulative === true && autoDiscountAmount > 0) {
+          totalDiscount = couponValue + autoDiscountAmount;
+        }
+
+        if (totalDiscount > basePrice) {
+          totalDiscount = basePrice;
+        }
+
+        appliedAny = true;
+        return {
+          ...item,
+          appliedDiscountId: match.discountId,
+          discountAmount: totalDiscount,
+          finalPrice: basePrice - totalDiscount,
+          couponCode: code,
+          isCumulative: match.isCumulative === true,
+          priceBeforeDiscount: basePrice,
+        };
+      });
+
+      if (!appliedAny) {
+        toast.error("This coupon is not valid for any product in your cart.");
+        return;
+      }
+
+      updateCart(updated);
+      setCouponInput("");
+      toast.success("Coupon applied to eligible items.");
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred while validating coupon.");
+    }
+  };
+
+  const removeCouponFromItem = (itemId: string, itemType?: string) => {
+    const updated = cart.map((item) => {
+      if (!(item.id === itemId && (item.type ?? "one-time") === (itemType ?? item.type ?? "one-time"))) {
+        return item;
+      }
+
+      const assigns: any[] = item.productData?.assignedDiscounts ?? [];
+      const basePrice = item.priceBeforeDiscount ?? item.price;
+
+      const autoDiscount = assigns.find(
+        (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+      );
+
+      let autoDiscountAmount = 0;
+      if (autoDiscount) {
+        if (autoDiscount.usePercentage) {
+          autoDiscountAmount = (basePrice * autoDiscount.discountPercentage) / 100;
+        } else {
+          autoDiscountAmount = autoDiscount.discountAmount ?? 0;
+        }
+      } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
+        autoDiscountAmount = item.price - item.sellPrice;
+      }
+
+      return {
+        ...item,
+        appliedDiscountId: null,
+        couponCode: null,
+        discountAmount: autoDiscountAmount,
+        finalPrice: basePrice - autoDiscountAmount,
+        price: basePrice,
+        priceBeforeDiscount: basePrice,
+      };
+    });
+
+    updateCart(updated);
+    toast.error("Coupon removed.");
+  };
+
+  const removeCouponGlobally = () => {
+    const updated = cart.map((item) => {
+      const assigns: any[] = item.productData?.assignedDiscounts ?? [];
+      const basePrice = item.priceBeforeDiscount ?? item.price;
+
+      const autoDiscount = assigns.find(
+        (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+      );
+
+      let autoDiscountAmount = 0;
+      if (autoDiscount) {
+        if (autoDiscount.usePercentage) {
+          autoDiscountAmount = (basePrice * autoDiscount.discountPercentage) / 100;
+        } else {
+          autoDiscountAmount = autoDiscount.discountAmount ?? 0;
+        }
+      } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
+        autoDiscountAmount = item.price - item.sellPrice;
+      }
+
+      return {
+        ...item,
+        appliedDiscountId: null,
+        couponCode: null,
+        isCumulative: undefined,
+        discountAmount: autoDiscountAmount,
+        finalPrice: basePrice - autoDiscountAmount,
+        price: basePrice,
+        priceBeforeDiscount: basePrice,
+      };
+    });
+
+    updateCart(updated);
+    setCouponInput("");
+    toast.error("Coupon removed.");
+  };
   // Billing fields
   const [billingFirstName, setBillingFirstName] = useState("");
   const [billingLastName, setBillingLastName] = useState("");
@@ -259,6 +502,7 @@ export default function CheckoutPage() {
   const [billingCountry, setBillingCountry] = useState("United Kingdom");
   //delivery methods
   const [deliveryMethod, setDeliveryMethod] = useState<"HomeDelivery" | "ClickAndCollect">("HomeDelivery");
+  const [clickCollectOptionId, setClickCollectOptionId] = useState<string | null>(null);
   const [stores, setStores] = useState<any[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [storeLoading, setStoreLoading] = useState(false);
@@ -479,6 +723,42 @@ export default function CheckoutPage() {
       (item) => item.productData?.isPharmaProduct === true
     );
   }, [checkoutItems]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/delivery-options`);
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) {
+          const collectOpt = json.data.find((opt: any) => {
+            const name = (opt.name || opt.displayName || "").toLowerCase();
+            return name.includes("collect");
+          });
+          if (collectOpt) {
+            setClickCollectOptionId(collectOpt.id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch delivery options", err);
+      }
+    })();
+  }, []);
+
+  const allSupportClickCollect = useMemo(() => {
+    if (checkoutItems.length === 0) return false;
+    if (!clickCollectOptionId) return false;
+    return checkoutItems.every((item) => {
+      const optionIds = (item.productData?.allowedDeliveryOptionIds || []).map((id: string) => id.toLowerCase());
+      return optionIds.includes(clickCollectOptionId.toLowerCase());
+    });
+  }, [checkoutItems, clickCollectOptionId]);
+
+  useEffect(() => {
+    if (!allSupportClickCollect && deliveryMethod === "ClickAndCollect") {
+      setDeliveryMethod("HomeDelivery");
+    }
+  }, [allSupportClickCollect, deliveryMethod]);
+
   const effectiveCartCount = checkoutItems.reduce(
     (sum, i) => sum + i.quantity,
     0
@@ -486,8 +766,8 @@ export default function CheckoutPage() {
   // ✅ PRICE CALCULATIONS FROM CART (FOR UI)
   const cartSubtotal = useMemo(() => {
     return checkoutItems.reduce((sum, item) => {
-      const base = item.priceBeforeDiscount ?? item.price;
-      return sum + base * item.quantity;
+      // Use item.price which is already sellPrice (the actual selling price)
+      return sum + item.price * item.quantity;
     }, 0);
   }, [checkoutItems]);
 
@@ -538,74 +818,59 @@ export default function CheckoutPage() {
     }, 0);
   }, [checkoutItems]);
 
-  const cartDiscount = useMemo(() => {
-    return checkoutItems.reduce((sum, item) => {
-      return sum + (item.discountAmount ?? 0) * item.quantity;
-    }, 0);
-  }, [checkoutItems]);
-  // ✅ CORRECT SUBTOTAL (same as cart)
   const correctSubtotal = useMemo(() => {
     return checkoutItems.reduce((sum, item) => {
       const qty = item.quantity ?? 1;
-
-      // 🟢 COUPON DISCOUNT — check FIRST (takes priority over all other discount types)
-      if (item.couponCode && (item.discountAmount ?? 0) > 0) {
-        const preCouponPrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-        return sum + preCouponPrice * qty;
-      }
-
-      // 🔴 SYSTEM DISCOUNT
-
-      if (
-        item.displayDiscountType === "System" &&
-        (item.discountAmount ?? 0) > 0
-      ) {
-        const originalPrice =
-          item.priceBeforeDiscount &&
-            item.priceBeforeDiscount > (item.finalPrice ?? item.price)
-            ? item.priceBeforeDiscount
-            : (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-
-        return sum + originalPrice * qty;
-      }
-
-      if (item.displayDiscountType === "OldPrice") {
-        const hasVariants = !!item.productData?.variants?.length;
-        const oldPrice = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
-        if (oldPrice && oldPrice > item.price) {
-          return sum + oldPrice * qty;
-        }
-      }
-
-      return sum + item.price * qty;
+      return sum + (item.price ?? 0) * qty;
     }, 0);
   }, [checkoutItems]);
 
-  // ✅ OLD PRICE DISCOUNT
-  const oldPriceDiscount = useMemo(() => {
+  const totalAutoDiscount = useMemo(() => {
     return checkoutItems.reduce((sum, item) => {
-
       const qty = item.quantity ?? 1;
-      if (item.displayDiscountType === "OldPrice") {
+      const basePrice = item.priceBeforeDiscount ?? item.price ?? 0;
+      const sellPrice = item.sellPrice ?? basePrice;
+      const finalPrice = item.finalPrice ?? sellPrice;
 
-        const hasVariants = !!item.productData?.variants?.length;
-        const oldPrice = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
-
-        if (oldPrice && oldPrice > item.price) {
-          return sum + (oldPrice - item.price) * qty;
+      let autoAmt = 0;
+      if (item.type === "subscription") {
+        autoAmt = Math.max(0, basePrice - finalPrice);
+      } else if (item.couponCode) {
+        if (finalPrice < sellPrice) {
+          autoAmt = Math.max(0, basePrice - sellPrice);
+        } else {
+          autoAmt = 0;
         }
+      } else {
+        autoAmt = Math.max(0, basePrice - sellPrice);
       }
 
-
-
-      return sum;
+      return sum + autoAmt * qty;
     }, 0);
   }, [checkoutItems]);
 
-  // ✅ FINAL DISCOUNT
-  const finalDiscount = cartDiscount + oldPriceDiscount;
+  const totalCouponDiscount = useMemo(() => {
+    return checkoutItems.reduce((sum, item) => {
+      const qty = item.quantity ?? 1;
+      if (!item.couponCode) return sum;
 
-  // ✅ TOTAL DISCOUNT (bundle + all)
+      const basePrice = item.priceBeforeDiscount ?? item.price ?? 0;
+      const sellPrice = item.sellPrice ?? basePrice;
+      const finalPrice = item.finalPrice ?? sellPrice;
+
+      let couponAmt = 0;
+      if (finalPrice < sellPrice) {
+        couponAmt = Math.max(0, sellPrice - finalPrice);
+      } else {
+        couponAmt = Math.max(0, basePrice - finalPrice);
+      }
+
+      return sum + couponAmt * qty;
+    }, 0);
+  }, [checkoutItems]);
+
+  const finalDiscount = totalAutoDiscount + totalCouponDiscount;
+
   const totalCombinedDiscount = cartBundleDiscount + finalDiscount;
   const allSupportNextDay = useMemo(() =>
     checkoutItems.length > 0 &&
@@ -623,13 +888,23 @@ export default function CheckoutPage() {
   const allNextDayFree = useMemo(() =>
     checkoutItems.length > 0 &&
     checkoutItems.every(i => {
+      let isEnabled = false;
+      let isFree = false;
       if (i.variantId && i.productData?.variants?.length) {
         const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v && typeof v.nextDayDeliveryFree === "boolean") {
-          return v.nextDayDeliveryFree === true;
+        if (v) {
+          isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
+            ? v.nextDayDeliveryEnabled === true
+            : (i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true);
+          isFree = typeof v.nextDayDeliveryFree === "boolean"
+            ? v.nextDayDeliveryFree === true
+            : (i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true);
+          return isEnabled && isFree;
         }
       }
-      return i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      isEnabled = i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
+      isFree = i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      return isEnabled && isFree;
     }),
     [checkoutItems]
   );
@@ -637,13 +912,23 @@ export default function CheckoutPage() {
   const hasAnyNextDayFree = useMemo(() =>
     checkoutItems.length > 0 &&
     checkoutItems.some(i => {
+      let isEnabled = false;
+      let isFree = false;
       if (i.variantId && i.productData?.variants?.length) {
         const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v && typeof v.nextDayDeliveryFree === "boolean") {
-          return v.nextDayDeliveryFree === true;
+        if (v) {
+          isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
+            ? v.nextDayDeliveryEnabled === true
+            : (i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true);
+          isFree = typeof v.nextDayDeliveryFree === "boolean"
+            ? v.nextDayDeliveryFree === true
+            : (i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true);
+          return isEnabled && isFree;
         }
       }
-      return i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      isEnabled = i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
+      isFree = i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      return isEnabled && isFree;
     }),
     [checkoutItems]
   );
@@ -706,6 +991,10 @@ export default function CheckoutPage() {
   const cartValue = useMemo(() => {
     return checkoutItems.reduce((s, i) => s + (i.finalPrice ?? i.price) * i.quantity, 0);
   }, [checkoutItems]);
+
+  const isSurchargeApplied = useMemo(() => {
+    return shippingOptions.some((opt: any) => opt.surchargeApplied > 0);
+  }, [shippingOptions]);
 
   // Fetch shipping quote when postcode is available
   useEffect(() => {
@@ -1187,14 +1476,16 @@ export default function CheckoutPage() {
       productId: c.productId ?? c.id,
       productVariantId: c.variantId ?? null,
       quantity: c.quantity,
-      unitPrice:
-        c.displayDiscountType === "System" &&
-          (c.discountAmount ?? 0) > 0
-          ? (
-            c.priceBeforeDiscount ??
-            ((c.finalPrice ?? c.price) + (c.discountAmount ?? 0))
-          )
-          : (c.priceBeforeDiscount ?? c.price ?? c.finalPrice),
+      unitPrice: (() => {
+        if (c.type === "subscription") {
+          return c.finalPrice ?? c.price;
+        }
+        if (c.couponCode) {
+          const isCumulative = (c.finalPrice ?? c.sellPrice) < c.sellPrice;
+          return isCumulative ? (c.sellPrice ?? c.price) : c.price;
+        }
+        return c.sellPrice ?? c.price;
+      })(),
 
     }));
     return {
@@ -1339,16 +1630,22 @@ export default function CheckoutPage() {
         productId: c.productId ?? c.id,
         productVariantId: c.variantId ?? null,
         quantity: c.quantity,
-        unitPrice:
-          c.displayDiscountType === "System" &&
-            (c.discountAmount ?? 0) > 0
-            ? (
-              c.priceBeforeDiscount ??
-              ((c.finalPrice ?? c.price) + (c.discountAmount ?? 0))
-            )
-            : (c.priceBeforeDiscount ?? c.price ?? c.finalPrice),
+        unitPrice: (() => {
+          if (c.type === "subscription") {
+            return c.finalPrice ?? c.price;
+          }
+          if (c.couponCode) {
+            const isCumulative = (c.finalPrice ?? c.sellPrice) < c.sellPrice;
+            return isCumulative ? (c.sellPrice ?? c.price) : c.price;
+          }
+          return c.sellPrice ?? c.price;
+        })(),
         subscriptionId: subscriptionMap[c.id] ?? null,
-        frequency: c.frequency,
+        subscriptionFrequency: c.type === "subscription"
+          ? (c.frequency && !isNaN(Number(c.frequency))
+            ? `${c.frequency} ${c.frequencyPeriod}`
+            : c.frequencyPeriod)
+          : null,
         couponCode: c.couponCode || null,
       })),
     };
@@ -1359,6 +1656,7 @@ export default function CheckoutPage() {
   const onPaymentSuccess = (createdOrder: any) => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("pending_order_id");
+      clearAttribution();
     }
     if (createdOrder?.data) {
       setOrderSummary({
@@ -1568,6 +1866,11 @@ export default function CheckoutPage() {
                     className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
                   />
                   <ErrorText error={fieldErrors.billingPostalCode} />
+                  {shippingSameAsBilling && isSurchargeApplied && (
+                    <p className="text-[11px] text-amber-600 font-medium mt-1">
+                      ⚠️ Note: Standard free shipping is not available for this postcode. Surcharge charges and longer delivery times will apply (please see details in delivery options below).
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col space-y-0.5">
                   <label className="text-xs font-medium text-gray-700">City *</label>
@@ -1771,6 +2074,11 @@ export default function CheckoutPage() {
                       <label className="text-xs font-medium text-gray-700">Postcode *</label>
                       <input value={shippingPostalCode} onChange={(e) => { setShippingPostalCode(e.target.value); clearFieldError("shippingPostalCode"); }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all" />
                       <ErrorText error={fieldErrors.shippingPostalCode} />
+                      {!shippingSameAsBilling && isSurchargeApplied && (
+                        <p className="text-[11px] text-amber-600 font-medium mt-1">
+                          ⚠️ Note: Standard free shipping is not available for this postcode. Surcharge charges and longer delivery times will apply (please see details in delivery options below).
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col space-y-0.5">
                       <label className="text-xs font-medium text-gray-700">City *</label>
@@ -1807,15 +2115,17 @@ export default function CheckoutPage() {
                     <input type="radio" className="accent-[#f38918]" name="deliveryMethod" checked={deliveryMethod === "HomeDelivery"} onChange={() => setDeliveryMethod("HomeDelivery")} />
                     Home Delivery
                   </label>
-                  {/* <label className="flex items-center gap-2 text-sm">
-                    <input type="radio" className="accent-[#f38918]" name="deliveryMethod" checked={deliveryMethod === "ClickAndCollect"} onChange={() => setDeliveryMethod("ClickAndCollect")} />
-                    Click & Collect (Collect from store)
-                  </label> */}
+                  {allSupportClickCollect && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="radio" className="accent-[#f38918]" name="deliveryMethod" checked={deliveryMethod === "ClickAndCollect"} onChange={() => setDeliveryMethod("ClickAndCollect")} />
+                      Click & Collect (Collect from store)
+                    </label>
+                  )}
                 </div>
               </div>
             </fieldset>
           )}
-          {/* {deliveryMethod === "ClickAndCollect" && (
+          {deliveryMethod === "ClickAndCollect" && (
             <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
               <div className="bg-white p-3 rounded shadow">
                 <h2 className="text-sm font-semibold mb-2">Select Store</h2>
@@ -1875,7 +2185,7 @@ export default function CheckoutPage() {
                 )}
               </div>
             </fieldset>
-          )} */}
+          )}
           {/* SHIPPING OPTIONS */}
           {deliveryMethod === "HomeDelivery" && shippingOptions.length > 0 && (
             <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
@@ -2004,19 +2314,29 @@ export default function CheckoutPage() {
 
                           {/* FINAL PRICE */}
                           <span className="font-medium text-[#f38918]">
-                            {formatCurrency((it.finalPrice ?? it.price) * it.quantity)}
+                            {formatCurrency((it.finalPrice ?? it.sellPrice ?? it.price) * it.quantity)}
                           </span>
 
                           {/* FREE NEXTDAY DELIVERY BADGE */}
                           {(() => {
                             const isItemNextDayFree = (() => {
+                              let isEnabled = false;
+                              let isFree = false;
                               if (it.variantId && it.productData?.variants?.length) {
                                 const v = it.productData.variants.find((x: any) => x.id === it.variantId);
-                                if (v && typeof v.nextDayDeliveryFree === "boolean") {
-                                  return v.nextDayDeliveryFree === true;
+                                if (v) {
+                                  isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
+                                    ? v.nextDayDeliveryEnabled === true
+                                    : (it.nextDayDeliveryEnabled === true || it.productData?.nextDayDeliveryEnabled === true);
+                                  isFree = typeof v.nextDayDeliveryFree === "boolean"
+                                    ? v.nextDayDeliveryFree === true
+                                    : (it.nextDayDeliveryFree === true || it.productData?.nextDayDeliveryFree === true);
+                                  return isEnabled && isFree;
                                 }
                               }
-                              return it.nextDayDeliveryFree === true || it.productData?.nextDayDeliveryFree === true;
+                              isEnabled = it.nextDayDeliveryEnabled === true || it.productData?.nextDayDeliveryEnabled === true;
+                              isFree = it.nextDayDeliveryFree === true || it.productData?.nextDayDeliveryFree === true;
+                              return isEnabled && isFree;
                             })();
 
                             if (!isItemNextDayFree) return null;
@@ -2030,45 +2350,23 @@ export default function CheckoutPage() {
 
                           {/* CUT PRICE */}
                           {(() => {
-
-                            let comparePrice: number | null = null;
-
-                            // SYSTEM DISCOUNT
-                            if (
-                              it.displayDiscountType === "System" &&
-                              (it.discountAmount ?? 0) > 0
-                            ) {
-                              comparePrice =
-                                (it.price + (it.discountAmount ?? 0)) *
-                                it.quantity;
-                            }
-
-                            // OLD PRICE
-                            else if (it.displayDiscountType === "OldPrice") {
-
-                              const hasVariants = !!it.productData?.variants?.length;
-                              const oldPrice = hasVariants ? (it.oldPrice ?? null) : (it.oldPrice ?? it.productData?.oldPrice ?? null);
-
-                              if (oldPrice && oldPrice > it.price) {
-                                comparePrice = oldPrice * it.quantity;
-                              }
-                            }
-
-                            if (!comparePrice) return null;
+                            const regularPrice = it.price ?? 0;
+                            const finalPrice = it.finalPrice ?? it.sellPrice ?? regularPrice;
+                            const hasDiscount = regularPrice > finalPrice;
+                            if (!hasDiscount) return null;
 
                             return (
                               <span className="text-[11px] text-gray-400 line-through">
-                                {formatCurrency(comparePrice)}
+                                {formatCurrency(regularPrice * it.quantity)}
                               </span>
                             );
-
                           })()}
 
                         </div>
 
-                        {getItemLoyaltyPoints(it) > 0 && (
-                          <div className="text-[10px] text-orange-700 font-medium">
-                            (Earn {getItemLoyaltyPoints(it)} loyalty points)
+                        {it.couponCode && (
+                          <div className="flex items-center gap-1 bg-orange-50 text-orange-800 px-2 py-0.5 rounded border border-orange-100 w-fit mt-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wide">🎫 {it.couponCode}</span>
                           </div>
                         )}
                       </div>
@@ -2089,6 +2387,42 @@ export default function CheckoutPage() {
                   </span>
                 </div>
               )}
+
+              {/* Apply Coupon */}
+              <div className="mb-3 mt-3 border-t pt-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Tag size={13} className="text-gray-400" />
+                  <h3 className="text-xs font-bold text-gray-900">Promo Code</h3>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    disabled={Boolean(appliedCouponCode)}
+                    value={appliedCouponCode || couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    placeholder="Enter code"
+                    className="flex-1 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded text-xs font-semibold outline-none focus:ring-1 focus:ring-black focus:border-transparent transition-all placeholder:text-gray-400 disabled:opacity-75 disabled:bg-gray-100 disabled:text-gray-700 disabled:cursor-not-allowed"
+                  />
+                  {appliedCouponCode ? (
+                    <button
+                      type="button"
+                      onClick={removeCouponGlobally}
+                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-colors"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={applyCouponInput}
+                      className="bg-gray-900 hover:bg-black text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-colors"
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* ===== PRICE SUMMARY ===== */}
               <div className="mt-2 roundedg border bg-gray-50 p-2 space-y-1.5 text-sm">
                 {/* Subtotal */}
@@ -2123,11 +2457,19 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 {/* Coupon / Normal Discount */}
-                {finalDiscount > 0 && (
+                {totalAutoDiscount > 0 && (
                   <div className="flex items-center justify-between text-orange-700">
-                    <span>Discount</span>
+                    <span>Discounts</span>
                     <span className="font-medium">
-                      - {formatCurrency(finalDiscount)}
+                      - {formatCurrency(totalAutoDiscount)}
+                    </span>
+                  </div>
+                )}
+                {totalCouponDiscount > 0 && (
+                  <div className="flex items-center justify-between text-orange-700">
+                    <span>Coupon Discount</span>
+                    <span className="font-medium">
+                      - {formatCurrency(totalCouponDiscount)}
                     </span>
                   </div>
                 )}
@@ -2165,7 +2507,7 @@ export default function CheckoutPage() {
                 )}
                 {/* Divider + Total */}
                 <div className="border-t pt-2 mt-1 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-900">Total</span>
+                  <span className="text-sm font-semibold text-gray-900">Total Amount</span>
                   <span className="text-sm font-bold text-gray-900">
                     {formatCurrency(finalPayableAmount)}
                   </span>

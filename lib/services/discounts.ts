@@ -233,7 +233,7 @@ export const discountsService = {
     try {
       return await apiClient.put<SingleDiscountResponse>(
         `${API_ENDPOINTS.discounts}/${id}`,
-        data,
+        { ...data, id },
         config
       );
     } catch (error: any) {

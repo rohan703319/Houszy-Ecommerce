@@ -73,6 +73,9 @@ export interface StoreSettings {
   notifyRefundRequest: boolean;
   notifyDailyReport: boolean;
 
+  googleMerchantSyncEnabled: boolean;
+  googleMerchantSyncTime: string;
+
   createdAt?: string;
   updatedAt?: string;
   updatedBy?: string;

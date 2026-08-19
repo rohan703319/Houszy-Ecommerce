@@ -65,6 +65,7 @@ export default function SKUInput({
 
       const res = await productsService.searchSummary({
         sku: sku.trim(),
+        ...(productId ? { excludeProductId: productId } : {}),
       });
 
       if (currentRequestId !== requestIdRef.current) return;

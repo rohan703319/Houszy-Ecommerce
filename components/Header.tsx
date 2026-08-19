@@ -178,7 +178,7 @@ export default function Header({
         );
         const json = await res.json();
         const items = json?.data || [];
-        
+
         // Filter out parent product if its variants are present in the results
         const filteredItems = items.filter((item: any) => {
           if (item.isVariantResult) return true;
@@ -431,7 +431,7 @@ export default function Header({
               {categories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="relative flex items-center py-1.5"
+                  className="flex items-center py-1.5"
                   onMouseEnter={() => {
                     setBlogsHovered(false);
                     if (cat.subCategories?.length) {
@@ -460,9 +460,15 @@ export default function Header({
                       }`} />
                   </Link>
 
-                  {/* Single column dropdown menu */}
+                  {/* Left-aligned card dropdown menu */}
                   {hovered && activeCategory?.id === cat.id && (
-                    <div className="absolute top-[100%] left-0 z-50">
+                    <div
+                      className="absolute top-full left-0 z-50 w-[860px] max-w-[95vw] pt-1"
+                      onMouseLeave={() => {
+                        setHovered(false);
+                        setActiveCategory(null);
+                      }}
+                    >
                       <MegaMenu activeMainCategory={cat} />
                     </div>
                   )}
@@ -660,13 +666,13 @@ export default function Header({
                     const imageUrl = item.mainImageUrl?.startsWith("http")
                       ? item.mainImageUrl
                       : `${process.env.NEXT_PUBLIC_API_URL}${item.mainImageUrl}`;
-                      
-                    const linkUrl = item.isVariantResult 
-                      ? `/product/${item.slug}?variant=${item.variantSku}` 
+
+                    const linkUrl = item.isVariantResult
+                      ? `/product/${item.slug}?variant=${item.variantSku}`
                       : `/product/${item.slug}`;
-                      
+
                     const itemKey = item.isVariantResult ? item.variantSku : item.sku || item.id;
-                    
+
                     return (
                       <Link
                         key={itemKey}
@@ -687,7 +693,7 @@ export default function Header({
                         <div className="flex flex-col flex-1 min-w-0">
                           <span className="text-sm font-medium text-gray-800 line-clamp-1">{item.name}</span>
                           <span className="text-[10px] text-gray-400">SKU: {item.isVariantResult ? item.variantSku : item.sku}</span>
-                          
+
                           <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             {item.averageRating > 0 && (
                               <div className="flex items-center gap-0.5">
@@ -708,7 +714,14 @@ export default function Header({
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <span className="text-sm font-semibold text-[#f38918]">£{item.price.toFixed(2)}</span>
+                            {item.sellPrice < item.price ? (
+                              <>
+                                <span className="text-sm font-bold text-red-600">£{item.sellPrice.toFixed(2)}</span>
+                                <span className="text-xs text-gray-400 line-through">£{item.price.toFixed(2)}</span>
+                              </>
+                            ) : (
+                              <span className="text-sm font-semibold text-[#f38918]">£{item.price.toFixed(2)}</span>
+                            )}
                             {item.loyaltyPointsMessage && (
                               <span className="text-[10px] px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">
                                 {item.loyaltyPointsMessage}

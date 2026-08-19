@@ -124,6 +124,8 @@ export default function ProductVariantsManager({
       name: '',
       sku: '',
       price: null,
+      discountPercentage: 0,
+      sellPrice: 0,
       compareAtPrice: null,
       weight: null,
       stockQuantity: 0,
@@ -171,6 +173,8 @@ export default function ProductVariantsManager({
       name: '',
       sku: '',
       price: null,
+      discountPercentage: 0,
+      sellPrice: 0,
       compareAtPrice: null,
       weight: null,
       stockQuantity: 0,
@@ -214,9 +218,22 @@ export default function ProductVariantsManager({
     value: any
   ) => {
     onVariantsChange(
-      variants.map((variant) =>
-        variant.id === id ? { ...variant, [field]: value } : variant
-      )
+      variants.map((variant) => {
+        if (variant.id === id) {
+          const updated = { ...variant, [field]: value };
+          if (field === 'price' || field === 'discountPercentage') {
+            const priceVal = field === 'price' ? value : variant.price;
+            const discountVal = field === 'discountPercentage' ? value : variant.discountPercentage;
+
+            const priceNum = priceVal !== null && priceVal !== undefined ? parseFloat(String(priceVal)) : 0;
+            const discountNum = discountVal !== null && discountVal !== undefined ? parseFloat(String(discountVal)) : 0;
+
+            updated.sellPrice = priceNum * (1 - discountNum / 100);
+          }
+          return updated;
+        }
+        return variant;
+      })
     );
   };
 
@@ -280,6 +297,8 @@ export default function ProductVariantsManager({
         name: `${productName || 'Product'} (${combo.join(', ')})`,
         sku: '',
         price: null,
+        discountPercentage: 0,
+        sellPrice: 0,
         compareAtPrice: null,
         weight: null,
         stockQuantity: 0,
@@ -565,12 +584,9 @@ export default function ProductVariantsManager({
                         <input
                           type="text"
                           value={variant.name}
-                          onChange={(e) =>
-                            updateProductVariant(variant.id, 'name', e.target.value)
-                          }
                           placeholder="e.g., Red - Large"
-                          disabled={disabled}
-                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                          disabled={true}
+                          className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-400 placeholder-slate-500 cursor-not-allowed focus:outline-none focus:ring-0 disabled:opacity-75"
                         />
                       </div>
                       <div>
@@ -590,8 +606,8 @@ export default function ProductVariantsManager({
                           placeholder="e.g., PROD-RED-L"
                           disabled={disabled}
                           className={`w-full px-3 py-2 text-sm bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:ring-2 ${variantSkuErrors[variant.id]
-                              ? 'border-red-500 focus:ring-red-500'
-                              : 'border-slate-600 focus:ring-violet-500'
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-slate-600 focus:ring-violet-500'
                             } disabled:opacity-50`}
                         />
                         {variantSkuErrors[variant.id] && (
@@ -607,41 +623,65 @@ export default function ProductVariantsManager({
                         <input
                           type="number"
                           step="0.01"
-                          value={variant.price || ''}
+                          value={variant.price ?? ''}
                           onChange={(e) =>
                             updateProductVariant(
                               variant.id,
                               'price',
-                              e.target.value ? parseFloat(e.target.value) : null
+                              e.target.value !== '' ? e.target.value : null
                             )
                           }
                           placeholder="99.99"
                           disabled={disabled}
-                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                          className={`w-full px-3 py-2 text-sm bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:ring-2 disabled:opacity-50 ${
+                            variant.price !== null && variant.price !== undefined && (Number(variant.price) <= 0 || isNaN(Number(variant.price)))
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-slate-600 focus:ring-violet-500'
+                          }`}
                         />
+                        {variant.price !== null && variant.price !== undefined && (Number(variant.price) <= 0 || isNaN(Number(variant.price))) && (
+                          <p className="mt-1 text-xs text-red-400">
+                            Please enter a valid price (greater than 0)
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Row 2: Compare Price, Stock, Weight, Barcode, Fake Sale Count */}
-                    <div className="grid grid-cols-5 gap-3">
+                    {/* Row 2: Discount %, Sell Price, Stock, Weight, Barcode, Fake Sale Count */}
+                    <div className="grid grid-cols-6 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                          Compare Price
+                          Discount (%)
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          max="100"
+                          value={variant.discountPercentage ?? ''}
+                          onChange={(e) =>
+                            updateProductVariant(
+                              variant.id,
+                              'discountPercentage',
+                              e.target.value !== '' ? e.target.value : null
+                            )
+                          }
+                          placeholder="0"
+                          disabled={disabled}
+                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                          Sell Price (£)
                         </label>
                         <input
                           type="number"
                           step="0.01"
-                          value={variant.compareAtPrice || ''}
-                          onChange={(e) =>
-                            updateProductVariant(
-                              variant.id,
-                              'compareAtPrice',
-                              e.target.value ? parseFloat(e.target.value) : null
-                            )
-                          }
-                          placeholder="129.99"
-                          disabled={disabled}
-                          className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                          value={variant.sellPrice !== undefined && variant.sellPrice !== null ? parseFloat(String(variant.sellPrice)).toFixed(2) : ''}
+                          disabled={true}
+                          placeholder="0.00"
+                          className="w-full px-3 py-2 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed"
                         />
                       </div>
                       <div>
@@ -671,12 +711,12 @@ export default function ProductVariantsManager({
                         <input
                           type="number"
                           step="0.01"
-                          value={variant.weight || ''}
+                          value={variant.weight ?? ''}
                           onChange={(e) =>
                             updateProductVariant(
                               variant.id,
                               'weight',
-                              e.target.value ? parseFloat(e.target.value) : null
+                              e.target.value !== '' ? e.target.value : null
                             )
                           }
                           placeholder="0.5"
@@ -828,13 +868,13 @@ export default function ProductVariantsManager({
                               variants.map((v) =>
                                 v.id === variant.id
                                   ? {
-                                      ...v,
-                                      nextDayDeliveryEnabled: checked,
-                                      ...(!checked && {
-                                        nextDayDeliveryFree: false,
-                                        nextDayDeliveryCutoffTime: '',
-                                      }),
-                                    }
+                                    ...v,
+                                    nextDayDeliveryEnabled: checked,
+                                    ...(!checked && {
+                                      nextDayDeliveryFree: false,
+                                      nextDayDeliveryCutoffTime: '',
+                                    }),
+                                  }
                                   : v
                               )
                             );

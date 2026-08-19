@@ -341,38 +341,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     };
   }, [profileDropdownOpen]);
 
-  // Token refresh check
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const checkAndRefresh = async () => {
-      if (authService.isTokenExpiringSoon(10)) {
-        console.log("⚠️ Token expiring soon, refreshing...");
-
-        const refreshed = await authService.refreshToken();
-
-        if (refreshed) {
-          toast.success("🔄 Session Extended -> Your session has been automatically renewed for 1 hour", {
-            position: "top-center",
-            autoClose: 5000,
-          });
-
-          console.log("✅ Token refreshed successfully at", new Date().toLocaleTimeString());
-        } else {
-          toast.error("⏰ Session Expired -> Please login again to continue", {
-            position: "top-center",
-            autoClose: 5000,
-          });
-          router.replace("/login");
-        }
-      }
-    };
-
-    checkAndRefresh();
-    const interval = setInterval(checkAndRefresh, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [router, toast, isAuthenticated]);
-
   // Calculate time remaining
   const calculateTimeRemaining = () => {
     const expiryDate = authService.getTokenExpiry();
@@ -388,6 +356,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
     if (diff <= 0) {
       setTimeRemaining({ hours: 0, minutes: 0, seconds: 0, total: 0 });
+      handleLogout(); // Force logout when session expires in real-time
       return;
     }
 

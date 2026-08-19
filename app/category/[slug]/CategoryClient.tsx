@@ -77,6 +77,7 @@ interface Category {
   metaKeywords?: string | null;
   productCount: number;
   subCategories: Category[];
+  bannerImageUrl?: string | null;
 }
 type BreadcrumbItem = {
   label: string;
@@ -235,7 +236,7 @@ export default function CategoryClient({
       const ids = brands.filter(b => slugs.includes(b.slug)).map(b => b.id);
       setSelectedBrands(ids);
     }
-    
+
     const subParam = searchParams.get("subCategorySlug");
     if (!subParam) {
       setSelectedSubCategories([]);
@@ -249,13 +250,13 @@ export default function CategoryClient({
   // Fetch dynamic filter options from API whenever selections change
   useEffect(() => {
     let active = true;
-    
+
     const fetchFilterOptions = async () => {
       setFiltersLoading(true);
       try {
         const query = new URLSearchParams();
         query.set("categorySlug", urlSlug);
-        
+
         const subSlugs = selectedSubCategories
           .map((id) => allSubCategories.find((s) => s.id === id)?.slug ?? "")
           .filter(Boolean)
@@ -263,7 +264,7 @@ export default function CategoryClient({
         if (subSlugs) {
           query.set("subCategorySlug", subSlugs);
         }
-        
+
         const brandSlugs = selectedBrands
           .map(id => brands.find(b => b.id === id)?.slug ?? "")
           .filter(Boolean)
@@ -277,11 +278,11 @@ export default function CategoryClient({
         );
         if (!res.ok) throw new Error("Failed to fetch filter options");
         const json = await res.json();
-        
+
         if (json?.success && json.data && active) {
           const apiBrands: any[] = json.data.brands || [];
           const apiSubCats: any[] = json.data.subCategories || [];
-          
+
           // Map and sort brands
           const updatedBrands = apiBrands.map(ab => {
             const matchedBrand = brands.find(b => b.id === ab.id);
@@ -294,9 +295,9 @@ export default function CategoryClient({
               productCount: ab.productCount
             };
           }).sort((a, b) => a.name.localeCompare(b.name));
-          
+
           setDisplayBrands(updatedBrands);
-          
+
           // Map and sort subcategories
           const updatedSubCats = apiSubCats.map(asc => {
             const matchedSub = allSubCategories.find(s => s.id === asc.id);
@@ -312,7 +313,7 @@ export default function CategoryClient({
               subCategories: matchedSub?.subCategories || []
             };
           }).sort((a, b) => a.name.localeCompare(b.name));
-          
+
           setDisplaySubCategories(updatedSubCats as Category[]);
         }
       } catch (err) {
@@ -507,12 +508,17 @@ export default function CategoryClient({
     });
 
     const getCardPrice = (item: any) => {
-      const basePrice =
-        typeof item.variantForCard?.price === "number"
-          ? item.variantForCard.price
-          : item.productData.price;
+      const defaultVariant =
+        item.variantForCard ??
+        item.productData.variants?.find((v: any) => v.isDefault) ??
+        item.productData.variants?.[0] ??
+        null;
 
-      return getDiscountedPrice(item.productData, basePrice);
+      const hasVariants = item.productData.variants && item.productData.variants.length > 0;
+
+      return hasVariants
+        ? (defaultVariant?.sellPrice ?? defaultVariant?.price ?? 0)
+        : (item.productData.sellPrice ?? item.productData.price ?? 0);
     };
 
     // 🔥 SORT AFTER UNIQUE
@@ -646,7 +652,7 @@ export default function CategoryClient({
     fetchCbRef.current = fetchMoreProducts;
   }, [fetchMoreProducts]);
 
-  // Observer only recreates when hasMore changes — NOT on every page/fetch cycle
+  // Observer only recreates when hasMore or page changes
   useEffect(() => {
     if (!loadMoreRef.current || !hasMore) return;
 
@@ -662,7 +668,7 @@ export default function CategoryClient({
     observer.observe(loadMoreRef.current);
 
     return () => observer.disconnect();
-  }, [hasMore]);
+  }, [hasMore, page]);
 
   // Reset products whenever the server provides new initialProducts (covers both URL changes
   // and the delayed server re-render after a filter change like subcategory multi-select)
@@ -914,6 +920,12 @@ export default function CategoryClient({
         ? defaultVariant.nextDayDeliveryFree === true
         : !!product.nextDayDeliveryFree;
 
+      const discountPercentageToShow =
+        product.variants && product.variants.length > 0
+          ? (defaultVariant?.discountPercentage ?? 0)
+          : (product.discountPercentage ?? 0);
+      const hasDiscount = discountPercentageToShow > 0 && basePrice > finalPrice;
+
       addToCart({
         id: `${variantId ?? product.id}-one`,
         productId: product.id,
@@ -926,20 +938,14 @@ export default function CategoryClient({
             .filter(Boolean)
             .join(", ")})`
           : product.name,
-        price: finalPrice,
+        price: basePrice,
+        sellPrice: finalPrice,
+        discountPercentage: discountPercentageToShow,
         priceBeforeDiscount: basePrice,
         finalPrice: finalPrice,
-        oldPrice: hasActiveCoupon
-          ? undefined
-          : (product.variants && product.variants.length > 0
-            ? (defaultVariant?.compareAtPrice ?? defaultVariant?.oldPrice ?? undefined)
-            : (product.compareAtPrice ?? product.oldPrice ?? undefined)),
-        displayDiscountType: hasActiveCoupon
-          ? "None"
-          : (defaultVariant?.displayDiscountType ??
-            product.displayDiscountType ??
-            "None"),
-        discountAmount: basePrice - finalPrice,
+        oldPrice: hasDiscount ? basePrice : undefined,
+        displayDiscountType: hasDiscount ? "OldPrice" : "None",
+        discountAmount: 0,
         quantity: finalQty,
         image: imageUrl,
         sku: defaultVariant?.sku ?? product.sku,
@@ -1210,8 +1216,17 @@ export default function CategoryClient({
 
           {/* MAIN CONTENT */}
           <div className="flex-1">
-            {/* Search & Sort Bar */}
-
+            {/* ─── CATEGORY BANNER ─── */}
+            {category?.bannerImageUrl && (
+              <div className="w-full mb-6">
+                <img
+                  src={category.bannerImageUrl.startsWith("http") ? category.bannerImageUrl : `${process.env.NEXT_PUBLIC_API_URL || ""}${category.bannerImageUrl}`}
+                  alt={`${category.name} banner`}
+                  className="w-full h-auto md:max-h-[270px] object-cover rounded shadow-md"
+                  onError={(e) => { (e.currentTarget as any).style.display = "none"; }}
+                />
+              </div>
+            )}
 
             {/* Mobile Filter — Left Side Drawer */}
             {showFilters && (

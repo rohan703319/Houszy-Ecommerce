@@ -76,6 +76,8 @@ interface Variant {
   loyaltyPointsEarnable?: number;
   loyaltyPointsMessage?: string;
   oldPrice?: number;
+  discountPercentage?: number;
+  sellPrice?: number;
   displayDiscountType?: "None" | "OldPrice" | "System";
   freeShippingThreshold?: number;
   freeShippingThresholds?: FreeShippingThresholdDto[];
@@ -135,6 +137,8 @@ interface Product {
   sku: string;
   price: number;
   oldPrice: number;
+  discountPercentage?: number;
+  sellPrice?: number;
   displayDiscountType?: "None" | "OldPrice" | "System";
 
   hasSystemDiscount?: boolean;
@@ -1145,6 +1149,17 @@ export default function ProductDetails({
     }
     return product?.price ?? 0;
   }, [selectedVariant, product]);
+
+  const sellPriceToShow = useMemo(() => {
+    if (selectedVariant && typeof selectedVariant.sellPrice === "number" && selectedVariant.sellPrice > 0) {
+      return selectedVariant.sellPrice;
+    }
+    if (product && typeof product.sellPrice === "number" && product.sellPrice > 0) {
+      return product.sellPrice;
+    }
+    return basePrice;
+  }, [selectedVariant, product, basePrice]);
+
   const activeAutoDiscount = useMemo(() => {
     if (!product.assignedDiscounts) return null;
 
@@ -1164,36 +1179,20 @@ export default function ProductDetails({
     return appliedCoupon.isCumulative === true;
   }, [appliedCoupon, activeAutoDiscount]);
   const autoDiscountedPrice = useMemo(() => {
-    return getDiscountedPrice(product, basePrice);
-  }, [product, basePrice]);
+    return getDiscountedPrice(product, sellPriceToShow);
+  }, [product, sellPriceToShow]);
 
-  // 🔥 OLD PRICE FALLBACK (PDP SAFE)
-  const oldPriceValue =
-    selectedVariant?.compareAtPrice ?? selectedVariant?.oldPrice ??
-    product.compareAtPrice ?? product.oldPrice;
+  const discountPercentageToShow = useMemo(() => {
+    return selectedVariant
+      ? (selectedVariant.discountPercentage ?? 0)
+      : (product.discountPercentage ?? 0);
+  }, [selectedVariant, product.discountPercentage]);
 
-  const currentDisplayType =
-    selectedVariant?.displayDiscountType ??
-    product.displayDiscountType ??
-    "None";
+  // ✅ Derived: whether product/variant has a discount (price > sellPrice)
+  const hasDiscount = useMemo(() => {
+    return discountPercentageToShow > 0 && basePrice > sellPriceToShow;
+  }, [discountPercentageToShow, basePrice, sellPriceToShow]);
 
-  const currentSystemDiscountAmount =
-    selectedVariant?.systemDiscountAmount ??
-    product.systemDiscountAmount ??
-    0;
-
-  // 🔥 OLD PRICE DATA — null when:
-  // 1. displayDiscountType is not "OldPrice"
-  // 2. Product has requiresCouponCode discount (hasCouponAvailable) — coupon products must NEVER show old price
-  // 3. There is an active auto discount
-  const oldPriceData =
-    currentDisplayType === "OldPrice" && !hasCouponAvailable
-      ? getOldPriceDiscount(
-        basePrice,
-        oldPriceValue,
-        false
-      )
-      : null;
   // ✅ STOCK (variant aware)
   const stock = useMemo(() => {
     return selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
@@ -1257,32 +1256,26 @@ export default function ProductDetails({
 
     // 🥇 COUPON APPLIED
     if (appliedCoupon) {
+      let final = 0;
+      let couponAmount = 0;
 
-      let autoAmount = 0;
-
-      // check auto discount
-      if (activeAutoDiscount) {
-        if (activeAutoDiscount.usePercentage) {
-          autoAmount = (basePrice * activeAutoDiscount.discountPercentage) / 100;
-        } else {
-          autoAmount = activeAutoDiscount.discountAmount;
-        }
-      }
-
-      // coupon discount from backend
-      const couponAmount = appliedCoupon.discountAmount;
-
-      let totalDiscount = couponAmount;
-
-      // 🔥 CUMULATIVE LOGIC
       if (appliedCoupon.isCumulative && activeAutoDiscount) {
-        totalDiscount = couponAmount + autoAmount;
+        // Calculate coupon on top of discounted price (sellPriceToShow, e.g. 18)
+        couponAmount = appliedCoupon.usePercentage
+          ? (sellPriceToShow * (appliedCoupon.discountPercentage ?? 0)) / 100
+          : (appliedCoupon.discountAmount ?? 0);
+        final = sellPriceToShow - couponAmount;
+      } else {
+        // Not cumulative - coupon applies to basePrice (original price, e.g. 20)
+        couponAmount = appliedCoupon.usePercentage
+          ? (basePrice * (appliedCoupon.discountPercentage ?? 0)) / 100
+          : (appliedCoupon.discountAmount ?? 0);
+        final = basePrice - couponAmount;
       }
 
-      const final = +(basePrice - totalDiscount).toFixed(2);
-
-      setFinalPrice(final);
-      setDiscountAmount(+(basePrice - final).toFixed(2));
+      const finalPriceRounded = +final.toFixed(2);
+      setFinalPrice(finalPriceRounded);
+      setDiscountAmount(+(basePrice - finalPriceRounded).toFixed(2));
       return;
     }
 
@@ -1291,41 +1284,39 @@ export default function ProductDetails({
       let autoAmount = 0;
 
       if (activeAutoDiscount.usePercentage) {
-        autoAmount = (basePrice * activeAutoDiscount.discountPercentage) / 100;
+        autoAmount = (sellPriceToShow * activeAutoDiscount.discountPercentage) / 100;
       } else {
         autoAmount = activeAutoDiscount.discountAmount;
       }
 
-      const autoFinal = +(basePrice - autoAmount).toFixed(2);
+      const autoFinal = +(sellPriceToShow - autoAmount).toFixed(2);
 
       setFinalPrice(autoFinal);
-      setDiscountAmount(+(basePrice - autoFinal).toFixed(2));
+      setDiscountAmount(+(sellPriceToShow - autoFinal).toFixed(2));
       return;
     }
 
     // 🥉 NO DISCOUNT
-    setFinalPrice(basePrice);
+    setFinalPrice(sellPriceToShow);
     setDiscountAmount(0);
 
-  }, [basePrice, appliedCoupon, activeAutoDiscount]);
+  }, [sellPriceToShow, appliedCoupon, activeAutoDiscount]);
 
   const discountPercentage = useMemo(() => {
     if (appliedCoupon) {
-      return basePrice > 0 ? Math.round((discountAmount / basePrice) * 100) : 0;
-    }
-    if (currentDisplayType === "System") {
-      return basePrice > 0 ? Math.round((currentSystemDiscountAmount / basePrice) * 100) : 0;
+      return sellPriceToShow > 0 ? Math.round((discountAmount / sellPriceToShow) * 100) : 0;
     }
     if (activeAutoDiscount) {
       return activeAutoDiscount.usePercentage
         ? activeAutoDiscount.discountPercentage
-        : Math.round((activeAutoDiscount.discountAmount / (selectedVariant?.price ?? product.price)) * 100);
+        : Math.round((activeAutoDiscount.discountAmount / sellPriceToShow) * 100);
     }
-    if (currentDisplayType === "OldPrice" && oldPriceData) {
-      return oldPriceData.discount;
-    }
-    return 0;
-  }, [appliedCoupon, basePrice, discountAmount, currentDisplayType, currentSystemDiscountAmount, activeAutoDiscount, selectedVariant, product.price, oldPriceData]);
+    // 🔥 NEW DISCOUNT PERCENTAGE FROM SCHEMA (discountPercentage > 0 means sellPrice is lower)
+    const directDiscountPercentage = selectedVariant
+      ? (selectedVariant.discountPercentage || 0)
+      : (product.discountPercentage || 0);
+    return directDiscountPercentage;
+  }, [appliedCoupon, sellPriceToShow, discountAmount, activeAutoDiscount, selectedVariant, product.discountPercentage]);
 
   const allRequiredSelected = useMemo(() => {
     if (!isGroupedProduct) return true;
@@ -1643,6 +1634,14 @@ export default function ProductDetails({
       )
       .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
 
+    const mainMin = (selected?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
+    const mainMax = (selected?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
+
+    if (existingCartQty + normalQty > mainMax) {
+      toast.error(`Allowed maximum order quantity is ${mainMax}`);
+      return;
+    }
+
     const stockQty =
       selected?.stockQuantity ?? product.stockQuantity ?? 0;
 
@@ -1653,22 +1652,12 @@ export default function ProductDetails({
       return;
     }
 
-    const mainMin = (selected?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
-
-    // 🔥 MAX ORDER CHECK (IMPORTANT FIX)
-    const mainMax = (selected?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
-
-    if (existingCartQty + normalQty > mainMax) {
-      toast.error(`Maximum order quantity is ${mainMax}`);
-      return;
-    }
-
     if (normalQty < mainMin) {
       toast.error(`Minimum order quantity is ${mainMin}`);
       return;
     }
     if (normalQty > mainMax) {
-      toast.error(`Maximum order quantity is ${mainMax}`);
+      toast.error(`Allowed maximum order quantity is ${mainMax}`);
       return;
     }
     // ⭐ GROUPED PRODUCTS STOCK VALIDATION
@@ -1724,25 +1713,17 @@ export default function ProductDetails({
         productId: product.id,
         variantId: selected?.id ?? null,
         name: `${product.name} ${variantTitle} (Bundle)`,
-        price: final,
+        price: basePrice,
+        sellPrice: finalPrice,
+        discountPercentage: discountPercentageToShow,
         priceBeforeDiscount: basePrice,
-        finalPrice: final,
-        discountAmount:
-          currentDisplayType === "System" || appliedCoupon
-            ? discountAmount ?? 0
-            : 0,
-        // 🔥 Coupon products: never send oldPrice or OldPrice type to cart
-        oldPrice: hasCouponAvailable ? undefined : (oldPriceValue ?? undefined),
-
-        displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
-
-        hasSystemDiscount:
-          selectedVariant?.hasSystemDiscount ??
-          product.hasSystemDiscount ??
-          false,
-
-        systemDiscountAmount:
-          currentSystemDiscountAmount,
+        finalPrice: finalPrice,
+        discountAmount: (appliedCoupon || activeAutoDiscount) ? (discountAmount ?? 0) : 0,
+        // oldPrice = MRP when product has intrinsic discount (no coupon)
+        oldPrice: (appliedCoupon || activeAutoDiscount) ? undefined : (hasDiscount ? basePrice : undefined),
+        displayDiscountType: (appliedCoupon || activeAutoDiscount) ? "None" : (hasDiscount ? "OldPrice" : "None"),
+        hasSystemDiscount: false,
+        systemDiscountAmount: 0,
         couponCode: appliedCoupon?.couponCode ?? null,
         appliedDiscountId: appliedCoupon?.id ?? null,
         quantity: bundleQty,
@@ -1815,25 +1796,16 @@ export default function ProductDetails({
         productId: product.id,
         variantId: selected?.id ?? null,
         name: `${product.name} ${variantTitle}`,
-        price: final,
+        price: basePrice,
+        sellPrice: finalPrice,
+        discountPercentage: discountPercentageToShow,
         priceBeforeDiscount: basePrice,
-        finalPrice: final,
-        discountAmount:
-          currentDisplayType === "System" || appliedCoupon
-            ? discountAmount ?? 0
-            : 0,
-        // 🔥 Coupon products: never send oldPrice or OldPrice type to cart
-        oldPrice: hasCouponAvailable ? undefined : (oldPriceValue ?? undefined),
-
-        displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
-
-        hasSystemDiscount:
-          selectedVariant?.hasSystemDiscount ??
-          product.hasSystemDiscount ??
-          false,
-
-        systemDiscountAmount:
-          currentSystemDiscountAmount,
+        finalPrice: finalPrice,
+        discountAmount: (appliedCoupon || activeAutoDiscount) ? (discountAmount ?? 0) : 0,
+        oldPrice: (appliedCoupon || activeAutoDiscount) ? undefined : (hasDiscount ? basePrice : undefined),
+        displayDiscountType: (appliedCoupon || activeAutoDiscount) ? "None" : (hasDiscount ? "OldPrice" : "None"),
+        hasSystemDiscount: false,
+        systemDiscountAmount: 0,
         couponCode: appliedCoupon?.couponCode ?? null,
         appliedDiscountId: appliedCoupon?.id ?? null,
         quantity: standaloneQty,
@@ -1900,11 +1872,11 @@ export default function ProductDetails({
     }
 
     if (normalQty > mainMax) {
-      toast.error(`Maximum order quantity is ${mainMax}`);
+      toast.error(`Allowed maximum order quantity is ${mainMax}`);
       return;
     }
     if (normalQty > stockQty) {
-      toast.error(`Only ${stockQty} items available`);
+      toast.error(`Only ${stockQty} items left in stock`);
       return;
     }
     if (isGroupedProduct && groupEnabled && product.groupedProducts) {
@@ -1939,25 +1911,18 @@ export default function ProductDetails({
           .join(", ")})`
         : ""
         }`,
-      price: final,
+      price: basePrice,
+      sellPrice: finalPrice,
+      discountPercentage: discountPercentageToShow,
       priceBeforeDiscount: basePrice,
-      finalPrice: final,
-      discountAmount:
-        currentDisplayType === "System" || appliedCoupon
-          ? discountAmount ?? 0
-          : 0,
-      // 🔥 Coupon products: never send oldPrice or OldPrice type to cart
-      oldPrice: hasCouponAvailable ? undefined : (oldPriceValue ?? undefined),
-
-      displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
-
-      hasSystemDiscount:
-        selectedVariant?.hasSystemDiscount ??
-        product.hasSystemDiscount ??
-        false,
-
-      systemDiscountAmount:
-        currentSystemDiscountAmount,
+      finalPrice: finalPrice,
+      discountAmount: (appliedCoupon || activeAutoDiscount) ? (discountAmount ?? 0) : 0,
+      oldPrice: (appliedCoupon || activeAutoDiscount) ? undefined : (hasDiscount ? basePrice : undefined),
+      displayDiscountType: (appliedCoupon || activeAutoDiscount) ? "None" : (hasDiscount ? "OldPrice" : "None"),
+      hasSystemDiscount: false,
+      systemDiscountAmount: 0,
+      couponCode: appliedCoupon?.couponCode ?? null,
+      appliedDiscountId: appliedCoupon?.id ?? null,
       quantity: normalQty,
       vatRate: vatRate,
       vatIncluded: vatRate !== null,
@@ -2169,23 +2134,6 @@ export default function ProductDetails({
 
               {/* Main Image */}
               <div className="flex-1 relative bg-white overflow-hidden">
-                {/* 🎫 COUPON AVAILABLE BADGE — top-left on image (same style as FeaturedProductsSlider) */}
-                {hasCouponAvailable && !appliedCoupon && (
-                  <div className="absolute top-2 left-2 z-30">
-                    <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[12px] font-semibold px-2.5 py-1.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
-                      <div className="flex flex-col items-center text-center">
-                        <span className="flex items-center gap-1 text-[12px] font-bold">
-                          🎫 Coupon
-                        </span>
-                        <span className="text-[12px] opacity-90">Available</span>
-                      </div>
-                      {/* hole */}
-                      <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
-                      {/* string */}
-                      <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
-                    </div>
-                  </div>
-                )}
                 <div className="relative bg-white overflow-hidden h-[310px] md:h-[390px] lg:h-[460px] flex items-center justify-center">
 
                   {/* ✅ ONLY IMAGE AREA HAS ZOOM */}
@@ -2280,26 +2228,15 @@ export default function ProductDetails({
                               .join(", ")})`
                             : product.name,
 
-                          slug: selectedVariant?.slug ?? product.slug, // 🔥 IMPORTANT
+                          slug: selectedVariant?.slug ?? product.slug,
                           price: finalPrice,
                           priceBeforeDiscount: basePrice,
                           finalPrice: finalPrice,
-                          discountAmount:
-                            currentDisplayType === "System" || appliedCoupon
-                              ? discountAmount ?? 0
-                              : 0,
-                          // 🔥 Coupon products: never send oldPrice or OldPrice type
-                          oldPrice: hasCouponAvailable ? null : (oldPriceValue ?? null),
-
-                          displayDiscountType: hasCouponAvailable ? "None" : currentDisplayType,
-
-                          hasSystemDiscount:
-                            selectedVariant?.hasSystemDiscount ??
-                            product.hasSystemDiscount ??
-                            false,
-
-                          systemDiscountAmount:
-                            currentSystemDiscountAmount,
+                          discountAmount: discountAmount ?? 0,
+                          oldPrice: appliedCoupon ? null : (hasDiscount ? basePrice : null),
+                          displayDiscountType: "None",
+                          hasSystemDiscount: false,
+                          systemDiscountAmount: 0,
                           appliedDiscountId: appliedCoupon?.id ?? null,
                           couponCode: appliedCoupon?.couponCode ?? null,
 
@@ -2743,7 +2680,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 {product.variants?.[0]?.option2Name && (
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-gray-950">
-                      <span className="font-bold">{product.variants?.[0]?.option2Name}</span> <span className="text-gray-700 capitalize ml-1">{selectedOptions.option2}</span>
+                      <span className="font-bold">{product.variants?.[0]?.option2Name}</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {[...new Set(
@@ -2769,7 +2706,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 {product.variants?.some(v => v.option3Name && v.option3Value) && (
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-gray-950">
-                      <span className="font-bold">{product.variants?.[0]?.option3Name}</span> <span className="text-gray-700 capitalize ml-1">{selectedOptions.option3}</span>
+                      <span className="font-bold">{product.variants?.[0]?.option3Name}</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {[...new Set(
@@ -2827,14 +2764,14 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                           </label>
                           {/* Price + VAT + Loyalty — all compact inline */}
                           <div className="flex flex-wrap items-center gap-2 mb-2">
-                            {/* 🔥 CASE 1: DISCOUNT */}
+                            {/* Strikethrough MRP — shown when discount exists or coupon/auto-discount applied */}
                             {(appliedCoupon || activeAutoDiscount) ? (
                               <span className="text-xs text-gray-400 line-through">
-                                £{basePrice.toFixed(2)} GBP
+                                £{sellPriceToShow.toFixed(2)} GBP
                               </span>
-                            ) : (!appliedCoupon && !activeAutoDiscount && oldPriceData) ? (
+                            ) : hasDiscount ? (
                               <span className="text-xs text-gray-400 line-through">
-                                £{oldPriceData.oldPrice.toFixed(2)} GBP
+                                £{basePrice.toFixed(2)} GBP
                               </span>
                             ) : null}
 
@@ -2843,7 +2780,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             </span>
                             {discountPercentage > 0 && (
                               <span className="bg-[#E31B23] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm leading-none flex items-center justify-center">
-                                -{discountPercentage}%
+                                {discountPercentage}% Off
                               </span>
                             )}
                             {loyaltyPoints && (
@@ -2973,11 +2910,11 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               {/* Old Prices */}
                               {(appliedCoupon || activeAutoDiscount) ? (
                                 <span className="text-lg md:text-xl font-medium text-gray-400 line-through">
-                                  £{basePrice.toFixed(2)} GBP
+                                  £{sellPriceToShow.toFixed(2)} GBP
                                 </span>
-                              ) : (!appliedCoupon && !activeAutoDiscount && oldPriceData) ? (
+                              ) : hasDiscount ? (
                                 <span className="text-lg md:text-xl font-medium text-gray-400 line-through">
-                                  £{oldPriceData.oldPrice.toFixed(2)} GBP
+                                  £{basePrice.toFixed(2)} GBP
                                 </span>
                               ) : null}
 
@@ -2993,20 +2930,6 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 </span>
                               )}
 
-                              {/* 🎫 Apply Coupon inline button — shown in price row when coupon available */}
-                              {hasCouponAvailable && (
-                                <button
-                                  type="button"
-                                  onClick={() => { if (appliedCoupon) { handleRemoveCoupon(); } else { setShowCouponModal(true); } }}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm transition-all ${appliedCoupon
-                                    ? "bg-red-50 border-red-300 text-red-600 hover:bg-red-100"
-                                    : "bg-[#d0021b] border-[#d0021b] text-white hover:bg-[#b0011a] animate-pulse"
-                                    }`}
-                                >
-                                  <BadgePercent className="h-3.5 w-3.5" />
-                                  {appliedCoupon ? "Remove Coupon" : "Apply Coupon"}
-                                </button>
-                              )}
                             </div>
 
                             {/* 🔥 OFFER PAGE BADGE — show when product has assigned discount */}
@@ -3117,25 +3040,29 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                       }
                                       let num = parseInt(val, 10);
                                       const minQty = (selectedVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
-                                      const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
-                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? maxStock;
-                                      const limit = Math.min(maxQty, maxStock);
+                                      const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
                                       if (num < minQty) {
                                         toast.error(`Minimum order quantity is ${minQty}`);
                                         setNormalQty(minQty);
                                         return;
                                       }
-                                      if (num > limit) {
-                                        toast.error(`only ${limit} quantity left in stock `);
-                                        setNormalQty(limit);
+                                      if (num > maxQty) {
+                                        toast.error(`Allowed maximum order quantity is ${maxQty}`);
+                                        setNormalQty(maxQty);
+                                        return;
+                                      }
+                                      if (num > maxStock) {
+                                        toast.error(`Only ${maxStock} items left in stock`);
+                                        setNormalQty(maxStock);
                                         return;
                                       }
                                       setNormalQty(num);
                                     }}
                                     onBlur={() => {
                                       const minQty = (selectedVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
-                                      const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
-                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? maxStock;
+                                      const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
                                       const limit = Math.min(maxQty, maxStock);
                                       let val = normalQty;
                                       if (!val || val < minQty) val = minQty;
@@ -3151,11 +3078,14 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                     size="sm"
                                     className="h-full px-3 text-gray-600 hover:bg-transparent"
                                     onClick={() => {
-                                      const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity;
-                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? maxStock;
-                                      const limit = Math.min(maxQty, maxStock);
-                                      if (normalQty >= limit) {
-                                        toast.error(`only ${limit} quantity left in stock`);
+                                      const maxStock = selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+                                      const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
+                                      if (normalQty >= maxQty) {
+                                        toast.error(`Allowed maximum order quantity is ${maxQty}`);
+                                        return;
+                                      }
+                                      if (normalQty >= maxStock) {
+                                        toast.error(`Only ${maxStock} items left in stock`);
                                         return;
                                       }
                                       setNormalQty(normalQty + 1);
@@ -3771,21 +3701,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             onClose={() => setShowNotifyModal(false)}
           />
         )}
-        {showCouponModal && (
-          <CouponModal
-            open={showCouponModal}
-            onClose={() => setShowCouponModal(false)}
-            couponCode={couponCode}
-            setCouponCode={setCouponCode}
-            appliedCoupon={appliedCoupon}
-            offers={product.assignedDiscounts?.filter(d => d.requiresCouponCode) || []}
-            onApply={handleApplyCoupon}
-            onRemove={handleRemoveCoupon}
-            orderSubtotal={basePrice}
-            productIds={[product.id]}
-            categoryIds={product.categories?.map(c => c.categoryId)}
-          />
-        )}
+
         {showImageModal && (
           <ProductImageModal
             images={sortedImages}

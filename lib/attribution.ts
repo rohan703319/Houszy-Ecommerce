@@ -117,3 +117,13 @@ export function getAttributionPayload() {
     referrer: data?.referrer || null,
   };
 }
+
+export function clearAttribution() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (err) {
+    console.error("Failed to clear attribution:", err);
+  }
+}
+

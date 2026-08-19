@@ -46,6 +46,8 @@ interface Variant {
   nextDayDeliveryFree?: boolean | null;
   orderMinimumQuantity?: number | null;
   orderMaximumQuantity?: number | null;
+  discountPercentage?: number | null;
+  sellPrice?: number | null;
 }
 interface Product {
   orderMinimumQuantity?: number;
@@ -81,6 +83,8 @@ interface Product {
   nextDayDeliveryFree?: boolean;
   sameDayDeliveryEnabled?: boolean;
   isPharmaProduct?: boolean;
+  discountPercentage?: number;
+  sellPrice?: number;
 }
 
 
@@ -232,9 +236,10 @@ export default function FeaturedProductsSlider({
     // Use vatRate directly from API response
     const vatRate: number | null = (product as any).vatRate ?? null;
     const selected = defaultVariant ?? null;
-    const oldPriceValue =
-      (defaultVariant as any)?.compareAtPrice ?? (defaultVariant as any)?.oldPrice ??
-      (product as any).compareAtPrice ?? product.oldPrice;
+    const discountPercentageToShow = defaultVariant
+      ? (defaultVariant.discountPercentage ?? 0)
+      : (product.discountPercentage ?? 0);
+    const hasDiscount = discountPercentageToShow > 0 && basePrice > finalPrice;
     const stockQty =
       selected?.stockQuantity ??
       (product as any).stockQuantity ??
@@ -277,23 +282,19 @@ export default function FeaturedProductsSlider({
             .filter(Boolean)
             .join(", ")})`
           : product.name,
-        price: finalPrice,
+        price: basePrice,
+        sellPrice: finalPrice,
+        discountPercentage: discountPercentageToShow,
         priceBeforeDiscount: basePrice,
         finalPrice: finalPrice,
-        discountAmount:
-          product.displayDiscountType === "System"
-            ? discountAmount
-            : 0,
-        oldPrice: oldPriceValue ?? null,
+        discountAmount: 0,
+        oldPrice: hasDiscount ? basePrice : null,
 
-        displayDiscountType:
-          product.displayDiscountType ?? "None",
+        displayDiscountType: hasDiscount ? "OldPrice" : "None",
 
-        hasSystemDiscount:
-          product.hasSystemDiscount ?? false,
+        hasSystemDiscount: false,
 
-        systemDiscountAmount:
-          product.systemDiscountAmount ?? 0,
+        systemDiscountAmount: 0,
         quantity: finalQty,
         vatRate: vatRate,
         vatIncluded: vatRate !== null,
@@ -409,8 +410,8 @@ export default function FeaturedProductsSlider({
             (product as any).variants?.find((v: any) => v.isDefault);
 
           const isNextDayFree = defaultVariant
-            ? defaultVariant.nextDayDeliveryFree === true
-            : !!product.nextDayDeliveryFree;
+            ? defaultVariant.nextDayDeliveryFree === true && defaultVariant.nextDayDeliveryEnabled === true
+            : !!product.nextDayDeliveryFree && !!product.nextDayDeliveryEnabled;
 
           // 🎁 LOYALTY POINTS (PRODUCT + VARIANT AWARE)
           const loyaltyPoints = (() => {
@@ -428,31 +429,23 @@ export default function FeaturedProductsSlider({
           })();
 
           const basePrice =
-            typeof defaultVariant?.price === "number" && defaultVariant.price > 0
-              ? defaultVariant.price
-              : product.price;
+            product.variants && product.variants.length > 0
+              ? (defaultVariant?.price ?? 0)
+              : (product.price ?? 0);
+
+          const sellPriceToShow =
+            product.variants && product.variants.length > 0
+              ? (defaultVariant?.sellPrice ?? defaultVariant?.price ?? 0)
+              : (product.sellPrice ?? product.price ?? 0);
+
+          const discountPercentageToShow =
+            product.variants && product.variants.length > 0
+              ? ((defaultVariant as any)?.discountPercentage ?? 0)
+              : ((product as any).discountPercentage ?? 0);
+
+          const hasDiscount = discountPercentageToShow > 0 && basePrice > sellPriceToShow;
 
           const discountBadge = getDiscountBadge(product);
-          const finalPrice = getDiscountedPrice(product, basePrice);
-          // 🔥 NEW: oldPrice fallback logic
-          const oldPriceValue =
-            (product.variants && product.variants.length > 0)
-              ? ((defaultVariant as any)?.compareAtPrice ?? (defaultVariant as any)?.oldPrice ?? undefined)
-              : ((product as any).compareAtPrice ?? product.oldPrice ?? undefined);
-
-          const currentDisplayType =
-            (defaultVariant as any)?.displayDiscountType ??
-            product.displayDiscountType ??
-            "None";
-
-          const oldPriceData =
-            currentDisplayType === "OldPrice"
-              ? getOldPriceDiscount(
-                basePrice,
-                oldPriceValue,
-                false
-              )
-              : null;
           // ---------- Active Coupon (indicator only) ----------
           const hasActiveCoupon = (product as any).assignedDiscounts?.some((d: any) => {
             if (!d.isActive) return false;
@@ -465,10 +458,7 @@ export default function FeaturedProductsSlider({
             return true;
           });
 
-          const discountAmount =
-            basePrice > finalPrice
-              ? +(basePrice - finalPrice).toFixed(2)
-              : 0;
+          const discountAmount = hasDiscount ? +(basePrice - sellPriceToShow).toFixed(2) : 0;
 
           const stock = defaultVariant?.stockQuantity ?? (product as any).stockQuantity ?? 0;
           const backorderState = getBackorderUIState({
@@ -512,29 +502,19 @@ export default function FeaturedProductsSlider({
                           Earn {loyaltyPoints} pts
                         </span>
                       )}
-                      {/* Offer badge — top right */}
-                      {product.displayDiscountType === "System" &&
-                        discountBadge && (
-                          <div className="absolute z-20 left-3 top-2">
-                            <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
-                              <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
-                                -{discountBadge.type === "percent" ? `${discountBadge.value}%` : `£${discountBadge.value}`}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                      {!discountBadge && !hasActiveCoupon && oldPriceData && (
+                      {/* DISCOUNT BADGE — show when discountPercentage > 0 */}
+                      {hasDiscount && (
                         <div className="absolute z-20 left-3 top-2">
                           <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                             <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
-                              -{oldPriceData.discount}%
+                              {discountPercentageToShow}% Off
                             </span>
                           </div>
                         </div>
                       )}
-                      {/* Coupon badge — top right, smaller */}
-                      {!discountBadge && hasActiveCoupon && (
+
+                      {/* Coupon badge */}
+                      {!hasDiscount && hasActiveCoupon && (
                         <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">
                           <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
@@ -579,24 +559,15 @@ export default function FeaturedProductsSlider({
                               : product.name,
 
                             slug: cardSlug,
-                            price: finalPrice,
+                            price: sellPriceToShow,
 
                             priceBeforeDiscount: basePrice,
-                            finalPrice: finalPrice,
-                            discountAmount:
-                              product.displayDiscountType === "System"
-                                ? discountAmount
-                                : 0,
-                            oldPrice: oldPriceValue ?? null,
-
-                            displayDiscountType:
-                              product.displayDiscountType ?? "None",
-
-                            hasSystemDiscount:
-                              product.hasSystemDiscount ?? false,
-
-                            systemDiscountAmount:
-                              product.systemDiscountAmount ?? 0,
+                            finalPrice: sellPriceToShow,
+                            discountAmount: discountAmount,
+                            oldPrice: hasDiscount ? basePrice : null,
+                            displayDiscountType: "None",
+                            hasSystemDiscount: false,
+                            systemDiscountAmount: 0,
                             appliedDiscountId: null, // slider me coupon nahi hai
                             couponCode: null,
                             image: getProductDisplayImage(product, defaultVariant),
@@ -641,25 +612,21 @@ export default function FeaturedProductsSlider({
 
                     {/* RATING + REVIEW */}
                     <div className="flex items-center justify-center gap-1 min-h-[20px] mb-2 flex-nowrap overflow-hidden w-full">
-                      {/* Desktop: 5 Stars */}
-                      <div className="hidden md:flex items-center gap-0.5">
+                      {/* 5 Stars (Show on both Mobile and Desktop) */}
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
                         {[1, 2, 3, 4, 5].map((_, i) => {
                           const rating = product.averageRating || 0;
                           if (rating >= i + 1) {
-                            return <Star key={i} className="h-4 w-4 fill-[#ffc107] text-[#ffc107]" />;
+                            return <Star key={i} className="h-3 w-3 md:h-4 md:w-4 fill-[#ffc107] text-[#ffc107]" />;
                           } else if (rating > i && rating < i + 1) {
-                            return <StarHalf key={i} className="h-4 w-4 fill-[#ffc107] text-[#ffc107]" />;
+                            return <StarHalf key={i} className="h-3 w-3 md:h-4 md:w-4 fill-[#ffc107] text-[#ffc107]" />;
                           }
-                          return <Star key={i} className="h-4 w-4 fill-gray-200 text-gray-200" />;
+                          return <Star key={i} className="h-3 w-3 md:h-4 md:w-4 fill-gray-200 text-gray-200" />;
                         })}
                       </div>
-                      {/* Mobile: Single Star + Rating Number */}
-                      <div className="flex md:hidden items-center flex-shrink-0">
-                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                        <span className="text-[11px] ml-0.5 font-semibold text-gray-700">
-                          {(product.averageRating ?? 0).toFixed(1)}
-                        </span>
-                      </div>
+                      <span className="text-[11px] font-semibold text-gray-700 ml-1 flex-shrink-0">
+                        {(product.averageRating ?? 0).toFixed(1)}
+                      </span>
                       <span className="text-[11px] text-gray-500 ml-0.5 flex-shrink-0">
                         ({product.reviewCount ?? 0})
                       </span>
@@ -696,30 +663,15 @@ export default function FeaturedProductsSlider({
                     <div className="min-h-[30px] mt-2 mb-0 flex flex-col justify-center w-full">
                       {/* PRICE ROW */}
                       <div className="flex items-center justify-center gap-2">
+                        {/* Highlighted selling price */}
                         <span className="text-sm md:text-base font-bold text-[#f38918] leading-none">
-                          £{
-                            (
-                              product.displayDiscountType === "System"
-                                ? finalPrice
-                                : basePrice
-                            ).toFixed(2)
-                          }
+                          £{sellPriceToShow.toFixed(2)}
                           <span className="hidden md:inline ml-0.5">GBP</span>
                         </span>
-
-                        {/* 🔥 CASE 1: REAL DISCOUNT */}
-                        {product.displayDiscountType === "System" &&
-                          discountBadge && (
-                            <span className="text-xs text-gray-500 line-through leading-none">
-                              £{basePrice.toFixed(2)}
-                              <span className="hidden md:inline ml-0.5">GBP</span>
-                            </span>
-                          )}
-
-                        {/* 🔥 CASE 2: OLD PRICE (NO DISCOUNT) */}
-                        {!discountBadge && !hasActiveCoupon && oldPriceData && (
+                        {/* Strikethrough base price — only if discount exists */}
+                        {hasDiscount && (
                           <span className="text-xs text-gray-500 line-through leading-none">
-                            £{oldPriceData.oldPrice.toFixed(2)}
+                            £{basePrice.toFixed(2)}
                             <span className="hidden md:inline ml-0.5">GBP</span>
                           </span>
                         )}
@@ -756,7 +708,7 @@ export default function FeaturedProductsSlider({
                                   variant: defaultVariant,
                                   action: "ADD_TO_CART",
                                   basePrice,
-                                  finalPrice,
+                                  finalPrice: sellPriceToShow,
                                   discountAmount,
                                   cardSlug,
                                 });
@@ -805,7 +757,7 @@ export default function FeaturedProductsSlider({
                                 ? defaultVariant.nextDayDeliveryFree === true
                                 : !!product.nextDayDeliveryFree;
 
-                              trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: finalQty });
+                              trackAddToCart({ productId: product.id, name: product.name, price: sellPriceToShow, quantity: finalQty });
                               addToCart({
                                 id: defaultVariant ? `${defaultVariant.id}-one` : product.id,
                                 type: "one-time",
@@ -819,34 +771,16 @@ export default function FeaturedProductsSlider({
                                     .filter(Boolean)
                                     .join(", ")})`
                                   : product.name,
-                                price: finalPrice,
+                                price: basePrice,
+                                sellPrice: sellPriceToShow,
+                                discountPercentage: discountPercentageToShow,
                                 priceBeforeDiscount: basePrice,
-                                finalPrice: finalPrice,
-                                oldPrice: hasActiveCoupon
-                                  ? undefined
-                                  : (oldPriceValue ?? undefined),
-                                displayDiscountType: hasActiveCoupon
-                                  ? "None"
-                                  : (defaultVariant?.displayDiscountType ??
-                                    product.displayDiscountType ??
-                                    "None"),
-
-                                hasSystemDiscount:
-                                  defaultVariant?.hasSystemDiscount ??
-                                  product.hasSystemDiscount ??
-                                  false,
-
-                                systemDiscountAmount:
-                                  defaultVariant?.systemDiscountAmount ??
-                                  product.systemDiscountAmount ??
-                                  0,
-                                discountAmount:
-                                  (
-                                    defaultVariant?.displayDiscountType ??
-                                    product.displayDiscountType
-                                  ) === "System"
-                                    ? discountAmount
-                                    : 0,
+                                finalPrice: sellPriceToShow,
+                                oldPrice: hasDiscount ? basePrice : undefined,
+                                displayDiscountType: hasDiscount ? "OldPrice" : "None",
+                                hasSystemDiscount: false,
+                                systemDiscountAmount: 0,
+                                discountAmount: 0,
                                 quantity: finalQty,
                                 // ✅ ADD THESE 👇
                                 vatRate: vatRate,
@@ -1024,6 +958,11 @@ export default function FeaturedProductsSlider({
                 ? variant.nextDayDeliveryFree === true
                 : !!product.nextDayDeliveryFree;
 
+              const discountPercentageToShow = variant
+                ? (variant.discountPercentage ?? 0)
+                : (product.discountPercentage ?? 0);
+              const hasDiscount = discountPercentageToShow > 0 && basePrice > finalPrice;
+
               trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: finalQty });
               addToCart({
                 id: variant ? `${variant.id}-one` : product.id,
@@ -1036,10 +975,16 @@ export default function FeaturedProductsSlider({
                     (variant as any)?.option3Value,
                   ].filter(Boolean).join(", ")})`
                   : product.name,
-                price: finalPrice,
+                price: basePrice,
+                sellPrice: finalPrice,
+                discountPercentage: discountPercentageToShow,
                 priceBeforeDiscount: basePrice,
                 finalPrice,
-                discountAmount,
+                discountAmount: 0,
+                oldPrice: hasDiscount ? basePrice : undefined,
+                displayDiscountType: hasDiscount ? "OldPrice" : "None",
+                hasSystemDiscount: false,
+                systemDiscountAmount: 0,
                 quantity: finalQty,
                 // ✅ ADD THESE 👇
                 vatRate: modalVatRate,

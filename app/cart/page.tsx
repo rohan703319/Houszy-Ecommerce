@@ -158,6 +158,7 @@ export default function CartPage() {
   const [removeTarget, setRemoveTarget] = useState<any | null>(null);
   // Single input to try a coupon (applies to every eligible product)
   const [couponInput, setCouponInput] = useState("");
+  const appliedCouponCode = useMemo(() => cart.find(i => i.couponCode)?.couponCode || "", [cart]);
   const [offersItem, setOffersItem] = useState<any | null>(null);
   // ⭐ Product Offers Modal state
   const [showOffers, setShowOffers] = useState(false);
@@ -231,50 +232,59 @@ export default function CartPage() {
     }, 0);
   }, [cart]);
 
-  const oldPriceSummary = useMemo(() => {
-    return cart.reduce(
-      (acc, item) => {
-        // ❌ Skip items with coupon applied — those use discountAmount for discount, not oldPrice
-        if (item.couponCode && (item.discountAmount ?? 0) > 0) return acc;
-
-        // ❌ Skip items that require coupon code (even if not yet applied) — old price must not be used
-        const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
-          (d: any) => d?.requiresCouponCode === true && d?.isActive
-        );
-        if (hasCouponRequiredDiscount) return acc;
-
-        // ❌ Only process OldPrice type items
-        if (item.displayDiscountType !== "OldPrice") return acc;
-
-        const price = item.price;
-        const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
-        const qty = item.quantity ?? 1;
-
-        // hasDiscount is always false here — we only reach this for OldPrice items
-        // (System items and coupon items are skipped above)
-        const pricing = getOrderSummaryPricing({
-          price,
-          oldPrice,
-          quantity: qty,
-          hasDiscount: false,
-        });
-
-        acc.subtotal += pricing.subtotal;
-        acc.discount += pricing.discount;
-
-        return acc;
-      },
-      { subtotal: 0, discount: 0 }
-    );
+  const correctSubtotal = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const qty = item.quantity ?? 1;
+      return sum + (item.price ?? 0) * qty;
+    }, 0);
   }, [cart]);
 
-  const totalDiscount = useMemo(() => {
-    return cart.reduce(
-      (sum, item) =>
-        sum + (item.discountAmount ?? 0) * (item.quantity ?? 1),
-      0
-    );
+  const totalAutoDiscount = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const qty = item.quantity ?? 1;
+      const basePrice = item.priceBeforeDiscount ?? item.price ?? 0;
+      const sellPrice = item.sellPrice ?? basePrice;
+      const finalPrice = item.finalPrice ?? sellPrice;
+
+      let autoAmt = 0;
+      if (item.type === "subscription") {
+        autoAmt = Math.max(0, basePrice - finalPrice);
+      } else if (item.couponCode) {
+        if (finalPrice < sellPrice) {
+          autoAmt = Math.max(0, basePrice - sellPrice);
+        } else {
+          autoAmt = 0;
+        }
+      } else {
+        autoAmt = Math.max(0, basePrice - sellPrice);
+      }
+
+      return sum + autoAmt * qty;
+    }, 0);
   }, [cart]);
+
+  const totalCouponDiscount = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const qty = item.quantity ?? 1;
+      if (!item.couponCode) return sum;
+
+      const basePrice = item.priceBeforeDiscount ?? item.price ?? 0;
+      const sellPrice = item.sellPrice ?? basePrice;
+      const finalPrice = item.finalPrice ?? sellPrice;
+
+      let couponAmt = 0;
+      if (finalPrice < sellPrice) {
+        couponAmt = Math.max(0, sellPrice - finalPrice);
+      } else {
+        couponAmt = Math.max(0, basePrice - finalPrice);
+      }
+
+      return sum + couponAmt * qty;
+    }, 0);
+  }, [cart]);
+
+  const finalDiscount = totalAutoDiscount + totalCouponDiscount;
+
   const bundleSavings = useMemo(() => {
     return cart.reduce((sum, item) => {
       let savings = 0;
@@ -290,46 +300,7 @@ export default function CartPage() {
     }, 0);
   }, [cart]);
 
-  const finalDiscount = useMemo(() => {
-    return totalDiscount + oldPriceSummary.discount;
-  }, [totalDiscount, oldPriceSummary.discount]);
   const totalCombinedDiscount = bundleSavings + finalDiscount;
-  const correctSubtotal = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const qty = item.quantity ?? 1;
-
-      // 🟢 COUPON DISCOUNT — check FIRST (takes priority over all other discount types)
-      // finalPrice + discountAmount reconstructs the pre-coupon price reliably
-      // both before AND after page refresh, regardless of displayDiscountType.
-      if (item.couponCode && (item.discountAmount ?? 0) > 0) {
-        const preCouponPrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-        return sum + preCouponPrice * qty;
-      }
-
-      // 🔴 SYSTEM DISCOUNT
-      if (item.displayDiscountType === "System") {
-        const base = item.price + (item.discountAmount ?? 0);
-        return sum + base * qty;
-      }
-
-      // 🟠 OLD PRICE
-      const oldPrice = item.oldPrice ?? item.productData?.oldPrice;
-      const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
-        (d: any) => d?.requiresCouponCode === true && d?.isActive
-      );
-      if (
-        item.displayDiscountType === "OldPrice" &&
-        !hasCouponRequiredDiscount &&
-        oldPrice &&
-        oldPrice > item.price
-      ) {
-        return sum + oldPrice * qty;
-      }
-
-      // ⚪ NORMAL
-      return sum + item.price * qty;
-    }, 0);
-  }, [cart]);
   const applyCouponFromBackend = (item: any, couponData: any) => {
 
     const assigns = item.productData?.assignedDiscounts ?? [];
@@ -356,11 +327,17 @@ export default function CartPage() {
     }
 
     // 🔹 COUPON VALUE
-    let couponValue = couponData.usePercentage
-      ? Math.floor(
-        ((basePrice * couponData.discountPercentage) / 100) * 100
-      ) / 100
-      : couponData.discountAmount ?? 0;
+    let couponValue = 0;
+    if (couponData.isCumulative === true && autoDiscountAmount > 0) {
+      const discountedPrice = basePrice - autoDiscountAmount;
+      couponValue = couponData.usePercentage
+        ? Math.round((discountedPrice * couponData.discountPercentage) / 100 * 100) / 100
+        : couponData.discountAmount ?? 0;
+    } else {
+      couponValue = couponData.usePercentage
+        ? Math.round((basePrice * couponData.discountPercentage) / 100 * 100) / 100
+        : couponData.discountAmount ?? 0;
+    }
 
     // 🔥 CUMULATIVE
     let totalDiscount = couponValue;
@@ -379,6 +356,7 @@ export default function CartPage() {
           ...ci,
           appliedDiscountId: couponData.discountId,
           couponCode: couponData.couponCode,
+          isCumulative: couponData.isCumulative === true,
           discountAmount: totalDiscount,
           finalPrice: basePrice - totalDiscount,
         }
@@ -392,120 +370,152 @@ export default function CartPage() {
   // -------------------------
   // APPLY COUPON (global input) -> applies to each item that has a matching assignedDiscount
   // -------------------------
-  const applyCouponInput = () => {
+  const applyCouponInput = async () => {
     const code = couponInput.trim();
     if (!code) {
       toast.error("Enter a coupon code.");
       return;
     }
 
-    let appliedAny = false;
+    try {
+      const productIds = cart.map(i => i.productId || i.id).filter(Boolean);
+      const categoryIds = cart.flatMap(i => i.productData?.categories?.map((c: any) => c.categoryId) || []).filter(Boolean);
+      const orderSubtotal = cart.reduce((sum, it) => sum + ((it.priceBeforeDiscount ?? it.price) * it.quantity), 0);
 
-    const updated = cart.map((item) => {
-      // ❌ subscription pe coupon nahi
-      if (item.type === "subscription") return item;
-
-      const assigns: any[] = item.productData?.assignedDiscounts ?? [];
-
-      const match = assigns.find((d: any) => {
-        if (!d || !d.requiresCouponCode) return false;
-        if (!isDiscountActive(d)) return false;
-        if (!d.couponCode) return false;
-        return d.couponCode.trim().toLowerCase() === code.toLowerCase();
-      });
-      console.log("COUPON MATCH:", {
-        product: item.name,
-        match
-      });
-      if (!match) return item;
-
-      // ❌ same coupon dubara apply na ho
-      if (
-        item.appliedDiscountId === match.id &&
-        item.couponCode?.toLowerCase() === code.toLowerCase()
-      ) {
-        return item;
-      }
-      const basePrice = item.priceBeforeDiscount ?? item.price;
-
-      // 🔹 Find AUTO discount (same as PDP)
-      const activeAutoDiscount = assigns.find(
-        (d: any) =>
-          d &&
-          !d.requiresCouponCode &&
-          isDiscountActive(d)
-      );
-      console.log("AUTO DISCOUNT FOUND:", {
-        product: item.name,
-        activeAutoDiscount
-      });
-      let autoDiscountAmount = 0;
-
-      if (activeAutoDiscount) {
-        if (activeAutoDiscount.usePercentage) {
-          autoDiscountAmount =
-            (basePrice * activeAutoDiscount.discountPercentage) / 100;
-        } else {
-          autoDiscountAmount = activeAutoDiscount.discountAmount ?? 0;
-        }
-      }
-
-      // 🔹 Coupon value
-      let couponValue = match.usePercentage
-
-        ? Math.floor(
-          ((basePrice * match.discountPercentage) / 100) * 100
-        ) / 100
-        : match.discountAmount ?? 0;
-      console.log("COUPON VALUE:", {
-        product: item.name,
-        couponValue,
-        isCumulative: match.isCumulative
-      });
-      if (
-        match.maximumDiscountAmount &&
-        couponValue > match.maximumDiscountAmount
-      ) {
-        couponValue = match.maximumDiscountAmount;
-      }
-
-      // 🔥 CUMULATIVE LOGIC (same as PDP)
-      let totalDiscount = couponValue;
-
-      if (match.isCumulative === true && autoDiscountAmount > 0) {
-        totalDiscount = couponValue + autoDiscountAmount;
-      }
-      console.log("FINAL DISCOUNT:", {
-        product: item.name,
-        basePrice,
-        autoDiscountAmount,
-        couponValue,
-        totalDiscount
-      });
-      // safety clamp
-      if (totalDiscount > basePrice) {
-        totalDiscount = basePrice;
-      }
-
-      appliedAny = true;
-      return {
-        ...item,
-        appliedDiscountId: match.id,
-        discountAmount: totalDiscount,
-        finalPrice: basePrice - totalDiscount,
+      const payload = {
         couponCode: code,
-        priceBeforeDiscount: basePrice,
+        orderSubtotal,
+        productIds,
+        categoryIds,
       };
-    });
 
-    if (!appliedAny) {
-      toast.error("This coupon is not valid for any product in your cart.");
-      return;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/Discounts/validate-coupon`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        toast.error(result?.message || "Coupon does not apply.");
+        return;
+      }
+
+      const match = result.data;
+      const assignedProdIds = match.assignedProductIds
+        ? match.assignedProductIds.split(',').map((id: string) => id.trim().toLowerCase()).filter(Boolean)
+        : [];
+      const assignedCatIds = match.assignedCategoryIds
+        ? match.assignedCategoryIds.split(',').map((id: string) => id.trim().toLowerCase()).filter(Boolean)
+        : [];
+
+      let appliedAny = false;
+
+      const updated = cart.map((item) => {
+        if (item.type === "subscription") return item;
+
+        // Check if this item is eligible for the coupon
+        let isEligible = false;
+        const targetId = (item.productId || item.id).toLowerCase();
+        if (match.discountType === "AssignedToProducts" || match.discountType === "UptoXPercent") {
+          isEligible = assignedProdIds.includes(targetId);
+        } else if (match.discountType === "AssignedToCategories") {
+          if (assignedProdIds.includes(targetId)) {
+            isEligible = true;
+          } else {
+            const itemCatIds = (item.productData?.categories || []).map((c: any) => (c.categoryId || c.id || "").toLowerCase());
+            isEligible = itemCatIds.some((cid: string) => assignedCatIds.includes(cid));
+          }
+        } else {
+          // AssignedToOrderTotal / AssignedToOrderSubtotal - all eligible
+          isEligible = true;
+        }
+
+        if (!isEligible) return item;
+
+        // ❌ same coupon dubara apply na ho
+        if (
+          item.appliedDiscountId === match.discountId &&
+          item.couponCode?.toLowerCase() === code.toLowerCase()
+        ) {
+          return item;
+        }
+
+        const basePrice = item.priceBeforeDiscount ?? item.price;
+
+        // Find AUTO discount (non-coupon)
+        const assigns: any[] = item.productData?.assignedDiscounts ?? [];
+        const activeAutoDiscount = assigns.find(
+          (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+        );
+
+        let autoDiscountAmount = 0;
+        if (activeAutoDiscount) {
+          if (activeAutoDiscount.usePercentage) {
+            autoDiscountAmount = (basePrice * activeAutoDiscount.discountPercentage) / 100;
+          } else {
+            autoDiscountAmount = activeAutoDiscount.discountAmount ?? 0;
+          }
+        } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
+          autoDiscountAmount = item.price - item.sellPrice;
+        }
+
+        // 🔹 Coupon value (cumulative-aware)
+        let couponValue = 0;
+        if (match.isCumulative === true && autoDiscountAmount > 0) {
+          const priceForCoupon = basePrice - autoDiscountAmount;
+          couponValue = match.usePercentage
+            ? Math.round((priceForCoupon * match.discountPercentage) / 100 * 100) / 100
+            : match.discountAmount ?? 0;
+        } else {
+          couponValue = match.usePercentage
+            ? Math.round((basePrice * match.discountPercentage) / 100 * 100) / 100
+            : match.discountAmount ?? 0;
+        }
+
+        if (match.maximumDiscountAmount && couponValue > match.maximumDiscountAmount) {
+          couponValue = match.maximumDiscountAmount;
+        }
+
+        // 🔥 Cumulative logic
+        let totalDiscount = couponValue;
+        if (match.isCumulative === true && autoDiscountAmount > 0) {
+          totalDiscount = couponValue + autoDiscountAmount;
+        }
+
+        if (totalDiscount > basePrice) {
+          totalDiscount = basePrice;
+        }
+
+        appliedAny = true;
+        return {
+          ...item,
+          appliedDiscountId: match.discountId,
+          discountAmount: totalDiscount,
+          finalPrice: basePrice - totalDiscount,
+          couponCode: code,
+          isCumulative: match.isCumulative === true,
+          priceBeforeDiscount: basePrice,
+        };
+      });
+
+      if (!appliedAny) {
+        toast.error("This coupon is not valid for any product in your cart.");
+        return;
+      }
+
+      updateCart(updated);
+      setCouponInput("");
+      toast.success("Coupon applied successfully.");
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred while validating coupon.");
     }
-
-    updateCart(updated);
-    setCouponInput("");
-    toast.success("Coupon applied to eligible items.");
   };
 
 
@@ -549,6 +559,8 @@ export default function CartPage() {
         } else {
           autoDiscountAmount = autoDiscount.discountAmount ?? 0;
         }
+      } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
+        autoDiscountAmount = item.price - item.sellPrice;
       }
 
       return {
@@ -567,6 +579,43 @@ export default function CartPage() {
 
     updateCart(updated);
     toast.error("Coupon removed from item.");
+  };
+
+  const removeCouponGlobally = () => {
+    const updated = cart.map((item) => {
+      const assigns: any[] = item.productData?.assignedDiscounts ?? [];
+      const basePrice = item.priceBeforeDiscount ?? item.price;
+
+      const autoDiscount = assigns.find(
+        (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+      );
+
+      let autoDiscountAmount = 0;
+      if (autoDiscount) {
+        if (autoDiscount.usePercentage) {
+          autoDiscountAmount = (basePrice * autoDiscount.discountPercentage) / 100;
+        } else {
+          autoDiscountAmount = autoDiscount.discountAmount ?? 0;
+        }
+      } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
+        autoDiscountAmount = item.price - item.sellPrice;
+      }
+
+      return {
+        ...item,
+        appliedDiscountId: null,
+        couponCode: null,
+        isCumulative: undefined,
+        discountAmount: autoDiscountAmount,
+        finalPrice: basePrice - autoDiscountAmount,
+        price: basePrice,
+        priceBeforeDiscount: basePrice,
+      };
+    });
+
+    updateCart(updated);
+    setCouponInput("");
+    toast.error("Coupon removed.");
   };
   // 🎁 TOTAL LOYALTY POINTS (ORDER LEVEL)
   // 🎁 TOTAL LOYALTY POINTS (PER PRODUCT LINE)
@@ -739,8 +788,12 @@ export default function CartPage() {
           }
         }
       }
+
+      if (threshold === 0 && typeof item.freeShippingThreshold === "number" && item.freeShippingThreshold > 0) {
+        threshold = item.freeShippingThreshold;
+      }
     }
-    return threshold;
+    return threshold > 0 ? threshold : 40;
   }, [cart]);
 
   const allNextDayFree = useMemo(() => {
@@ -803,17 +856,10 @@ export default function CartPage() {
                 ? item.productData?.variants?.find((v: any) => v.id === item.variantId)
                 : null;
               const minQty = (variantObj?.orderMinimumQuantity ?? item.productData?.orderMinimumQuantity) ?? 1;
-              const basePrice = item.priceBeforeDiscount ?? item.price;
-              const finalPrice = item.finalPrice ?? item.price;
-              const hasVariants = !!item.productData?.variants?.length;
-              const oldPrice = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
-
-              const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
-                (d: any) => d?.requiresCouponCode === true && d?.isActive
-              );
-
-              const oldPricePercent = item.displayDiscountType === "OldPrice" && !hasCouponRequiredDiscount && oldPrice && oldPrice > basePrice
-                ? Math.round(((oldPrice - basePrice) / oldPrice) * 100) : null;
+              const basePrice = item.price;
+              const finalPrice = item.finalPrice ?? item.sellPrice ?? item.price;
+              const discountPercentageToShow = item.discountPercentage ?? 0;
+              const hasDiscount = basePrice > finalPrice;
 
               if (isBundleChild(item)) return null;
 
@@ -850,29 +896,13 @@ export default function CartPage() {
                           {/* Price Row */}
                           <div className="flex items-baseline gap-2 mt-0.5 mb-2">
                             <span className="text-sm font-bold text-[#f38918]">
-                              £{((item.displayDiscountType === "System" || item.couponCode ? (item.finalPrice ?? item.price) : item.price) * (item.quantity ?? 1)).toFixed(2)}
+                              £{(finalPrice * (item.quantity ?? 1)).toFixed(2)}
                             </span>
-                            {(() => {
-                              let comparePrice = null;
-                              const hasCouponRequiredDiscount = item.productData?.assignedDiscounts?.some(
-                                (d: any) => d?.requiresCouponCode === true && d?.isActive
-                              );
-                              if (item.displayDiscountType === "System" && (item.systemDiscountAmount ?? 0) > 0) {
-                                comparePrice = item.price + (item.discountAmount ?? 0);
-                              } else if (item.couponCode && (item.discountAmount ?? 0) > 0) {
-                                comparePrice = (item.finalPrice ?? item.price) + (item.discountAmount ?? 0);
-                              } else if (item.displayDiscountType === "OldPrice" && !hasCouponRequiredDiscount) {
-                                const hasVariants = !!item.productData?.variants?.length;
-                                const oldP = hasVariants ? (item.oldPrice ?? null) : (item.oldPrice ?? item.productData?.oldPrice ?? null);
-                                if (oldP && oldP > item.price) comparePrice = oldP;
-                              }
-                              if (!comparePrice) return null;
-                              return (
-                                <span className="text-xs font-semibold text-gray-400 line-through">
-                                  £{(comparePrice * (item.quantity ?? 1)).toFixed(2)}
-                                </span>
-                              );
-                            })()}
+                            {hasDiscount && (
+                              <span className="text-xs font-semibold text-gray-400 line-through">
+                                £{(basePrice * (item.quantity ?? 1)).toFixed(2)}
+                              </span>
+                            )}
                           </div>
 
                           {/* QTY & BADGES IN ONE ROW */}
@@ -880,7 +910,7 @@ export default function CartPage() {
                             {/* Quantity Controls */}
                             <div className="flex items-center bg-gray-50 border border-gray-200 rounded p-0.5 shadow-sm h-7">
                               {(item.quantity ?? 1) === 1 ? (
-                                <button onClick={() => setRemoveTarget({ item, bundleChildren })} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white rounded transition-colors">
+                                <button onClick={() => setRemoveTarget({ item, bundleChildren })} className="w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-white rounded transition-colors">
                                   <Trash2 size={12} />
                                 </button>
                               ) : (
@@ -941,10 +971,6 @@ export default function CartPage() {
                               <span className="text-[9px] sm:text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 {item.vatRate}% VAT
                               </span>
-                            ) : (item.vatIncluded === false || item.vatRate === 0 || item.vatRate === null) ? (
-                              <span className="text-[9px] sm:text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                VAT Exempt
-                              </span>
                             ) : null}
                             {getItemLoyaltyPoints(item) > 0 && (
                               <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1 sm:px-1.5 py-0.5 rounded uppercase tracking-wider">
@@ -968,10 +994,7 @@ export default function CartPage() {
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             {item.couponCode ? (
                               <div className="flex items-center gap-1 bg-orange-50 text-orange-800 px-2 py-1 rounded border border-orange-100">
-                                <span className="text-[10px] font-bold uppercase tracking-wide">{item.couponCode}</span>
-                                <button onClick={() => removeCouponFromItem(item.id, item.type)} className="flex items-center justify-center text-red-600 hover:text-red-600 transition-colors ml-1">
-                                  <Trash2 size={10} />
-                                </button>
+                                <span className="text-[10px] font-bold uppercase tracking-wide">🎫 {item.couponCode}</span>
                               </div>
                             ) : availableCoupons.some((c) => c.productIds.includes(item.id)) ? (
                               <button onClick={() => { setSelectedItem(item); setShowOffers(true); }} className="flex items-center gap-1 text-[11px] font-bold text-[#d0021b] hover:text-[#b0011a] transition-colors hover:underline">
@@ -993,7 +1016,7 @@ export default function CartPage() {
                         </div>
 
                         {/* Top-right trash icon */}
-                        <button onClick={() => setRemoveTarget({ item, bundleChildren })} className="w-7 h-7 flex items-center justify-center rounded bg-gray-50 border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                        <button onClick={() => setRemoveTarget({ item, bundleChildren })} className="w-7 h-7 flex items-center justify-center rounded bg-gray-50 border border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors flex-shrink-0">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -1046,21 +1069,21 @@ export default function CartPage() {
 
           {/* RIGHT: order summary */}
           <div className="w-full lg:w-[350px] flex-shrink-0">
-            <div className="bg-white border border-gray-200 rounded shadow-sm p-4 sticky top-24">
-              <h2 className="text-lg font-bold text-gray-900 mb-2 tracking-tight">Price Details</h2>
+            <div className="bg-white border border-gray-200 rounded shadow-sm p-3.5 sticky top-24">
+              <h2 className="text-base font-bold text-gray-900 mb-2 tracking-tight">Price Details</h2>
 
               {/* Free Shipping Progress */}
               {allNextDayFree ? (
-                <div className="mb-2 bg-orange-50 border border-orange-100 rounded p-4 sm:p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
-                      <Truck size={18} />
+                <div className="mb-3 bg-orange-50 border border-orange-100 rounded p-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                      <Truck size={14} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">
+                      <p className="text-xs font-bold text-gray-900">
                         You've unlocked <span className="text-orange-600">FREE Next Day Delivery!</span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">
                         All items in your cart qualify for free next day delivery.
                       </p>
                     </div>
@@ -1068,25 +1091,25 @@ export default function CartPage() {
                 </div>
               ) : (
                 freeShippingThreshold > 0 ? (
-                  <div className="mb-2 bg-gray-50 border border-gray-100 rounded p-4 sm:p-5">
+                  <div className="mb-3 bg-gray-50 border border-gray-100 rounded p-3">
                     {cartTotal >= freeShippingThreshold ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
-                          <Truck size={18} />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                          <Truck size={14} />
                         </div>
-                        <span className="text-sm font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Standard Delivery!</span></span>
+                        <span className="text-xs font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Standard Delivery!</span></span>
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded bg-gray-200 text-gray-600 flex items-center justify-center flex-shrink-0">
-                            <Truck size={18} />
+                        <div className="flex items-center gap-2.5 mb-2">
+                          <div className="w-7 h-7 rounded bg-gray-200 text-gray-600 flex items-center justify-center flex-shrink-0">
+                            <Truck size={14} />
                           </div>
-                          <span className="text-sm font-semibold text-gray-700 leading-tight">
+                          <span className="text-xs font-semibold text-gray-700 leading-tight">
                             Add <span className="font-bold text-gray-900">£{(freeShippingThreshold - cartTotal).toFixed(2)}</span> more for <span className="text-orange-600 font-bold">FREE Delivery</span>
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded h-2.5 overflow-hidden">
+                        <div className="w-full bg-gray-200 rounded h-1.5 overflow-hidden">
                           <div
                             className="bg-black h-full rounded transition-all duration-500 ease-out"
                             style={{ width: `${Math.min((cartTotal / freeShippingThreshold) * 100, 100)}%` }}
@@ -1096,49 +1119,56 @@ export default function CartPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="mb-2 bg-orange-50 border border-orange-100 rounded p-4 sm:p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
-                        <Truck size={18} />
+                  <div className="mb-3 bg-orange-50 border border-orange-100 rounded p-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+                        <Truck size={14} />
                       </div>
-                      <span className="text-sm font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Standard Delivery!</span></span>
+                      <span className="text-xs font-bold text-gray-900">You've unlocked <span className="text-orange-600">FREE Standard Delivery!</span></span>
                     </div>
                   </div>
                 )
               )}
 
               {/* Apply Coupon */}
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <Tag size={16} className="text-gray-400" />
-                  <h3 className="text-sm font-bold text-gray-900">Promo Code</h3>
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag size={14} className="text-gray-400" />
+                  <h3 className="text-xs font-bold text-gray-900">Promo Code</h3>
                 </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={couponInput}
+                    disabled={Boolean(appliedCouponCode)}
+                    value={appliedCouponCode || couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
                     placeholder="Enter code"
-                    className="flex-1 bg-gray-50 border border-gray-200 px-4 py-3 rounded text-sm font-semibold outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all placeholder:font-medium placeholder:text-gray-400"
+                    className="flex-1 bg-gray-50 border border-gray-200 px-3 py-2.5 rounded text-sm font-semibold outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all placeholder:font-medium placeholder:text-gray-400 disabled:opacity-75 disabled:bg-gray-100 disabled:text-gray-700 disabled:cursor-not-allowed"
                   />
-                  <button onClick={applyCouponInput} className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded text-sm font-bold shadow-sm transition-colors">
-                    Apply
-                  </button>
+                  {appliedCouponCode ? (
+                    <button onClick={removeCouponGlobally} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded text-sm font-bold shadow-sm transition-colors">
+                      Remove
+                    </button>
+                  ) : (
+                    <button onClick={applyCouponInput} className="bg-gray-900 hover:bg-black text-white px-4 py-2.5 rounded text-sm font-bold shadow-sm transition-colors">
+                      Apply
+                    </button>
+                  )}
                 </div>
               </div>
 
               {totalLoyaltyPoints > 0 && (
-                <div className="flex items-center justify-between bg-amber-50 border border-amber-100 p-4 rounded mb-6">
-                  <div className="flex items-center gap-2 text-amber-800">
-                    <AwardIcon size={18} />
-                    <span className="font-bold text-sm">Loyalty Points</span>
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-100 p-2.5 rounded mb-4">
+                  <div className="flex items-center gap-1.5 text-amber-800">
+                    <AwardIcon size={14} />
+                    <span className="font-bold text-xs">Loyalty Points</span>
                   </div>
-                  <span className="font-black text-amber-700">+{totalLoyaltyPoints}</span>
+                  <span className="font-black text-xs text-amber-700">+{totalLoyaltyPoints}</span>
                 </div>
               )}
 
               {/* Price Details */}
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 <div className="flex justify-between items-center text-sm font-semibold text-gray-500">
                   <span>Subtotal (Incl. VAT)</span>
                   <span className="text-gray-900 font-bold">£{correctSubtotal.toFixed(2)}</span>
@@ -1154,17 +1184,23 @@ export default function CartPage() {
                     <span>-£{bundleSavings.toFixed(2)}</span>
                   </div>
                 )}
-                {finalDiscount > 0 && (
+                {totalAutoDiscount > 0 && (
                   <div className="flex justify-between items-center text-sm font-bold text-orange-600">
                     <span>Discounts</span>
-                    <span>-£{finalDiscount.toFixed(2)}</span>
+                    <span>-£{totalAutoDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                {totalCouponDiscount > 0 && (
+                  <div className="flex justify-between items-center text-sm font-bold text-orange-600">
+                    <span>Coupon Discount</span>
+                    <span>-£{totalCouponDiscount.toFixed(2)}</span>
                   </div>
                 )}
               </div>
 
-              <div className="border-t border-gray-100 my-4"></div>
+              <div className="border-t border-gray-100 my-3"></div>
 
-              <div className="flex justify-between items-end mb-4">
+              <div className="flex justify-between items-end mb-3">
                 <span className="text-sm font-bold text-gray-900">Total Amount</span>
                 <span className="text-xl font-black text-gray-900 tracking-tight">£{(correctSubtotal - totalCombinedDiscount).toFixed(2)}</span>
               </div>
@@ -1172,7 +1208,7 @@ export default function CartPage() {
               <button
                 onClick={handleCheckout}
                 disabled={isCheckingStock}
-                className={`w-full bg-black hover:bg-gray-800 text-white py-3 rounded font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group ${isCheckingStock ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`w-full bg-black hover:bg-gray-800 text-white py-2.5 rounded font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 group ${isCheckingStock ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isCheckingStock ? "Checking Stock..." : "Proceed to Checkout"}
                 {!isCheckingStock && <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />}

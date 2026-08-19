@@ -120,6 +120,8 @@ export interface OrderItem {
   variantName?: string;
   productId: string;
   productVariantId?: string;
+  subscriptionId?: string | null;
+  subscriptionFrequency?: string | null;
 }
 
 export interface Payment {
@@ -198,6 +200,7 @@ export interface Order {
 
   isGuestOrder: boolean;
   subscriptionId?: string;
+  subscriptionFrequency?: string;
   userId?: string;
 
   customerName: string;
@@ -276,6 +279,8 @@ export interface Order {
   shipments: Shipment[];
 
   // ================= SYSTEM =================
+  cancellationRequestedAt?: string;
+  cancellationRequestReason?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -396,6 +401,7 @@ async getAllOrders(params?: {
   paymentStatus?: string;
   isPharmaProduct?: boolean;
   source?: string;
+  orderType?: string;
 }) {
 
     try {
@@ -547,9 +553,12 @@ async bulkCreateShipment(data: BulkCreateShipmentRequest) {
       const response = await apiClient.post<ApiResponse<Order>>(
         `${API_ENDPOINTS.orders}/${orderId}/mark-ready`
       );
+      if (response.error) {
+        throw new Error(response.error);
+      }
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to mark order as ready');
+      throw new Error(error.message || 'Failed to mark order as ready');
     }
   }
 
@@ -559,9 +568,12 @@ async bulkCreateShipment(data: BulkCreateShipmentRequest) {
         `${API_ENDPOINTS.orders}/${data.orderId}/mark-collected`,
         data
       );
+      if (response.error) {
+        throw new Error(response.error);
+      }
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to mark order as collected');
+      throw new Error(error.message || 'Failed to mark order as collected');
     }
   }
 
@@ -571,6 +583,9 @@ async updateStatus(data: UpdateStatusRequest) {
       `${API_ENDPOINTS.orders}/${data.orderId}/status`,
       data
     );
+    if (response.error) {
+      throw new Error(response.error);
+    }
 
     return {
       data: response.data?.data,
@@ -579,7 +594,7 @@ async updateStatus(data: UpdateStatusRequest) {
 
   } catch (error: any) {
     throw new Error(
-      error?.response?.data?.message || 'Failed to update order status'
+      error.message || 'Failed to update order status'
     );
   }
 }
@@ -590,6 +605,9 @@ async createShipment(data: CreateShipmentRequest) {
       `${API_ENDPOINTS.orders}/${data.orderId}/shipment`,
       data
     );
+    if (response.error) {
+      throw new Error(response.error);
+    }
 
     return {
       data: response.data?.data,
@@ -598,7 +616,7 @@ async createShipment(data: CreateShipmentRequest) {
 
   } catch (error: any) {
     throw new Error(
-      error?.response?.data?.message || 'Failed to create shipment'
+      error.message || 'Failed to create shipment'
     );
   }
 }
@@ -609,6 +627,9 @@ async markDelivered(data: MarkDeliveredRequest) {
       `${API_ENDPOINTS.orders}/${data.orderId}/delivered`,
       data
     );
+    if (response.error) {
+      throw new Error(response.error);
+    }
 
     return {
       data: response.data?.data,
@@ -617,7 +638,7 @@ async markDelivered(data: MarkDeliveredRequest) {
 
   } catch (error: any) {
     throw new Error(
-      error?.response?.data?.message || 'Failed to mark order as delivered'
+      error.message || 'Failed to mark order as delivered'
     );
   }
 }
@@ -628,6 +649,9 @@ async cancelOrder(data: CancelOrderRequest) {
       `${API_ENDPOINTS.orders}/${data.orderId}/cancel`,
       data
     );
+    if (response.error) {
+      throw new Error(response.error);
+    }
 
     return {
       data: response.data?.data,
@@ -636,7 +660,7 @@ async cancelOrder(data: CancelOrderRequest) {
 
   } catch (error: any) {
     throw new Error(
-      error?.response?.data?.message || 'Failed to cancel order'
+      error.message || 'Failed to cancel order'
     );
   }
 }
@@ -767,6 +791,24 @@ async exportOrders(params: {
   }`;
 
   return apiClient.get(url, {
+    responseType: 'blob',
+  });
+}
+
+/**
+ * Export Order Admin Comments to Excel
+ */
+async exportAdminComments() {
+  return apiClient.get(API_ENDPOINTS.exportAdminComments, {
+    responseType: 'blob',
+  });
+}
+
+/**
+ * Export Order Admin Comments for a specific order to Excel
+ */
+async exportAdminCommentsForOrder(orderId: string) {
+  return apiClient.get(API_ENDPOINTS.exportAdminCommentsForOrder(orderId), {
     responseType: 'blob',
   });
 }

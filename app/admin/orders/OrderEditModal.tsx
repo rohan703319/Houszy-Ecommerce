@@ -1119,11 +1119,16 @@ useEffect(() => {
 
             <div className="flex-1 min-w-0">
               <p
-                className={`font-medium text-sm ${
+                className={`font-medium text-sm flex items-center gap-2 flex-wrap ${
                   isRemoved ? 'line-through text-red-400' : 'text-white'
                 }`}
               >
-                {item.productName}
+                <span>{item.productName}</span>
+                {item.subscriptionFrequency && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase shrink-0">
+                    Subscription ({item.subscriptionFrequency.replace("-", " ")})
+                  </span>
+                )}
               </p>
               <p className="text-xs text-slate-400 mt-0.5">
                 {item.productSku} • £{item.unitPrice.toFixed(2)} each

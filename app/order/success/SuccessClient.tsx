@@ -251,9 +251,13 @@ export default function SuccessClient() {
   const isOnlinePayment = order?.paymentMethod?.toLowerCase() === "stripe" || 
                           order?.payments?.some((p: any) => p.paymentMethod?.toLowerCase() === "stripe");
 
+  const redirectStatus = searchParams.get("redirect_status");
+
   const isPaymentPending = order?.status === "Pending" && 
                            order?.totalAmount > 0 && 
                            isOnlinePayment && 
+                           redirectStatus !== "succeeded" &&
+                           redirectStatus !== "processing" &&
                            (latestPayment?.status === "Pending" || latestPayment?.status === "Failed" || order?.paymentStatus === "Pending");
 
   useEffect(() => {
@@ -262,8 +266,19 @@ export default function SuccessClient() {
       return;
     }
 
-    async function fetchOrder() {
+    async function processAndFetch() {
       try {
+        const paymentIntentId = searchParams.get("payment_intent");
+        if (paymentIntentId) {
+          try {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/confirm/${paymentIntentId}`, {
+              method: "POST",
+            });
+          } catch (err) {
+            console.error("Error confirming payment on load:", err);
+          }
+        }
+
         const resp = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/Orders/${orderId}`,
           {
@@ -286,8 +301,8 @@ export default function SuccessClient() {
       }
     }
 
-    fetchOrder();
-  }, [orderId, isAuthenticated, accessToken]);
+    processAndFetch();
+  }, [orderId, searchParams, isAuthenticated, accessToken]);
 
   useEffect(() => {
     if (isPaymentPending && orderId && order) {
@@ -366,7 +381,9 @@ export default function SuccessClient() {
     );
   }
 
-  const payment = order.payments?.[0] ?? null;
+  const payment = order.payments?.find((p: any) => p.status === "Successful" || p.status === "Completed") ??
+                  (order.payments?.length ? [...order.payments].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null) ??
+                  null;
   const loyaltyPointsEarned = order.loyaltyPointsEarned ?? 0;
   const loyaltyDiscount = order.loyaltyDiscountAmount ?? 0;
 
@@ -512,6 +529,12 @@ export default function SuccessClient() {
                     {order.deliveryMethod}
                   </span>
                 </div>
+                {order.subscriptionId && (
+                  <div className="flex justify-between text-indigo-700 bg-indigo-50 border border-indigo-100 p-2 rounded mt-2 text-xs">
+                    <span className="font-semibold">Subscription:</span>
+                    <span className="font-bold uppercase">{order.subscriptionFrequency ? order.subscriptionFrequency.replace("-", " ") : "Active"}</span>
+                  </div>
+                )}
                 {order.pharmacyVerificationStatus && (
                   <div className="flex justify-between">
                     <span>Pharmacy Verification:</span>
@@ -751,6 +774,14 @@ export default function SuccessClient() {
                         <p className="text-xs text-gray-500 mt-1">
                           {item.variantName}
                         </p>
+                      )}
+
+                      {item.subscriptionFrequency && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase shrink-0">
+                            Subscription ({item.subscriptionFrequency.replace("-", " ")})
+                          </span>
+                        </div>
                       )}
 
                       <div className="flex items-center justify-between mt-2 gap-4">
