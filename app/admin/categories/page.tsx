@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Edit, Trash2, Search, FolderTree, Eye, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, CheckCircle, ChevronDown, ChevronRight as ChevronRightIcon, X, Award, Package, Copy, RotateCcw, MessageCircle, HelpCircle, ShieldAlert } from "lucide-react";
+import { Plus, Edit, Trash2, Search, FolderTree, Eye, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, CheckCircle, ChevronDown, ChevronRight as ChevronRightIcon, X, Award, Package, Copy, RotateCcw, MessageCircle, HelpCircle, ShieldAlert, ExternalLink } from "lucide-react";
 
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
@@ -934,7 +934,15 @@ export default function CategoriesPage() {
 
         {/* PRODUCTS */}
         <td className="py-2 px-3 text-center text-[12px] text-cyan-400 font-medium">
-          {category.productCount}
+          <a
+            href={`/category/${category.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 hover:text-cyan-300 transition-colors"
+          >
+            <span>{category.productCount}</span>
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         </td>
 
         {/* STATUS */}
@@ -1299,28 +1307,6 @@ export default function CategoriesPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, statusFilter, levelFilter, homepageFilter]); // ← add homepageFilter here
-
-
-  if (!permissions) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
-        <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-400 text-sm mt-2">Loading permissions...</p>
-      </div>
-    );
-  }
-
-  if (!hasPermission("categories", "view")) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">
-        <ShieldAlert className="h-12 w-12 text-red-550 mb-4" />
-        <h2 className="text-lg font-semibold text-white">Access Denied</h2>
-        <p className="text-slate-400 text-sm mt-2">
-          You do not have permission to view this page. Please contact your administrator.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-2">

@@ -8,6 +8,7 @@ import MegaMenu from "./MegaMenu";
 import { useToast } from "@/components/toast/CustomToast";
 import { useCart } from "@/context/CartContext";
 import HeaderCartDropdown from "@/components/HeaderCartDropdown";
+import TrustpilotBadge from "./TrustpilotBadge";
 import { useWishlist } from "@/context/WishlistContext";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -322,12 +323,12 @@ export default function Header({
       id="main-header"
       className="fixed left-0 right-0 z-50"
       style={{
-        top: (hideTopBar && !menuOpen) ? '-36px' : '0',
+        top: (hideTopBar && !menuOpen) ? '-48px' : '0',
         transition: 'top 300ms ease-in-out',
       }}
     >
-      {/* â­ TOP BAR */}
-      <div className="bg-[#000000] text-white w-full h-[38px]">
+      {/* ── TOP BAR ── */}
+      <div className="bg-[#000000] text-white w-full h-[46px] sm:h-[48px]">
         {/* Mobile Slider */}
         {isClient && mobileTopMessages.length > 0 && (
           <div className="lg:hidden h-full flex items-center px-4">
@@ -353,42 +354,49 @@ export default function Header({
         )}
 
         {/* Desktop - Announcement Bar */}
-        <div className="hidden lg:flex h-full items-center justify-center px-6 lg:px-10 xl:px-16">
-          {deliveryStrip.length > 0 ? (
-            <div className="flex items-center gap-8">
-              {deliveryStrip.map((item) => {
-                const Icon = iconMap[item.icon] || Truck;
-                return (
-                  <Link
-                    key={item.id}
-                    href={`/delivery/${item.slug}`}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-white/10 py-1.5 px-3 rounded transition-colors duration-200"
-                  >
-                    <span className="text-white flex-shrink-0">
-                      <Icon size={16} />
-                    </span>
-                    <span className="text-[13px] font-normal tracking-wide">
-                      {item.title}
-                      {item.subtitle && (
-                        <span className="opacity-75 ml-1 font-normal text-[13px]">
-                          — {item.subtitle}
-                        </span>
-                      )}
-                    </span>
-                  </Link>
-                );
-              })}
+        <div className="hidden lg:block h-full w-full">
+          <div className="w-full h-full flex items-center justify-between px-6 lg:px-10 xl:px-16 gap-4">
+            <div className="flex items-center justify-center gap-8 flex-1">
+              {deliveryStrip.length > 0 ? (
+                deliveryStrip.map((item) => {
+                  const Icon = iconMap[item.icon] || Truck;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/delivery/${item.slug}`}
+                      className="flex items-center gap-2 cursor-pointer hover:bg-white/10 py-1.5 px-3 rounded transition-colors duration-200"
+                    >
+                      <span className="text-white flex-shrink-0">
+                        <Icon size={16} />
+                      </span>
+                      <span className="text-[13px] font-normal tracking-wide">
+                        {item.title}
+                        {item.subtitle && (
+                          <span className="opacity-75 ml-1 font-normal text-[13px]">
+                            — {item.subtitle}
+                          </span>
+                        )}
+                      </span>
+                    </Link>
+                  );
+                })
+              ) : (
+                <Link
+                  href="/delivery"
+                  className="flex items-center gap-2 text-[13px] font-normal tracking-wide hover:opacity-80 transition"
+                >
+                  <Truck size={16} />
+                  <span>Free Standard Delivery On All Products</span>
+                  <span className="ml-1 opacity-75">→</span>
+                </Link>
+              )}
             </div>
-          ) : (
-            <Link
-              href="/delivery"
-              className="flex items-center gap-2 text-[13px] font-normal tracking-wide hover:opacity-80 transition"
-            >
-              <Truck size={16} />
-              <span>Free Standard Delivery On All Products</span>
-              <span className="ml-1 opacity-75">→</span>
-            </Link>
-          )}
+
+            {/* Right: Trustpilot Review Collector Badge */}
+            <div className="hidden xl:flex items-center justify-end flex-shrink-0 min-w-[200px] outline-none">
+              <TrustpilotBadge />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1033,6 +1041,11 @@ export default function Header({
                 <Image src="/social/tiktok.svg" alt="tiktok" width={26} height={26} />
               </a>
 
+            </div>
+
+            {/* Mobile Drawer Trustpilot Badge */}
+            <div className="flex md:hidden mt-3 items-start justify-start flex-shrink-0 w-full">
+              <TrustpilotBadge isMobile={true} />
             </div>
           </div>
         </div>

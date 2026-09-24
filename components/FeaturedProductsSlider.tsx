@@ -5,14 +5,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Star, ShoppingCart, ChevronLeft, ChevronRight, BadgePercent, Zap, BellRing, Heart, CircleOff, PackageX, Award, Badge, Coins, AwardIcon, StarHalf, ExternalLink, ShoppingBag } from "lucide-react";
+import { Star, ShoppingCart, ChevronLeft, ChevronRight, BadgePercent, Zap, BellRing, Heart, CircleOff, PackageX, Award, Badge, Coins, AwardIcon, StarHalf, ExternalLink, ShoppingBag, Truck } from "lucide-react";
 import { useState, useEffect, useMemo, useId } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/toast/CustomToast";
 import { useWishlist } from "@/context/WishlistContext";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import {
   getDiscountBadge,
   getDiscountedPrice,
@@ -156,16 +155,6 @@ export default function FeaturedProductsSlider({
     variantId?: string | null;
   } | null>(null);
 
-  const [pharmaModal, setPharmaModal] = useState<{
-    product: Product;
-    variant?: Variant;
-    action: "ADD_TO_CART" | "BUY_NOW";
-    basePrice: number;
-    finalPrice: number;
-    discountAmount: number;
-    cardSlug: string;
-  } | null>(null);
-
   const getProductDisplayImage = (
     product: Product,
     defaultVariant?: Variant
@@ -247,13 +236,9 @@ export default function FeaturedProductsSlider({
 
     const maxQty = ((selected as any)?.orderMaximumQuantity ?? (product as any).orderMaximumQuantity) ?? Infinity;
 
-    const nextDayDeliveryEnabled = defaultVariant
-      ? defaultVariant.nextDayDeliveryEnabled === true
-      : !!product.nextDayDeliveryEnabled;
+    const nextDayDeliveryEnabled = (defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
 
-    const nextDayDeliveryFree = defaultVariant
-      ? defaultVariant.nextDayDeliveryFree === true
-      : !!product.nextDayDeliveryFree;
+    const nextDayDeliveryFree = (defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
 
     // 🔥 STOCK CHECK
     if (finalQty > stockQty) {
@@ -409,9 +394,8 @@ export default function FeaturedProductsSlider({
             variantForCard ??
             (product as any).variants?.find((v: any) => v.isDefault);
 
-          const isNextDayFree = defaultVariant
-            ? defaultVariant.nextDayDeliveryFree === true && defaultVariant.nextDayDeliveryEnabled === true
-            : !!product.nextDayDeliveryFree && !!product.nextDayDeliveryEnabled;
+          const isNextDayFree = ((defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree)) &&
+                                ((defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled));
 
           // 🎁 LOYALTY POINTS (PRODUCT + VARIANT AWARE)
           const loyaltyPoints = (() => {
@@ -502,6 +486,19 @@ export default function FeaturedProductsSlider({
                           Earn {loyaltyPoints} pts
                         </span>
                       )}
+
+                      {/* ⚡ Delivery Badge — bottom right on image */}
+                      {isNextDayFree ? (
+                        <span className="absolute bottom-1.5 right-2 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none">
+                          <Zap className="h-2 w-2 md:h-2.5 md:w-2.5 fill-white flex-shrink-0" />
+                          <span>Free Next Day Delivery</span>
+                        </span>
+                      ) : sellPriceToShow >= 40 ? (
+                        <span className="absolute bottom-1.5 right-2 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none">
+                          <Truck className="h-2 w-2 md:h-2.5 md:w-2.5 text-white flex-shrink-0" />
+                          <span>Free Delivery</span>
+                        </span>
+                      ) : null}
                       {/* DISCOUNT BADGE — show when discountPercentage > 0 */}
                       {hasDiscount && (
                         <div className="absolute z-20 left-3 top-2">
@@ -513,8 +510,8 @@ export default function FeaturedProductsSlider({
                         </div>
                       )}
 
-                      {/* Coupon badge */}
-                      {!hasDiscount && hasActiveCoupon && (
+                      {/* Coupon badge - Disabled */}
+                      {/* {!hasDiscount && hasActiveCoupon && (
                         <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">
                           <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
@@ -527,15 +524,13 @@ export default function FeaturedProductsSlider({
                               </span>
                             </div>
 
-                            {/* hole */}
                             <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
 
-                            {/* string effect */}
                             <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
 
                           </div>
                         </div>
-                      )}
+                      )} */}
                       {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
                       {/* Wishlist — top right below badge */}
                       <button
@@ -630,14 +625,6 @@ export default function FeaturedProductsSlider({
                       <span className="text-[11px] text-gray-500 ml-0.5 flex-shrink-0">
                         ({product.reviewCount ?? 0})
                       </span>
-                      {/* ⚡ Next Day Free badge */}
-                      {isNextDayFree && (
-                        <span className="inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-2 py-0.5 md:py-1 rounded whitespace-nowrap leading-none flex-shrink-0 shadow-sm">
-                          <Zap className="inline-block h-2 w-2 md:h-2.5 md:w-2.5 fill-white" />
-                          <span className="inline md:hidden text-[8px]">Free Next Day</span>
-                          <span className="hidden md:inline text-[9px]">Free Next Day Delivery</span>
-                        </span>
-                      )}
                     </div>
 
                     {/* TITLE */}
@@ -701,21 +688,6 @@ export default function FeaturedProductsSlider({
                             onClick={() => {
                               if (product.disableBuyButton) return;
 
-                              // 🔥 PHARMA PRODUCT GUARD
-                              if (product.isPharmaProduct) {
-                                setPharmaModal({
-                                  product,
-                                  variant: defaultVariant,
-                                  action: "ADD_TO_CART",
-                                  basePrice,
-                                  finalPrice: sellPriceToShow,
-                                  discountAmount,
-                                  cardSlug,
-                                });
-                                return;
-                              }
-
-
                               const defaultVarId = defaultVariant?.id ?? null;
 
                               const existingCartQty = cart
@@ -749,13 +721,9 @@ export default function FeaturedProductsSlider({
                                 return;
                               }
 
-                              const nextDayDeliveryEnabled = defaultVariant
-                                ? defaultVariant.nextDayDeliveryEnabled === true
-                                : !!product.nextDayDeliveryEnabled;
+                              const nextDayDeliveryEnabled = (defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
 
-                              const nextDayDeliveryFree = defaultVariant
-                                ? defaultVariant.nextDayDeliveryFree === true
-                                : !!product.nextDayDeliveryFree;
+                              const nextDayDeliveryFree = (defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
 
                               trackAddToCart({ productId: product.id, name: product.name, price: sellPriceToShow, quantity: finalQty });
                               addToCart({
@@ -897,150 +865,6 @@ export default function FeaturedProductsSlider({
           onClose={() => setNotifyProduct(null)}
         />
       )}
-      {pharmaModal && (
-        <PharmaQuestionsModal
-          open={true}
-          productId={pharmaModal.product.id}
-          mode="add"
-          onClose={() => setPharmaModal(null)}
-          onSuccess={() => {
-            const {
-              product,
-              variant,
-              action,
-              basePrice,
-              finalPrice,
-              discountAmount,
-              cardSlug,
-            } = pharmaModal;
-
-            if (action === "ADD_TO_CART") {
-              const finalQty = (variant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
-
-
-              const defaultVarId = variant?.id ?? null;
-
-              const existingCartQty = cart
-                .filter(
-                  (c) =>
-                    c.productId === product.id &&
-                    (c.variantId ?? null) === defaultVarId
-                )
-                .reduce((sum, c) => sum + (c.quantity ?? 0), 0);
-
-              const stockQty =
-                variant?.stockQuantity ??
-                (product as any).stockQuantity ??
-                0;
-
-              const maxQty = (variant?.orderMaximumQuantity ?? (product as any).orderMaximumQuantity) ?? Infinity;
-
-              // 🔥 MAX ORDER CHECK
-              if (existingCartQty + finalQty > maxQty) {
-                toast.error(`Maximum order quantity is ${maxQty}`);
-                return;
-              }
-
-              // 🔥 STOCK CHECK
-              if (existingCartQty + finalQty > stockQty) {
-                toast.error(`Only ${stockQty - existingCartQty} items left in stock`);
-                return;
-              }
-              // Use vatRate directly from API response
-              const modalVatRate: number | null =
-                !product.vatExempt ? ((product as any).vatRate ?? null) : null;
-
-              const nextDayDeliveryEnabled = variant
-                ? variant.nextDayDeliveryEnabled === true
-                : !!product.nextDayDeliveryEnabled;
-
-              const nextDayDeliveryFree = variant
-                ? variant.nextDayDeliveryFree === true
-                : !!product.nextDayDeliveryFree;
-
-              const discountPercentageToShow = variant
-                ? (variant.discountPercentage ?? 0)
-                : (product.discountPercentage ?? 0);
-              const hasDiscount = discountPercentageToShow > 0 && basePrice > finalPrice;
-
-              trackAddToCart({ productId: product.id, name: product.name, price: finalPrice, quantity: finalQty });
-              addToCart({
-                id: variant ? `${variant.id}-one` : product.id,
-                type: "one-time",
-                productId: product.id,
-                name: variant
-                  ? `${product.name} (${[
-                    variant.option1Value,
-                    (variant as any)?.option2Value,
-                    (variant as any)?.option3Value,
-                  ].filter(Boolean).join(", ")})`
-                  : product.name,
-                price: basePrice,
-                sellPrice: finalPrice,
-                discountPercentage: discountPercentageToShow,
-                priceBeforeDiscount: basePrice,
-                finalPrice,
-                discountAmount: 0,
-                oldPrice: hasDiscount ? basePrice : undefined,
-                displayDiscountType: hasDiscount ? "OldPrice" : "None",
-                hasSystemDiscount: false,
-                systemDiscountAmount: 0,
-                quantity: finalQty,
-                // ✅ ADD THESE 👇
-                vatRate: modalVatRate,
-                vatIncluded: modalVatRate !== null,
-                image: getProductDisplayImage(product, variant),
-                sku: variant?.sku ?? product.sku,
-                shipSeparately: product.shipSeparately,
-                nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
-                nextDayDeliveryFree: nextDayDeliveryFree ?? false,
-                sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
-                variantId: variant?.id ?? null,
-                slug: cardSlug,
-                variantOptions: {
-                  option1: variant?.option1Value ?? null,
-                  option2: (variant as any)?.option2Value ?? null,
-                  option3: (variant as any)?.option3Value ?? null,
-                },
-                productData: JSON.parse(JSON.stringify(product)),
-              });
-            }
-
-            if (action === "BUY_NOW") {
-              const stockQty =
-                variant?.stockQuantity ??
-                (product as any).stockQuantity ??
-                0;
-
-              const finalQty = getInitialQty(product);
-
-              const maxQty = (product as any).orderMaximumQuantity ?? Infinity;
-
-              if (finalQty > stockQty) {
-                toast.error(`Only ${stockQty} items available`);
-                return;
-              }
-
-              if (finalQty > maxQty) {
-                toast.error(`Maximum order quantity is ${maxQty}`);
-                return;
-              }
-
-              handleBuyNow(
-                product,
-                variant,
-                basePrice,
-                finalPrice,
-                discountAmount,
-                cardSlug
-              );
-            }
-
-            setPharmaModal(null);
-          }}
-        />
-      )}
-
     </div>
   );
 }

@@ -9,7 +9,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import ProductOffersModal from "@/components/cart/ProductOffersModal";
 import ConfirmRemoveModal from "@/components/ui/ConfirmRemoveModal";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { getOrderSummaryPricing } from "@/utils/pricing";
 import { trackViewCart } from "@/lib/analytics";
 
@@ -33,7 +32,6 @@ export default function CartPage() {
       vatIncluded: i.vatIncluded,
     })));
   }, [cart]);
-  // ================= PHARMA SYNC =================
 
   const [isCheckingStock, setIsCheckingStock] = useState(false);
 
@@ -160,10 +158,8 @@ export default function CartPage() {
   const [couponInput, setCouponInput] = useState("");
   const appliedCouponCode = useMemo(() => cart.find(i => i.couponCode)?.couponCode || "", [cart]);
   const [offersItem, setOffersItem] = useState<any | null>(null);
-  // ⭐ Product Offers Modal state
   const [showOffers, setShowOffers] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
-  const [pharmaEditItem, setPharmaEditItem] = useState<any | null>(null);
   // map itemId->error for stock/qty UI (keeps your existing state shape)
   const [stockError, setStockError] = useState<{ [key: string]: string | null }>({});
   // -------------------------
@@ -302,52 +298,28 @@ export default function CartPage() {
 
   const totalCombinedDiscount = bundleSavings + finalDiscount;
   const applyCouponFromBackend = (item: any, couponData: any) => {
-
-    const assigns = item.productData?.assignedDiscounts ?? [];
-
-    const basePrice = item.priceBeforeDiscount ?? item.price;
-
-    // 🔹 AUTO DISCOUNT
-    const autoDiscount = assigns.find(
-      (d: any) =>
-        d &&
-        !d.requiresCouponCode &&
-        isDiscountActive(d)
-    );
-
-    let autoDiscountAmount = 0;
-
-    if (autoDiscount) {
-      if (autoDiscount.usePercentage) {
-        autoDiscountAmount =
-          (basePrice * autoDiscount.discountPercentage) / 100;
-      } else {
-        autoDiscountAmount = autoDiscount.discountAmount ?? 0;
-      }
-    }
+    const basePrice = item.priceBeforeDiscount ?? item.price ?? 0;
+    const sellPrice = item.sellPrice ?? basePrice;
 
     // 🔹 COUPON VALUE
     let couponValue = 0;
-    if (couponData.isCumulative === true && autoDiscountAmount > 0) {
-      const discountedPrice = basePrice - autoDiscountAmount;
-      couponValue = couponData.usePercentage
-        ? Math.round((discountedPrice * couponData.discountPercentage) / 100 * 100) / 100
-        : couponData.discountAmount ?? 0;
-    } else {
-      couponValue = couponData.usePercentage
-        ? Math.round((basePrice * couponData.discountPercentage) / 100 * 100) / 100
-        : couponData.discountAmount ?? 0;
-    }
-
-    // 🔥 CUMULATIVE
-    let totalDiscount = couponValue;
+    let finalPrice = 0;
+    let totalDiscount = 0;
 
     if (couponData.isCumulative === true) {
-      totalDiscount = couponValue + autoDiscountAmount;
-    }
-
-    if (totalDiscount > basePrice) {
-      totalDiscount = basePrice;
+      // Cumulative: calculate coupon percentage on top of sellPrice
+      couponValue = couponData.usePercentage
+        ? Math.round((sellPrice * (couponData.discountPercentage ?? 0)) / 100 * 100) / 100
+        : (couponData.discountAmount ?? 0);
+      finalPrice = Math.max(0, sellPrice - couponValue);
+      totalDiscount = Math.max(0, basePrice - finalPrice);
+    } else {
+      // Non-cumulative: calculate coupon percentage on basePrice
+      couponValue = couponData.usePercentage
+        ? Math.round((basePrice * (couponData.discountPercentage ?? 0)) / 100 * 100) / 100
+        : (couponData.discountAmount ?? 0);
+      finalPrice = Math.max(0, basePrice - couponValue);
+      totalDiscount = Math.max(0, basePrice - finalPrice);
     }
 
     const updated = cart.map((ci) =>
@@ -358,7 +330,7 @@ export default function CartPage() {
           couponCode: couponData.couponCode,
           isCumulative: couponData.isCumulative === true,
           discountAmount: totalDiscount,
-          finalPrice: basePrice - totalDiscount,
+          finalPrice: finalPrice,
         }
         : ci
     );
@@ -550,6 +522,12 @@ export default function CartPage() {
           isDiscountActive(d)
       );
 
+      const origSellPrice = (item.productData?.sellPrice && typeof item.productData.sellPrice === "number" && item.productData.sellPrice > 0)
+        ? item.productData.sellPrice
+        : (item.sellPrice && typeof item.sellPrice === "number" && item.sellPrice > 0)
+          ? item.sellPrice
+          : basePrice;
+
       let autoDiscountAmount = 0;
 
       if (autoDiscount) {
@@ -559,19 +537,18 @@ export default function CartPage() {
         } else {
           autoDiscountAmount = autoDiscount.discountAmount ?? 0;
         }
-      } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
-        autoDiscountAmount = item.price - item.sellPrice;
+      } else if (origSellPrice < basePrice) {
+        autoDiscountAmount = basePrice - origSellPrice;
       }
 
       return {
         ...item,
         appliedDiscountId: null,
         couponCode: null,
+        isCumulative: undefined,
         discountAmount: autoDiscountAmount,
         finalPrice: basePrice - autoDiscountAmount,
-        // ✅ CRITICAL: Restore item.price to original (it was set to discounted
-        // price when added to cart with coupon). correctSubtotal uses item.price
-        // for the normal (no-coupon) case.
+        sellPrice: origSellPrice,
         price: basePrice,
         priceBeforeDiscount: basePrice,
       };
@@ -590,6 +567,12 @@ export default function CartPage() {
         (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
       );
 
+      const origSellPrice = (item.productData?.sellPrice && typeof item.productData.sellPrice === "number" && item.productData.sellPrice > 0)
+        ? item.productData.sellPrice
+        : (item.sellPrice && typeof item.sellPrice === "number" && item.sellPrice > 0)
+          ? item.sellPrice
+          : basePrice;
+
       let autoDiscountAmount = 0;
       if (autoDiscount) {
         if (autoDiscount.usePercentage) {
@@ -597,8 +580,8 @@ export default function CartPage() {
         } else {
           autoDiscountAmount = autoDiscount.discountAmount ?? 0;
         }
-      } else if (item.sellPrice && item.price && item.sellPrice < item.price) {
-        autoDiscountAmount = item.price - item.sellPrice;
+      } else if (origSellPrice < basePrice) {
+        autoDiscountAmount = basePrice - origSellPrice;
       }
 
       return {
@@ -608,6 +591,7 @@ export default function CartPage() {
         isCumulative: undefined,
         discountAmount: autoDiscountAmount,
         finalPrice: basePrice - autoDiscountAmount,
+        sellPrice: origSellPrice,
         price: basePrice,
         priceBeforeDiscount: basePrice,
       };
@@ -1007,11 +991,6 @@ export default function CartPage() {
                               <span className="text-red-600 text-[10px] font-bold bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Out of Stock</span>
                             )}
                             {stockError[item.id] && <span className="text-red-600 text-[10px] font-medium">{stockError[item.id]}</span>}
-                            {item.productData?.isPharmaProduct && (
-                              <button onClick={() => setPharmaEditItem(item)} className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline decoration-blue-300 underline-offset-2 transition-colors">
-                                Edit Medical Info
-                              </button>
-                            )}
                           </div>
                         </div>
 
@@ -1243,15 +1222,6 @@ export default function CartPage() {
                   toast.error("Item removed");
                 }}
               />
-              {pharmaEditItem && (
-                <PharmaQuestionsModal
-                  open={!!pharmaEditItem}
-                  productId={pharmaEditItem.productId}
-                  mode="edit"
-                  onClose={() => setPharmaEditItem(null)}
-                  onSuccess={() => { setPharmaEditItem(null); toast.success("Medical info updated."); }}
-                />
-              )}
             </div>
           </div>
         </div>

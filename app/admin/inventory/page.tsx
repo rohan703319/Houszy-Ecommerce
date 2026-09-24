@@ -9,6 +9,7 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { productsService } from "@/lib/services";
@@ -21,6 +22,7 @@ import ConfirmDialog from "../_components/ConfirmDialog";
 import { getImageUrl } from "../_utils/formatUtils";
 import { getSelectStyles } from "../_utils/styles";
 import { useTheme } from "@/app/admin/_context/theme-provider";
+import { useAuth } from "@/app/admin/_context/auth-context";
 import React from "react";
 
 
@@ -81,8 +83,13 @@ export default function InventoryPage() {
   const toast = useToast();
   const router = useRouter();
   const { theme } = useTheme();
+  const { hasPermission, permissions } = useAuth();
   const selectStyles = useMemo(() => getSelectStyles(theme === 'dark'), [theme]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const canView = hasPermission("inventory", "view") || hasPermission("products", "view");
+  const canEdit = hasPermission("inventory", "edit") || hasPermission("products", "edit");
+  const canViewProducts = hasPermission("products", "view");
 
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -305,12 +312,20 @@ export default function InventoryPage() {
     }
   };
 
+  const isFirstMountRef = useRef(true);
+
   useEffect(() => {
     fetchProducts();
   }, [currentPage, itemsPerPage, debouncedSearch, productType, selectedStatus, selectedCategory, selectedBrand]);
 
   useEffect(() => {
-    setCurrentPage(1);
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
   }, [debouncedSearch, selectedStatus, productType, selectedCategory, selectedBrand]);
 
   const fetchFilters = async () => {
@@ -614,6 +629,18 @@ export default function InventoryPage() {
   const outOfStock = products.filter(p => p.stockQuantity === 0).length;
   const lowStock = products.filter(p => p.stockQuantity > 0 && p.stockQuantity <= 5).length;
 
+  if (permissions && !canView) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4 animate-bounce" />
+        <h2 className="text-lg font-semibold text-white">Access Denied</h2>
+        <p className="text-slate-400 text-sm mt-2">
+          You do not have permission to view this page. Please contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 relative">
       {selected.size > 0 && (
@@ -649,12 +676,16 @@ export default function InventoryPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => router.push("/admin/products")} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-400 rounded-lg font-semibold transition-all"><ShoppingCart className="w-3.5 h-3.5" />Go to Products</button>
+          {canViewProducts && (
+            <button onClick={() => router.push("/admin/products")} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 text-emerald-400 rounded-lg font-semibold transition-all"><ShoppingCart className="w-3.5 h-3.5" />Go to Products</button>
+          )}
           <button onClick={downloadAllProducts} disabled={downloadAllLoading} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-semibold transition-all">
             {downloadAllLoading ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             {downloadAllLoading ? "Downloading..." : "Download All Products"}
           </button>
-          <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition-all"><Upload className="w-3.5 h-3.5" />Update Inventory</button>
+          {canEdit && (
+            <button onClick={() => setImportOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition-all"><Upload className="w-3.5 h-3.5" />Update Inventory</button>
+          )}
         </div>
       </div>
 
@@ -715,20 +746,19 @@ export default function InventoryPage() {
               <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-20">SKU</th>
               <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-12">Stock</th>
               <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">New Stock</th>
-              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Curr. Price</th>
-              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Curr. Discount %</th>
-              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Curr. Sell Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Current Price</th>
               <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">New Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Old Discount %</th>
               <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-14">New Discount %</th>
-              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">New Sell Price</th>
+              <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-16">Sell Price</th>
               <th className="p-1.5 text-center font-semibold text-slate-400 uppercase tracking-wider w-10">Save</th>
             </tr>
           </thead>
           <tbody>
             {tableLoading ? (
-              <tr><td colSpan={12} className="p-12 text-center text-slate-400 text-sm">Loading inventory...</td></tr>
+              <tr><td colSpan={11} className="p-12 text-center text-slate-400 text-sm">Loading inventory...</td></tr>
             ) : products.length === 0 ? (
-              <tr><td colSpan={12} className="p-12 text-center text-slate-500 text-sm"><Package className="h-10 w-10 mx-auto mb-2 opacity-20" />No products found</td></tr>
+              <tr><td colSpan={11} className="p-12 text-center text-slate-500 text-sm"><Package className="h-10 w-10 mx-auto mb-2 opacity-20" />No products found</td></tr>
             ) : (
               products.map((p) => {
                 const changed = p.newStock !== p.stockQuantity || p.newPrice !== p.price || p.newOldPrice !== (p.discountPercentage ?? 0);
@@ -819,7 +849,7 @@ export default function InventoryPage() {
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
-                          <input type="number" min={0} value={p.newStock} onChange={(e) => handleChange(p.id, undefined, "newStock", Number(e.target.value))} className={`w-14 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${p.newStock !== p.stockQuantity ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
+                          <input type="number" min={0} value={p.newStock} disabled={!canEdit} onChange={(e) => handleChange(p.id, undefined, "newStock", Number(e.target.value))} className={`w-14 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 disabled:opacity-50 disabled:cursor-not-allowed ${p.newStock !== p.stockQuantity ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
                         )}
                       </td>
                       <td className="p-1.5 text-center">
@@ -827,6 +857,16 @@ export default function InventoryPage() {
                           <span className="text-slate-500">—</span>
                         ) : (
                           <span className="text-sm font-semibold text-slate-300">£{p.price.toFixed(2)}</span>
+                        )}
+                      </td>
+                      <td className="p-1.5 text-center relative">
+                        {p.productType === "variable" ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <>
+                            <input type="number" min={0} step="0.01" value={p.newPrice} disabled={!canEdit} onChange={(e) => handleChange(p.id, undefined, "newPrice", Number(e.target.value))} className={`w-16 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 disabled:opacity-50 disabled:cursor-not-allowed ${p.newPrice !== p.price ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
+                            {rowLoading === p.id && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-lg"><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}
+                          </>
                         )}
                       </td>
                       <td className="p-1.5 text-center">
@@ -842,24 +882,7 @@ export default function InventoryPage() {
                         {p.productType === "variable" ? (
                           <span className="text-slate-500">—</span>
                         ) : (
-                          <span className="text-sm font-bold text-cyan-400">£{(p.sellPrice ?? p.price).toFixed(2)}</span>
-                        )}
-                      </td>
-                      <td className="p-1.5 text-center relative">
-                        {p.productType === "variable" ? (
-                          <span className="text-slate-500">—</span>
-                        ) : (
-                          <>
-                            <input type="number" min={0} step="0.01" value={p.newPrice} onChange={(e) => handleChange(p.id, undefined, "newPrice", Number(e.target.value))} className={`w-16 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${p.newPrice !== p.price ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"} ${priceInvalid ? "border-red-500 ring-1 ring-red-500/50" : ""}`} />
-                            {rowLoading === p.id && <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-lg"><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}
-                          </>
-                        )}
-                      </td>
-                      <td className="p-1.5 text-center">
-                        {p.productType === "variable" ? (
-                          <span className="text-slate-500">—</span>
-                        ) : (
-                          <input type="number" min={0} max={100} step="1" value={p.newOldPrice} onChange={(e) => handleChange(p.id, undefined, "newOldPrice", Number(e.target.value))} className={`w-12 bg-slate-800 border rounded text-white text-center text-xs px-1 py-1 ${p.newOldPrice !== (p.discountPercentage ?? 0) ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
+                          <input type="number" min={0} max={100} step="1" value={p.newOldPrice} disabled={!canEdit} onChange={(e) => handleChange(p.id, undefined, "newOldPrice", Number(e.target.value))} className={`w-12 bg-slate-800 border rounded text-white text-center text-xs px-1 py-1 disabled:opacity-50 disabled:cursor-not-allowed ${p.newOldPrice !== (p.discountPercentage ?? 0) ? "border-amber-500/60 bg-amber-500/5" : "border-slate-700"}`} />
                         )}
                       </td>
                       <td className="p-1.5 text-center">
@@ -870,7 +893,7 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td className="p-1.5 text-center">
-                        {changed ? (
+                        {canEdit && changed ? (
                           <button
                             onClick={() => updateInventory([{ productId: p.id, newStock: p.newStock, newPrice: p.newPrice, newOldPrice: p.newOldPrice }])}
                             className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"
@@ -912,9 +935,12 @@ export default function InventoryPage() {
                             </span>
                           </td>
                           <td className="p-1.5 text-center"><StockBadge qty={v.stockQuantity} /></td>
-                          <td className="p-1.5 text-center"><input type="number" min={0} value={v.newStock} onChange={(e) => handleChange(p.id, v.variantId, "newStock", Number(e.target.value))} className={`w-14 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${v.newStock !== v.stockQuantity ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} /></td>
+                          <td className="p-1.5 text-center"><input type="number" min={0} value={v.newStock} disabled={!canEdit} onChange={(e) => handleChange(p.id, v.variantId, "newStock", Number(e.target.value))} className={`w-14 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 disabled:opacity-50 disabled:cursor-not-allowed ${v.newStock !== v.stockQuantity ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} /></td>
                           <td className="p-1.5 text-center">
                             <span className="text-sm font-semibold text-slate-400">£{v.price.toFixed(2)}</span>
+                          </td>
+                          <td className="p-1.5 text-center relative">
+                            <input type="number" min={0} step="0.01" value={v.newPrice} disabled={!canEdit} onChange={(e) => handleChange(p.id, v.variantId, "newPrice", Number(e.target.value))} className={`w-16 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 disabled:opacity-50 disabled:cursor-not-allowed ${v.newPrice !== v.price ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} />
                           </td>
                           <td className="p-1.5 text-center">
                             {v.discountPercentage && v.discountPercentage > 0 ? (
@@ -924,19 +950,13 @@ export default function InventoryPage() {
                             )}
                           </td>
                           <td className="p-1.5 text-center">
-                            <span className="text-sm font-semibold text-cyan-400/90">£{(v.sellPrice ?? v.price).toFixed(2)}</span>
-                          </td>
-                          <td className="p-1.5 text-center relative">
-                            <input type="number" min={0} step="0.01" value={v.newPrice} onChange={(e) => handleChange(p.id, v.variantId, "newPrice", Number(e.target.value))} className={`w-16 bg-slate-800 border rounded text-white text-center text-xs px-1.5 py-1 ${v.newPrice !== v.price ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} />
-                          </td>
-                          <td className="p-1.5 text-center">
-                            <input type="number" min={0} max={100} step="1" value={v.newOldPrice} onChange={(e) => handleChange(p.id, v.variantId, "newOldPrice", Number(e.target.value))} className={`w-12 bg-slate-800 border rounded text-white text-center text-xs px-1 py-1 ${v.newOldPrice !== (v.discountPercentage ?? 0) ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} />
+                            <input type="number" min={0} max={100} step="1" value={v.newOldPrice} disabled={!canEdit} onChange={(e) => handleChange(p.id, v.variantId, "newOldPrice", Number(e.target.value))} className={`w-12 bg-slate-800 border rounded text-white text-center text-xs px-1 py-1 disabled:opacity-50 disabled:cursor-not-allowed ${v.newOldPrice !== (v.discountPercentage ?? 0) ? "border-amber-500/40 bg-amber-500/5" : "border-slate-700"}`} />
                           </td>
                           <td className="p-1.5 text-center">
                             <span className="text-sm font-semibold text-cyan-400/90">£{(v.newPrice * (1 - v.newOldPrice / 100)).toFixed(2)}</span>
                           </td>
                           <td className="p-1.5 text-center">
-                            {vChanged ? (
+                            {canEdit && vChanged ? (
                               <button
                                 onClick={() => updateInventory([{ productId: p.id, variantId: v.variantId, newStock: v.newStock, newPrice: v.newPrice, newOldPrice: v.newOldPrice }])}
                                 className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30"
@@ -974,7 +994,7 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {changedProducts.length > 0 && (
+      {canEdit && changedProducts.length > 0 && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
           <div className="bg-slate-900/95 backdrop-blur-xl border border-amber-500/30 rounded-xl px-5 py-3 flex items-center justify-between gap-4 shadow-2xl">
             <div>

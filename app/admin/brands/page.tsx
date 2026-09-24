@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Search, Tag, Eye, CheckCircle, Filter, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Package, FolderTree, Copy, Loader2, HelpCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Tag, Eye, CheckCircle, Filter, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Package, FolderTree, Copy, Loader2, HelpCircle, ExternalLink } from "lucide-react";
 import { useMemo, useCallback } from "react";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
@@ -736,9 +736,15 @@ const goToPage = useCallback((page: number) => {
                       </td>
 
                       <td className="py-2 px-3 text-center">
-                        <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-md text-xs font-medium">
-                          {brand.productCount}
-                        </span>
+                        <a
+                          href={`/brands/${brand.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-md text-xs font-medium hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors"
+                        >
+                          <span>{brand.productCount}</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       </td>
 
                       <td className="py-2 px-3 text-center">

@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Star, StarHalf, BadgePercent, AwardIcon, PackageX, Heart, ShoppingBag, Zap, Bell } from "lucide-react";
+import { Star, StarHalf, BadgePercent, AwardIcon, PackageX, Heart, ShoppingBag, Zap, Bell, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 
@@ -15,7 +15,6 @@ import { getOldPriceDiscount } from "@/utils/pricing";
 const FALLBACK_IMAGE = "/placeholder-product.jpg";
 import { useState, useRef } from "react";
 import { trackAddToCart, trackSelectItem } from "@/lib/analytics";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import BackInStockModal from "@/components/backorder/BackInStockModal";
 import { useRouter } from "next/navigation";
 export default function ProductCard({
@@ -31,11 +30,7 @@ export default function ProductCard({
   const toast = useToast();
   const { addToCart, cart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const [showPharmaModal, setShowPharmaModal] = useState(false);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
-
-  // 🔁 resume add after modal
-  const pharmaApprovedRef = useRef(false);
 
   // ---------- Variant ----------
   const defaultVariant =
@@ -44,9 +39,8 @@ export default function ProductCard({
     product.variants?.[0] ??
     null;
 
-  const isNextDayFree = defaultVariant
-    ? defaultVariant.nextDayDeliveryFree === true && defaultVariant.nextDayDeliveryEnabled === true
-    : !!product.nextDayDeliveryFree && !!product.nextDayDeliveryEnabled;
+  const isNextDayFree = ((defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree)) &&
+                        ((defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled));
 
   // ---------- Image ----------
   const mainImage = (() => {
@@ -152,16 +146,6 @@ export default function ProductCard({
 
     return null;
   })();
-  const handlePharmaGuard = (): boolean => {
-    if (pharmaApprovedRef.current) return true;
-
-    if (product.isPharmaProduct) {
-      setShowPharmaModal(true);
-      return false;
-    }
-
-    return true;
-  };
   const getInitialQty = (product: any) => {
     return (defaultVariant?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
   };
@@ -169,8 +153,6 @@ export default function ProductCard({
   // ---------- Add to Cart ----------
   const handleAddToCart = () => {
     if (product.disableBuyButton) return;
-    // 🔥 PHARMA GUARD
-    if (!handlePharmaGuard()) return;
     const variantId = defaultVariant?.id ?? null;
 
     const maxQty = (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
@@ -198,13 +180,9 @@ export default function ProductCard({
       return;
     }
 
-    const nextDayDeliveryEnabled = defaultVariant
-      ? defaultVariant.nextDayDeliveryEnabled === true
-      : !!product.nextDayDeliveryEnabled;
+    const nextDayDeliveryEnabled = (defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
 
-    const nextDayDeliveryFree = defaultVariant
-      ? defaultVariant.nextDayDeliveryFree === true
-      : !!product.nextDayDeliveryFree;
+    const nextDayDeliveryFree = (defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
 
     trackAddToCart({
       ...{
@@ -309,8 +287,8 @@ export default function ProductCard({
               </div>
             </div>
           )}
-          {/* COUPON BADGE */}
-          {!hasDiscount && hasActiveCoupon && (
+          {/* COUPON BADGE - Disabled */}
+          {/* {!hasDiscount && hasActiveCoupon && (
             <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">
               <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
@@ -323,24 +301,31 @@ export default function ProductCard({
                   </span>
                 </div>
 
-                {/* hole */}
                 <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
 
-                {/* string effect */}
                 <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
 
               </div>
             </div>
-          )}
+          )} */}
           {/* <GenderBadge gender={product.gender} absolute={false} className="absolute bottom-2 right-2 z-20" /> */}
-          {/* Free Next Day badge — bottom left on image */}
-          {isNextDayFree && stock > 0 && (
-            <span
-              className="absolute left-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
-            >
-              <Zap className="h-2.5 w-2.5 fill-white flex-shrink-0" />
-              <span>Free Next Day Delivery</span>
-            </span>
+          {/* ⚡ Delivery Badge — bottom right on image */}
+          {stock > 0 && (
+            isNextDayFree ? (
+              <span
+                className="absolute right-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
+              >
+                <Zap className="h-2.5 w-2.5 fill-white flex-shrink-0" />
+                <span>Free Next Day Delivery</span>
+              </span>
+            ) : sellPriceToShow >= 40 ? (
+              <span
+                className="absolute right-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
+              >
+                <Truck className="h-2.5 w-2.5 text-white flex-shrink-0" />
+                <span>Free Delivery</span>
+              </span>
+            ) : null
           )}
           {/* Out of Stock Badge — bottom right on image */}
           {stock === 0 && (
@@ -520,30 +505,6 @@ export default function ProductCard({
         )}
 
       </div>
-      {showPharmaModal && (
-        <PharmaQuestionsModal
-          open={showPharmaModal}
-          productId={product.id}
-          mode="add"
-          onClose={() => {
-            setShowPharmaModal(false);
-          }}
-          onSuccess={(messageFromBackend) => {
-            // 🔒 approve once
-            pharmaApprovedRef.current = true;
-
-            setShowPharmaModal(false);
-
-            // 🔁 resume add-to-cart
-            handleAddToCart();
-
-            // reset for next click
-            setTimeout(() => {
-              pharmaApprovedRef.current = false;
-            }, 0);
-          }}
-        />
-      )}
       {showNotifyModal && (
         <BackInStockModal
           open={showNotifyModal}

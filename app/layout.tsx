@@ -20,6 +20,7 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://houszy.co.uk"),
   title: {
     default: "Houszy | Shop Kitchenware, Fitness, Homeware & More",
     template: "%s | Houszy",
@@ -91,6 +92,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://api.houszy.co.uk" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://api.houszy.co.uk" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="preload" href="https://widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js" as="script" />
+        <Script
+          src="https://widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js"
+          strategy="afterInteractive"
+        />
         <Script
           id="google-consent-mode"
           strategy="lazyOnload"

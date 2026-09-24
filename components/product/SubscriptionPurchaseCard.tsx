@@ -101,8 +101,6 @@ export default function SubscriptionPurchaseCard({
     : (Number(product.discountPercentage) || 0);
 
   const subscriptionDiscount = Number(product.subscriptionDiscountPercentage) || 0;
-  const totalDiscountPercentage = Number((directDiscountPercentage + subscriptionDiscount).toFixed(2));
-  const subscriptionPrice = currentSellPrice - (currentSellPrice * subscriptionDiscount) / 100;
   // ----------------- NEW STATE FOR DROPDOWN -----------------
   const frequencies = product?.allowedSubscriptionFrequencies
     ? product.allowedSubscriptionFrequencies.split(",").map((f: string) => f.trim()).filter(Boolean)
@@ -173,9 +171,10 @@ export default function SubscriptionPurchaseCard({
       price: basePrice,
       sellPrice: currentSellPrice,
       priceBeforeDiscount: basePrice,
-      finalPrice: subscriptionPrice,
-      discountAmount: basePrice - subscriptionPrice,
-      discountPercentage: totalDiscountPercentage,
+      finalPrice: currentSellPrice,
+      discountAmount: basePrice - currentSellPrice,
+      discountPercentage: directDiscountPercentage,
+      subscriptionDiscountPercentage: subscriptionDiscount,
       quantity,
       variantId: selectedVariant?.id ?? null,
       slug: product.slug ?? "",
@@ -204,24 +203,6 @@ export default function SubscriptionPurchaseCard({
       nextDayDeliveryFree: nextDayDeliveryFree ?? false,
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
     });
-    // toast.success(
-    //   <div className="flex items-center justify-between gap-2">
-    //     <span className="text-sm font-medium">
-    //       {product.name} added to cart!
-    //     </span>
-
-    //     <button
-    //       onClick={(e) => {
-    //         e.stopPropagation();
-    //         toast.clearAll();
-    //         router.push("/cart");
-    //       }}
-    //       className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-[#f38918] hover:bg-black hover:text-white transition shadow-sm"
-    //     >
-    //       Cart→
-    //     </button>
-    //   </div>
-    // );
   };
 
   return (
@@ -245,19 +226,19 @@ export default function SubscriptionPurchaseCard({
         </label>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-lg font-extrabold text-[#f38918]">
-            £{(subscriptionPrice * quantity).toFixed(2)}
+            £{(currentSellPrice * quantity).toFixed(2)}
           </span>
-          {totalDiscountPercentage > 0 && (
+          {directDiscountPercentage > 0 && (
             <>
               <span className="text-xs font-bold text-gray-400 line-through">
                 £{(basePrice * quantity).toFixed(2)}
               </span>
               <span className="bg-[#E31B23] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm leading-none flex items-center justify-center">
-                {totalDiscountPercentage}% Off
+                {directDiscountPercentage}% Off
               </span>
             </>
           )}
-          {vatRate !== null && (
+          {vatRate !== null && vatRate > 0 && !product.vatExempt && (
             <span className="text-xs text-gray-700 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded font-medium">
               {vatRate}% VAT
             </span>
@@ -270,11 +251,13 @@ export default function SubscriptionPurchaseCard({
           )}
         </div>
         {/* Benefits Block */}
-        <ul className="bg-[#f8faf9] border border-orange-200 rounded p-2 mb-2 text-[11px] text-gray-700 space-y-0.5">
-          <li className="flex items-center gap-2">
-            <span className="text-orange-700 font-bold">✓</span> Save Upto Extra {subscriptionDiscount}%
-          </li>
-        </ul>
+        {subscriptionDiscount > 0 && (
+          <ul className="bg-[#f8faf9] border border-orange-200 rounded p-2 mb-2 text-[11px] text-gray-700 space-y-0.5">
+            <li className="flex items-center gap-2">
+              <span className="text-orange-700 font-bold">✓</span> Save up to Extra {subscriptionDiscount}% from 2nd delivery onwards
+            </li>
+          </ul>
+        )}
         {/* Dropdown appears ONLY if subscription selected */}
         {selectedPurchaseType === "subscription" && (
           <div className="mb-2">

@@ -17,7 +17,7 @@ import { getBackorderUIState } from "@/app/lib/backorderHelpers";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
-import { Heart, Star, StarHalf, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Pill, Share, Share2Icon, LucideShare2, ShareIcon, Bell } from "lucide-react";
+import { Heart, Star, StarHalf, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Share, Share2Icon, LucideShare2, ShareIcon, Bell } from "lucide-react";
 import ShareMenu from "@/components/share/ShareMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductFeatures from "@/components/product/ProductFeatures";
@@ -33,10 +33,8 @@ import CouponModal from "@/components/product/CouponModal";
 import ProductImageModal from "@/components/product/ProductImageModal";
 import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers";
 import { usePathname } from "next/navigation";
-import { detectUKRegion } from "@/app/lib/region";
 // import GenderBadge from "@/components/shared/GenderBadge";
 import { getOldPriceDiscount } from "@/utils/pricing";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import APlusContentRenderer from "@/components/aplus/APlusContentRenderer";
 import { useCartActivity } from "@/context/CartContext";
 import { trackViewItem } from "@/lib/analytics";
@@ -87,6 +85,7 @@ interface Variant {
   nextDayDeliveryEnabled?: boolean | null;
   nextDayDeliveryFree?: boolean | null;
   nextDayDeliveryCutoffTime?: string | null;
+  handlingTimeDays?: number | null;
 
   fakeSaleCount?: number | null;
   saleCount?: number;
@@ -95,6 +94,7 @@ interface Variant {
   displaySaleCount?: number;
   monthlySaleCount?: number;
   weeklySaleCount?: number;
+  assignedDiscounts?: AssignedDiscount[];
 }
 interface AssignedDiscount {
   id: string;
@@ -212,6 +212,7 @@ interface Product {
   nextDayDeliveryFree?: boolean;
   sameDayDeliveryEnabled?: boolean;
   nextDayDeliveryCutoffTime?: string;
+  handlingTimeDays?: number | null;
   standardDeliveryEnabled?: boolean;
   allowedDeliveryOptionIds?: string[];
   nextDayDeliveryCharge?: number;
@@ -566,17 +567,6 @@ export default function ProductDetails({
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  // 🔥 Coupon Available (but not applied)
-  const hasCouponAvailable = useMemo(() => {
-    if (!product.assignedDiscounts) return false;
-    const now = new Date();
-    return product.assignedDiscounts.some(d =>
-      d.isActive &&
-      d.requiresCouponCode === true &&
-      new Date(d.startDate) <= now &&
-      new Date(d.endDate) >= now
-    );
-  }, [product.assignedDiscounts]);
   const shareUrl =
     typeof window !== "undefined"
       ? window.location.href
@@ -601,14 +591,6 @@ export default function ProductDetails({
     // ✅ Desktop → custom share menu
     setShowShare((v) => !v);
   };
-  const [isUKUser, setIsUKUser] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    detectUKRegion().then((uk) => {
-      if (!cancelled) setIsUKUser(uk);
-    });
-    return () => { cancelled = true; };
-  }, []);
   const formatUKDate = (date: Date) => {
     return date.toLocaleDateString("en-GB", {
       day: "2-digit",
@@ -625,17 +607,86 @@ export default function ProductDetails({
   }, []);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
 
-  const effectiveNextDayEnabled = selectedVariant
-    ? selectedVariant.nextDayDeliveryEnabled === true
-    : !!product.nextDayDeliveryEnabled;
+  const [shippingQuotes, setShippingQuotes] = useState<any[]>([]);
 
-  const effectiveNextDayCutoff = selectedVariant
-    ? selectedVariant.nextDayDeliveryCutoffTime
-    : product.nextDayDeliveryCutoffTime;
+  useEffect(() => {
+    const activeProductId = selectedVariant?.id || product.id;
+    const currentPrice = selectedVariant?.sellPrice || selectedVariant?.price || product.sellPrice || product.price || 0;
 
-  const effectiveNextDayFree = selectedVariant
-    ? selectedVariant.nextDayDeliveryFree === true
-    : !!product.nextDayDeliveryFree;
+    let cancelled = false;
+    const fetchQuotes = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=SW1A1AA&orderTotal=${currentPrice}&productIds=${encodeURIComponent(activeProductId)}`
+        );
+        const json = await res.json();
+        if (!cancelled && json?.success && Array.isArray(json.data)) {
+          setShippingQuotes(json.data);
+        }
+      } catch (err) {
+        console.error("Error fetching shipping quote for product details:", err);
+      }
+    };
+
+    fetchQuotes();
+    return () => { cancelled = true; };
+  }, [product.id, selectedVariant?.id, selectedVariant?.price, selectedVariant?.sellPrice, product.price, product.sellPrice]);
+
+  // Active coupon offers for product or selected variant
+  const couponOffers = useMemo(() => {
+    const rawDiscounts: AssignedDiscount[] = [
+      ...(product.assignedDiscounts || []),
+      ...(selectedVariant?.assignedDiscounts || []),
+    ];
+
+    const uniqueMap = new Map<string, AssignedDiscount>();
+    const now = new Date();
+
+    for (const d of rawDiscounts) {
+      if (!d) continue;
+      const isTimeValid =
+        (!d.startDate || new Date(d.startDate) <= now) &&
+        (!d.endDate || new Date(d.endDate) >= now);
+
+      if (d.isActive && d.requiresCouponCode === true && isTimeValid) {
+        if (!uniqueMap.has(d.id)) {
+          uniqueMap.set(d.id, d);
+        }
+      }
+    }
+
+    return Array.from(uniqueMap.values());
+  }, [product.assignedDiscounts, selectedVariant?.assignedDiscounts]);
+
+  // 🔥 Coupon Available (but not applied)
+  const hasCouponAvailable = useMemo(() => {
+    return couponOffers.length > 0;
+  }, [couponOffers]);
+
+  const effectiveNextDayEnabled = (selectedVariant?.nextDayDeliveryEnabled === true) || (selectedVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
+
+  const effectiveHandlingTimeDays = selectedVariant?.handlingTimeDays !== undefined && selectedVariant?.handlingTimeDays !== null
+    ? selectedVariant.handlingTimeDays
+    : (product.handlingTimeDays || 0);
+
+  const effectiveNextDayFree = (selectedVariant?.nextDayDeliveryFree === true) || (selectedVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
+
+  const activeQuote = useMemo(() => {
+    if (shippingQuotes.length === 0) return null;
+
+    if (effectiveNextDayEnabled) {
+      const nextDay = shippingQuotes.find(
+        (q) => q.category === 1 || (q.name || q.displayName || "").toLowerCase().includes("next")
+      );
+      if (nextDay) return nextDay;
+    }
+
+    const standard = shippingQuotes.find(
+      (q) => q.isDefault && (q.category === 0 || !(q.name || q.displayName || "").toLowerCase().includes("next"))
+    ) || shippingQuotes.find((q) => q.category === 0) || shippingQuotes[0];
+
+    return standard || null;
+  }, [shippingQuotes, effectiveNextDayEnabled]);
 
   const hasVariantFakeOverride = !!selectedVariant && selectedVariant.fakeSaleCount !== null && selectedVariant.fakeSaleCount !== undefined;
 
@@ -647,9 +698,11 @@ export default function ProductDetails({
     ? (selectedVariant.monthlySaleCount || 0)
     : (product.monthlySaleCount || 0);
 
-  const activeDisplaySaleCount = selectedVariant
-    ? (selectedVariant.saleCount || 0)
-    : (product.saleCount || 0);
+  const activeDisplaySaleCount = (
+    selectedVariant
+      ? ((selectedVariant.saleCount ?? 0) > 0 ? selectedVariant.saleCount : (product.saleCount || 0))
+      : (product.saleCount || 0)
+  ) ?? 0;
 
   const soldText = activeWeeklySaleCount > 0
     ? `${activeWeeklySaleCount} qty sold this week`
@@ -661,92 +714,90 @@ export default function ProductDetails({
 
   const [shipDate, setShipDate] = useState<string | null>(null);
   const [deliveryDate, setDeliveryDate] = useState<string | null>(null);
-  const [nextDayTimeLeft, setNextDayTimeLeft] = useState<string | null>(null);
+  const [countdownTimeLeft, setCountdownTimeLeft] = useState<string | null>(null);
+
   useEffect(() => {
-    if (
-      !isUKUser ||
-      !effectiveNextDayEnabled ||
-      !effectiveNextDayCutoff
-    ) {
-      setNextDayTimeLeft(null);
-      setShipDate(null);
-      setDeliveryDate(null);
-      return;
-    }
     const calculateTimeLeft = () => {
       const now = new Date();
+      // Current UK time (Europe/London)
+      const ukNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/London" }));
+
       let cutoffHour = 14;
       let cutoffMinute = 0;
-      if (effectiveNextDayCutoff && effectiveNextDayCutoff.includes(":")) {
-        const parsed = effectiveNextDayCutoff.split(":").map(Number);
+      const cutoffStr = activeQuote?.cutoffTime;
+      if (cutoffStr && cutoffStr.includes(":")) {
+        const parsed = cutoffStr.split(":").map(Number);
         if (parsed.length >= 2 && !isNaN(parsed[0]) && !isNaN(parsed[1])) {
           cutoffHour = parsed[0];
           cutoffMinute = parsed[1];
         }
       }
 
-      const cutoffToday = new Date(now);
-      cutoffToday.setHours(cutoffHour, cutoffMinute, 0, 0);
+      const todayCutoff = new Date(ukNow);
+      todayCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
 
-      const isBeforeCutoff = now < cutoffToday;
-      let targetCutoff = new Date(cutoffToday);
-      let shipDateObj = new Date(now);
+      const isBeforeCutoff = ukNow < todayCutoff;
+      let targetCutoff = new Date(todayCutoff);
+      let shipDateObj = new Date(ukNow);
 
-      const todayDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+      const isSatWorking = activeQuote?.isSaturdayWorking === true;
+      const isSunWorking = activeQuote?.isSundayWorking === true;
 
-      if (todayDay === 6) { // Saturday
-        if (isBeforeCutoff) {
-          // Ships today (Saturday), target is today cutoff
-          shipDateObj = new Date(now);
-          targetCutoff = new Date(cutoffToday);
+      if (activeQuote?.dispatchDate) {
+        shipDateObj = new Date(activeQuote.dispatchDate);
+      } else {
+        const todayDay = ukNow.getDay(); // 0 = Sunday, 6 = Saturday
+        const isTodayDispatchDay = (todayDay !== 0 && todayDay !== 6) || (todayDay === 6 && isSatWorking) || (todayDay === 0 && isSunWorking);
+
+        if (isTodayDispatchDay && isBeforeCutoff) {
+          shipDateObj = new Date(ukNow);
+          targetCutoff = new Date(todayCutoff);
         } else {
-          // Ships Monday, target is Monday cutoff
-          shipDateObj = new Date(now);
-          shipDateObj.setDate(shipDateObj.getDate() + 2); // Monday
-          targetCutoff = new Date(shipDateObj);
-          targetCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
-        }
-      } else if (todayDay === 0) { // Sunday
-        // Ships Monday, target is Monday cutoff
-        shipDateObj = new Date(now);
-        shipDateObj.setDate(shipDateObj.getDate() + 1); // Monday
-        targetCutoff = new Date(shipDateObj);
-        targetCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
-      } else { // Monday to Friday
-        if (isBeforeCutoff) {
-          // Ships today, target is today cutoff
-          shipDateObj = new Date(now);
-          targetCutoff = new Date(cutoffToday);
-        } else {
-          // Ships tomorrow (next working day)
-          shipDateObj = new Date(now);
-          shipDateObj.setDate(shipDateObj.getDate() + 1);
-          // If tomorrow is Sunday, ships Monday
-          if (shipDateObj.getDay() === 0) {
+          shipDateObj = new Date(ukNow);
+          do {
             shipDateObj.setDate(shipDateObj.getDate() + 1);
-          }
+          } while (
+            (shipDateObj.getDay() === 6 && !isSatWorking) ||
+            (shipDateObj.getDay() === 0 && !isSunWorking)
+          );
           targetCutoff = new Date(shipDateObj);
           targetCutoff.setHours(cutoffHour, cutoffMinute, 0, 0);
         }
+
+        if (effectiveHandlingTimeDays > 0) {
+          let added = 0;
+          while (added < effectiveHandlingTimeDays) {
+            shipDateObj.setDate(shipDateObj.getDate() + 1);
+            const day = shipDateObj.getDay();
+            if ((day !== 0 && day !== 6) || (day === 6 && isSatWorking) || (day === 0 && isSunWorking)) {
+              added++;
+            }
+          }
+        }
       }
 
-      const diffMs = targetCutoff.getTime() - now.getTime();
-      if (diffMs <= 0) {
-        setNextDayTimeLeft("0 sec");
-        return;
+      let diffMs = 0;
+      if (activeQuote?.nextCutoffUtc) {
+        diffMs = new Date(activeQuote.nextCutoffUtc).getTime() - Date.now();
+      } else {
+        diffMs = targetCutoff.getTime() - ukNow.getTime();
       }
 
-      const hours = Math.floor(diffMs / (1000 * 60 * 60));
-      const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
-      const seconds = Math.floor((diffMs / 1000) % 60);
-      const parts: string[] = [];
-      if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? "s" : ""}`);
-      if (minutes > 0 || hours > 0) parts.push(`${minutes} min${minutes !== 1 ? "s" : ""}`);
-      parts.push(`${seconds} sec${seconds !== 1 ? "s" : ""}`);
-      setNextDayTimeLeft(parts.join(" "));
+      if (diffMs > 0) {
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs / (1000 * 60)) % 60);
+        const seconds = Math.floor((diffMs / 1000) % 60);
+        const parts: string[] = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+        parts.push(`${seconds}s`);
+        setCountdownTimeLeft(parts.join(" "));
+      } else {
+        setCountdownTimeLeft("Next dispatch");
+      }
 
-      const todayString = now.toDateString();
-      const tomorrowObj = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const todayString = ukNow.toDateString();
+      const tomorrowObj = new Date(ukNow.getTime() + 24 * 60 * 60 * 1000);
       const tomorrowString = tomorrowObj.toDateString();
 
       const shipString = shipDateObj.toDateString();
@@ -756,53 +807,64 @@ export default function ProductDetails({
       } else if (shipString === tomorrowString) {
         shipPrefix = "Tomorrow";
       } else {
-        shipPrefix = shipDateObj.toLocaleDateString("en-GB", { weekday: "long" });
+        shipPrefix = shipDateObj.toLocaleDateString("en-GB", { weekday: "short" });
       }
       setShipDate(`${shipPrefix} • ${formatUKDate(shipDateObj)}`);
 
-      let deliverDateObj = new Date(shipDateObj);
-      deliverDateObj.setDate(deliverDateObj.getDate() + 1);
-      // If delivery is Sunday, push to Monday
-      if (deliverDateObj.getDay() === 0) {
+      if (effectiveNextDayEnabled) {
+        let deliverDateObj = new Date(shipDateObj);
         deliverDateObj.setDate(deliverDateObj.getDate() + 1);
-      }
+        if (deliverDateObj.getDay() === 0) {
+          deliverDateObj.setDate(deliverDateObj.getDate() + 1);
+        }
 
-      const deliverString = deliverDateObj.toDateString();
-      let deliverPrefix = "";
-      if (deliverString === todayString) {
-        deliverPrefix = "Today";
-      } else if (deliverString === tomorrowString) {
-        deliverPrefix = "Tomorrow";
+        const deliverString = deliverDateObj.toDateString();
+        let deliverPrefix = "";
+        if (deliverString === todayString) {
+          deliverPrefix = "Today";
+        } else if (deliverString === tomorrowString) {
+          deliverPrefix = "Tomorrow";
+        } else {
+          deliverPrefix = deliverDateObj.toLocaleDateString("en-GB", { weekday: "short" });
+        }
+        setDeliveryDate(`${deliverPrefix} • ${formatUKDate(deliverDateObj)}`);
       } else {
-        deliverPrefix = deliverDateObj.toLocaleDateString("en-GB", { weekday: "long" });
+        if (activeQuote?.estimatedDelivery) {
+          setDeliveryDate(activeQuote.estimatedDelivery.replace(/^Delivery (by|between) /i, ""));
+        } else {
+          const minDays = activeQuote?.deliveryMinDays || 2;
+          const maxDays = activeQuote?.deliveryMaxDays || 3;
+          let minDateObj = new Date(shipDateObj);
+          let maxDateObj = new Date(shipDateObj);
+
+          let addedMin = 0;
+          while (addedMin < minDays) {
+            minDateObj.setDate(minDateObj.getDate() + 1);
+            if (minDateObj.getDay() !== 0 && minDateObj.getDay() !== 6) addedMin++;
+          }
+          let addedMax = 0;
+          while (addedMax < maxDays) {
+            maxDateObj.setDate(maxDateObj.getDate() + 1);
+            if (maxDateObj.getDay() !== 0 && maxDateObj.getDay() !== 6) addedMax++;
+          }
+
+          if (minDays === maxDays) {
+            setDeliveryDate(`${minDateObj.toLocaleDateString("en-GB", { weekday: "short" })} • ${formatUKDate(minDateObj)}`);
+          } else {
+            setDeliveryDate(`${formatUKDate(minDateObj)} – ${formatUKDate(maxDateObj)}`);
+          }
+        }
       }
-      setDeliveryDate(`${deliverPrefix} • ${formatUKDate(deliverDateObj)}`);
     };
+
     calculateTimeLeft();
     const interval = setInterval(calculateTimeLeft, 1000);
     return () => clearInterval(interval);
   }, [
-    isUKUser,
+    activeQuote,
     effectiveNextDayEnabled,
-    effectiveNextDayCutoff,
+    effectiveHandlingTimeDays,
   ]);
-  // 🔥 PHARMA MODAL STATE
-  const [showPharmaModal, setShowPharmaModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"cart" | "buy" | null>(null);
-  const pharmaApprovedRef = useRef(false);
-
-  const handlePharmaGuard = (action: "cart" | "buy") => {
-    // ✅ already approved → skip guard
-    if (pharmaApprovedRef.current) {
-      return true;
-    }
-    if (product.isPharmaProduct) {
-      setPendingAction(action);
-      setShowPharmaModal(true);
-      return false;
-    }
-    return true;
-  };
   // 🔹 GROUPED PRODUCT FLAGS
   const isGroupedProduct =
     product.productType === "grouped" &&
@@ -1259,23 +1321,23 @@ export default function ProductDetails({
       let final = 0;
       let couponAmount = 0;
 
-      if (appliedCoupon.isCumulative && activeAutoDiscount) {
-        // Calculate coupon on top of discounted price (sellPriceToShow, e.g. 18)
+      if (appliedCoupon.isCumulative) {
+        // Cumulative: apply coupon on top of discounted sellPriceToShow (e.g. £28)
         couponAmount = appliedCoupon.usePercentage
-          ? (sellPriceToShow * (appliedCoupon.discountPercentage ?? 0)) / 100
+          ? Math.round((sellPriceToShow * (appliedCoupon.discountPercentage ?? 0)) / 100 * 100) / 100
           : (appliedCoupon.discountAmount ?? 0);
-        final = sellPriceToShow - couponAmount;
+        final = Math.max(0, sellPriceToShow - couponAmount);
       } else {
-        // Not cumulative - coupon applies to basePrice (original price, e.g. 20)
+        // Non-cumulative: apply coupon on basePrice (original price, e.g. £40)
         couponAmount = appliedCoupon.usePercentage
-          ? (basePrice * (appliedCoupon.discountPercentage ?? 0)) / 100
+          ? Math.round((basePrice * (appliedCoupon.discountPercentage ?? 0)) / 100 * 100) / 100
           : (appliedCoupon.discountAmount ?? 0);
-        final = basePrice - couponAmount;
+        final = Math.max(0, basePrice - couponAmount);
       }
 
       const finalPriceRounded = +final.toFixed(2);
       setFinalPrice(finalPriceRounded);
-      setDiscountAmount(+(basePrice - finalPriceRounded).toFixed(2));
+      setDiscountAmount(couponAmount);
       return;
     }
 
@@ -1304,19 +1366,23 @@ export default function ProductDetails({
 
   const discountPercentage = useMemo(() => {
     if (appliedCoupon) {
-      return sellPriceToShow > 0 ? Math.round((discountAmount / sellPriceToShow) * 100) : 0;
+      if (appliedCoupon.usePercentage && appliedCoupon.discountPercentage) {
+        return appliedCoupon.discountPercentage;
+      }
+      const refPrice = appliedCoupon.isCumulative ? sellPriceToShow : basePrice;
+      return refPrice > 0 ? Math.round(((appliedCoupon.discountAmount ?? 0) / refPrice) * 100) : 0;
     }
     if (activeAutoDiscount) {
       return activeAutoDiscount.usePercentage
         ? activeAutoDiscount.discountPercentage
-        : Math.round((activeAutoDiscount.discountAmount / sellPriceToShow) * 100);
+        : (basePrice > 0 ? Math.round((activeAutoDiscount.discountAmount / basePrice) * 100) : 0);
     }
-    // 🔥 NEW DISCOUNT PERCENTAGE FROM SCHEMA (discountPercentage > 0 means sellPrice is lower)
+    // 🔥 DIRECT DISCOUNT PERCENTAGE FROM SCHEMA
     const directDiscountPercentage = selectedVariant
       ? (selectedVariant.discountPercentage || 0)
       : (product.discountPercentage || 0);
     return directDiscountPercentage;
-  }, [appliedCoupon, sellPriceToShow, discountAmount, activeAutoDiscount, selectedVariant, product.discountPercentage]);
+  }, [appliedCoupon, sellPriceToShow, basePrice, activeAutoDiscount, selectedVariant, product.discountPercentage]);
 
   const allRequiredSelected = useMemo(() => {
     if (!isGroupedProduct) return true;
@@ -1349,6 +1415,24 @@ export default function ProductDetails({
         return { introduction: product.description, sections: [] };
       }
 
+      // Unwrap any container elements (div, section, article, etc.) that wrap H2 tags so all H2s become direct siblings under body
+      const containerTags = new Set(["DIV", "SECTION", "ARTICLE", "MAIN", "ASIDE", "HEADER", "FOOTER", "SPAN"]);
+      let iterations = 0;
+      while (iterations < 50) {
+        iterations++;
+        let unwrappedAny = false;
+        const allH2 = Array.from(body.querySelectorAll("h2"));
+        for (const h2 of allH2) {
+          const parent = h2.parentElement;
+          if (parent && parent !== body && containerTags.has(parent.tagName.toUpperCase())) {
+            parent.replaceWith(...Array.from(parent.childNodes));
+            unwrappedAny = true;
+            break;
+          }
+        }
+        if (!unwrappedAny) break;
+      }
+
       const sections: { title: string; html: string }[] = [];
       let introductionHtml = "";
       let currentSectionTitle = "";
@@ -1361,16 +1445,27 @@ export default function ProductDetails({
         if (node.nodeType === Node.ELEMENT_NODE) {
           const element = node as HTMLElement;
           if (element.tagName.toLowerCase() === "h2") {
+            const titleText = (element.textContent || "").replace(/\u00a0/g, " ").trim();
+            // Skip empty H2 tags (e.g. <h2></h2> or <h2>&nbsp;</h2>)
+            if (!titleText) {
+              continue;
+            }
+
             if (currentSectionTitle) {
               sections.push({
                 title: currentSectionTitle,
                 html: currentSectionHtml
               });
             }
-            currentSectionTitle = element.textContent || "";
+            currentSectionTitle = titleText;
             currentSectionHtml = "";
             passedFirstHeader = true;
           } else {
+            // Strip accidental "Full Description" title copied from admin label
+            if (!passedFirstHeader && element.textContent?.trim().toLowerCase() === "full description") {
+              continue;
+            }
+
             if (!passedFirstHeader) {
               introductionHtml += element.outerHTML;
             } else {
@@ -1400,6 +1495,20 @@ export default function ProductDetails({
       return { introduction: product.description, sections: [] };
     }
   }, [product.description, isMounted]);
+
+  const hasIntroDescription = useMemo(() => {
+    if (!parsedDescription.introduction) return false;
+    const textContent = parsedDescription.introduction.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    if (textContent.length > 0) return true;
+    return /<(img|iframe|video|table|svg)/i.test(parsedDescription.introduction);
+  }, [parsedDescription.introduction]);
+
+  const accordionSections = useMemo(() => {
+    return hasIntroDescription
+      ? parsedDescription.sections
+      : parsedDescription.sections.slice(1);
+  }, [hasIntroDescription, parsedDescription.sections]);
+
   // Fetch related products when section is near viewport (Performance & Production Safe Lazy Loading)
   useEffect(() => {
     const primaryCategory =
@@ -1616,12 +1725,6 @@ export default function ProductDetails({
   }, []);
 
   const handleAddToCart = useCallback(() => {
-    // 🔥 PHARMA GUARD
-    if (product.isPharmaProduct && !pharmaApprovedRef.current) {
-      setPendingAction("cart");
-      setShowPharmaModal(true);
-      return;
-    }
     const selected = selectedVariant ?? null;
     // ============================
     // ⭐ EXISTING CART QTY CHECK
@@ -1688,8 +1791,7 @@ export default function ProductDetails({
         .filter(Boolean)
         .join(", ")})`
       : "";
-    const allowNextDay =
-      isUKUser && effectiveNextDayEnabled === true;
+    const allowNextDay = effectiveNextDayEnabled === true;
     // 🔥 SPLIT QTY BETWEEN BUNDLE & STANDALONE
     const bundleQty =
       isGroupedProduct && groupEnabled
@@ -1714,7 +1816,7 @@ export default function ProductDetails({
         variantId: selected?.id ?? null,
         name: `${product.name} ${variantTitle} (Bundle)`,
         price: basePrice,
-        sellPrice: finalPrice,
+        sellPrice: sellPriceToShow,
         discountPercentage: discountPercentageToShow,
         priceBeforeDiscount: basePrice,
         finalPrice: finalPrice,
@@ -1797,7 +1899,7 @@ export default function ProductDetails({
         variantId: selected?.id ?? null,
         name: `${product.name} ${variantTitle}`,
         price: basePrice,
-        sellPrice: finalPrice,
+        sellPrice: sellPriceToShow,
         discountPercentage: discountPercentageToShow,
         priceBeforeDiscount: basePrice,
         finalPrice: finalPrice,
@@ -1852,16 +1954,9 @@ export default function ProductDetails({
     groupedSelections,
     isGroupedProduct,
     groupEnabled,
-    isUKUser,
     vatRate,
   ]);
   const handleBuyNow = () => {
-    // 🔥 PHARMA GUARD
-    if (product.isPharmaProduct && !pharmaApprovedRef.current) {
-      setPendingAction("buy");
-      setShowPharmaModal(true);
-      return;
-    }
     const selected = selectedVariant ?? null;
     const stockQty = selected?.stockQuantity ?? product.stockQuantity ?? 0;
     const mainMin = (selected?.orderMinimumQuantity ?? product.orderMinimumQuantity) ?? 1;
@@ -1895,8 +1990,7 @@ export default function ProductDetails({
     }
     const basePrice = resolveBasePrice(product, selected);
     const final = finalPrice;
-    const allowNextDay =
-      isUKUser && effectiveNextDayEnabled === true;
+    const allowNextDay = effectiveNextDayEnabled === true;
     const buyNowItem = {
       id: `${product.id}-${selected?.id ?? "base"}-one`,
       type: "one-time",
@@ -1912,7 +2006,7 @@ export default function ProductDetails({
         : ""
         }`,
       price: basePrice,
-      sellPrice: finalPrice,
+      sellPrice: sellPriceToShow,
       discountPercentage: discountPercentageToShow,
       priceBeforeDiscount: basePrice,
       finalPrice: finalPrice,
@@ -2133,7 +2227,7 @@ export default function ProductDetails({
               </div>
 
               {/* Main Image */}
-              <div className="flex-1 relative bg-white overflow-hidden">
+              <div className="flex-1 relative bg-white">
                 <div className="relative bg-white overflow-hidden h-[310px] md:h-[390px] lg:h-[460px] flex items-center justify-center">
 
                   {/* ✅ ONLY IMAGE AREA HAS ZOOM */}
@@ -2290,6 +2384,11 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
             </div>
             {/* end inner row */}
+
+            {/* ℹ️ Product Packaging Disclaimer */}
+            <p className="text-xs text-gray-500 text-center -mt-4 mb-1 select-none tracking-tight">
+              <span className="font-semibold text-gray-600">Please note:</span> Product packaging may vary from the image shown
+            </p>
             {/* 🔥 GROUPED PRODUCTS + BUNDLE OFFER (SINGLE BOX) */}
             {purchaseType === "one" && isGroupedProduct && product.groupedProducts && (
               <div className="hidden md:block mb-1 mt-0 border border-orange-100 bg-white rounded p-3">
@@ -2443,7 +2542,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
                       </span>
-                      <span>{soldText} this month</span>
+                      <span>{soldText.includes("this") ? soldText : `${soldText} this month`}</span>
                     </div>
                   )}
                 </div>
@@ -2563,78 +2662,140 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   absolute={false}
                   className="bg-gray-100 text-gray-700 border border-purple-200 px-2 py-0 rounded text-xs font-semibold gap-1 shadow-none"
                 /> */}
-                {/* Pharma Product */}
-                {product.isPharmaProduct && (
-                  <div className="flex items-center gap-1 text-purple-700 bg-purple-50 border border-purple-200 px-2 py-1 rounded text-xs font-semibold">
-                    <Pill className="h-3 w-3" />
-                    Pharma Product
-                  </div>
-                )}
               </div>
             </div>
 
             {/* 🔥 LIVE CART ACTIVITY BANNER */}
             <LiveCartActivityBanner activity={cartActivity?.productId === product.id ? cartActivity : null} />
-            {isUKUser && effectiveNextDayEnabled && nextDayTimeLeft && (
-              <div className="mt-2 mb-3 rounded-md border border-[#fdecd2] bg-[#fdf8f0] px-4 py-2.5 shadow-sm overflow-hidden">
+            {/* 🔥 DYNAMIC SHIPPING / DELIVERY BANNER (NEXT DAY OR STANDARD) */}
+            <div className="mt-1.5 mb-2 rounded-xl border border-[#fdecd2] bg-[#fdf8f0] px-3 py-2 shadow-sm overflow-hidden">
+              {/* Header: Delivery Mode */}
+              <div className="flex items-center justify-between gap-2 mb-1.5 pb-1 border-b border-amber-200/60">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">{effectiveNextDayEnabled ? "⚡" : "🚚"}</span>
+                  <span className="text-xs font-bold text-gray-900">
+                    {effectiveNextDayEnabled ? "Next Day Delivery" : "Standard Delivery"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              {effectiveNextDayEnabled ? (
+                /* Next Day Delivery: Order within -> Ships -> Delivers */
                 <div className="flex items-center justify-between">
-                  {/* ORDER WITHIN */}
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Clock className="h-5 w-5 text-white" />
+                  {/* STEP 1: ORDER WITHIN / DISPATCH */}
+                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Clock className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <p className="mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                       Order within
                     </p>
-                    <p className="text-xs font-extrabold text-amber-900">
-                      {nextDayTimeLeft}
+                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                      {countdownTimeLeft || "Calculating..."}
                     </p>
                   </div>
-                  {/* LINE */}
-                  <div className="mx-2 h-px flex-1 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-200" />
-                  {/* SHIPS */}
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Truck className="h-5 w-5 text-white" />
+
+                  {/* CONNECTOR LINE */}
+                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+
+                  {/* STEP 2: SHIPS / DISPATCH */}
+                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Truck className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <p className="mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                       Ships
                     </p>
-                    <p className="text-xs font-extrabold text-amber-900">
-                      {shipDate}
+                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                      {shipDate || "Today"}
                     </p>
                   </div>
-                  {/* LINE */}
-                  <div className="mx-2 h-px flex-1 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-200" />
 
-                  {/* DELIVERS */}
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <MapPin className="h-5 w-5 text-white" />
+                  {/* CONNECTOR LINE */}
+                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+
+                  {/* STEP 3: DELIVERS */}
+                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <MapPin className="h-3.5 w-3.5 text-white" />
                     </div>
-                    <p className="mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                       Delivers
                     </p>
-                    <p className="text-xs font-extrabold text-amber-900">
-                      {deliveryDate}
+                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                      {deliveryDate || "1-2 days"}
                     </p>
                   </div>
                 </div>
-
-                {/* 🎉 FREE Next Day Delivery Badge */}
-                {effectiveNextDayFree && (
-                  <div className="mt-2.5 -mx-4 -mb-2.5 px-4 py-2 bg-black flex items-center justify-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
-                    </span>
-                    <p className="text-white text-[10px] md:text-[11px] font-bold tracking-wide uppercase">
-                      🎉 Next Day Delivery is FREE on this product!
+              ) : (
+                /* Standard Delivery: Ships -> Carrier -> Delivers */
+                <div className="flex items-center justify-between">
+                  {/* STEP 1: SHIPS */}
+                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Truck className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Ships
+                    </p>
+                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                      {shipDate || "Today"}
                     </p>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* CONNECTOR LINE */}
+                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+
+                  {/* STEP 2: SERVICE NAME */}
+                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Package className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <p className="mt-1 text-xs font-extrabold text-amber-950 truncate max-w-full">
+                      {(activeQuote?.serviceName || activeQuote?.displayName || "Standard Delivery")
+                        .replace(/\s*service\s*$/i, "")
+                        .trim()}
+                    </p>
+                  </div>
+
+                  {/* CONNECTOR LINE */}
+                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+
+                  {/* STEP 3: DELIVERS */}
+                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <MapPin className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                      Delivers
+                    </p>
+                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                      {deliveryDate || "2-3 days"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* BOTTOM BANNER: Free shipping indicator if applicable */}
+              {effectiveNextDayEnabled && (effectiveNextDayFree || activeQuote?.isFree) ? (
+                <div className="mt-2 -mx-3 -mb-2 px-3 py-1 bg-black flex items-center justify-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
+                  </span>
+                  <p className="text-white text-[10px] md:text-[11px] font-bold tracking-wide uppercase">
+                    🚚 Next Day Delivery is FREE on this product!
+                  </p>
+                </div>
+              ) : !effectiveNextDayEnabled && (activeQuote?.isFree || (activeQuote?.price === 0)) ? (
+                <div className="mt-2 -mx-3 -mb-2 px-3 py-1 bg-gradient-to-r from-[#f38918] to-[#e07010] flex items-center justify-center gap-2">
+                  <p className="text-white text-[10px] md:text-[11px] font-bold tracking-wide uppercase">
+                    🚚 FREE Standard Delivery
+                  </p>
+                </div>
+              ) : null}
+            </div>
             {product.disableBuyButton && (
               <div className="mb-3 flex">
                 <div className="inline-flex items-center rounded-lg border border-red-300 bg-yellow-50 px-4 py-2">
@@ -2767,7 +2928,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             {/* Strikethrough MRP — shown when discount exists or coupon/auto-discount applied */}
                             {(appliedCoupon || activeAutoDiscount) ? (
                               <span className="text-xs text-gray-400 line-through">
-                                £{sellPriceToShow.toFixed(2)} GBP
+                                £{(appliedCoupon ? (appliedCoupon.isCumulative ? sellPriceToShow : basePrice) : sellPriceToShow).toFixed(2)} GBP
                               </span>
                             ) : hasDiscount ? (
                               <span className="text-xs text-gray-400 line-through">
@@ -2801,6 +2962,35 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               <span>Qualifying Items — View Offer</span>
                               <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
                             </Link>
+                          )}
+
+                          {/* 🔥 COUPON APPLY / REMOVE BUTTON */}
+                          {(hasCouponAvailable || appliedCoupon) && (
+                            <div className="mt-1 mb-2">
+                              {appliedCoupon ? (
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveCoupon}
+                                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all shadow-sm group cursor-pointer"
+                                >
+                                  <BadgePercent className="h-4 w-4 shrink-0 text-red-600" />
+                                  <span className="underline group-hover:text-red-700">
+                                    Click to remove coupon
+                                  </span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowCouponModal(true)}
+                                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-dashed border-orange-400 bg-orange-50/80 hover:bg-orange-100 text-[#e57e25] text-xs font-bold transition-all shadow-sm group cursor-pointer"
+                                >
+                                  <BadgePercent className="h-4 w-4 shrink-0 text-[#f38918]" />
+                                  <span className="underline group-hover:text-orange-600">
+                                    Click to apply coupon
+                                  </span>
+                                </button>
+                              )}
+                            </div>
                           )}
 
                           {/* Qty + Stock — same row */}
@@ -2910,7 +3100,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               {/* Old Prices */}
                               {(appliedCoupon || activeAutoDiscount) ? (
                                 <span className="text-lg md:text-xl font-medium text-gray-400 line-through">
-                                  £{sellPriceToShow.toFixed(2)} GBP
+                                  £{(appliedCoupon ? (appliedCoupon.isCumulative ? sellPriceToShow : basePrice) : sellPriceToShow).toFixed(2)} GBP
                                 </span>
                               ) : hasDiscount ? (
                                 <span className="text-lg md:text-xl font-medium text-gray-400 line-through">
@@ -2942,6 +3132,35 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 <span>Qualifying Items — View Offer</span>
                                 <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
                               </Link>
+                            )}
+
+                            {/* 🔥 COUPON APPLY / REMOVE BUTTON */}
+                            {(hasCouponAvailable || appliedCoupon) && (
+                              <div className="mt-1 mb-2">
+                                {appliedCoupon ? (
+                                  <button
+                                    type="button"
+                                    onClick={handleRemoveCoupon}
+                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all shadow-sm group cursor-pointer"
+                                  >
+                                    <BadgePercent className="h-4 w-4 shrink-0 text-red-600" />
+                                    <span className="underline group-hover:text-red-700">
+                                      Click to remove coupon
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowCouponModal(true)}
+                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-dashed border-orange-400 bg-orange-50/80 hover:bg-orange-100 text-[#e57e25] text-xs font-bold transition-all shadow-sm group cursor-pointer"
+                                  >
+                                    <BadgePercent className="h-4 w-4 shrink-0 text-[#f38918]" />
+                                    <span className="underline group-hover:text-orange-600">
+                                      Click to apply coupon
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
                             )}
 
                             {/* Delivery Truck Line */}
@@ -3490,29 +3709,31 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 <div>
                   {parsedDescription.sections.length > 0 ? (
                     <div className="space-y-4">
-                      {parsedDescription.introduction && (
+                      {hasIntroDescription && (
                         <div
                           className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5 mb-5"
                           dangerouslySetInnerHTML={{ __html: parsedDescription.introduction }}
                         />
                       )}
 
-                      {/* First H2 section: rendered statically without accordion */}
-                      <div className="mb-6">
-                        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3">
-                          {parsedDescription.sections[0].title}
-                        </h3>
-                        <div
-                          className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5"
-                          dangerouslySetInnerHTML={{ __html: parsedDescription.sections[0].html }}
-                        />
-                      </div>
+                      {/* If no intro text exists before first H2, render the first H2 section statically as main description */}
+                      {!hasIntroDescription && parsedDescription.sections[0] && (
+                        <div className="mb-6">
+                          <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3">
+                            {parsedDescription.sections[0].title}
+                          </h3>
+                          <div
+                            className="prose prose-sm max-w-none text-gray-700 prose-ul:list-disc prose-ul:pl-5"
+                            dangerouslySetInnerHTML={{ __html: parsedDescription.sections[0].html }}
+                          />
+                        </div>
+                      )}
 
-                      {/* Subsequent H2 sections: rendered as accordions */}
-                      {parsedDescription.sections.length > 1 && (
+                      {/* Render accordion sections: if intro exists, all H2s are accordions; otherwise sections starting from 2nd H2 */}
+                      {accordionSections.length > 0 && (
                         <div className="border-b border-gray-150">
-                          {parsedDescription.sections.slice(1).map((section, index) => {
-                            const sectionIndex = index + 1;
+                          {accordionSections.map((section, index) => {
+                            const sectionIndex = hasIntroDescription ? index : index + 1;
                             const isOpen = !!openDescriptionSections[sectionIndex];
                             return (
                               <div key={sectionIndex} className="border-t border-gray-150 py-3.5">
@@ -3527,9 +3748,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 >
                                   <span className="text-base sm:text-lg">{section.title}</span>
                                   {isOpen ? (
-                                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                                    <Minus className="w-5 h-5 text-gray-600 transition-transform duration-200" />
                                   ) : (
-                                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                                    <Plus className="w-5 h-5 text-gray-600 transition-transform duration-200" />
                                   )}
                                 </button>
                                 {isOpen && (
@@ -3576,14 +3797,58 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                       {allowedOptions.length > 0 ? (
                         allowedOptions.map((opt) => {
                           const name = (opt.displayName || opt.name || "");
-                          const isNextDay = name.toLowerCase().includes("next");
-                          const isFree = isNextDay && product.nextDayDeliveryFree;
-                          const priceStr = isFree ? "FREE" : (opt.price !== undefined ? `£${opt.price.toFixed(2)}` : "");
+                          const isNextDay = name.toLowerCase().includes("next") || opt.category === 1;
+                          const isProductNextDayFree = isNextDay && effectiveNextDayFree;
+
+                          // Find default service under this delivery option
+                          const defaultService = opt.deliveryServices?.find((s: any) => s.isDefault && s.isActive !== false) ||
+                            opt.deliveryServices?.find((s: any) => s.isActive !== false) ||
+                            opt.deliveryServices?.[0];
+
+                          // Find matching quote from shipping quotes API
+                          const matchingQuote = shippingQuotes.find((q: any) => q.deliveryOptionId === opt.id && (defaultService ? q.deliveryServiceId === defaultService.id : true)) ||
+                            shippingQuotes.find((q: any) => q.deliveryOptionId === opt.id) ||
+                            shippingQuotes.find((q: any) => {
+                              const qName = (q.name || q.displayName || "").toLowerCase();
+                              const oName = name.toLowerCase();
+                              return (oName.includes("next") && (qName.includes("next") || q.category === 1)) ||
+                                (oName.includes("standard") && (qName.includes("standard") || q.category === 0));
+                            });
+
+                          const rawPrice = defaultService?.price !== undefined
+                            ? defaultService.price
+                            : (matchingQuote?.originalPrice !== undefined ? matchingQuote.originalPrice : (matchingQuote?.price ?? opt.price ?? 0));
+
+                          const threshold = defaultService?.freeShippingThreshold !== undefined && defaultService?.freeShippingThreshold !== null
+                            ? defaultService.freeShippingThreshold
+                            : (matchingQuote?.freeShippingThreshold ?? opt.freeShippingThreshold);
+
+                          const currentItemPrice = selectedVariant?.sellPrice || selectedVariant?.price || product.sellPrice || product.price || 0;
+                          const isFree = isProductNextDayFree || (matchingQuote ? matchingQuote.isFree : (threshold && threshold > 0 && currentItemPrice >= threshold));
+
+                          const priceStr = isFree ? "FREE" : (rawPrice !== undefined && rawPrice > 0 ? `£${Number(rawPrice).toFixed(2)}` : "FREE");
+
+                          const minDays = defaultService?.deliveryMinDays ?? matchingQuote?.deliveryMinDays ?? opt.deliveryMinDays;
+                          const maxDays = defaultService?.deliveryMaxDays ?? matchingQuote?.deliveryMaxDays ?? opt.deliveryMaxDays;
+
+                          let daysStr = "";
+                          if (minDays !== undefined && minDays !== null && maxDays !== undefined && maxDays !== null && minDays > 0) {
+                            if (minDays === maxDays) {
+                              daysStr = ` (${minDays} working ${minDays === 1 ? "day" : "days"})`;
+                            } else {
+                              daysStr = ` (${minDays}-${maxDays} working days)`;
+                            }
+                          }
+
+                          let thresholdStr = "";
+                          if (threshold && Number(threshold) > 0 && !isProductNextDayFree && rawPrice > 0) {
+                            thresholdStr = ` (Free over £${Number(threshold).toFixed(0)})`;
+                          }
 
                           return (
                             <li key={opt.id}>
-                              <strong>{name}:</strong> {priceStr ? priceStr : "Available"}
-                              {opt.description ? ` - ${opt.description}` : ""}
+                              <strong>{name}:</strong> {priceStr}{daysStr}{thresholdStr}
+                              {opt.description ? ` - ${opt.description}` : (defaultService?.description ? ` - ${defaultService.description}` : "")}
                             </li>
                           );
                         })
@@ -3591,7 +3856,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <>
                           {product.standardDeliveryEnabled && (
                             <li>
-                              <strong>Standard Delivery:</strong> £2.95
+                              <strong>Standard Delivery:</strong> £2.95 (2-4 working days)
                               {(() => {
                                 const standardOpt = product.freeShippingThresholds?.find((x: any) => {
                                   const name = (x.name || x.displayName || "").toLowerCase();
@@ -3605,9 +3870,9 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             </li>
                           )}
 
-                          {product.nextDayDeliveryEnabled && (
+                          {effectiveNextDayEnabled && (
                             <li>
-                              <strong>Next Day Delivery:</strong> {product.nextDayDeliveryFree ? "FREE" : "£3.49"}
+                              <strong>Next Day Delivery:</strong> {effectiveNextDayFree ? "FREE" : "£3.49"} (1 working day)
                             </li>
                           )}
 
@@ -3624,9 +3889,49 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                       Deliveries usually take place between 10 AM and 8 PM. All estimated delivery times are calculated from the moment you place your order and do not include weekends or Bank Holidays. A customer signature may be required in some cases.
                     </p>
 
-                    {product.nextDayDeliveryEnabled && (
+                    {effectiveNextDayEnabled && (
                       <p className="text-sm text-gray-700 mt-3">
-                        <strong>Next Day Delivery:</strong> Orders placed before {product.nextDayDeliveryCutoffTime || "1 PM"} Monday to Friday are dispatched the same day and delivered the next working day. Orders placed after {product.nextDayDeliveryCutoffTime || "1 PM"} on Friday or during the weekend will be delivered on the next available working day.
+                        <strong>Next Day Delivery:</strong> Orders placed before {(() => {
+                          const nextDayQuote = shippingQuotes.find(
+                            (q) => q.category === 1 || (q.name || q.displayName || "").toLowerCase().includes("next")
+                          );
+                          const nextDayOpt = deliveryOptions.find(
+                            (o) => o.category === 1 || (o.name || o.displayName || "").toLowerCase().includes("next")
+                          );
+                          const nextDayDef = nextDayOpt?.deliveryServices?.find((s: any) => s.isDefault) || nextDayOpt?.deliveryServices?.[0];
+                          const rawCutoff = nextDayQuote?.cutoffTime || nextDayDef?.cutoffTime || product.nextDayDeliveryCutoffTime;
+
+                          if (!rawCutoff) return "2 PM";
+                          if (rawCutoff.includes(":")) {
+                            const [h, m] = rawCutoff.split(":").map(Number);
+                            if (!isNaN(h)) {
+                              const period = h >= 12 ? "PM" : "AM";
+                              const h12 = h % 12 === 0 ? 12 : h % 12;
+                              return m > 0 ? `${h12}:${m.toString().padStart(2, "0")} ${period}` : `${h12} ${period}`;
+                            }
+                          }
+                          return rawCutoff;
+                        })()} Monday to Friday are dispatched the same day and delivered the next working day. Orders placed after {(() => {
+                          const nextDayQuote = shippingQuotes.find(
+                            (q) => q.category === 1 || (q.name || q.displayName || "").toLowerCase().includes("next")
+                          );
+                          const nextDayOpt = deliveryOptions.find(
+                            (o) => o.category === 1 || (o.name || o.displayName || "").toLowerCase().includes("next")
+                          );
+                          const nextDayDef = nextDayOpt?.deliveryServices?.find((s: any) => s.isDefault) || nextDayOpt?.deliveryServices?.[0];
+                          const rawCutoff = nextDayQuote?.cutoffTime || nextDayDef?.cutoffTime || product.nextDayDeliveryCutoffTime;
+
+                          if (!rawCutoff) return "2 PM";
+                          if (rawCutoff.includes(":")) {
+                            const [h, m] = rawCutoff.split(":").map(Number);
+                            if (!isNaN(h)) {
+                              const period = h >= 12 ? "PM" : "AM";
+                              const h12 = h % 12 === 0 ? 12 : h % 12;
+                              return m > 0 ? `${h12}:${m.toString().padStart(2, "0")} ${period}` : `${h12} ${period}`;
+                            }
+                          }
+                          return rawCutoff;
+                        })()} on Friday or during the weekend will be delivered on the next available working day.
                       </p>
                     )}
                   </div>
@@ -3667,32 +3972,6 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             highlightReviewId={highlightReviewId}
           />
         )}
-        {showPharmaModal && (
-          <PharmaQuestionsModal
-            open={showPharmaModal}
-            productId={product.id} // ✅ MAIN PRODUCT ID
-            mode="add"
-            onClose={() => {
-              setShowPharmaModal(false);
-              setPendingAction(null);
-            }}
-            onSuccess={() => {
-              pharmaApprovedRef.current = true; // 🔥 VERY IMPORTANT
-              setShowPharmaModal(false);
-              if (pendingAction === "cart") {
-                handleAddToCart();
-              }
-              if (pendingAction === "buy") {
-                handleBuyNow();
-              }
-              setPendingAction(null);
-              // 🔄 reset for next product / next flow
-              setTimeout(() => {
-                pharmaApprovedRef.current = false;
-              }, 0);
-            }}
-          />
-        )}
         {showNotifyModal && (
           <BackInStockModal
             open={showNotifyModal}
@@ -3712,6 +3991,21 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             getImageUrl={getImageUrl}
           />
         )}
+
+        {/* COUPON MODAL */}
+        <CouponModal
+          open={showCouponModal}
+          onClose={() => setShowCouponModal(false)}
+          couponCode={couponCode}
+          setCouponCode={setCouponCode}
+          appliedCoupon={appliedCoupon}
+          offers={couponOffers}
+          onApply={handleApplyCoupon}
+          onRemove={handleRemoveCoupon}
+          orderSubtotal={sellPriceToShow * normalQty}
+          productIds={[product.id, ...(selectedVariant ? [selectedVariant.id] : [])]}
+          categoryIds={product.categories?.map((c: any) => c.id || c.categoryId).filter(Boolean) || []}
+        />
       </main>
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }

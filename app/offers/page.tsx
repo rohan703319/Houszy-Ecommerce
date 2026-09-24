@@ -56,7 +56,7 @@ export default async function OffersPage() {
     if (res.ok) {
       const json = await res.json();
       const rawDiscounts: Discount[] = json?.data ?? [];
-      discounts = rawDiscounts.filter(d => !d.requiresCouponCode);
+      discounts = rawDiscounts;
     }
   } catch { }
 
@@ -169,21 +169,21 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
   return (
     <Link
       href={href}
-      className={`group flex flex-col bg-white rounded-xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all duration-300 ${isProductLevel ? "cursor-pointer" : "cursor-default"}`}
+      className={`group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all duration-300 ${isProductLevel ? "cursor-pointer" : "cursor-default"}`}
     >
       {/* Banner Image */}
-      <div className="relative w-full h-48 md:h-52 bg-gray-50 flex items-center justify-center overflow-hidden border-b border-gray-100">
+      <div className="relative w-full bg-gray-50 flex items-center justify-center overflow-hidden border-b border-gray-100">
         {bannerUrl ? (
           <>
             <img
               src={`${apiBase}${bannerUrl}`}
               alt={d.name}
-              className="w-full h-full object-contain block group-hover:scale-105 transition-transform duration-500 ease-in-out"
+              className="w-full h-auto block group-hover:scale-105 transition-transform duration-500 ease-in-out"
             />
             <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-300" />
           </>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative">
+          <div className="w-full aspect-[16/9] bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative">
             <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/40 via-transparent to-transparent"></div>
             <Percent className="h-16 w-16 text-gray-200 opacity-50 transform group-hover:scale-110 transition-transform duration-500" />
           </div>
@@ -192,58 +192,51 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
 
       {/* Card Body */}
       <div className="p-5 flex flex-col flex-1">
-        <h3 className="font-bold text-gray-900 text-base leading-snug group-hover:text-[#f38918] transition-colors line-clamp-2 mb-3">
+        <h3 className="font-bold text-gray-900 text-md leading-snug group-hover:text-[#f38918] transition-colors line-clamp-2 mb-1">
           {d.name}
         </h3>
 
+        {d.adminComment && (
+          <p className="text-xs font-medium text-gray-500 line-clamp-2 mb-3">
+            {d.adminComment}
+          </p>
+        )}
+
         {/* Tags */}
-        <div className="flex flex-wrap items-center gap-2 mb-4 mt-auto">
-          {/* New RED Offer Badge */}
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-red-500 text-white px-2 py-1 rounded shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 mb-4 mt-auto pt-1">
+          {/* Red Discount Badge */}
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-red-500 text-white px-2.5 py-1 rounded shadow-sm">
             <Tag className="h-3 w-3" />
             {formatDiscount(d)}
           </span>
 
           {d.productCount != null && d.productCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200/60">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded border border-gray-200/60">
               <ShoppingBag className="h-3 w-3" />
-              {d.productCount} Items
+              {d.productCount} {d.productCount === 1 ? "Product" : "Products"}
             </span>
           )}
           {daysLeft !== null && (
-            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded border ${isExpiringSoon ? "bg-red-50 text-red-600 border-red-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
+            <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded border ${isExpiringSoon ? "bg-red-50 text-red-600 border-red-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
               <Clock className="h-3 w-3" />
               {daysLeft === 0 ? "Ends today!" : `${daysLeft}d left`}
             </span>
           )}
-          {d.requiresCouponCode && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-[#f38918] text-white px-2 py-1 rounded">
+          {/* {d.requiresCouponCode && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-[#f38918] text-white px-2.5 py-1 rounded">
               <Tag className="h-3 w-3" />
               Coupon
             </span>
-          )}
+          )} */}
         </div>
 
-        <div className="mt-1">
-          {/* Dates */}
-          {(d.startDate || d.endDate) && (
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 mb-3 pt-3 border-t border-gray-100">
-              <Calendar className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">
-                {d.startDate && `${formatDate(d.startDate)}`}
-                {d.startDate && d.endDate && " - "}
-                {d.endDate && `${formatDate(d.endDate)}`}
-              </span>
-            </div>
-          )}
-
-          {/* CTA */}
-          {isProductLevel && (
-            <div className="text-xs font-bold text-gray-900 group-hover:text-[#f38918] transition-colors pt-2">
-              View Deals &rarr;
-            </div>
-          )}
-        </div>
+        {/* Shop Now CTA Button */}
+        {isProductLevel && (
+          <div className="w-full mt-2 bg-[#f38918] hover:bg-[#d97712] text-white font-bold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+            <span>Shop Now</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        )}
       </div>
     </Link>
   );

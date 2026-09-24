@@ -487,7 +487,7 @@ export default function OrderActionsModal({
   const [cancelData, setCancelData] = useState({
     cancellationReason: "",
     cancelledBy: "",
-    restoreInventory: true,
+    restoreInventory: false,
     initiateRefund: false,
   });
   useEffect(() => {
@@ -546,7 +546,7 @@ export default function OrderActionsModal({
 
       setCancelData({
         cancellationReason: '',
-        restoreInventory: true,
+        restoreInventory: false,
         initiateRefund: isPaid,
         cancelledBy: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
       });
@@ -623,7 +623,7 @@ export default function OrderActionsModal({
         orderId: order.id,
         cancellationReason: cancelData.cancellationReason,
         cancelledBy: cancelData.cancelledBy,
-        restoreInventory: cancelData.restoreInventory,
+        restoreInventory: false,
         initiateRefund: cancelData.initiateRefund,
       });
 
@@ -1391,19 +1391,6 @@ export default function OrderActionsModal({
             </div> */}
 
             <div className="space-y-3">
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={cancelData.restoreInventory}
-                  onChange={(e) =>
-                    setCancelData({ ...cancelData, restoreInventory: e.target.checked })
-                  }
-                  className="rounded bg-slate-800/50 border-slate-700 text-violet-500 focus:ring-violet-500"
-                />
-                <span className="text-sm text-slate-300">Restore inventory</span>
-              </label>
-
               {/* ✅ Hide refund option for COD */}
               {isPaid && (
                 <label className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import ProductCard from "@/components/ProductCard";
 import { useVatRates } from "@/app/hooks/useVatRates";
 import PremiumPriceSlider from "@/components/filters/PremiumPriceSlider";
@@ -16,9 +16,21 @@ interface Props {
   initialHasMore: boolean;
   pageSize: number;
   discountName: string;
+  discountPercentage?: number;
+  requiresCouponCode?: boolean;
+  assignedProductIds?: string[];
 }
 
-export default function DiscountProductsClient({ discountId, initialItems, initialHasMore, pageSize, discountName, }: Props) {
+export default function DiscountProductsClient({
+  discountId,
+  initialItems,
+  initialHasMore,
+  pageSize,
+  discountName,
+  discountPercentage,
+  requiresCouponCode = false,
+  assignedProductIds = [],
+}: Props) {
   const vatRates = useVatRates();
   const [products, setProducts] = useState<any[]>(initialItems);
   const [page, setPage] = useState(1);
@@ -74,11 +86,121 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
     }
   }, [loading, hasMore, page, pageSize, discountId, sortBy, sortDirection]);
 
+  // Infinite Scroll Observer
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const fetchCbRef = useRef(loadMore);
+
+  useEffect(() => {
+    fetchCbRef.current = loadMore;
+  }, [loadMore]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasMore || loading) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          fetchCbRef.current();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => observer.disconnect();
+  }, [hasMore, loading, page]);
+
+  // Flatten products returned by backend for this discount & filter by target discount percentage / assigned IDs
+  const preFilteredFlattenedProducts = useMemo(() => {
+    const list: any[] = [];
+
+    products.forEach((product) => {
+      // 1. If discount has explicitly assigned products/variants, match specifically
+      if (assignedProductIds && assignedProductIds.length > 0) {
+        // Check if any variant of this product is in assignedProductIds
+        const matchingVariants = (product.variants || []).filter((v: any) =>
+          assignedProductIds.includes(v.id)
+        );
+
+        if (matchingVariants.length > 0) {
+          // Push card specifically for each matching variant!
+          matchingVariants.forEach((v: any) => {
+            list.push({
+              productData: product,
+              variantForCard: v,
+              cardSlug: v.slug || product.slug,
+            });
+          });
+          return;
+        }
+
+        // If parent product ID is in assignedProductIds
+        if (assignedProductIds.includes(product.id)) {
+          if (product.visibleIndividually && product.variants?.length) {
+            product.variants.forEach((v: any) => {
+              if (v.isActive) {
+                list.push({
+                  productData: product,
+                  variantForCard: v,
+                  cardSlug: v.slug || product.slug,
+                });
+              }
+            });
+          } else {
+            list.push({
+              productData: product,
+              variantForCard: null,
+              cardSlug: product.slug,
+            });
+          }
+          return;
+        }
+
+        return; // neither variant nor parent product matched assignedProductIds
+      }
+
+      // 2. If no assignedProductIds (general campaign or category offer)
+      if (product.visibleIndividually && product.variants?.length) {
+        product.variants.forEach((variant: any) => {
+          if (!variant.isActive) return;
+          list.push({
+            productData: product,
+            variantForCard: variant,
+            cardSlug: variant.slug || product.slug,
+          });
+        });
+      } else {
+        list.push({
+          productData: product,
+          variantForCard: null,
+          cardSlug: product.slug,
+        });
+      }
+    });
+
+    // 3. Only filter by target campaign percentage if this is NOT a coupon and no specific IDs were assigned
+    if (!requiresCouponCode && (!assignedProductIds || assignedProductIds.length === 0) && discountPercentage && discountPercentage > 0) {
+      return list.filter((item: any) => {
+        const p = item.productData;
+        const itemPct = item.variantForCard
+          ? (item.variantForCard.discountPercentage ?? p.discountPercentage ?? 0)
+          : (p.discountPercentage ?? 0);
+
+        if (itemPct > 0) {
+          return Math.abs(itemPct - discountPercentage) <= 0.1;
+        }
+        return true;
+      });
+    }
+
+    return list;
+  }, [products, discountPercentage, requiresCouponCode, assignedProductIds]);
+
   // Price range
   useEffect(() => {
-    if (!products.length) return;
-    const flat = flattenProductsForListing(products);
-    const prices = flat.map((item: any) => getFinalPrice(item));
+    if (!preFilteredFlattenedProducts.length) return;
+    const prices = preFilteredFlattenedProducts.map((item: any) => getFinalPrice(item));
     if (!prices.length) return;
     const min = Math.floor(Math.min(...prices));
     const max = Math.ceil(Math.max(...prices));
@@ -86,22 +208,22 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
     setPriceRange(prev =>
       prev[0] === 0 && prev[1] === 0 ? [min, max] : prev
     );
-  }, [products]);
+  }, [preFilteredFlattenedProducts]);
 
-  // Categories / Brands from loaded products
-  // Categories / Brands from loaded products (Sorted A-Z)
+  // Categories from matching products (Sorted A-Z)
   const categories = useMemo(() => {
     const map = new Map<string, any>();
-    products.forEach(p => p.categories?.forEach((c: any) => {
+    preFilteredFlattenedProducts.forEach(item => item.productData.categories?.forEach((c: any) => {
       if (!map.has(c.categoryId)) map.set(c.categoryId, { id: c.categoryId, name: c.categoryName });
     }));
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [products]);
+  }, [preFilteredFlattenedProducts]);
 
   // Brands (Sorted A-Z, filtered by selected categories)
   const brands = useMemo(() => {
     const map = new Map<string, any>();
-    products.forEach(p => {
+    preFilteredFlattenedProducts.forEach(item => {
+      const p = item.productData;
       if (selectedCategories.length > 0) {
         const matchesCategory = p.categories?.some((c: any) => selectedCategories.includes(c.categoryId));
         if (!matchesCategory) return;
@@ -111,12 +233,11 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
       });
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [products, selectedCategories]);
+  }, [preFilteredFlattenedProducts, selectedCategories]);
 
-  // Filter + flatten + sort
+  // Filter + sort the pre-filtered items
   const flattenedProducts = useMemo(() => {
-    const flat = flattenProductsForListing(products);
-    const filtered = flat.filter((item: any) => {
+    const filtered = preFilteredFlattenedProducts.filter((item: any) => {
       const p = item.productData;
 
       // Category filter
@@ -196,7 +317,7 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
       const saleB = b.variantForCard?.saleCount ?? b.productData.saleCount ?? 0;
       return saleB - saleA;
     });
-  }, [products, selectedCategories, selectedBrands, priceRange, minRating, sortBy, sortDirection]);
+  }, [preFilteredFlattenedProducts, selectedCategories, selectedBrands, priceRange, minRating, sortBy, sortDirection]);
 
   const resetFilters = () => {
     setSelectedCategories([]); setSelectedBrands([]); setMinRating(0); setPriceRange([minPrice, maxPrice]);
@@ -577,14 +698,19 @@ export default function DiscountProductsClient({ discountId, initialItems, initi
                 ))}
               </div>
               {hasMore && (
-                <div className="text-center pb-8">
-                  <button
-                    onClick={loadMore}
-                    disabled={loading}
-                    className="inline-flex items-center gap-2 px-8 py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-900 transition-colors disabled:opacity-60"
-                  >
-                    {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading...</> : "Load More Products"}
-                  </button>
+                <div ref={loadMoreRef} className="text-center py-8">
+                  {loading ? (
+                    <div className="inline-flex items-center gap-2 px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin text-black" /> Loading more products...
+                    </div>
+                  ) : (
+                    <button
+                      onClick={loadMore}
+                      className="inline-flex items-center gap-2 px-8 py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-900 transition-colors"
+                    >
+                      Load More Products
+                    </button>
+                  )}
                 </div>
               )}
             </>

@@ -25,7 +25,7 @@ interface ToastContextType {
   error: (msg: ReactNode, duration?: number) => void;
   info: (msg: ReactNode, duration?: number) => void;
   warning: (msg: ReactNode, duration?: number) => void;
-    clearAll: () => void;
+  clearAll: () => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);

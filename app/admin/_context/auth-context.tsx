@@ -124,7 +124,7 @@ export const AuthProvider = ({
     loadUserData();
   }, []);
 
-  // Fetch permissions when authenticated user, token, or path changes
+  // Fetch permissions when authenticated user or token changes
   useEffect(() => {
     const fetchPermissions = async () => {
       if (!accessToken || !user) {
@@ -141,7 +141,7 @@ export const AuthProvider = ({
       }
     };
     fetchPermissions();
-  }, [accessToken, user?.id, pathname]);
+  }, [accessToken, user?.id]);
 
   const hasPermission = (pageKey: string, action: 'view' | 'create' | 'edit' | 'delete'): boolean => {
     if (!user) return false;

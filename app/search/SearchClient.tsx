@@ -14,7 +14,6 @@ import { useCart } from "@/context/CartContext";
 import { useToast } from "@/components/toast/CustomToast";
 import { getDiscountedPrice } from "@/app/lib/discountHelpers";
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import ProductCard from "@/components/ProductCard";
 import { trackViewItemList } from "@/lib/analytics";
 
@@ -536,12 +535,6 @@ export default function SearchClient({
     }, 600);
   }, [updateServerFilters]);
 
-  const [showPharmaModal, setShowPharmaModal] = useState(false);
-  const [pendingProduct, setPendingProduct] = useState<any | null>(null);
-
-  // 🔒 double-submit protection
-  const pharmaApprovedRef = useRef(false);
-
   return (
     <div className="min-h-screen bg-white">
       {isPending && (
@@ -1006,28 +999,6 @@ export default function SearchClient({
 
         </div>
         
-        {/* Pharma questions modal */}
-        {showPharmaModal && pendingProduct && (
-          <PharmaQuestionsModal
-            open={showPharmaModal}
-            productId={pendingProduct.product.id}
-            mode="add"
-            onClose={() => {
-              setShowPharmaModal(false);
-              setPendingProduct(null);
-            }}
-            onSuccess={() => {
-              pharmaApprovedRef.current = true;
-              setShowPharmaModal(false);
-              setPendingProduct(null);
-              // Wait list handles add inside ProductCard, but this keeps modal synced
-              setTimeout(() => {
-                pharmaApprovedRef.current = false;
-              }, 0);
-            }}
-          />
-        )}
-
         {/* Custom scrollbar css styles */}
         <style jsx>{`
           .custom-scrollbar::-webkit-scrollbar {

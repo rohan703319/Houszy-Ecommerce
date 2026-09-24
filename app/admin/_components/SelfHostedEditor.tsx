@@ -222,6 +222,23 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
         return;
       }
 
+      // Avoid duplicate script tag when multiple editors mount simultaneously
+      const existingScript = document.querySelector('script[src="/tinymce/tinymce.min.js"]');
+      if (existingScript) {
+        const onScriptLoad = () => {
+          setIsLoaded(true);
+          setTimeout(() => {
+            initializeEditor();
+          }, 100);
+        };
+        if (window.tinymce) {
+          onScriptLoad();
+        } else {
+          existingScript.addEventListener('load', onScriptLoad, { once: true });
+        }
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = '/tinymce/tinymce.min.js';
       script.onload = () => {
@@ -238,6 +255,7 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
 
     const initializeEditor = () => {
       if (!window.tinymce) return;
+      if (!document.getElementById(editorId)) return;
 
       window.tinymce.init({
         selector: `#${editorId}`,
@@ -806,7 +824,12 @@ export const SelfHostedTinyMCE: React.FC<SelfHostedTinyMCEProps> = ({
     return () => {
       try {
         if (window.tinymce) {
-          window.tinymce.remove(`#${editorId}`);
+          const editor = window.tinymce.get(editorId);
+          if (editor) {
+            editor.destroy();
+          } else {
+            window.tinymce.remove(`#${editorId}`);
+          }
         }
       } catch (_) {
         // TinyMCE cleanup errors are safe to ignore

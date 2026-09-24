@@ -174,17 +174,16 @@ const navigation: NavigationItem[] = [
 
 const getRoutePermissionKey = (path: string): string | null => {
   if (path === '/admin') return 'dashboard';
-  if (path.startsWith('/admin/products')) return 'products';
+  if (path.startsWith('/admin/products') || path.startsWith('/admin/import-export') || path.startsWith('/admin/aplus-templates')) return 'products';
   if (path.startsWith('/admin/categories')) return 'categories';
   if (path.startsWith('/admin/brands')) return 'brands';
   if (path.startsWith('/admin/productReview')) return 'reviews';
   if (path.startsWith('/admin/inventory')) return 'inventory';
-  if (path.startsWith('/admin/orders')) return 'orders';
-  if (path.startsWith('/admin/payments')) return 'orders';
+  if (path.startsWith('/admin/orders') || path.startsWith('/admin/payments')) return 'orders';
   if (path.startsWith('/admin/customers')) return 'customers';
   if (path.startsWith('/admin/discounts')) return 'discounts';
   if (path.startsWith('/admin/subscriptions')) return 'subscriptions';
-  if (path.startsWith('/admin/shipping') || path.startsWith('/admin/DeliveryStrip')) return 'shipping';
+  if (path.startsWith('/admin/shipping') || path.startsWith('/admin/DeliveryStrip') || path.startsWith('/admin/delivery-strip')) return 'shipping';
   if (path.startsWith('/admin/loyalty-points') || path.startsWith('/admin/loyalty-config')) return 'loyalty';
   if (path.startsWith('/admin/banners') || path.startsWith('/admin/HomepagePreview')) return 'banners';
   if (path.startsWith('/admin/pharmacy-questions')) return 'pharmacy';
@@ -206,9 +205,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
 
   const routeKey = getRoutePermissionKey(pathname);
-  const isViewAllowed = routeKey && hasPermission ? hasPermission(routeKey, 'view') : true;
-
-  const showPermissionsLoading = isAuthenticated && !permissions;
+  const isSuperAdmin = user?.role?.toLowerCase() === "superadmin";
+  const isCheckingPermissions = isLoading || (!isSuperAdmin && isAuthenticated && permissions === null);
+  const isViewAllowed = isSuperAdmin || (routeKey && hasPermission ? hasPermission(routeKey, 'view') : true);
 
   const filteredNavigation = useMemo(() => {
     if (!permissions || !hasPermission) return [];
@@ -220,9 +219,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             if (!child.permissionKey) return true;
             return hasPermission(child.permissionKey, "view");
           });
-          
+
           if (filteredChildren.length === 0) return null;
-          
+
           return {
             ...item,
             children: filteredChildren,
@@ -257,6 +256,28 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     seconds: number;
     total: number;
   } | null>(null);
+
+  // Live UK Time state
+  const [ukTime, setUkTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateUkTime = () => {
+      const now = new Date();
+      setUkTime(
+        now.toLocaleTimeString('en-GB', {
+          timeZone: 'Europe/London',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+      );
+    };
+
+    updateUkTime();
+    const interval = setInterval(updateUkTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isActiveRoute = (navHref: string, currentPath: string) => {
     if (navHref === '/admin') return currentPath === '/admin';
@@ -867,31 +888,27 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {timeRemaining && (
-                      <div
-                        className={cn(
-                          "hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150",
-                          "bg-slate-800/50 dark:bg-gray-800/70 border border-slate-700 dark:border-gray-700",
-                          timeRemaining.total < 5 * 60 * 1000 && "border-red-500/50 bg-red-500/10 animate-pulse"
-                        )}
-                        title="Session expires in"
-                      >
-                        <Clock className={cn("h-4 w-4", getTimerColor())} />
-                        <span className={cn("text-xs font-mono font-semibold", getTimerColor())}>
-                          {String(timeRemaining.hours).padStart(2, '0')}:
-                          {String(timeRemaining.minutes).padStart(2, '0')}:
-                          {String(timeRemaining.seconds).padStart(2, '0')}
-                        </span>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => {
-                        toast.success("No Notifications Right Now");;
-                      }}
-                      className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all duration-150"
+                    {/* Live UK Time */}
+                    <div
+                      className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-150 bg-slate-800/50 dark:bg-gray-800/70 border border-slate-700 dark:border-gray-700"
+                      title="Current UK Time (London)"
                     >
-                      <Bell className="h-5 w-5" />
-                    </button>
+                      <Clock className="h-4 w-4 text-violet-400" />
+                      <span className="text-xs font-mono font-semibold text-slate-200">
+                        {ukTime || "--:--:--"} <span className="text-[10px] font-sans text-slate-400 font-normal">UK</span>
+                      </span>
+                    </div>
+
+                    {/* Marketplace / User Panel (Opens in New Tab) */}
+                    <Link
+                      href="/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all duration-150"
+                      title="Open Marketplace / User Panel"
+                    >
+                      <Store className="h-5 w-5" />
+                    </Link>
 
 
                     <button
@@ -993,10 +1010,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
             <main className="flex-1 overflow-y-auto p-6 custom-scrollbar transition-colors duration-500">
               <div className="transition-all duration-150">
-                {showPermissionsLoading ? (
+                {isCheckingPermissions ? (
                   <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
-                    <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-slate-400 text-sm">Loading permissions...</p>
+                    <div className="w-9 h-9 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                    <p className="text-slate-400 text-xs font-medium">Verifying permissions...</p>
                   </div>
                 ) : !isViewAllowed ? (
                   <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">

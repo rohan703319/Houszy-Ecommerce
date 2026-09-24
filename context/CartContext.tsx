@@ -62,6 +62,7 @@ export interface CartItem {
   frequency?: number | string | null;
   frequencyPeriod?: string | null;
   subscriptionTotalCycles?: number | null;
+  subscriptionDiscountPercentage?: number | null;
   vatRate?: number | null;
   vatIncluded?: boolean;
   productData?: any;

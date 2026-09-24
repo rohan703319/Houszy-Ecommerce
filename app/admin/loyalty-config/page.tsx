@@ -55,6 +55,21 @@ export default function LoyaltyConfigPage() {
     );
   };
 
+  const getLoggedInAdminName = (): string => {
+    if (typeof window === 'undefined') return 'Admin';
+    try {
+      const raw = localStorage.getItem('userData') || localStorage.getItem('user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        if (name) return name;
+      }
+      const nameOnly = localStorage.getItem('userName');
+      if (nameOnly && !nameOnly.includes('@')) return nameOnly;
+    } catch {}
+    return 'Admin';
+  };
+
   const buildDefaultConfig = (): LoyaltyConfig => ({
     id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : '',
     pointsPerPound: 0,
@@ -81,7 +96,7 @@ export default function LoyaltyConfigPage() {
     tierSystemEnabled: true,
     isActive: true,
     updatedAt: new Date().toISOString(),
-    updatedBy: localStorage.getItem('userEmail') || 'admin',
+    updatedBy: typeof window !== 'undefined' ? getLoggedInAdminName() : 'Admin',
   });
 
   // VALIDATION FUNCTION
@@ -171,17 +186,17 @@ export default function LoyaltyConfigPage() {
 
     try {
       setSaving(true);
-      const userEmail = localStorage.getItem('userEmail') || 'admin';
+      const adminName = getLoggedInAdminName();
 
       const response = modalMode === 'create'
         ? await loyaltyConfigService.create({
             ...editedConfig,
-            updatedBy: userEmail,
+            updatedBy: adminName,
             updatedAt: new Date().toISOString(),
           })
         : await loyaltyConfigService.update({
         ...editedConfig,
-        updatedBy: userEmail,
+        updatedBy: adminName,
         updatedAt: new Date().toISOString(),
       });
 

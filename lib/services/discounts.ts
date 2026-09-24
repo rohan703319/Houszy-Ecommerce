@@ -42,6 +42,7 @@ export interface Discount {
   assignedProductIds: string;
   assignedCategoryIds: string;
   assignedManufacturerIds: string;
+  usageCount?: number;
   createdAt?: string;
   updatedAt?: string | null;
   createdBy?: string;
@@ -53,9 +54,13 @@ export interface DiscountUsageHistory {
   id: string;
   discountId: string;
   discountName: string;
+  discountType?: string;
   orderId: string;
   orderNumber: string;
   customerEmail: string;
+  price?: number | null;
+  sellPrice?: number | null;
+  discountPercentage?: number | null;
   discountAmount: number;
   usedAt: string;
   appliedToProductNames?: string;
@@ -347,6 +352,21 @@ deleteBannerImage: async (
       );
     } catch (error: any) {
       console.error(`Error fetching usage history for discount ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all discount usage history across all promotions
+   */
+  getAllUsageHistory: async (config: any = {}) => {
+    try {
+      return await apiClient.get<DiscountUsageHistoryResponse>(
+        `${API_ENDPOINTS.discounts}/all-usage-history`,
+        config
+      );
+    } catch (error: any) {
+      console.error("Error fetching all discount usage history:", error);
       throw error;
     }
   },

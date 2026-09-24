@@ -43,6 +43,7 @@ const nextConfig: NextConfig = {
   },
 
   images: {
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [375, 640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
@@ -66,7 +67,6 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'api.houszy.co.uk', pathname: '/**' },
       { protocol: 'http', hostname: 'api.houszy.co.uk', pathname: '/**' },
 
-      { protocol: 'https', hostname: 'testapi.knowledgemarkg.com', pathname: '/**' },
       { protocol: 'https', hostname: 'www.direct-care.co.uk', pathname: '/**' },
       { protocol: 'https', hostname: 'api.direct-care.co.uk', pathname: '/**' },
       { protocol: 'http', hostname: 'api.direct-care.co.uk', pathname: '/**' },
@@ -91,7 +91,7 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.athlits.co.uk';
+    const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.houszy.co.uk';
     return [
       {
         source: '/api/:path*',

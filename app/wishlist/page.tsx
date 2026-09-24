@@ -58,13 +58,9 @@ export default function WishlistPage() {
       ? productData.variants.find((v: any) => v.id === item.variantId)
       : null;
 
-    const nextDayDeliveryEnabled = variant
-      ? variant.nextDayDeliveryEnabled === true
-      : !!productData?.nextDayDeliveryEnabled;
+    const nextDayDeliveryEnabled = (variant?.nextDayDeliveryEnabled === true) || (variant?.nextDayDeliveryEnabled == null && !!productData?.nextDayDeliveryEnabled);
 
-    const nextDayDeliveryFree = variant
-      ? variant.nextDayDeliveryFree === true
-      : !!productData?.nextDayDeliveryFree;
+    const nextDayDeliveryFree = (variant?.nextDayDeliveryFree === true) || (variant?.nextDayDeliveryFree == null && !!productData?.nextDayDeliveryFree);
 
     // ✅ ADD TO CART (FULL DATA)
     trackAddToCart({ productId: item.productId, name: item.name, price: item.finalPrice ?? item.price, quantity: 1 });

@@ -498,9 +498,9 @@ url: getImageUrl(variant.imageUrl || undefined),
                     <h3 className="text-xs text-slate-400 font-bold uppercase tracking-wider">Timeline</h3>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <InfoField label="Created By" value={product.createdBy || 'System'} />
+                    <InfoField label="Created By" value={product.createdBy || '-'} />
                     <InfoField label="Created At" value={formatDate(product.createdAt)} />
-                    <InfoField label="Updated By" value={product.updatedBy || 'System'} />
+                    <InfoField label="Updated By" value={product.updatedBy || '-'} />
                     <InfoField label="Updated At" value={formatDate(product.updatedAt)} />
                     {product.publishedAt && <InfoField label="Published At" value={formatDate(product.publishedAt)} />}
                   </div>
@@ -793,13 +793,6 @@ url: getImageUrl(variant.imageUrl || undefined),
                    {(product as any).nextDayDeliveryEnabled && (
   <div className="text-xs text-blue-400 mt-2">
     <span>Available</span>
-
-    {product.nextDayDeliveryCutoffTime && (
-      <InfoField
-        label="Next Day Cutoff"
-        value={product.nextDayDeliveryCutoffTime}
-      />
-    )}
   </div>
 )}
                         {!(product as any).nextDayDeliveryEnabled && (
@@ -1074,16 +1067,10 @@ url: getImageUrl(variant.imageUrl || undefined),
                               </span>
                             </div>
                             {(variant as any).nextDayDeliveryEnabled && (
-                              <>
-                                <div className="text-slate-400">
-                                  <span className="font-bold text-purple-300">Free Next-Day: </span>
-                                  {(variant as any).nextDayDeliveryFree === null ? 'Inherit' : (variant as any).nextDayDeliveryFree ? 'Yes' : 'No'}
-                                </div>
-                                <div className="text-slate-400">
-                                  <span className="font-bold text-purple-300">Cutoff: </span>
-                                  {(variant as any).nextDayDeliveryCutoffTime || 'Inherit'}
-                                </div>
-                              </>
+                              <div className="text-slate-400">
+                                <span className="font-bold text-purple-300">Free Next-Day: </span>
+                                {(variant as any).nextDayDeliveryFree === null ? 'Inherit' : (variant as any).nextDayDeliveryFree ? 'Yes' : 'No'}
+                              </div>
                             )}
                           </div>
                         )}

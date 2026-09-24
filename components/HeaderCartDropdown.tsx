@@ -14,7 +14,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 export default function HeaderCartDropdown() {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [apiThreshold, setApiThreshold] = useState<number>(0);
+  const [apiThreshold, setApiThreshold] = useState<number>(40);
   const toast = useToast();
   const { isAuthenticated } = useAuth();
 
@@ -89,9 +89,9 @@ export default function HeaderCartDropdown() {
         const list = res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
         if (Array.isArray(list)) {
           const stdOpt = list.find((opt: any) =>
-            (opt.name || opt.title || "").toLowerCase().includes("standard") || opt.isDefault
+            (opt.name || opt.title || opt.displayName || "").toLowerCase().includes("standard") || opt.isDefault
           );
-          const val = stdOpt?.minOrderAmountForFreeDelivery ?? stdOpt?.freeShippingThreshold ?? stdOpt?.threshold;
+          const val = stdOpt?.freeShippingThreshold ?? stdOpt?.minOrderAmountForFreeDelivery ?? stdOpt?.threshold;
           if (typeof val === "number" && val > 0) {
             setApiThreshold(val);
           }
@@ -128,29 +128,25 @@ export default function HeaderCartDropdown() {
           }
         }
       }
+
+      if (threshold === 0 && typeof (item as any).freeShippingThreshold === "number" && (item as any).freeShippingThreshold > 0) {
+        threshold = (item as any).freeShippingThreshold;
+      }
     }
-    return threshold > 0 ? threshold : apiThreshold;
+    return threshold > 0 ? threshold : (apiThreshold > 0 ? apiThreshold : 40);
   }, [cart, apiThreshold]);
 
   const allNextDayFree = useMemo(() =>
     cart.length > 0 &&
     cart.every(i => {
-      let isEnabled = false;
-      let isFree = false;
-      if (i.variantId && i.productData?.variants?.length) {
-        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v) {
-          isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
-            ? v.nextDayDeliveryEnabled === true
-            : (i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true);
-          isFree = typeof v.nextDayDeliveryFree === "boolean"
-            ? v.nextDayDeliveryFree === true
-            : (i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true);
-          return isEnabled && isFree;
-        }
-      }
-      isEnabled = i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
-      isFree = i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      const isEnabled = i.nextDayDeliveryEnabled === true ||
+        (i.variantId && i.productData?.variants?.find((x: any) => x.id === i.variantId)?.nextDayDeliveryEnabled === true) ||
+        i.productData?.nextDayDeliveryEnabled === true;
+
+      const isFree = i.nextDayDeliveryFree === true ||
+        (i.variantId && i.productData?.variants?.find((x: any) => x.id === i.variantId)?.nextDayDeliveryFree === true) ||
+        i.productData?.nextDayDeliveryFree === true;
+
       return isEnabled && isFree;
     }),
     [cart]
@@ -158,7 +154,8 @@ export default function HeaderCartDropdown() {
 
   if (!isCartOpen) return null;
 
-  const remainingForFreeDelivery = dynamicFreeThreshold > 0 ? Math.max(0, dynamicFreeThreshold - cartTotal) : 0;
+  const effectiveFreeThreshold = dynamicFreeThreshold > 0 ? dynamicFreeThreshold : (apiThreshold > 0 ? apiThreshold : 40);
+  const remainingForFreeDelivery = Math.max(0, effectiveFreeThreshold - cartTotal);
 
   return (
     <>

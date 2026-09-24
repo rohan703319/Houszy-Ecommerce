@@ -16,7 +16,6 @@ import { useToast } from "@/components/toast/CustomToast";
 import { getDiscountBadge, getDiscountedPrice, } from "@/app/lib/discountHelpers";
 import GenderBadge from "@/components/shared/GenderBadge";
 import { flattenProductsForListing } from "@/app/lib/flattenProductsForListing";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import ProductCard from "@/components/ProductCard";
 import { trackViewItemList } from "@/lib/analytics";
 
@@ -739,29 +738,6 @@ export default function CategoryClient({
       sortDirection: finalDirection,
     });
   }, [updateServerFilters]);
-  const [showPharmaModal, setShowPharmaModal] = useState(false);
-  const [pendingProduct, setPendingProduct] = useState<{
-    product: any;
-    cardSlug?: string;
-  } | null>(null);
-
-  // 🔒 double-submit protection
-  const pharmaApprovedRef = useRef(false);
-  const handlePharmaGuard = (
-    product: any,
-    cardSlug?: string
-  ): boolean => {
-    // already approved → allow
-    if (pharmaApprovedRef.current) return true;
-
-    if (product.isPharmaProduct) {
-      setPendingProduct({ product, cardSlug });
-      setShowPharmaModal(true);
-      return false;
-    }
-
-    return true;
-  };
   const getInitialQty = (product: any) => {
     return product.orderMinimumQuantity ?? 1;
   };
@@ -848,8 +824,6 @@ export default function CategoryClient({
     (product: any, cardSlug?: string) => {
       // if (product.disableBuyButton) return;
 
-      // 🔥 PHARMA GUARD
-      if (!handlePharmaGuard(product, cardSlug)) return;
       const defaultVariant: any = getDefaultVariant(product);
 
       const basePrice =
@@ -912,13 +886,9 @@ export default function CategoryClient({
         return true;
       });
 
-      const nextDayDeliveryEnabled = defaultVariant
-        ? defaultVariant.nextDayDeliveryEnabled === true
-        : !!product.nextDayDeliveryEnabled;
+      const nextDayDeliveryEnabled = (defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
 
-      const nextDayDeliveryFree = defaultVariant
-        ? defaultVariant.nextDayDeliveryFree === true
-        : !!product.nextDayDeliveryFree;
+      const nextDayDeliveryFree = (defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
 
       const discountPercentageToShow =
         product.variants && product.variants.length > 0
@@ -1523,38 +1493,6 @@ export default function CategoryClient({
               </div>
             )}
           </div>
-        )}
-        {showPharmaModal && pendingProduct && (
-          <PharmaQuestionsModal
-            open={showPharmaModal}
-            productId={pendingProduct.product.id}
-            mode="add"
-            onClose={() => {
-              setShowPharmaModal(false);
-              setPendingProduct(null);
-            }}
-            onSuccess={(messageFromBackend) => {
-              // 🔒 mark approved
-              pharmaApprovedRef.current = true;
-
-
-
-              setShowPharmaModal(false);
-
-              // 🔁 resume original add-to-cart
-              handleAddToCart(
-                pendingProduct.product,
-                pendingProduct.cardSlug
-              );
-
-              setPendingProduct(null);
-
-              // reset for next product
-              setTimeout(() => {
-                pharmaApprovedRef.current = false;
-              }, 0);
-            }}
-          />
         )}
 
         {/* Custom scrollbar + dual slider CSS */}

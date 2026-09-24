@@ -54,6 +54,7 @@ import {
   getPaymentMethodInfo,
   formatCurrency,
   formatDate,
+  formatDateOnly,
   PharmacyVerificationStatus,
 } from '../../../lib/services/orders';
 import {
@@ -73,6 +74,7 @@ import { formatNumber, getImageUrl } from '../_utils/formatUtils';
 import { useDebounce } from '../_hooks/useDebounce';
 import ImagePreviewModal from '../_components/ImagePreviewModal';
 import { scrollCls } from '../_utils/styles';
+import { useAuth } from '../_context/auth-context';
 
 // ✅ Get Available Actions based on Order Status (matching backend rules)
 const getAvailableActions = (order: Order) => {
@@ -124,6 +126,7 @@ const getAvailableActions = (order: Order) => {
 export default function OrdersListPage() {
   const router = useRouter();
   const toast = useToast();
+  const { hasPermission } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -256,9 +259,9 @@ export default function OrdersListPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  const [initialLoading, setInitialLoading] = useState(true);
+  // Fetch delivery options once on mount
   useEffect(() => {
-    const init = async () => {
+    const fetchDeliveryOptions = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/delivery-options`);
         if (res.ok) {
@@ -270,26 +273,33 @@ export default function OrdersListPage() {
       } catch (err) {
         console.error("Error fetching delivery options:", err);
       }
-      await fetchOrders();
-      setInitialLoading(false);
     };
 
-    init();
+    fetchDeliveryOptions();
   }, []);
+
   useEffect(() => {
     if (searchInput.trim() !== "") {
       setSearchLoading(true);
     }
   }, [searchInput]);
+
+  useEffect(() => {
+    if (!filters.fromDate && !filters.toDate && itemsPerPage > 100) {
+      setItemsPerPage(25);
+    }
+  }, [filters.fromDate, filters.toDate, itemsPerPage]);
+
   // Fetch orders
   const fetchOrders = useCallback(async () => {
     try {
-
       setFilterLoading(true);
+
+      const activePageSize = (itemsPerPage > 100 && !filters.fromDate && !filters.toDate) ? 25 : itemsPerPage;
 
       const response = await orderService.getAllOrders({
         page: currentPage,
-        pageSize: itemsPerPage,
+        pageSize: activePageSize,
         status: filters.status || undefined,
         fromDate: filters.fromDate || undefined,
         toDate: filters.toDate || undefined,
@@ -324,9 +334,6 @@ export default function OrdersListPage() {
 
       if (responseData) {
         let items = responseData.items || [];
-
-
-        console.log("Fetched Orders from API:", items);
         setOrders(items);
         setStats(responseData.stats);
         setTotalCount(responseData.totalCount || 0);
@@ -336,7 +343,7 @@ export default function OrdersListPage() {
       toast.error(error.message || "Failed to load orders");
     } finally {
       setLoading(false);
-      setIsSearching(false); // 👈 stop loader after API
+      setIsSearching(false);
       setFilterLoading(false);
       setSearchLoading(false);
     }
@@ -357,11 +364,8 @@ export default function OrdersListPage() {
     filters.orderType,
   ]);
 
-
   useEffect(() => {
-    if (!initialLoading) {
-      fetchOrders();
-    }
+    fetchOrders();
   }, [
     currentPage,
     itemsPerPage,
@@ -568,6 +572,15 @@ export default function OrdersListPage() {
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
+  };
+
+  const handleCopyTrackingNumber = (trackingNumber: string) => {
+    try {
+      navigator.clipboard.writeText(trackingNumber);
+      toast.success("Tracking number copied!", { autoClose: 1200 });
+    } catch (err) {
+      toast.error("Failed to copy tracking number");
+    }
   };
 
   const getPageNumbers = () => {
@@ -802,7 +815,7 @@ export default function OrdersListPage() {
     }
   };
 
-  if (initialLoading) {
+  if (loading && orders.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -812,6 +825,8 @@ export default function OrdersListPage() {
       </div>
     );
   }
+
+  const isDateFilterActive = !!(filters.fromDate || filters.toDate);
 
   return (
     <div className="space-y-2">
@@ -924,7 +939,7 @@ export default function OrdersListPage() {
                     <div className="h-5 w-px bg-slate-700 hidden md:block" />
 
                     {/* UPDATE */}
-                    {allSameStatus && (
+                    {hasPermission("orders", "edit") && allSameStatus && (
                       <button
                         onClick={() => setBulkModalOpen(true)}
                         className="px-4 py-2 text-sm font-medium 
@@ -1256,14 +1271,16 @@ export default function OrdersListPage() {
         ${filters.paymentMethod ? "border-amber-500 bg-amber-500/10" : "border-slate-700"}`}
           >
             <option value="">Payment Method: All</option>
-            <option value="Stripe">Stripe</option>
-            <option value="PayPal">PayPal</option>
             <option value="Card">Card</option>
+            <option value="Revolut Pay">Revolut Pay</option>
+            <option value="Amazon Pay">Amazon Pay</option>
+            <option value="Pay By Bank">Pay By Bank App</option>
             <option value="Apple Pay">Apple Pay</option>
             <option value="Google Pay">Google Pay</option>
-            <option value="Credit">Credit Card</option>
-            <option value="Debit">Debit Card</option>
             <option value="Klarna">Klarna</option>
+            <option value="PayPal">PayPal</option>
+            <option value="Stripe Link">Stripe Link</option>
+            <option value="Stripe">Stripe (All)</option>
           </select>
 
           {/* PAYMENT STATUS */}
@@ -1479,6 +1496,10 @@ export default function OrdersListPage() {
                     Amount
                   </th>
 
+                  <th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[170px]">
+                    Dispatch / Delivery
+                  </th>
+
                   <th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs w-[250px]">
                     Status
                   </th>
@@ -1499,6 +1520,7 @@ export default function OrdersListPage() {
 
                   const statusInfo = getOrderStatusInfo(order.status);
                   const pendingCancellationRequest = pendingCancellationRequestMap[order.id];
+                  const trackingNumbers = order.shipments?.map((s) => s.trackingNumber).filter((t): t is string => !!t) || [];
 
                   const paymentMethodStr =
                     order.paymentMethod || order.payments?.[0]?.paymentMethod;
@@ -1610,10 +1632,17 @@ export default function OrdersListPage() {
                               {order.orderItems[0]?.productName}
                             </p>
 
-                            {/* SKU */}
-                            <p className="text-[10px] text-cyan-400 leading-none">
-                              SKU: {order.orderItems.map((i) => i.productSku).join(", ")}
-                            </p>
+                            {/* SKU & SHIPPING */}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] text-cyan-400 leading-none">
+                                SKU: {order.orderItems.map((i) => i.productSku).join(", ")}
+                              </span>
+                              {(order.carrierName || order.shippingMethodName) && (
+                                <span className="text-[9px] text-slate-300 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700 leading-none flex items-center gap-1">
+                                  🚚 {order.carrierName && order.serviceName ? `${order.carrierName} - ${order.serviceName}` : (order.shippingMethodName || 'Standard')}
+                                </span>
+                              )}
+                            </div>
 
                             {/* MORE ITEMS */}
                             {order.orderItems.length > 2 && (
@@ -1669,8 +1698,8 @@ export default function OrdersListPage() {
                               <div className="mt-1 flex items-center">
                                 <span
                                   className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold leading-none ${/ads|paid/i.test(order.orderSource)
-                                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                                      : "bg-slate-700/50 text-slate-300 border border-slate-700"
+                                    ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                                    : "bg-slate-700/50 text-slate-300 border border-slate-700"
                                     }`}
                                   title={`Source: ${order.orderSource}${order.utmCampaign ? ` | Campaign: ${order.utmCampaign}` : ""
                                     }${order.gclid ? ` | Gclid: ${order.gclid}` : ""}`}
@@ -1694,6 +1723,37 @@ export default function OrdersListPage() {
                         {formatCurrency(order.totalAmount, order.currency)}
                       </td>
 
+                      {/* DISPATCH / DELIVERY */}
+                      <td className="py-2 px-2 text-left">
+                        <div className="flex flex-col gap-0.5 text-xs whitespace-nowrap">
+                          {order.estimatedDispatchDate ? (
+                            <div className="text-slate-300">
+                              <span className="text-slate-400">Dispatch: </span>
+                              <span className="font-medium text-slate-200">
+                                {formatDateOnly(order.estimatedDispatchDate)}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-slate-500 text-xs">
+                              <span className="text-slate-500">Dispatch: </span>
+                              <span>—</span>
+                            </div>
+                          )}
+
+                          {(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax) ? (
+                            <div className="text-slate-300">
+                              <span className="text-slate-400">Delivery: </span>
+                              <span className="font-medium text-slate-200">
+                                {order.estimatedDeliveryDateMin && order.estimatedDeliveryDateMax &&
+                                order.estimatedDeliveryDateMin.split('T')[0] !== order.estimatedDeliveryDateMax.split('T')[0]
+                                  ? `${formatDateOnly(order.estimatedDeliveryDateMin)} – ${formatDateOnly(order.estimatedDeliveryDateMax)}`
+                                  : formatDateOnly(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax)}
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+
                       {/* STATUS */}
                       <td className="py-2 px-2 text-center">
                         <div className="flex flex-col items-center gap-1">
@@ -1704,6 +1764,25 @@ export default function OrdersListPage() {
                           >
                             {statusInfo.label}
                           </span>
+
+                          {order.status === "Shipped" && trackingNumbers.length > 0 && (
+                            <div className="mt-1 flex flex-col gap-1 items-center">
+                              {trackingNumbers.map((trackNo, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCopyTrackingNumber(trackNo);
+                                  }}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-800 hover:border-slate-700 bg-slate-900/60 text-[10px] text-slate-400 font-mono hover:text-white transition cursor-pointer hover:bg-slate-800"
+                                  title="Click to copy tracking number"
+                                >
+                                  <Truck className="h-3 w-3 text-amber-500" />
+                                  <span>{trackNo}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
 
                           {order.pharmacyVerificationStatus && (
                             <span
@@ -1772,8 +1851,8 @@ export default function OrdersListPage() {
                             <Edit className="h-4 w-4" />
                           </button>
 
-                          {/* Hard-delete is shown ONLY when the order is pending and the payment status is pending, failed, or N/A/empty. */}
-                          {order.status === 'Pending' && ['pending', 'failed', 'n/a', 'na', ''].includes((order.paymentStatus || '').trim().toLowerCase()) && (
+                          {/* Hard-delete is shown ONLY when user has delete permission, order is pending, and payment status is pending/failed/na */}
+                          {hasPermission("orders", "delete") && order.status === 'Pending' && ['pending', 'failed', 'n/a', 'na', ''].includes((order.paymentStatus || '').trim().toLowerCase()) && (
                             <button
                               onClick={() => openHardDeleteModal(order)}
                               className="p-1.5 text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg transition-all"
@@ -1817,8 +1896,7 @@ export default function OrdersListPage() {
                 <option value={50}>50</option>
                 <option value={75}>75</option>
                 <option value={100}>100</option>
-                <option value={500}>500</option>
-                <option value={1000}>1000</option>
+                {isDateFilterActive && <option value={100000}>All</option>}
               </select>
             </div>
 

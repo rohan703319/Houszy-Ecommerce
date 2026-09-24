@@ -1430,29 +1430,6 @@ export default function ProductsPage() {
     }
   };
 
-  if (!permissions) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading permissions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!hasPermission("products", "view")) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-lg">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-4 animate-bounce" />
-        <h2 className="text-lg font-semibold text-white">Access Denied</h2>
-        <p className="text-slate-400 text-sm mt-2">
-          You do not have permission to view this page. Please contact your administrator.
-        </p>
-      </div>
-    );
-  }
-
   // ✅ LOADING
   if (loading && products.length === 0) {
     return (

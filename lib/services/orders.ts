@@ -122,6 +122,8 @@ export interface OrderItem {
   productVariantId?: string;
   subscriptionId?: string | null;
   subscriptionFrequency?: string | null;
+  nextDeliveryDate?: string | null;
+  handlingTimeDays?: number | null;
 }
 
 export interface Payment {
@@ -201,6 +203,9 @@ export interface Order {
   isGuestOrder: boolean;
   subscriptionId?: string;
   subscriptionFrequency?: string;
+  isSubscriptionOrder?: boolean;
+  nextDeliveryDate?: string | null;
+  subscriptionDiscountPercentage?: number | null;
   userId?: string;
 
   customerName: string;
@@ -213,6 +218,14 @@ export interface Order {
   // ================= DELIVERY =================
   deliveryMethod: DeliveryMethod;
   shippingMethodName: string;
+  deliveryOptionId?: string;
+  deliveryServiceId?: string;
+  carrierName?: string;
+  serviceName?: string;
+  estimatedDeliveryMinDays?: number;
+  estimatedDeliveryMaxDays?: number;
+  estimatedDeliveryDateMin?: string;
+  estimatedDeliveryDateMax?: string;
 
   clickAndCollectFee?: number;
 
@@ -377,7 +390,7 @@ export interface MarkDeliveredRequest {
 export interface CancelOrderRequest {
   orderId: string;
   cancellationReason: string;
-  restoreInventory: boolean;
+  restoreInventory?: boolean;
   initiateRefund: boolean;
   cancelledBy: string;
 }
@@ -1026,14 +1039,50 @@ export const getPaymentMethodInfo = (method?: string | null) => {
   const normalized = method.toLowerCase().trim();
 
   // ========================
-  // STRIPE BASED METHODS
+  // REVOLUT PAY
   // ========================
-  if (normalized.includes('stripe')) {
+  if (normalized.includes('revolut')) {
     return {
-      label: 'Stripe',
-      color: 'text-indigo-400',
-      bgColor: 'bg-indigo-500/10',
+      label: 'Revolut Pay',
+      color: 'text-sky-300',
+      bgColor: 'bg-sky-500/10',
       icon: 'card' as const,
+    };
+  }
+
+  // ========================
+  // AMAZON PAY
+  // ========================
+  if (normalized.includes('amazon')) {
+    return {
+      label: 'Amazon Pay',
+      color: 'text-amber-400',
+      bgColor: 'bg-amber-500/10',
+      icon: 'wallet' as const,
+    };
+  }
+
+  // ========================
+  // PAY BY BANK / BACS
+  // ========================
+  if (normalized.includes('bank') || normalized.includes('fps') || normalized.includes('bacs')) {
+    return {
+      label: 'Pay By Bank App',
+      color: 'text-teal-300',
+      bgColor: 'bg-teal-500/10',
+      icon: 'card' as const,
+    };
+  }
+
+  // ========================
+  // STRIPE LINK
+  // ========================
+  if (normalized === 'link' || normalized.includes('stripe link')) {
+    return {
+      label: 'Stripe Link',
+      color: 'text-emerald-400',
+      bgColor: 'bg-emerald-500/10',
+      icon: 'wallet' as const,
     };
   }
 
@@ -1074,18 +1123,6 @@ export const getPaymentMethodInfo = (method?: string | null) => {
   }
 
   // ========================
-  // CARD
-  // ========================
-  if (normalized.includes('credit') || normalized.includes('debit')) {
-    return {
-      label: 'Card',
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/10',
-      icon: 'card' as const,
-    };
-  }
-
-  // ========================
   // KLARNA
   // ========================
   if (normalized.includes('klarna')) {
@@ -1094,6 +1131,30 @@ export const getPaymentMethodInfo = (method?: string | null) => {
       color: 'text-pink-400',
       bgColor: 'bg-pink-500/10',
       icon: 'wallet' as const,
+    };
+  }
+
+  // ========================
+  // CARD
+  // ========================
+  if (normalized.includes('card') || normalized.includes('credit') || normalized.includes('debit')) {
+    return {
+      label: method, // Shows "Card", "Card (Visa)", "Card (Mastercard)", etc.
+      color: 'text-purple-400',
+      bgColor: 'bg-purple-500/10',
+      icon: 'card' as const,
+    };
+  }
+
+  // ========================
+  // STRIPE GENERIC (LEGACY)
+  // ========================
+  if (normalized.includes('stripe')) {
+    return {
+      label: 'Card',
+      color: 'text-indigo-400',
+      bgColor: 'bg-indigo-500/10',
+      icon: 'card' as const,
     };
   }
 
@@ -1141,6 +1202,31 @@ export const formatDate = (date: string) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/London',
+  });
+};
+
+/**
+ * Format date only (no time) - e.g. "22 Sept 2026"
+ */
+export const formatDateOnly = (date: string | Date | null | undefined): string => {
+  if (!date) return "N/A";
+  let cleanString = typeof date === 'string' ? date : date.toISOString();
+  if (
+    cleanString.includes("T") &&
+    !cleanString.endsWith("Z") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("+") &&
+    !cleanString.slice(cleanString.indexOf("T")).includes("-")
+  ) {
+    cleanString = `${cleanString}Z`;
+  }
+  const parsedDate = new Date(cleanString);
+  if (isNaN(parsedDate.getTime())) return "N/A";
+
+  return parsedDate.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
     timeZone: 'Europe/London',
   });
 };

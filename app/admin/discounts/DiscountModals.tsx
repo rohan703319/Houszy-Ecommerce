@@ -22,13 +22,16 @@ import {
   Trash2,
   Monitor,
   Smartphone,
+  FileSpreadsheet,
+  Tag,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import Select from "react-select";
 import { ProductDescriptionEditor } from "../_components/SelfHostedEditor";
 import { Discount, DiscountType, DiscountLimitationType, DiscountUsageHistory } from "@/lib/services/discounts";
 import { Product, productsService } from "@/lib/services";
 import { Category } from "@/lib/services/categories";
-import { formatDate, getImageUrl, getProductImage } from "../_utils/formatUtils";
+import { formatDate, getImageUrl, getProductImage, parseDateSafely } from "../_utils/formatUtils";
 import ImagePreviewModal from "../_components/ImagePreviewModal";
 
 // ========== INTERFACES ==========
@@ -506,16 +509,71 @@ useEffect(() => {
     console.log("🟢 Available products:", props.categoryFilteredProductOptions.length);
   }
 }, [props.isProductSelectionModalOpen, props.formData.assignedProductIds]);
+  const formatUsageDate = (dateString?: string | null): string => {
+    if (!dateString) return "";
+    const date = parseDateSafely(dateString);
+    if (!date) return String(dateString);
+    const day = date.toLocaleString("en-GB", { day: "2-digit", timeZone: "Europe/London" });
+    const month = date.toLocaleString("en-GB", { month: "short", timeZone: "Europe/London" });
+    const year = date.toLocaleString("en-GB", { year: "numeric", timeZone: "Europe/London" });
+    const time = date.toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Europe/London" }).toLowerCase();
+    return `${day} ${month} ${year}, ${time}`;
+  };
+
   const calculateFilteredStats = () => {
     const filtered = getFilteredUsageHistory();
-    if (!filtered.length) return { totalUsage: 0, totalRevenue: 0, uniqueCustomers: 0, averageDiscount: 0 };
+    if (!filtered.length) {
+      return {
+        redemptions: 0,
+        totalSold: 0,
+        customerSaved: 0,
+        uniqueUsers: 0,
+        avgSaved: 0,
+      };
+    }
 
-    const totalUsage = filtered.length;
-    const totalRevenue = filtered.reduce((sum, h) => sum + h.discountAmount, 0);
-    const uniqueCustomers = new Set(filtered.map((h) => h.customerEmail)).size;
-    const averageDiscount = totalRevenue / totalUsage;
+    const redemptions = filtered.length;
+    const customerSaved = filtered.reduce((sum, h) => sum + (h.discountAmount || 0), 0);
+    const totalSold = filtered.reduce((sum, h) => {
+      if (h.sellPrice != null && h.sellPrice >= 0) return sum + h.sellPrice;
+      if (h.price != null && h.price > 0) return sum + Math.max(0, h.price - (h.discountAmount || 0));
+      return sum;
+    }, 0);
+    const uniqueUsers = new Set(filtered.map((h) => h.customerEmail).filter(Boolean)).size;
+    const avgSaved = redemptions > 0 ? customerSaved / redemptions : 0;
 
-    return { totalUsage, totalRevenue, uniqueCustomers, averageDiscount };
+    return { redemptions, totalSold, customerSaved, uniqueUsers, avgSaved };
+  };
+
+  const exportUsageToExcel = () => {
+    const filtered = getFilteredUsageHistory();
+    if (!filtered.length) {
+      return;
+    }
+
+    const discountName = selectedDiscountHistory?.name || "Discount";
+
+    const excelData = filtered.map((h) => ({
+      "Discount Name": h.discountName || discountName,
+      "Order Number": h.orderNumber || "—",
+      "Customer Email": h.customerEmail || "—",
+      "Price (£)": h.price != null && h.price > 0 ? Number(h.price.toFixed(2)) : "—",
+      "Sell Price (£)": h.sellPrice != null && h.sellPrice >= 0 ? Number(h.sellPrice.toFixed(2)) : "—",
+      "Discount %": h.discountPercentage != null && h.discountPercentage > 0 ? `${h.discountPercentage.toFixed(1)}%` : "—",
+      "Customer Saved (£)": h.discountAmount != null ? Number(h.discountAmount.toFixed(2)) : 0,
+      "Used At": formatUsageDate(h.usedAt),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const keys = Object.keys(excelData[0] || {});
+    worksheet["!cols"] = keys.map((key) => ({
+      wch: Math.max(key.length + 3, ...excelData.map((row: any) => String(row[key] ?? "").length + 2)),
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Usage History");
+    const safeName = discountName.replace(/[^a-zA-Z0-9_-]/g, "_");
+    XLSX.writeFile(workbook, `${safeName}_usage_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   const setQuickDateRange = (preset: "today" | "week" | "month" | "all") => {
@@ -559,6 +617,9 @@ useEffect(() => {
   const hasDateFilters = dateRangeFilter.startDate || dateRangeFilter.endDate;
 
   const formatDiscountValue = (discount: Discount): string => {
+    if (discount.discountType === "UptoXPercent") {
+      return `Up to ${discount.discountPercentage ?? 0}%`;
+    }
     if (discount.usePercentage) {
       return `${discount.discountPercentage}%`;
     }
@@ -2523,32 +2584,35 @@ useEffect(() => {
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-700/50 bg-slate-900/50">
+            <div className="flex justify-end items-center gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-900/50">
               <button
+                type="button"
                 onClick={() => {
                   if (handleViewUsageHistory) {
                     setViewingDiscount(null);
                     handleViewUsageHistory(viewingDiscount);
                   }
                 }}
-                className="px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-amber-500/40"
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all font-bold text-sm flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
               >
-                <History className="h-4 w-4" />
-                Usage History
+                <History className="h-4 w-4 text-white" />
+                <span>Usage History</span>
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setViewingDiscount(null);
                   handleEdit(viewingDiscount);
                 }}
-                className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-all font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-cyan-500/40"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-bold text-sm flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer"
               >
-                <Edit className="h-4 w-4" />
-                Edit Discount
+                <Edit className="h-4 w-4 text-white" />
+                <span>Edit Discount</span>
               </button>
               <button
+                type="button"
                 onClick={() => setViewingDiscount(null)}
-                className="px-6 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all font-bold text-sm"
+                className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white rounded-xl transition-all font-bold text-sm cursor-pointer border border-gray-300 dark:border-slate-700"
               >
                 Close
               </button>
@@ -2557,382 +2621,364 @@ useEffect(() => {
         </div>
       )}
 
-      {/* ========== ✅ ULTRA COMPACT USAGE HISTORY MODAL ========== */}
-      {usageHistoryModal && selectedDiscountHistory && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-3xl max-w-5xl w-full max-h-[97vh] overflow-hidden shadow-2xl">
-            
-            {/* Compact Header - Inline */}
-     <div className="p-3 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
-  <div className="flex items-start justify-between gap-3">
+      {/* ========== ✅ DISCOUNT USAGE MODAL (DIRECT CARE STYLE) ========== */}
+      {usageHistoryModal && selectedDiscountHistory && (() => {
+        const stats = calculateFilteredStats();
+        const filteredList = getFilteredUsageHistory();
 
-    {/* LEFT */}
-    <div className="flex items-start gap-3 min-w-0">
+        return (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-violet-500/20 rounded-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden shadow-2xl">
+              
+              {/* Header */}
+              <div className="p-4 border-b border-slate-800 bg-gradient-to-r from-violet-500/10 to-cyan-500/10">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white text-lg shadow-lg shadow-purple-500/20 shrink-0">
+                      <Tag className="w-5 h-5" />
+                    </div>
 
-      {/* ICON */}
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-lg shadow-lg shadow-violet-500/20 shrink-0">
-        {getDiscountTypeIcon(selectedDiscountHistory.discountType)}
-      </div>
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+                          {selectedDiscountHistory.name}
+                        </h2>
 
-      {/* CONTENT */}
-      <div className="min-w-0">
+                        {/* Badges */}
+                        <span className="px-2 py-0.5 rounded bg-purple-900/50 border border-purple-500/30 text-purple-300 text-[11px] font-semibold">
+                          Value: {formatDiscountValue(selectedDiscountHistory)}
+                        </span>
 
-        {/* TITLE */}
-        <h2 className="text-lg font-bold text-white leading-tight truncate">
-          {selectedDiscountHistory.name}
-        </h2>
+                        <span className="px-2 py-0.5 rounded bg-amber-900/50 border border-amber-500/30 text-amber-300 text-[11px] font-semibold">
+                          Type: {selectedDiscountHistory.discountLimitation === "Unlimited" 
+                            ? "Unlimited" 
+                            : selectedDiscountHistory.discountLimitation === "NTimesOnly" 
+                            ? "Limited" 
+                            : "Per User"}
+                        </span>
 
-        {/* HELPER TEXT */}
-        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-          Track discount usage activity, customer redemptions,
-          and order-level analytics for this promotion.
-        </p>
+                        <span className="px-2 py-0.5 rounded bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold">
+                          Left: {selectedDiscountHistory.discountLimitation === "Unlimited" ? "∞ (no limit)" : calculateRemainingUses(selectedDiscountHistory)}
+                        </span>
 
-        {/* COUPON */}
-        {selectedDiscountHistory.couponCode && (
-          <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/20">
-            <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold">
-              Coupon
-            </span>
+                        {selectedDiscountHistory.endDate && (
+                          <span className="px-2 py-0.5 rounded bg-rose-900/50 border border-rose-500/30 text-rose-300 text-[11px] font-semibold">
+                            Expires: {(() => {
+                              const days = calculateDaysUntilExpiry(selectedDiscountHistory);
+                              const dateStr = new Date(selectedDiscountHistory.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                              return days < 0 ? "Expired" : days === 0 ? `Today (${dateStr})` : `${days}d (${dateStr})`;
+                            })()}
+                          </span>
+                        )}
+                      </div>
 
-            <span className="text-green-300 font-mono text-xs font-semibold">
-              {selectedDiscountHistory.couponCode}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
+                      <p className="text-xs text-slate-400">
+                        Track discount usage activity, customer redemptions, and order-level analytics for this promotion.
+                      </p>
 
-    {/* CLOSE BUTTON */}
-    <button
-      onClick={() => {
-        setUsageHistoryModal(false);
-        clearDateFilters();
-      }}
-      className="
-        group
-        relative
-        w-10 h-10
-        flex items-center justify-center
-        rounded-xl
-        border border-slate-700/60
-        bg-slate-800/60
-        text-slate-400
-        hover:text-white
-        hover:bg-red-500/15
-        hover:border-red-500/40
-        active:scale-95
-        transition-all duration-200
-        shrink-0
-      "
-    >
-      <X className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
-    </button>
+                      {selectedDiscountHistory.couponCode && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20">
+                          <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold">
+                            Coupon:
+                          </span>
+                          <span className="text-green-300 font-mono text-xs font-semibold">
+                            {selectedDiscountHistory.couponCode}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-  </div>
-</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsageHistoryModal(false);
+                      clearDateFilters();
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40 transition-all shrink-0 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-            {/* ✅ COMPACT DATE FILTER - INLINE */}
-            <div className="p-3 border-b border-slate-800 bg-slate-900/30">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <CalendarRange className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-300 font-medium">Filter:</span>
+              {/* Filter & Action Bar */}
+              <div className="p-3 border-b border-slate-800 bg-slate-900/40 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <CalendarRange className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-300 font-medium">Filter:</span>
 
-                {/* Quick Presets */}
+                  <button
+                    type="button"
+                    onClick={() => setQuickDateRange('today')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                      dateRangeFilter.startDate === new Date().toISOString().split('T')[0] &&
+                      dateRangeFilter.endDate === new Date().toISOString().split('T')[0]
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDateRange('week')}
+                    className="px-2.5 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-md text-xs font-medium transition-all"
+                  >
+                    7D
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDateRange('month')}
+                    className="px-2.5 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-md text-xs font-medium transition-all"
+                  >
+                    30D
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDateRange('all')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                      !hasDateFilters
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    All
+                  </button>
+
+                  <span className="text-slate-600 mx-1">|</span>
+
+                  <input
+                    type="date"
+                    value={dateRangeFilter.startDate}
+                    onChange={(e) => setDateRangeFilter({...dateRangeFilter, startDate: e.target.value})}
+                    className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  />
+                  <span className="text-slate-500">→</span>
+                  <input
+                    type="date"
+                    value={dateRangeFilter.endDate}
+                    onChange={(e) => setDateRangeFilter({...dateRangeFilter, endDate: e.target.value})}
+                    className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  />
+                  
+                  {hasDateFilters && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={clearDateFilters}
+                        className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-all"
+                        title="Clear Filter"
+                      >
+                        <FilterX className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-blue-400 text-xs ml-1">
+                        {filteredList.length}/{usageHistory.length} shown
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Export Excel Button */}
                 <button
-                  onClick={() => setQuickDateRange('today')}
-                  className={`px-2 py-1 rounded-md font-medium transition-all ${
-                    dateRangeFilter.startDate === new Date().toISOString().split('T')[0] &&
-                    dateRangeFilter.endDate === new Date().toISOString().split('T')[0]
-                      ? 'bg-violet-500 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  type="button"
+                  onClick={exportUsageToExcel}
+                  disabled={!filteredList.length}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                  title="Export records to Excel"
                 >
-                  Today
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Export Excel</span>
                 </button>
-                <button
-                  onClick={() => setQuickDateRange('week')}
-                  className="px-2 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-md font-medium transition-all"
-                >
-                  7D
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('month')}
-                  className="px-2 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-md font-medium transition-all"
-                >
-                  30D
-                </button>
-                <button
-                  onClick={() => setQuickDateRange('all')}
-                  className={`px-2 py-1 rounded-md font-medium transition-all ${
-                    !hasDateFilters
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  All
-                </button>
+              </div>
 
-                <span className="text-slate-600 mx-1">|</span>
+              {/* 5 Metric Cards */}
+              <div className="p-3 border-b border-slate-800 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-medium">Redemptions</p>
+                    <p className="text-base font-bold text-white">{stats.redemptions}</p>
+                  </div>
+                </div>
 
-                {/* Custom Dates */}
-                <input
-                  type="date"
-                  value={dateRangeFilter.startDate}
-                  onChange={(e) => setDateRangeFilter({...dateRangeFilter, startDate: e.target.value})}
-                  className="px-2 py-1 bg-slate-800 border border-slate-600 rounded-md text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 w-32"
-                />
-                <span className="text-slate-500">→</span>
-                <input
-                  type="date"
-                  value={dateRangeFilter.endDate}
-                  onChange={(e) => setDateRangeFilter({...dateRangeFilter, endDate: e.target.value})}
-                  className="px-2 py-1 bg-slate-800 border border-slate-600 rounded-md text-white text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 w-32"
-                />
-                
-                {hasDateFilters && (
-                  <>
-                    <button
-                      onClick={clearDateFilters}
-                      className="p-1 text-red-400 hover:bg-red-500/10 rounded-md transition-all"
-                      title="Clear Filter"
-                    >
-                      <FilterX className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-blue-400 ml-auto">
-                      {getFilteredUsageHistory().length}/{usageHistory.length} shown
-                    </span>
-                  </>
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-medium">Total Sold</p>
+                    <p className="text-base font-bold text-white">£{stats.totalSold.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-pink-500/10 text-pink-400 flex items-center justify-center shrink-0">
+                    <Gift className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-medium">Customer Saved</p>
+                    <p className="text-base font-bold text-white">£{stats.customerSaved.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-medium">Unique Users</p>
+                    <p className="text-base font-bold text-white">{stats.uniqueUsers}</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-medium">Avg</p>
+                    <p className="text-base font-bold text-white">£{stats.avgSaved.toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Table */}
+              <div className="p-3 overflow-y-auto flex-1 min-h-0">
+                {loadingHistory ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-9 h-9 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                      <p className="text-slate-400 text-xs">Loading usage history...</p>
+                    </div>
+                  </div>
+                ) : filteredList.length === 0 ? (
+                  <div className="text-center py-12">
+                    <History className="h-10 w-10 text-slate-600 mx-auto mb-2" />
+                    <p className="text-slate-300 text-sm font-medium mb-1">
+                      {hasDateFilters ? "No transactions in selected range" : "No usage records yet"}
+                    </p>
+                    <p className="text-slate-500 text-xs">
+                      {hasDateFilters ? "Try selecting a broader date range or click All" : "This promotion has not been redeemed yet."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-800/40 text-slate-400">
+                          <th className="text-left py-2.5 px-3 font-medium">#</th>
+                          <th className="text-left py-2.5 px-3 font-medium">Order</th>
+                          <th className="text-left py-2.5 px-3 font-medium">Customer</th>
+                          <th className="text-left py-2.5 px-3 font-medium">Price</th>
+                          <th className="text-left py-2.5 px-3 font-medium">Sell Price</th>
+                          <th className="text-center py-2.5 px-3 font-medium">Discount %</th>
+                          <th className="text-center py-2.5 px-3 font-medium">Customer Saved</th>
+                          <th className="text-right py-2.5 px-3 font-medium">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredList.map((history, index) => (
+                          <tr
+                            key={history.id}
+                            className="border-b border-slate-800/60 hover:bg-slate-800/30 transition-colors"
+                          >
+                            {/* Index */}
+                            <td className="py-2.5 px-3">
+                              <div className="w-5 h-5 rounded bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold">
+                                {index + 1}
+                              </div>
+                            </td>
+
+                            {/* Order */}
+                            <td className="py-2.5 px-3">
+                              <div className="flex flex-col">
+                                <span className="text-white font-semibold text-xs">
+                                  {history.orderNumber || "—"}
+                                </span>
+                                {history.orderId && (
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    {history.orderId.substring(0, 8)}...
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Customer */}
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5">
+                                <Users className="w-3 h-3 text-slate-500 shrink-0" />
+                                <span className="text-white text-xs truncate max-w-[200px]" title={history.customerEmail}>
+                                  {history.customerEmail || "Guest"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Price */}
+                            <td className="py-2.5 px-3 text-slate-300 font-medium">
+                              {history.price != null && history.price > 0 ? `£${history.price.toFixed(2)}` : "—"}
+                            </td>
+
+                            {/* Sell Price */}
+                            <td className="py-2.5 px-3 text-white font-medium">
+                              {history.sellPrice != null && history.sellPrice >= 0 ? `£${history.sellPrice.toFixed(2)}` : "—"}
+                            </td>
+
+                            {/* Discount % */}
+                            <td className="py-2.5 px-3 text-center">
+                              {history.discountPercentage != null && history.discountPercentage > 0 ? (
+                                <span className="text-purple-400 font-semibold">
+                                  {history.discountPercentage.toFixed(1)}%
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">—</span>
+                              )}
+                            </td>
+
+                            {/* Customer Saved */}
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="inline-flex items-center px-2 py-0.5 bg-emerald-950/70 border border-emerald-800/60 text-emerald-400 rounded text-xs font-bold">
+                                £{history.discountAmount.toFixed(2)}
+                              </span>
+                            </td>
+
+                            {/* Date */}
+                            <td className="py-2.5 px-3 text-right text-slate-300">
+                              {formatUsageDate(history.usedAt)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-            </div>
 
-            {/* ✅ ULTRA COMPACT STATS */}
-            <div className="p-3 border-b border-slate-800">
-              <div className="grid grid-cols-4 gap-2">
-                {/* Value */}
-                <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <Percent className="w-3.5 h-3.5 text-violet-400" />
-                    <span className="text-[10px] text-slate-400">Value</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight">
-                    {formatDiscountValue(selectedDiscountHistory)}
-                  </p>
-                  {selectedDiscountHistory.maximumDiscountAmount && (
-                    <p className="text-[10px] text-slate-400">Max £{selectedDiscountHistory.maximumDiscountAmount}</p>
-                  )}
-                </div>
-
-                {/* Times Used */}
-                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-[10px] text-slate-400">Used</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight">
-                    {calculateFilteredStats().totalUsage}
-                  </p>
-                  {selectedDiscountHistory.limitationTimes && (
-                    <p className="text-[10px] text-slate-400">
-                      / {selectedDiscountHistory.limitationTimes}
-                    </p>
-                  )}
-                </div>
-
-                {/* Remaining */}
-                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <Target className="w-3.5 h-3.5 text-green-400" />
-                    <span className="text-[10px] text-slate-400">Left</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight flex items-center gap-1">
-                    {selectedDiscountHistory.discountLimitation === 'Unlimited' ? (
-                      <InfinityIcon className="w-5 h-5" />
-                    ) : (
-                      calculateRemainingUses(selectedDiscountHistory)
-                    )}
-                  </p>
-                </div>
-
-                {/* Expires */}
-                <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <Clock className="w-3.5 h-3.5 text-orange-400" />
-                    <span className="text-[10px] text-slate-400">Expires</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight">
-                    {(() => {
-                      const days = calculateDaysUntilExpiry(selectedDiscountHistory);
-                      return days < 0 ? "Expired" : days === 0 ? "Today" : `${days}d`;
-                    })()}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    {new Date(selectedDiscountHistory.endDate).toLocaleDateString('en-IN', {day: '2-digit', month: 'short'})}
-                  </p>
-                </div>
-
-                {/* Total Saved */}
-                <div className="bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <Gift className="w-3.5 h-3.5 text-pink-400" />
-                    <span className="text-[10px] text-slate-400">Saved</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight">
-                    £{calculateFilteredStats().totalRevenue.toFixed(2)}
-                  </p>
-                </div>
-
-                {/* Customers */}
-                <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <Users className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-[10px] text-slate-400">Users</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight">
-                    {calculateFilteredStats().uniqueCustomers}
-                  </p>
-                </div>
-
-                {/* Avg Discount */}
-                <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="text-[10px] text-slate-400">Avg</span>
-                  </div>
-                  <p className="text-lg font-bold text-white leading-tight">
-                    £{calculateFilteredStats().averageDiscount.toFixed(2)}
-                  </p>
-                </div>
-
-                {/* Type */}
-                <div className="bg-gradient-to-br from-amber-500/10 to-yellow-500/10 border border-amber-500/20 rounded-lg p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-[10px] text-slate-400">Type</span>
-                  </div>
-                  <p className="text-xs font-semibold text-white leading-tight">
-                    {selectedDiscountHistory.discountLimitation === "Unlimited" 
-                      ? "∞" 
-                      : selectedDiscountHistory.discountLimitation === "NTimesOnly"
-                      ? "Limited"
-                      : "Per User"}
-                  </p>
-                </div>
+              {/* Compact Footer */}
+              <div className="p-3 border-t border-slate-800 bg-slate-900/50 flex justify-between items-center">
+                <span className="text-xs text-slate-400">
+                  {hasDateFilters 
+                    ? `${filteredList.length}/${usageHistory.length} shown`
+                    : `${usageHistory.length} total`
+                  }
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsageHistoryModal(false);
+                    clearDateFilters();
+                  }}
+                  className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all font-medium text-xs cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
             </div>
-
-            {/* ✅ COMPACT TABLE */}
-            <div className="p-3 overflow-y-auto max-h-[calc(92vh-380px)]">
-              {loadingHistory ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <div className="w-10 h-10 border-3 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-slate-400 text-sm">Loading...</p>
-                  </div>
-                </div>
-              ) : getFilteredUsageHistory().length === 0 ? (
-                <div className="text-center py-10">
-                  <History className="h-12 w-12 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-400 mb-1">
-                    {hasDateFilters ? "No transactions in range" : "No usage yet"}
-                  </p>
-                  <p className="text-slate-500 text-xs">
-                    {hasDateFilters ? "Try adjusting filters" : "Discount hasn't been used"}
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-800 bg-slate-800/30">
-                        <th className="text-left py-2 px-3 text-slate-400 font-medium text-xs">#</th>
-                        <th className="text-left py-2 px-3 text-slate-400 font-medium text-xs">Order</th>
-                        <th className="text-left py-2 px-3 text-slate-400 font-medium text-xs">Customer</th>
-                        <th className="text-center py-2 px-3 text-slate-400 font-medium text-xs">Saved</th>
-                        <th className="text-center py-2 px-3 text-slate-400 font-medium text-xs">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {getFilteredUsageHistory().map((history, index) => (
-                        <tr
-                          key={history.id}
-                          className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors"
-                        >
-                          {/* Index */}
-                          <td className="py-2 px-3">
-                            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
-                              {index + 1}
-                            </div>
-                          </td>
-
-                          {/* Order */}
-                          <td className="py-2 px-3">
-                            <div className="flex flex-col">
-                              <span className="text-white font-medium text-xs">
-                                {(history as any).orderNumber}
-                              </span>
-                              <span className="text-[10px] text-slate-500">
-                                {history.orderId.substring(0, 8)}...
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Customer */}
-                          <td className="py-2 px-3">
-                            <div className="flex items-center gap-1.5">
-                              <Users className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                              <span className="text-white text-xs truncate max-w-[200px]">
-                                {history.customerEmail}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Discount */}
-                          <td className="py-2 px-3 text-center">
-                            <span className="inline-flex items-center px-2 py-0.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded text-xs font-semibold">
-                              £{history.discountAmount.toFixed(2)}
-                            </span>
-                          </td>
-
-                          {/* Date */}
-                          <td className="py-2 px-3 text-center">
-                            <div className="flex flex-col">
-                              <span className="text-white text-xs font-medium">
-                                {formatDate(history.usedAt)}
-                              </span>
-                             
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Compact Footer */}
-            <div className="p-3 border-t border-slate-700/50 bg-slate-900/50 flex justify-between items-center">
-              <span className="text-xs text-slate-400">
-                {hasDateFilters 
-                  ? `${getFilteredUsageHistory().length}/${usageHistory.length} shown`
-                  : `${usageHistory.length} total`
-                }
-              </span>
-              <button
-                onClick={() => {
-                  setUsageHistoryModal(false);
-                  clearDateFilters();
-                }}
-                className="px-4 py-1.5 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-lg hover:from-slate-600 hover:to-slate-500 transition-all font-medium text-xs"
-              >
-                Close
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       <ImagePreviewModal
   imageUrl={previewImage}
   onClose={() => setPreviewImage(null)}

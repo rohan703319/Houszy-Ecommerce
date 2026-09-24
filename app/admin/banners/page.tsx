@@ -796,8 +796,8 @@ export default function ManageBanners() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className={`p-2 text-[11px] rounded-md border bg-slate-800 ${statusFilter !== "all"
-                ? "border-blue-500 ring-1 ring-blue-500/40 text-white"
-                : "border-slate-700 text-slate-300"
+              ? "border-blue-500 ring-1 ring-blue-500/40 text-white"
+              : "border-slate-700 text-slate-300"
               }`}
           >
             <option value="all">Status</option>
@@ -810,8 +810,8 @@ export default function ManageBanners() {
             value={bannerTypeFilter}
             onChange={(e) => setBannerTypeFilter(e.target.value)}
             className={`p-2 text-[11px] rounded-md border bg-slate-800 ${bannerTypeFilter !== "all"
-                ? "border-violet-500 ring-1 ring-violet-500/40 text-white"
-                : "border-slate-700 text-slate-300"
+              ? "border-violet-500 ring-1 ring-violet-500/40 text-white"
+              : "border-slate-700 text-slate-300"
               }`}
           >
             <option value="all">Type</option>
@@ -828,8 +828,8 @@ export default function ManageBanners() {
             value={deletedFilter}
             onChange={(e) => setDeletedFilter(e.target.value)}
             className={`p-2 text-[11px] rounded-md border bg-slate-800 ${deletedFilter !== "notDeleted"
-                ? "border-red-500 ring-1 ring-red-500/40 text-white"
-                : "border-slate-700 text-slate-300"
+              ? "border-red-500 ring-1 ring-red-500/40 text-white"
+              : "border-slate-700 text-slate-300"
               }`}
           >
             <option value="notDeleted">Live</option>
@@ -957,11 +957,11 @@ export default function ManageBanners() {
                     {/* Type */}
                     <td className="py-2 px-3 text-center">
                       <span className={`px-2 p-2 rounded-md text-[10px] font-medium ${banner.bannerType === 'Offer' ? 'bg-green-500/10 text-green-400' :
-                          banner.bannerType === 'FlashSale' ? 'bg-red-500/10 text-red-400' :
-                            banner.bannerType === 'Seasonal' ? 'bg-orange-500/10 text-orange-400' :
-                              banner.bannerType === 'Category' ? 'bg-blue-500/10 text-blue-400' :
-                                banner.bannerType === 'Promotional' ? 'bg-purple-500/10 text-purple-400' :
-                                  'bg-cyan-500/10 text-cyan-400'
+                        banner.bannerType === 'FlashSale' ? 'bg-red-500/10 text-red-400' :
+                          banner.bannerType === 'Seasonal' ? 'bg-orange-500/10 text-orange-400' :
+                            banner.bannerType === 'Category' ? 'bg-blue-500/10 text-blue-400' :
+                              banner.bannerType === 'Promotional' ? 'bg-purple-500/10 text-purple-400' :
+                                'bg-cyan-500/10 text-cyan-400'
                         }`}>
                         {banner.bannerType || "Homepage"}
                       </span>
@@ -974,8 +974,8 @@ export default function ManageBanners() {
                         <button
                           onClick={() => setStatusConfirm(banner)}
                           className={`px-2 py-0.5 text-[10px] rounded-md ${banner.isActive
-                              ? "bg-green-500/10 text-green-400"
-                              : "bg-slate-500/10 text-slate-400"
+                            ? "bg-green-500/10 text-green-400"
+                            : "bg-slate-500/10 text-slate-400"
                             }`}
                         >
                           {banner.isActive ? "Active" : "Inactive"}
@@ -1097,8 +1097,8 @@ export default function ManageBanners() {
                     key={page}
                     onClick={() => goToPage(page)}
                     className={`px-3 py-2 text-sm rounded-lg transition-all ${currentPage === page
-                        ? 'bg-violet-500 text-white font-semibold'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      ? 'bg-violet-500 text-white font-semibold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                       }`}
                   >
                     {page}
@@ -1320,13 +1320,16 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                 </div>
 
 
-                {/* Banner Image Section */}
+                {/* Desktop Banner Image Section */}
                 <div className="bg-slate-800/30 p-6 rounded-2xl border border-slate-700/50">
                   <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                     <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
                       <Monitor className="w-4 h-4 text-white" />
                     </span>
                     <span>Desktop Banner Image *</span>
+                    <span className="text-xs text-amber-400 font-medium ml-2">
+                      (Recommended: {formData.bannerType === "Seasonal" ? "2666 × 590 px" : "1920 × 765 px"} · WebP only)
+                    </span>
                   </h3>
 
                   <div className="space-y-4">
@@ -1358,8 +1361,8 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                         <div className="flex gap-2">
                           <label
                             className={`px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all ${!formData.title
-                                ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
-                                : "bg-violet-500/20 text-violet-400 hover:bg-violet-500/30"
+                              ? "bg-slate-700/50 text-slate-500 cursor-not-allowed"
+                              : "bg-violet-500/20 text-violet-400 hover:bg-violet-500/30"
                               }`}
                           >
                             Change Image
@@ -1397,15 +1400,15 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                       <div className="flex items-center justify-center w-full">
                         <label
                           className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl transition-all cursor-pointer ${!formData.title
-                              ? "border-slate-700 bg-slate-900/20 cursor-not-allowed opacity-50"
-                              : "border-slate-600 bg-slate-900/30 hover:bg-slate-800/50 group"
+                            ? "border-slate-700 bg-slate-900/20 cursor-not-allowed opacity-50"
+                            : "border-slate-600 bg-slate-900/30 hover:bg-slate-800/50 group"
                             }`}
                         >
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <Upload
                               className={`w-8 h-8 mb-4 transition-colors ${!formData.title
-                                  ? "text-slate-600"
-                                  : "text-slate-500 group-hover:text-violet-400"
+                                ? "text-slate-600"
+                                : "text-slate-500 group-hover:text-violet-400"
                                 }`}
                             />
                             <p className={`mb-2 text-sm ${!formData.title ? "text-slate-600" : "text-slate-500"}`}>
@@ -1418,7 +1421,9 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                               )}
                             </p>
                             {formData.title && (
-                              <p className="text-xs text-amber-400 font-medium">Only WebP (.webp) images allowed</p>
+                              <p className="text-xs text-amber-400 font-medium">
+                                Recommended: {formData.bannerType === "Seasonal" ? "2666 × 590 px" : "1920 × 765 px"} (WebP only)
+                              </p>
                             )}
                           </div>
                           <input
@@ -1435,15 +1440,12 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                       </div>
                     )}
 
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 space-y-1">
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                       <p className="text-xs text-blue-400 flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 shrink-0" />
                         {editingBanner
                           ? "Uploading new image will automatically delete the old one from server"
                           : "Desktop banner image is required for creation"}
-                      </p>
-                      <p className="text-xs text-amber-400 font-medium pl-6">
-                        • Format: Only .webp images are allowed.
                       </p>
                     </div>
                   </div>
@@ -1457,6 +1459,9 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                     </span>
                     <span>Mobile Banner Image</span>
                     <span className="text-xs text-slate-400 font-normal ml-1">(optional)</span>
+                    <span className="text-xs text-amber-400 font-medium ml-2">
+                      (Recommended: {formData.bannerType === "Seasonal" ? "2666 × 590 px" : "1175 × 1338 px"} · WebP only)
+                    </span>
                   </h3>
                   <p className="text-xs text-slate-400 mb-4">If set, this image will be shown on mobile devices. Otherwise the desktop image will be used.</p>
 
@@ -1519,7 +1524,7 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                             <p className="text-sm text-slate-500">
                               <span className="font-semibold">Click to upload</span> mobile image
                             </p>
-                            <p className="text-xs text-amber-400 font-medium mt-1">Only WebP (.webp) images allowed</p>
+
                           </div>
                           <input
                             type="file"
@@ -1688,11 +1693,11 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-300 font-semibold">Banner Type:</span>
                       <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-bold ${viewingBanner.bannerType === 'Offer' ? 'bg-green-500/10 text-green-400' :
-                          viewingBanner.bannerType === 'FlashSale' ? 'bg-red-500/10 text-red-400' :
-                            viewingBanner.bannerType === 'Seasonal' ? 'bg-orange-500/10 text-orange-400' :
-                              viewingBanner.bannerType === 'Category' ? 'bg-blue-500/10 text-blue-400' :
-                                viewingBanner.bannerType === 'Promotional' ? 'bg-purple-500/10 text-purple-400' :
-                                  'bg-cyan-500/10 text-cyan-400'
+                        viewingBanner.bannerType === 'FlashSale' ? 'bg-red-500/10 text-red-400' :
+                          viewingBanner.bannerType === 'Seasonal' ? 'bg-orange-500/10 text-orange-400' :
+                            viewingBanner.bannerType === 'Category' ? 'bg-blue-500/10 text-blue-400' :
+                              viewingBanner.bannerType === 'Promotional' ? 'bg-purple-500/10 text-purple-400' :
+                                'bg-cyan-500/10 text-cyan-400'
                         }`}>
                         <Tag className="h-4 w-4 mr-1.5" />
                         {viewingBanner.bannerType || 'Homepage'}

@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.athlits.co.uk';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.houszy.co.uk';
 
 export const API_ENDPOINTS = {
   // Auth
@@ -69,7 +69,10 @@ export const API_ENDPOINTS = {
 
   // Shipping
   shipping: "/api/Shipping",
+  carriers: '/api/Shipping/carriers',
   deliveryOptions: '/api/Shipping/delivery-options',
+  deliveryServices: '/api/Shipping/delivery-services',
+  nonWorkingDays: '/api/Shipping/non-working-days',
   postcodeRules: '/api/Shipping/postcode-rules',
 
   // Image Management
@@ -125,6 +128,10 @@ export const API_ENDPOINTS = {
     base: '/api/ActivityLogs',
     delete: (id: string) => `/api/ActivityLogs/${id}`,
     clear: '/api/ActivityLogs/clear',
+    files: '/api/ActivityLogs/files',
+    downloadFile: (id: string) => `/api/ActivityLogs/files/${id}/download`,
+    deleteFile: (id: string) => `/api/ActivityLogs/files/${id}`,
+    auditTrail: '/api/ActivityLogs/audit-trail',
   },
   dashboard: {
     stats: '/api/Dashboard/stats',

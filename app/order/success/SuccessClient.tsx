@@ -4,14 +4,31 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { formatDate } from "@/lib/services/orders";
-import { ArrowRight, MapPin, Package, PackageCheck, PackageIcon, ShoppingBag, Store } from "lucide-react";
+import { formatDate, formatDateOnly } from "@/lib/services/orders";
+import { ArrowRight, Calendar, CheckCircle2, Clock, MapPin, Package, PackageCheck, PackageIcon, Repeat, ShoppingBag, Store, Tag } from "lucide-react";
 import { trackAdsPurchase, trackPurchase } from "@/lib/analytics";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 function formatCurrency(n = 0) {
   return `£${n.toFixed(2)}`;
+}
+
+function formatFrequencyDisplay(freq?: string | null): string {
+  if (!freq) return "Active Subscription";
+  const clean = freq.replace(/[-_]/g, " ").trim();
+  if (
+    !clean.toLowerCase().startsWith("every ") &&
+    !clean.toLowerCase().includes("week") &&
+    !clean.toLowerCase().includes("month") &&
+    !clean.toLowerCase().includes("year")
+  ) {
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  if (/^\d+\s*(weeks?|months?|days?|years?)$/i.test(clean)) {
+    return `Every ${clean}`;
+  }
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
 /* === Stripe wrapper component === */
@@ -248,17 +265,34 @@ export default function SuccessClient() {
     ? [...order.payments].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
     : null;
 
-  const isOnlinePayment = order?.paymentMethod?.toLowerCase() === "stripe" || 
-                          order?.payments?.some((p: any) => p.paymentMethod?.toLowerCase() === "stripe");
-
   const redirectStatus = searchParams.get("redirect_status");
+  const isPendingParam = searchParams.get("payment_pending") === "true";
 
-  const isPaymentPending = order?.status === "Pending" && 
-                           order?.totalAmount > 0 && 
-                           isOnlinePayment && 
-                           redirectStatus !== "succeeded" &&
-                           redirectStatus !== "processing" &&
-                           (latestPayment?.status === "Pending" || latestPayment?.status === "Failed" || order?.paymentStatus === "Pending");
+  const isPaid =
+    order?.paymentStatus === "Successful" ||
+    order?.paymentStatus === "Completed" ||
+    order?.status === "Confirmed" ||
+    order?.status === "Processing" ||
+    order?.payments?.some((p: any) => p.status === "Successful" || p.status === "Completed");
+
+  const isOnlinePayment =
+    order?.paymentMethod?.toLowerCase() !== "cashondelivery" &&
+    order?.paymentMethod?.toLowerCase() !== "pay on delivery";
+
+  const isPaymentPending =
+    !isPaid &&
+    order?.totalAmount > 0 &&
+    isOnlinePayment &&
+    redirectStatus !== "succeeded" &&
+    redirectStatus !== "processing" &&
+    (
+      isPendingParam ||
+      order?.status === "Pending" ||
+      order?.paymentStatus === "Pending" ||
+      order?.paymentStatus === "Failed" ||
+      latestPayment?.status === "Pending" ||
+      latestPayment?.status === "Failed"
+    );
 
   useEffect(() => {
     if (!orderId) {
@@ -270,12 +304,27 @@ export default function SuccessClient() {
       try {
         const paymentIntentId = searchParams.get("payment_intent");
         if (paymentIntentId) {
-          try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/confirm/${paymentIntentId}`, {
-              method: "POST",
-            });
-          } catch (err) {
-            console.error("Error confirming payment on load:", err);
+          // If returning from redirect (Revolut, Klarna, 3DS), retry confirmation up to 3 times (1.5s delay)
+          // to allow Stripe status to settle from 'processing' to 'succeeded'
+          let confirmed = false;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const confRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/confirm/${paymentIntentId}`, {
+                method: "POST",
+              });
+              if (confRes.ok) {
+                const confJson = await confRes.json();
+                if (confJson?.data?.status === "Successful" || confJson?.data?.status === 1) {
+                  confirmed = true;
+                  break;
+                }
+              }
+            } catch (err) {
+              console.error("Error confirming payment on load:", err);
+            }
+            if (!confirmed && attempt < 2) {
+              await new Promise((res) => setTimeout(res, 1500));
+            }
           }
         }
 
@@ -382,10 +431,32 @@ export default function SuccessClient() {
   }
 
   const payment = order.payments?.find((p: any) => p.status === "Successful" || p.status === "Completed") ??
-                  (order.payments?.length ? [...order.payments].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null) ??
-                  null;
+    (order.payments?.length ? [...order.payments].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null) ??
+    null;
   const loyaltyPointsEarned = order.loyaltyPointsEarned ?? 0;
   const loyaltyDiscount = order.loyaltyDiscountAmount ?? 0;
+
+  const isSubscriptionOrder =
+    Boolean(order.isSubscriptionOrder) ||
+    Boolean(order.subscriptionId) ||
+    order.orderItems?.some(
+      (item: any) =>
+        Boolean(item.subscriptionFrequency) &&
+        item.subscriptionFrequency.toLowerCase() !== "none" &&
+        item.subscriptionFrequency.toLowerCase() !== "one-time"
+    );
+
+  const subscriptionFrequency =
+    order.subscriptionFrequency ||
+    order.orderItems?.find(
+      (item: any) =>
+        Boolean(item.subscriptionFrequency) &&
+        item.subscriptionFrequency.toLowerCase() !== "none" &&
+        item.subscriptionFrequency.toLowerCase() !== "one-time"
+    )?.subscriptionFrequency ||
+    "Every 2 Weeks";
+
+  const nextDeliveryDate = order.nextDeliveryDate;
 
   return (
     <div className="max-w-7xl  mx-auto px-4 md:px-6 py-2">
@@ -501,6 +572,95 @@ export default function SuccessClient() {
           {/* LEFT */}
           <div className="lg:col-span-2 space-y-6">
 
+            {/* RECURRING SUBSCRIPTION DETAILS CARD */}
+            {isSubscriptionOrder && (
+              <section className="border border-orange-200 bg-orange-50/30 rounded p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-orange-200/60 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded bg-[#f38918] text-white flex items-center justify-center shadow-xs shrink-0">
+                      <Repeat className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-base font-bold text-gray-900">
+                          Recurring Subscription Active
+                        </h2>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+                          ✓ Active Plan
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Your recurring subscription has been activated with automated delivery schedule.
+                      </p>
+                    </div>
+                  </div>
+
+                  {isAuthenticated && (
+                    <Link
+                      href="/account?tab=subscriptions"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#f38918] hover:text-black bg-white hover:bg-orange-50 border border-orange-200 px-3.5 py-2 rounded transition shadow-xs self-start sm:self-auto"
+                    >
+                      <Repeat className="w-3.5 h-3.5 text-[#f38918]" />
+                      <span>Manage Subscription</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </div>
+
+                {/* DETAILS TILES */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="bg-white border border-gray-200 rounded p-3.5 shadow-xs">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 block mb-1">
+                      Delivery Frequency
+                    </span>
+                    <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-[#f38918] shrink-0" />
+                      <span>{formatFrequencyDisplay(subscriptionFrequency)}</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded p-3.5 shadow-xs">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 block mb-1">
+                      Next Estimated Delivery
+                    </span>
+                    <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-[#f38918] shrink-0" />
+                      <span>{nextDeliveryDate ? formatDate(nextDeliveryDate) : "Scheduled"}</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded p-3.5 shadow-xs sm:col-span-2 lg:col-span-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 block mb-1">
+                      Renewal Mode
+                    </span>
+                    <p className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Auto-Renew Active</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* 5% DISCOUNT PROMISE BANNER */}
+                <div className="bg-white border border-[#f38918]/40 rounded p-3.5 shadow-xs flex items-start sm:items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-orange-100 text-[#f38918] flex items-center justify-center shrink-0 text-lg font-bold">
+                    🏷️
+                  </div>
+                  <div className="text-xs space-y-0.5">
+                    <p className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                      <span className="text-[#f38918]">Up to 5% OFF on Next Renewal Order!</span>
+                    </p>
+                    <p className="text-gray-600 leading-relaxed">
+                      You will automatically get <strong>up to 5% discount</strong> applied on your next recurring subscription order when it renews.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-gray-500 pt-1 gap-1">
+                  <span>💡 You can pause, reschedule, or cancel your recurring subscription anytime from your account.</span>
+                </div>
+              </section>
+            )}
+
             {/* ORDER INFO */}
             <section>
               <h2 className="text-sm font-semibold uppercase mb-2">
@@ -529,11 +689,48 @@ export default function SuccessClient() {
                     {order.deliveryMethod}
                   </span>
                 </div>
-                {order.subscriptionId && (
-                  <div className="flex justify-between text-indigo-700 bg-indigo-50 border border-indigo-100 p-2 rounded mt-2 text-xs">
-                    <span className="font-semibold">Subscription:</span>
-                    <span className="font-bold uppercase">{order.subscriptionFrequency ? order.subscriptionFrequency.replace("-", " ") : "Active"}</span>
+
+                {order.estimatedDispatchDate && (
+                  <div className="flex justify-between">
+                    <span>Dispatch ETA:</span>
+                    <span className="font-medium text-gray-900">
+                      {formatDateOnly(order.estimatedDispatchDate)}
+                    </span>
                   </div>
+                )}
+
+                {(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax) && (
+                  <div className="flex justify-between">
+                    <span>Estimated Delivery:</span>
+                    <span className="font-semibold text-emerald-700">
+                      {order.estimatedDeliveryDateMin && order.estimatedDeliveryDateMax &&
+                      order.estimatedDeliveryDateMin.split('T')[0] !== order.estimatedDeliveryDateMax.split('T')[0]
+                        ? `${formatDateOnly(order.estimatedDeliveryDateMin)} – ${formatDateOnly(order.estimatedDeliveryDateMax)}`
+                        : formatDateOnly(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax)}
+                    </span>
+                  </div>
+                )}
+                {isSubscriptionOrder && (
+                  <>
+                    <div className="flex justify-between text-gray-900 bg-orange-50/50 border border-orange-200/60 p-2 rounded mt-2 text-xs">
+                      <span className="font-semibold flex items-center gap-1">
+                        <Repeat className="w-3.5 h-3.5 text-[#f38918]" />
+                        Subscription Plan:
+                      </span>
+                      <span className="font-bold text-[#f38918] uppercase">
+                        {formatFrequencyDisplay(subscriptionFrequency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-gray-800 bg-gray-50 border border-gray-200 p-2 rounded text-xs">
+                      <span className="font-semibold flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-[#f38918]" />
+                        Next Estimated Delivery:
+                      </span>
+                      <span className="font-bold text-gray-900">
+                        {nextDeliveryDate ? formatDate(nextDeliveryDate) : "Scheduled"}
+                      </span>
+                    </div>
+                  </>
                 )}
                 {order.pharmacyVerificationStatus && (
                   <div className="flex justify-between">
@@ -777,10 +974,21 @@ export default function SuccessClient() {
                       )}
 
                       {item.subscriptionFrequency && (
-                        <div className="mt-1">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase shrink-0">
-                            Subscription ({item.subscriptionFrequency.replace("-", " ")})
-                          </span>
+                        <div className="mt-1.5 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-orange-50 border border-orange-200 text-[#f38918] uppercase shrink-0">
+                              <Repeat className="w-3 h-3 text-[#f38918]" />
+                              Subscription ({formatFrequencyDisplay(item.subscriptionFrequency)})
+                            </span>
+                            {item.nextDeliveryDate && (
+                              <span className="text-[11px] text-gray-600">
+                                Next Delivery: <strong className="text-gray-900">{formatDate(item.nextDeliveryDate)}</strong>
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                            <span>✨</span> Up to 5% OFF will be applied automatically on your next renewal order
+                          </div>
                         </div>
                       )}
 
@@ -978,10 +1186,22 @@ export default function SuccessClient() {
                 {isAuthenticated && (
                   <Link
                     href="/account?tab=orders"
-                    className="flex items-center justify-center gap-2 bg-[#f38918] text-white py-3 rounded font-semibold hover:opacity-90 transition"
+                    className="flex items-center justify-center gap-2 bg-[#f38918] text-white py-3 rounded font-semibold hover:opacity-90 transition shadow-xs"
                   >
                     <PackageIcon className="w-5 h-5" />
                     Go to My Orders
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
+
+                {/* Manage Subscription (if subscription order and logged in) */}
+                {isAuthenticated && isSubscriptionOrder && (
+                  <Link
+                    href="/account?tab=subscriptions"
+                    className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white py-3 rounded font-semibold transition shadow-xs"
+                  >
+                    <Repeat className="w-5 h-5 text-[#f38918]" />
+                    Manage Subscription
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 )}

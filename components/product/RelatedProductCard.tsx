@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import QuantitySelector from "@/components/shared/QuantitySelector";
-import { Star, StarHalf, BadgePercent, ChevronLeft, ChevronRight, AwardIcon, Heart, Zap } from "lucide-react";
+import { Star, StarHalf, BadgePercent, ChevronLeft, ChevronRight, AwardIcon, Heart, Zap, Truck } from "lucide-react";
 
 import { useWishlist } from "@/context/WishlistContext";
 import {
@@ -22,8 +22,6 @@ import "swiper/css/autoplay";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
 // import GenderBadge from "../shared/GenderBadge";
-import { useRef } from "react";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { useRouter } from "next/navigation";
 import { trackAddToCart } from "@/lib/analytics";
 
@@ -139,25 +137,8 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
   // VAT Rate / Exempt Logic
   // Use vatRate directly from API response
   const vatRate: number | null = (product as any).vatRate ?? null;
-  const [showPharmaModal, setShowPharmaModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"cart" | null>(null);
-
-  // 🔒 double-submit protection
-  const pharmaApprovedRef = useRef(false);
-  const handlePharmaGuard = (action: "cart") => {
-    // already approved in this flow
-    if (pharmaApprovedRef.current) return true;
-
-    if (product.isPharmaProduct) {
-      setPendingAction(action);
-      setShowPharmaModal(true);
-      return false;
-    }
-    return true;
-  };
 
   const handleAddToCart = () => {
-    if (!handlePharmaGuard("cart")) return;
     if (product.disableBuyButton) return;
     const variantId = defaultVariant?.id ?? null;
 
@@ -187,13 +168,9 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
       return;
     }
 
-    const nextDayDeliveryEnabled = defaultVariant
-      ? defaultVariant.nextDayDeliveryEnabled === true
-      : !!product.nextDayDeliveryEnabled;
+    const nextDayDeliveryEnabled = (defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
 
-    const nextDayDeliveryFree = defaultVariant
-      ? defaultVariant.nextDayDeliveryFree === true
-      : !!product.nextDayDeliveryFree;
+    const nextDayDeliveryFree = (defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
 
     trackAddToCart({ productId: product.id, name: product.name, price: sellPriceToShow, quantity: qty });
     addToCart({
@@ -308,8 +285,8 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
               </div>
             </div>
           )}
-          {/* Coupon badge — smaller */}
-          {!discountBadge && hasActiveCoupon && (
+          {/* Coupon badge — Disabled */}
+          {/* {!discountBadge && hasActiveCoupon && (
             <div className="absolute top-1 md:top-2 left-1 md:left-2 z-20">
               <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
 
@@ -322,23 +299,30 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
                   </span>
                 </div>
 
-                {/* hole */}
                 <span className="absolute -top-1 left-2 w-2 h-2 bg-white border border-red-200 rounded-full shadow-inner"></span>
 
-                {/* string effect */}
                 <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
 
               </div>
             </div>
-          )}
-          {/* Free Next Day badge — bottom left on image */}
-          {isNextDayFree && stock > 0 && (
-            <span
-              className="absolute left-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
-            >
-              <Zap className="h-2.5 w-2.5 fill-white flex-shrink-0" />
-              <span>Free Next Day Delivery</span>
-            </span>
+          )} */}
+          {/* ⚡ Delivery Badge — bottom right on image */}
+          {stock > 0 && (
+            isNextDayFree ? (
+              <span
+                className="absolute right-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
+              >
+                <Zap className="h-2.5 w-2.5 fill-white flex-shrink-0" />
+                <span>Free Next Day Delivery</span>
+              </span>
+            ) : sellPriceToShow >= 40 ? (
+              <span
+                className="absolute right-2 bottom-1.5 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none"
+              >
+                <Truck className="h-2.5 w-2.5 text-white flex-shrink-0" />
+                <span>Free Delivery</span>
+              </span>
+            ) : null
           )}
           <button
             onClick={(e) => {
@@ -480,40 +464,6 @@ export default function RelatedProductCard({ product, getImageUrl }: any) {
             {stock === 0 ? "Out of Stock" : "Add to Cart"}
           </Button>
         </div>
-
-
-        {showPharmaModal && (
-          <PharmaQuestionsModal
-            open={showPharmaModal}
-            productId={product.id} // ✅ MAIN PRODUCT ID
-            mode="add"
-            onClose={() => {
-              setShowPharmaModal(false);
-              setPendingAction(null);
-            }}
-            onSuccess={(messageFromBackend) => {
-              pharmaApprovedRef.current = true;
-
-
-
-              setShowPharmaModal(false);
-
-              if (pendingAction === "cart") {
-                setPendingAction(null);
-
-                // 🔥 THIS IS THE KEY
-                handleAddToCart();
-              }
-
-              // reset for next product
-              setTimeout(() => {
-                pharmaApprovedRef.current = false;
-              }, 0);
-            }}
-
-          />
-        )}
-
       </CardContent>
     </Card>
 

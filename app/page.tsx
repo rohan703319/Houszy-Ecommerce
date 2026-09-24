@@ -183,12 +183,13 @@ async function getHomeBlogs(baseUrl: string): Promise<BlogPost[]> {
   }
 }
 
+/*
 async function getDiscountedProducts(baseUrl: string) {
   try {
     // No showOnHomepage filter — fetch ALL published products to find discounted ones
     const res = await fetch(
       `${baseUrl}/api/Products?page=1&pageSize=100&sortDirection=asc&isPublished=true&isDeleted=false`,
-      { next: { revalidate: 60 } }
+      { cache: "no-store" }
     );
     const result = await res.json();
     if (!result.success) return [];
@@ -202,8 +203,7 @@ async function getDiscountedProducts(baseUrl: string) {
     return [];
   }
 }
-
-
+*/
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.houszy.co.uk"),
@@ -244,11 +244,10 @@ export const metadata: Metadata = {
 export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL!;
 
-  const [products, categories, banners, discountedProducts, blogs] = await Promise.all([
+  const [products, categories, banners, blogs] = await Promise.all([
     getProducts(baseUrl),
     getCategories(baseUrl),
     getBanners(baseUrl),
-    getDiscountedProducts(baseUrl),
     getHomeBlogs(baseUrl),
   ]);
   const activeBanners = getActiveBanners(banners);
@@ -406,11 +405,11 @@ export default async function Home() {
         </section>
 
         {/* ===== DISCOUNTED PRODUCTS (FITNESS HOT DEALS) ===== */}
-        <section className="w-full bg-white pt-0 pb-10">
+        {/* <section className="w-full bg-white pt-0 pb-10">
           <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
             <DiscountedProductsSlider products={discountedProducts} baseUrl={baseUrl} />
           </div>
-        </section>
+        </section> */}
 
         {/* ===== LATEST BLOGS ===== */}
         {blogs.length > 0 && (

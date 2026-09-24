@@ -4,8 +4,25 @@ import { API_ENDPOINTS } from "../api-config";
 interface GoogleMerchantResponse {
   success: boolean;
   message: string;
-  data: string;
+  data: any;
   errors?: string[];
+}
+
+export interface GoogleMerchantSyncStatus {
+  isRunning: boolean;
+  status: "Idle" | "InProgress" | "Completed" | "CompletedWithErrors" | "Failed";
+  currentAction: "sync-all" | "clean-resync" | null;
+  startedAt?: string;
+  completedAt?: string;
+  totalEligible: number;
+  processed: number;
+  synced: number;
+  failed: number;
+  currentBatch: number;
+  totalBatches: number;
+  percentComplete: number;
+  message: string;
+  recentErrors: string[];
 }
 
 export const googleMerchantService = {
@@ -27,7 +44,6 @@ export const googleMerchantService = {
     );
   },
 
-  // ✅ NEW
   getFeedXml: async () => {
     return apiClient.get(
       `${API_ENDPOINTS.GoogleMerchantCenter}/feed.xml`,
@@ -49,6 +65,12 @@ export const googleMerchantService = {
       {
         responseType: "text",
       }
+    );
+  },
+
+  getSyncStatus: async () => {
+    return apiClient.get<GoogleMerchantSyncStatus>(
+      `${API_ENDPOINTS.GoogleMerchantCenter}/sync-status`
     );
   },
 };

@@ -6,11 +6,9 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import QuantitySelector from "@/components/shared/QuantitySelector";
-import { Star, BadgePercent, AwardIcon, Heart } from "lucide-react";
+import { Star, BadgePercent, AwardIcon, Heart, Zap, Truck } from "lucide-react";
 
 import { useToast } from "@/components/toast/CustomToast";
-import { useRef } from "react";
-import PharmaQuestionsModal from "@/components/pharma/PharmaQuestionsModal";
 import { useWishlist } from "@/context/WishlistContext";
 import { getOldPriceDiscount } from "@/utils/pricing";
 import {
@@ -131,34 +129,16 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
   };
 
   const stock = defaultVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+  const isNextDayFree = defaultVariant
+    ? defaultVariant.nextDayDeliveryFree === true && defaultVariant.nextDayDeliveryEnabled === true
+    : !!product.nextDayDeliveryFree && !!product.nextDayDeliveryEnabled;
 
   // VAT Rate / Exempt Logic
   // Use vatRate directly from API response
   const vatRate: number | null = (product as any).vatRate ?? null;
-  const [showPharmaModal, setShowPharmaModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"cart" | null>(null);
-
-  // 🔒 double-submit protection
-  const pharmaApprovedRef = useRef(false);
-
-  const handlePharmaGuard = (action: "cart") => {
-    // ✅ already approved in this flow
-    if (pharmaApprovedRef.current) return true;
-
-    if (product.isPharmaProduct) {
-      setPendingAction(action);
-      setShowPharmaModal(true);
-      return false;
-    }
-
-    return true;
-  };
 
   const handleAddToCart = () => {
     if (product.disableBuyButton) return;
-
-    // 🔥 PHARMA GUARD
-    if (!handlePharmaGuard("cart")) return;
 
     const variantId = defaultVariant?.id ?? null;
     const maxQty = (defaultVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
@@ -190,13 +170,9 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
       return;
     }
 
-    const nextDayDeliveryEnabled = defaultVariant
-      ? defaultVariant.nextDayDeliveryEnabled === true
-      : !!product.nextDayDeliveryEnabled;
+    const nextDayDeliveryEnabled = (defaultVariant?.nextDayDeliveryEnabled === true) || (defaultVariant?.nextDayDeliveryEnabled == null && !!product.nextDayDeliveryEnabled);
 
-    const nextDayDeliveryFree = defaultVariant
-      ? defaultVariant.nextDayDeliveryFree === true
-      : !!product.nextDayDeliveryFree;
+    const nextDayDeliveryFree = (defaultVariant?.nextDayDeliveryFree === true) || (defaultVariant?.nextDayDeliveryFree == null && !!product.nextDayDeliveryFree);
 
     trackAddToCart({ productId: product.id, name: product.name, price: sellPriceToShow, quantity: qty });
     addToCart({
@@ -308,8 +284,8 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
             </div>
           )}
 
-          {/* Coupon badge */}
-          {!hasDiscount && hasActiveCoupon && (
+          {/* Coupon badge - Disabled */}
+          {/* {!hasDiscount && hasActiveCoupon && (
             <div className="absolute top-1 left-2 z-20">
               <div className="relative bg-gradient-to-br from-red-50 to-red-100 text-red-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-md shadow-lg rotate-[-6deg] border border-red-200 leading-tight">
                 <div className="flex flex-col items-center text-center">
@@ -320,7 +296,7 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
                 <span className="absolute -top-3 left-[10px] w-[1px] h-3 bg-gray-300"></span>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* VAT Relief — bottom left on image */}
           {(product.vatExempt || (product as any).vatRate === 0) && (
@@ -328,6 +304,21 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
               <BadgePercent className="h-2.5 w-2.5" />
               VAT Relief
             </span>
+          )}
+
+          {/* ⚡ Delivery Badge — bottom right on image */}
+          {stock > 0 && (
+            isNextDayFree ? (
+              <span className="absolute bottom-1.5 right-2 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none">
+                <Zap className="h-2 w-2 md:h-2.5 md:w-2.5 fill-white flex-shrink-0" />
+                <span>Free Next Day Delivery</span>
+              </span>
+            ) : sellPriceToShow >= 40 ? (
+              <span className="absolute bottom-1.5 right-2 z-20 inline-flex items-center gap-0.5 font-bold text-white bg-gradient-to-r from-[#f38918] to-[#e07010] px-1 md:px-1.5 py-0.5 rounded shadow-sm text-[7px] md:text-[9px] whitespace-nowrap leading-none">
+                <Truck className="h-2 w-2 md:h-2.5 md:w-2.5 text-white flex-shrink-0" />
+                <span>Free Delivery</span>
+              </span>
+            ) : null
           )}
 
           {/* ✅ WISHLIST BUTTON - RIGHT SIDE (Top Right) */}
@@ -445,29 +436,6 @@ export default function CrossSellProductCard({ product, getImageUrl }: any) {
           >
             {stock === 0 ? "Out of Stock" : "Add to Cart"}
           </Button>
-
-          {showPharmaModal && (
-            <PharmaQuestionsModal
-              open={showPharmaModal}
-              productId={product.id}
-              mode="add"
-              onClose={() => {
-                setShowPharmaModal(false);
-                setPendingAction(null);
-              }}
-              onSuccess={() => {
-                pharmaApprovedRef.current = true;
-                setShowPharmaModal(false);
-                if (pendingAction === "cart") {
-                  setPendingAction(null);
-                  handleAddToCart(); // 🔥 RESUME
-                }
-                setTimeout(() => {
-                  pharmaApprovedRef.current = false;
-                }, 0);
-              }}
-            />
-          )}
         </div>
       </CardContent>
     </Card>

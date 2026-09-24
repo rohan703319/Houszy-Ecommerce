@@ -2,7 +2,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, X, ExternalLink, FolderTree, Clock3, } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Percent, Eye, Filter, History, FilterX, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertCircle, Calendar, Gift, Target, Clock, TrendingUp, Users, Infinity as InfinityIcon, CalendarRange, ChevronDown, Package, RotateCcw, X, ExternalLink, FolderTree, Clock3, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useToast } from "@/app/admin/_components/CustomToast";
 import {
   Discount,
@@ -16,7 +17,7 @@ import { DiscountUsageHistory } from "@/lib/services/discounts";
 import DiscountModals from "./DiscountModals";
 import ConfirmDialog from "@/app/admin/_components/ConfirmDialog";
 import { useDebounce } from "../_hooks/useDebounce";
-import { getImageUrl } from "../_utils/formatUtils";
+import { getImageUrl, parseDateSafely } from "../_utils/formatUtils";
 import ImagePreviewModal from "../_components/ImagePreviewModal";
 import { getBackendMessage} from "@/app/admin/_utils/errorUtils";
 import { getSelectStyles } from "../_utils/styles";
@@ -180,6 +181,7 @@ export default function DiscountsPage() {
   const [selectedDiscountHistory, setSelectedDiscountHistory] = useState<Discount | null>(null);
   const [usageHistory, setUsageHistory] = useState<DiscountUsageHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [exportingAllUsage, setExportingAllUsage] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [dateRangeFilter, setDateRangeFilter] = useState({ startDate: "", endDate: "" });
@@ -815,6 +817,73 @@ const handleViewUsageHistory = async (discount: Discount) => {
   }
 };
 
+const formatUsageDate = (dateString?: string | null): string => {
+  if (!dateString) return "";
+  const date = parseDateSafely(dateString);
+  if (!date) return String(dateString);
+  const day = date.toLocaleString("en-GB", { day: "2-digit", timeZone: "Europe/London" });
+  const month = date.toLocaleString("en-GB", { month: "short", timeZone: "Europe/London" });
+  const year = date.toLocaleString("en-GB", { year: "numeric", timeZone: "Europe/London" });
+  const time = date.toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Europe/London" }).toLowerCase();
+  return `${day} ${month} ${year}, ${time}`;
+};
+
+const handleExportAllUsage = async () => {
+  try {
+    setExportingAllUsage(true);
+    toast.info("Fetching all discount usage records...");
+    const res = await discountsService.getAllUsageHistory();
+    const usages = res.data?.data || [];
+    if (!usages.length) {
+      toast.warning("No discount usage records found to export.");
+      return;
+    }
+
+    const excelData = usages.map((u) => {
+      const typeLabel =
+        u.discountType === "AssignedToProducts"
+          ? "Products"
+          : u.discountType === "UptoXPercent"
+          ? "Up to %"
+          : u.discountType === "AssignedToCategories"
+          ? "Categories"
+          : u.discountType === "AssignedToOrderTotal"
+          ? "Order Total"
+          : u.discountType === "AssignedToOrderSubTotal"
+          ? "Order Subtotal"
+          : u.discountType || "—";
+
+      return {
+        "Discount Name": u.discountName || "—",
+        "Discount Type": typeLabel,
+        "Order Number": u.orderNumber || "—",
+        "Customer Email": u.customerEmail || "—",
+        "Price (£)": u.price != null && u.price > 0 ? Number(u.price.toFixed(2)) : "—",
+        "Sell Price (£)": u.sellPrice != null && u.sellPrice >= 0 ? Number(u.sellPrice.toFixed(2)) : "—",
+        "Discount %": u.discountPercentage != null && u.discountPercentage > 0 ? `${u.discountPercentage.toFixed(1)}%` : "—",
+        "Customer Saved (£)": u.discountAmount != null ? Number(u.discountAmount.toFixed(2)) : 0,
+        "Used At": formatUsageDate(u.usedAt),
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const keys = Object.keys(excelData[0] || {});
+    worksheet["!cols"] = keys.map((key) => ({
+      wch: Math.max(key.length + 3, ...excelData.map((row: any) => String(row[key] ?? "").length + 2)),
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "All Discount Usage");
+    XLSX.writeFile(workbook, `all_discount_usage_${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast.success(`Exported ${usages.length} discount usage records successfully!`);
+  } catch (err: any) {
+    console.error("Error exporting all discount usage:", err);
+    toast.error(getBackendMessage(err) || "Failed to export all discount usage.");
+  } finally {
+    setExportingAllUsage(false);
+  }
+};
+
 const clearFilters = () => {
   setActiveFilter("all");
   setTypeFilter("all");
@@ -1002,13 +1071,26 @@ const filteredDiscounts = discounts.filter((discount) => {
     </p>
   </div>
 
-  <Link
-    href="/admin/discounts/add"
-    className="px-3 py-1.5 text-[11px] bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-md hover:opacity-90 transition-all flex items-center gap-1.5"
-  >
-    <Plus className="h-3 w-3" />
-    Add Discount
-  </Link>
+  <div className="flex items-center gap-2">
+    <button
+      type="button"
+      onClick={handleExportAllUsage}
+      disabled={exportingAllUsage}
+      className="px-3 py-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-md transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+      title="Export all discount redemption history to Excel"
+    >
+      <FileSpreadsheet className="h-3.5 w-3.5" />
+      <span>{exportingAllUsage ? "Exporting..." : "Export All Usage"}</span>
+    </button>
+
+    <Link
+      href="/admin/discounts/add"
+      className="px-3 py-1.5 text-[11px] bg-gradient-to-r from-violet-500 to-cyan-500 text-white rounded-md hover:opacity-90 transition-all flex items-center gap-1.5"
+    >
+      <Plus className="h-3 w-3" />
+      Add Discount
+    </Link>
+  </div>
 </div>
 
 
@@ -1804,9 +1886,15 @@ const filteredDiscounts = discounts.filter((discount) => {
 
         <button
           onClick={() => handleViewUsageHistory(discount)}
-          className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded"
+          className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded relative"
+          title={discount.usageCount ? `${discount.usageCount} redemption(s)` : "View usage history"}
         >
           <History className="h-3.5 w-3.5" />
+          {(discount.usageCount ?? 0) > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 text-[9px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center shadow">
+              {discount.usageCount}
+            </span>
+          )}
         </button>
 
         <Link
@@ -1835,9 +1923,15 @@ const filteredDiscounts = discounts.filter((discount) => {
       <>
         <button
           onClick={() => handleViewUsageHistory(discount)}
-          className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded"
+          className="p-1.5 text-amber-400 hover:bg-amber-500/10 rounded relative"
+          title={discount.usageCount ? `${discount.usageCount} redemption(s)` : "View usage history"}
         >
           <History className="h-3.5 w-3.5" />
+          {(discount.usageCount ?? 0) > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 text-[9px] font-black min-w-3.5 h-3.5 px-0.5 rounded-full flex items-center justify-center shadow">
+              {discount.usageCount}
+            </span>
+          )}
         </button>
 
         <button

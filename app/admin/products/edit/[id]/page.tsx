@@ -57,6 +57,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [initialFormData, setInitialFormData] = useState<any>(null);
+  const [initialImagesSnapshot, setInitialImagesSnapshot] = useState<any[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
 
@@ -655,6 +656,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     length: '',
     width: '',
     height: '',
+    handlingTimeDays: 0,
 
     // Delivery flags (charges managed via Shipping Methods)
     sameDayDeliveryEnabled: false,
@@ -800,9 +802,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     if (!hasBrand) missing.push('Brand (min 1)');
 
     // Images
-    if (!formData.productImages || formData.productImages.length < 5) {
+    if (!formData.productImages || formData.productImages.length < 1) {
       missing.push(
-        `Product Images (min 5, current: ${formData.productImages?.length || 0})`
+        `Product Images (min 1, current: ${formData.productImages?.length || 0})`
       );
     }
 
@@ -1293,6 +1295,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           isShipEnabled: productData.requiresShipping ?? true,
           shipSeparately: productData.shipSeparately ?? false,
           deliveryDateId: productData.deliveryDateId || '',
+          handlingTimeDays: productData.handlingTimeDays ?? 0,
           weight: productData.weight?.toString() || '',
           length: productData.length?.toString() || '',
           width: productData.width?.toString() || '',
@@ -1469,6 +1472,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               saleCount: variant.saleCount || 0,
               orderMinimumQuantity: variant.orderMinimumQuantity !== undefined ? variant.orderMinimumQuantity : null,
               orderMaximumQuantity: variant.orderMaximumQuantity !== undefined ? variant.orderMaximumQuantity : null,
+              handlingTimeDays: variant.handlingTimeDays !== undefined && variant.handlingTimeDays !== null ? variant.handlingTimeDays : null,
             };
           });
 
@@ -1490,6 +1494,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               fileSize: img.fileSize || 0
             }));
           setFormData(prev => ({ ...prev, productImages: imgs }));
+          setInitialImagesSnapshot(JSON.parse(JSON.stringify(imgs)));
           console.log('✅ Images loaded:', imgs.length);
         }
 
@@ -2025,9 +2030,19 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       JSON.stringify(normalize(formData)) !==
       JSON.stringify(normalize(initialFormData));
 
-    setHasUnsavedChanges(hasChanges);
+    const isImagesChanged = (formData.productImages || []).some((img) => {
+      const orig = initialImagesSnapshot.find((i: any) => i.id === img.id);
+      if (!orig) return true;
+      return (
+        (img.isMain ?? false) !== (orig.isMain ?? false) ||
+        (img.sortOrder ?? 0) !== (orig.sortOrder ?? 0) ||
+        (img.altText?.trim() || '') !== (orig.altText?.trim() || '')
+      );
+    }) || ((formData.productImages?.length || 0) !== (initialImagesSnapshot?.length || 0));
 
-  }, [formData, initialFormData]);
+    setHasUnsavedChanges(hasChanges || isImagesChanged);
+
+  }, [formData, initialFormData, initialImagesSnapshot]);
   // ============================================
   // BROWSER CLOSE WARNING
   // ============================================
@@ -3561,21 +3576,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           return;
         }
       }
-      // Next-Day Delivery Validation for Variants
-      if (formData.productType === 'variable' && productVariants.length > 0) {
-        for (const variant of productVariants) {
-          if (variant.nextDayDeliveryEnabled === true) {
-            const effectiveCutoff = variant.nextDayDeliveryCutoffTime;
-            if (!effectiveCutoff) {
-              toast.error(`❌ Cutoff time is required for variant "${variant.name || 'Unnamed'}" because Next-Day Delivery is enabled.`);
-              target.removeAttribute("data-submitting");
-              setIsSubmitting(false);
-              setSubmitProgress(null);
-              return;
-            }
-          }
-        }
-      }
+
 
       // Variant validations (name, SKU, duplicate SKU)
       if (formData.productType === 'variable' && productVariants.length > 0) {
@@ -3702,6 +3703,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             orderMaximumQuantity: cleanedVariant.orderMaximumQuantity !== undefined && cleanedVariant.orderMaximumQuantity !== null && cleanedVariant.orderMaximumQuantity !== ''
               ? parseInt(cleanedVariant.orderMaximumQuantity.toString())
               : null,
+            handlingTimeDays: cleanedVariant.handlingTimeDays !== undefined && cleanedVariant.handlingTimeDays !== null && cleanedVariant.handlingTimeDays !== ''
+              ? parseInt(cleanedVariant.handlingTimeDays.toString())
+              : null,
           };
 
           // Add ID for existing variants
@@ -3793,21 +3797,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       // CLEAN CART DATA (UPDATED)
       // ======================================
 
-      if (
-        formData.nextDayDeliveryEnabled &&
-        !formData.nextDayDeliveryCutoffTime
-      ) {
-        toast.error('❌ Next-Day Delivery cutoff time required');
 
-        target.removeAttribute('data-submitting');
-        setIsSubmitting(false);
-        setSubmitProgress(null);
-
-        return;
-      }
-      if (!formData.nextDayDeliveryEnabled) {
-        formData.nextDayDeliveryCutoffTime = '';
-      }
       // ======================================
       // CLEAN CART DATA (UPDATED - TYPESAFE)
       // ======================================
@@ -3962,6 +3952,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         deliveryDateId: formData.deliveryDateId || null,
         estimatedDispatchDays: 0,
         dispatchTimeNote: null,
+        handlingTimeDays: Number(formData.handlingTimeDays) || 0,
         weight: parseNumber(formData.weight, 'weight') || 0,
         length: parseNumber(formData.length, 'length'),
         width: parseNumber(formData.width, 'width'),
@@ -4038,7 +4029,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
 
       // ============================================
-      // SECTION 22A - UPDATE EXISTING PRODUCT IMAGES (UPDATED)
+      // SECTION 22A - BULK UPDATE PRODUCT IMAGES (ATOMIC & DIRTY CHECKED)
       // ============================================
       setSubmitProgress({
         step: 'Updating product images...',
@@ -4046,83 +4037,47 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       });
 
       try {
-        // ✅ VALIDATION: Ensure at least one image has isMain: true
+        // Ensure at least one image has isMain: true if images exist
         const hasMainImage = formData.productImages.some((img) => img.isMain === true);
-
         if (!hasMainImage && formData.productImages.length > 0) {
-          // ✅ Automatically set first image as main if none selected
           formData.productImages[0].isMain = true;
-          toast.info('ℹ️ First image set as main image automatically');
+          formData.productImages[0].sortOrder = 1;
         }
 
-        // Filter images that need to be updated (existing images with IDs)
         const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const existingImages = (formData.productImages || []).filter((img) => guidRegex.test(img.id));
 
-        const imagesToUpdate = initialFormData ? formData.productImages.filter((img) => {
-          // Only update images that have been saved (have valid GUID IDs)
-          if (!guidRegex.test(img.id)) return false;
-
-          // Check if any fields changed compared to initial load
-          const initialImg = initialFormData.productImages?.find((i: any) => i.id === img.id);
-          if (!initialImg) return false; // skip newly uploaded images
-
+        // Dirty check: zero API calls if no image attributes were changed
+        const isImagesDirty = existingImages.some((img) => {
+          const orig = initialImagesSnapshot.find((i: any) => i.id === img.id);
+          if (!orig) return true;
           return (
-            img.altText !== initialImg.altText ||
-            img.sortOrder !== initialImg.sortOrder ||
-            img.isMain !== initialImg.isMain
+            (img.isMain ?? false) !== (orig.isMain ?? false) ||
+            (img.sortOrder ?? 0) !== (orig.sortOrder ?? 0) ||
+            (img.altText?.trim() || '') !== (orig.altText?.trim() || '')
           );
-        }) : [];
+        });
 
-        console.log(`📸 Images to update metadata:`, imagesToUpdate);
+        if (isImagesDirty && existingImages.length > 0) {
+          console.log(`🖼️ Bulk updating ${existingImages.length} product images atomically...`);
+          const bulkPayload = {
+            images: existingImages.map((img) => ({
+              imageId: img.id,
+              altText: img.altText?.trim() || '',
+              sortOrder: img.sortOrder || 0,
+              isMain: img.isMain === true,
+            })),
+          };
 
-        if (imagesToUpdate.length > 0) {
-          console.log(`🖼️ Updating ${imagesToUpdate.length} product images...`);
-
-          let updateSuccessCount = 0;
-          let updateFailCount = 0;
-
-          // ✅ Update each image using productsService
-          for (const image of imagesToUpdate) {
-            try {
-              const updatePayload = {
-                altText: image.altText?.trim() || '',
-                sortOrder: image.sortOrder || 0,
-                isMain: image.isMain || false,
-              };
-
-              console.log(`Updating image ${image.id}:`, updatePayload);
-
-              const response = await productsService.updateProductImage(
-                productId,
-                image.id,
-                updatePayload
-              );
-
-              if (response?.data?.success) {
-                updateSuccessCount++;
-                console.log(`✅ Image ${image.id} updated successfully`);
-              } else {
-                updateFailCount++;
-                console.warn(`⚠️ Failed to update image ${image.id}:`, response?.data?.message);
-              }
-            } catch (imageError: any) {
-              updateFailCount++;
-              console.error(`❌ Error updating image ${image.id}:`, imageError);
-              // Don't throw - continue updating other images
-            }
-          }
-
-          // Delay to prevent DbContext thread collision on backend
-          console.log("⏱️ Waiting 1.5s for database saves to finalize...");
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-
-          if (updateFailCount > 0) {
-            toast.warning(`⚠️ ${updateFailCount} image(s) failed to update`, {
-              autoClose: 3000
-            });
+          const bulkRes = await productsService.updateProductImages(productId, bulkPayload);
+          if (bulkRes?.data?.success !== false) {
+            console.log('✅ Product images updated atomically via bulk API');
+            setInitialImagesSnapshot(JSON.parse(JSON.stringify(formData.productImages)));
+          } else {
+            console.warn('⚠️ Bulk update response warning:', bulkRes?.data?.message);
           }
         } else {
-          console.log('ℹ️ No existing images to update');
+          console.log('ℹ️ Images unchanged (0 API calls needed)');
         }
       } catch (error: any) {
         console.error('❌ Image update error:', error);
@@ -4130,8 +4085,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         // Don't throw - continue with product update
       }
 
-      if (!isDraft && formData.productImages.length < 2) {
-        toast.error('❌ Minimum 2 product images are required');
+      if (!isDraft && formData.productImages.length < 1) {
+        toast.error('❌ Minimum 1 product image is required');
         target.removeAttribute('data-submitting');
         setIsSubmitting(false);
         setSubmitProgress(null);
@@ -4180,6 +4135,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           );
 
           setInitialFormData(updatedSnapshot);
+          setInitialImagesSnapshot(JSON.parse(JSON.stringify(formData.productImages)));
 
           setHasUnsavedChanges(false);
           // await productLockService.releaseLock(productId);
@@ -5066,9 +5022,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   // ✅ REPLACE existing handleImageUpload function:
   const ALLOWED_TYPES = ['image/webp'];
 
-  const MAX_SIZE = 500 * 1024;     // 500 KB hard limit
-  const WARN_SIZE = 300 * 1024;    // 300 KB recommended
-  const MIN_IMAGES = 2;
+  const MIN_IMAGES = 1;
   const MAX_IMAGES = 10;
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -5130,7 +5084,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       formData.productImages.length + files.length;
 
     if (totalAfterUpload < MIN_IMAGES) {
-      toast.error(`❌ Minimum ${MIN_IMAGES} images are required for a product`);
+      toast.error(`❌ Minimum ${MIN_IMAGES} image is required for a product`);
       return;
     }
 
@@ -5141,16 +5095,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       if (!ALLOWED_TYPES.includes(file.type)) {
         toast.error(`❌ ${file.name}: Only WebP images allowed`);
         continue;
-      }
-
-      /* ================= FILE SIZE ================= */
-      if (file.size > MAX_SIZE) {
-        toast.error(`❌ ${file.name}: Image size must be under 500 KB`);
-        continue;
-      }
-
-      if (file.size > WARN_SIZE) {
-        toast.warning(`⚠️ ${file.name}: Image is large, may affect page speed`);
       }
 
       /* ================= DIMENSION & RATIO ================= */
@@ -5670,7 +5614,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         maxLength={5000}         // ✅ Maximum 5000 characters
                         showCharCount={true}     // ✅ Show built-in character counter
                         showH2Tip={true}
-                        showHelpText="Detailed product information with formatting (50-2000 characters)"
+                        showHelpText="Detailed product information with formatting (50-5000 characters)"
                       />
                     </div>
 
@@ -7514,22 +7458,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                         </span>
                                       </label>
 
-                                      {/* CUTOFF TIME */}
-                                      <div className="space-y-1">
-                                        <label className="block text-xs font-medium text-slate-400">
-                                          Cutoff Time (UK Time) <span className="text-red-400">*</span>
-                                        </label>
-                                        <input
-                                          type="time"
-                                          name="nextDayDeliveryCutoffTime"
-                                          value={formData.nextDayDeliveryCutoffTime || ""}
-                                          onChange={handleChange}
-                                          className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                                        />
-                                        <p className="text-[10px] text-slate-500">
-                                          Enter UK local cutoff time for next-day delivery
-                                        </p>
-                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -7538,6 +7466,24 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                           </div>
                         </div>
                       )}
+
+                      {/* HANDLING TIME (DAYS) */}
+                      <div className="pt-3 border-t border-slate-800/80 space-y-1">
+                        <label className="block text-xs font-semibold text-slate-300">
+                          Handling Time (Days)
+                        </label>
+                        <input
+                          type="number"
+                          name="handlingTimeDays"
+                          min="0"
+                          value={formData.handlingTimeDays ?? 0}
+                          onChange={handleChange}
+                          className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
+                        <p className="text-[10px] text-slate-500">
+                          Number of business days required to prepare/dispatch this product (default: 0 = same day).
+                        </p>
+                      </div>
 
                       <div className="flex items-start gap-2 text-xs text-blue-400 bg-blue-900/20 px-3 py-2 rounded border border-blue-800/50 mt-2">
                         <Info className="w-4 h-4 shrink-0 mt-0.5" />
@@ -7779,10 +7725,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         onVariantImageUpload={handleVariantImageUpload}
                         parentNextDayDeliveryEnabled={formData.nextDayDeliveryEnabled}
                         parentNextDayDeliveryFree={formData.nextDayDeliveryFree}
-                        parentNextDayDeliveryCutoffTime={formData.nextDayDeliveryCutoffTime}
                         parentFakeSaleCount={formData.fakeSaleCount}
                         parentOrderMinimumQuantity={formData.orderMinimumQuantity}
                         parentOrderMaximumQuantity={formData.orderMaximumQuantity}
+                        parentHandlingTimeDays={formData.handlingTimeDays}
                       />
                     </div>
                   </>
@@ -8054,8 +8000,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Product Images <span className="text-red-500">*</span></h3>
                   <p className="text-xs text-red-400">
-                    Upload product images (WebP only). Recommended size under 300 KB, maximum 500 KB per image.
-                    Minimum resolution 800×800 (square preferred). You can upload up to 10 images.
+                    Upload product images (WebP only). Recommended size 1500 x 1500.
+                    You can upload up to 10 images.
                   </p>
 
                 </div>
@@ -8191,29 +8137,28 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                   type="checkbox"
                                   checked={image.isMain}
                                   onChange={(e) => {
-                                    setFormData({
-                                      ...formData,
-                                      productImages: formData.productImages.map((img) => {
-                                        // clicked image
-                                        if (img.id === image.id) {
-                                          return {
-                                            ...img,
-                                            isMain: e.target.checked,
-                                            sortOrder: e.target.checked ? 1 : img.sortOrder,
-                                          };
-                                        }
-
-                                        // old main image only remove main flag
-                                        if (e.target.checked && img.isMain) {
-                                          return {
-                                            ...img,
-                                            isMain: false,
-                                          };
-                                        }
-
-                                        return img;
-                                      }),
-                                    });
+                                    if (e.target.checked) {
+                                      const clickedImg = { ...image, isMain: true, sortOrder: 1 };
+                                      let nextOrder = 2;
+                                      const otherImgs = formData.productImages
+                                        .filter((img) => img.id !== image.id)
+                                        .map((img) => ({
+                                          ...img,
+                                          isMain: false,
+                                          sortOrder: nextOrder++,
+                                        }));
+                                      setFormData({
+                                        ...formData,
+                                        productImages: [clickedImg, ...otherImgs],
+                                      });
+                                    } else {
+                                      setFormData({
+                                        ...formData,
+                                        productImages: formData.productImages.map((img) =>
+                                          img.id === image.id ? { ...img, isMain: false } : img
+                                        ),
+                                      });
+                                    }
                                   }}
                                   className="w-3 h-3 text-violet-500 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-violet-500"
                                 />

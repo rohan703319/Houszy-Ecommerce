@@ -255,8 +255,8 @@ export default function AddProductPage() {
     }
 
     // 5. Images
-    if (!formData.productImages || formData.productImages.length < 5) {
-      missing.push(`Product Images (minimum 5, current: ${formData.productImages?.length || 0})`);
+    if (!formData.productImages || formData.productImages.length < 1) {
+      missing.push(`Product Images (minimum 1, current: ${formData.productImages?.length || 0})`);
     }
 
     // 6. Stock (if tracking - skip for variable products, variants manage their own stock)
@@ -521,6 +521,7 @@ export default function AddProductPage() {
     nextDayDeliveryEnabled: false,
     nextDayDeliveryFree: false,   //   ADD THIS
     standardDeliveryEnabled: true,
+    handlingTimeDays: 0,
     nextDayDeliveryCutoffTime: '',
     allowedDeliveryOptionIds: [] as string[],
 
@@ -1053,8 +1054,8 @@ export default function AddProductPage() {
         }
 
         const descLength = getPlainText(formData.fullDescription).length;
-        if (descLength > 2000) {
-          formData.fullDescription = truncateHtmlByTextLength(formData.fullDescription, 2000);
+        if (descLength > 5000) {
+          formData.fullDescription = truncateHtmlByTextLength(formData.fullDescription, 5000);
           toast.info("Full description trimmed to 5000 characters");
         }
       }
@@ -1268,25 +1269,6 @@ export default function AddProductPage() {
           }
         }
       }
-      if (!formData.nextDayDeliveryEnabled) {
-        setFormData(prev => ({
-          ...prev,
-          nextDayDeliveryCutoffTime: ''
-        }));
-      }
-
-      if (
-        formData.nextDayDeliveryEnabled &&
-        !formData.nextDayDeliveryCutoffTime
-      ) {
-        toast.error('  Œ Next-Day Delivery cutoff time required');
-
-        target.removeAttribute("data-submitting");
-        setIsSubmitting(false);
-        setSubmitProgress(null);
-
-        return;
-      }
 
       // ============================================================
       // SECTION 4A: GROUPED SUBSCRIPTION CONFLICT VALIDATION BLOCK
@@ -1489,8 +1471,8 @@ export default function AddProductPage() {
       // ============================================================
       // SECTION 7: IMAGE VALIDATION
       // ============================================================
-      if (!isDraft && formData.productImages.length < 5) {
-        toast.error("Please upload at least 5 product images before saving");
+      if (!isDraft && formData.productImages.length < 1) {
+        toast.error("Please upload at least 1 product image before saving");
         target.removeAttribute("data-submitting");
         setIsSubmitting(false);
         setSubmitProgress(null);
@@ -1524,21 +1506,7 @@ export default function AddProductPage() {
           sortOrder: attr.displayOrder + 1,
         }));
 
-      // Next-Day Delivery Validation for Variants
-      if (productVariants.length > 0) {
-        for (const variant of productVariants) {
-          if (variant.nextDayDeliveryEnabled === true) {
-            const effectiveCutoff = variant.nextDayDeliveryCutoffTime;
-            if (!effectiveCutoff) {
-              toast.error(`❌ Cutoff time is required for variant "${variant.name || 'Unnamed'}" because Next-Day Delivery is enabled.`);
-              target.removeAttribute("data-submitting");
-              setIsSubmitting(false);
-              setSubmitProgress(null);
-              return;
-            }
-          }
-        }
-      }
+
 
       // SECTION 8: BUILD PRODUCT DATA - CLEAN VARIANTS BEFORE MAPPING
       const firstVariant = productVariants[0]; // Get master variant
@@ -1587,6 +1555,9 @@ export default function AddProductPage() {
             : null,
           orderMaximumQuantity: cleanedVariant.orderMaximumQuantity !== undefined && cleanedVariant.orderMaximumQuantity !== null && cleanedVariant.orderMaximumQuantity !== ''
             ? parseInt(cleanedVariant.orderMaximumQuantity.toString())
+            : null,
+          handlingTimeDays: cleanedVariant.handlingTimeDays !== undefined && cleanedVariant.handlingTimeDays !== null && cleanedVariant.handlingTimeDays !== ''
+            ? parseInt(cleanedVariant.handlingTimeDays.toString())
             : null,
         };
       });
@@ -1825,6 +1796,7 @@ export default function AddProductPage() {
       } else {
         productData.nextDayDeliveryCutoffTime = null;
       }
+      productData.handlingTimeDays = Number(formData.handlingTimeDays) || 0;
       if (formData.nextDayDeliveryFree !== undefined)
         productData.nextDayDeliveryFree = formData.nextDayDeliveryFree;
       if (formData.standardDeliveryEnabled !== undefined) productData.standardDeliveryEnabled = formData.standardDeliveryEnabled;
@@ -2770,12 +2742,6 @@ export default function AddProductPage() {
     try {
       const processedImages = await Promise.all(
         Array.from(files).map(async (file, index) => {
-          // File validation
-          if (file.size > 5 * 1024 * 1024) {
-            toast.error(`${file.name} is too large. Max size is 1MB.`);
-            return null;
-          }
-
           const ALLOWED_TYPES = ['image/webp'];
           if (!ALLOWED_TYPES.includes(file.type)) {
             toast.error(`❌ ${file.name}: Only WebP images are supported.`);
@@ -5154,9 +5120,9 @@ export default function AddProductPage() {
                                       </div>
                                     </label>
 
-                                    {/* Next Day Delivery Cutoff Time & Free Option */}
+                                    {/* Next Day Delivery Free Option */}
                                     {isNextDay && isChecked && (
-                                      <div className="pl-6 pt-3 mt-2 border-t border-slate-800/60 space-y-3">
+                                      <div className="pl-6 pt-3 mt-2 border-t border-slate-800/60">
                                         {/* FREE OPTION */}
                                         <label className="flex items-center gap-2 cursor-pointer group">
                                           <input
@@ -5170,23 +5136,6 @@ export default function AddProductPage() {
                                             Next-Day Delivery Free
                                           </span>
                                         </label>
-
-                                        {/* CUTOFF TIME */}
-                                        <div className="space-y-1">
-                                          <label className="block text-xs font-medium text-slate-400">
-                                            Cutoff Time <span className="text-red-400">*</span>
-                                          </label>
-                                          <input
-                                            type="time"
-                                            name="nextDayDeliveryCutoffTime"
-                                            value={formData.nextDayDeliveryCutoffTime || ''}
-                                            onChange={handleChange}
-                                            className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                                          />
-                                          <p className="text-[10px] text-slate-500">
-                                            Order before this time for next-day delivery
-                                          </p>
-                                        </div>
                                       </div>
                                     )}
                                   </div>
@@ -5196,9 +5145,27 @@ export default function AddProductPage() {
                           </div>
                         )}
 
+                        {/* HANDLING TIME (DAYS) */}
+                        <div className="pt-3 border-t border-slate-800/80 space-y-1">
+                          <label className="block text-xs font-semibold text-slate-300">
+                            Handling Time (Days)
+                          </label>
+                          <input
+                            type="number"
+                            name="handlingTimeDays"
+                            min="0"
+                            value={formData.handlingTimeDays ?? 0}
+                            onChange={handleChange}
+                            className="w-40 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          />
+                          <p className="text-[10px] text-slate-500">
+                            Number of business days required to prepare/dispatch this product (default: 0 = same day).
+                          </p>
+                        </div>
+
                         <div className="flex items-start gap-2 text-xs text-blue-400 bg-blue-900/20 px-3 py-2 rounded border border-blue-800/50 mt-2">
                           <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                          <p>Delivery charges are managed via <strong>Shipping Methods</strong> in the admin panel.</p>
+                          <p>Delivery charges and cutoffs are managed via <strong>Shipping Methods</strong> in the admin panel.</p>
                         </div>
                       </div>
                     </div>
@@ -5518,10 +5485,10 @@ export default function AddProductPage() {
                           onVariantImageUpload={handleVariantImageUpload}
                           parentNextDayDeliveryEnabled={formData.nextDayDeliveryEnabled}
                           parentNextDayDeliveryFree={formData.nextDayDeliveryFree}
-                          parentNextDayDeliveryCutoffTime={formData.nextDayDeliveryCutoffTime}
                           parentFakeSaleCount={formData.fakeSaleCount}
                           parentOrderMinimumQuantity={formData.orderMinimumQuantity}
                           parentOrderMaximumQuantity={formData.orderMaximumQuantity}
+                          parentHandlingTimeDays={formData.handlingTimeDays}
                         />
                       </div>
                     </>
@@ -5804,7 +5771,7 @@ export default function AddProductPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-white">Product Images  <span className="text-red-500">*</span></h3>
                       <p className="text-sm text-red-500">
-                        Upload product images (WebP only). Minimum 5 images are required.
+                        Upload product images (WebP only). Minimum 1 image is required. Recommended size - 1500 x 1500
                       </p>
                     </div>
                   </div>
@@ -5863,7 +5830,7 @@ export default function AddProductPage() {
                             className="bg-slate-800/30 border border-slate-700 rounded p-2 space-y-1 relative group"
                           >
                             {/* Main Badge */}
-                            {index === 0 && (
+                            {image.isMain && (
                               <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-violet-500 text-white text-[10px] font-medium rounded z-10">
                                 Main
                               </div>
@@ -5939,16 +5906,28 @@ export default function AddProductPage() {
                                     type="checkbox"
                                     checked={image.isMain}
                                     onChange={(e) => {
-                                      setFormData({
-                                        ...formData,
-                                        productImages: formData.productImages.map((img) =>
-                                          img.id === image.id
-                                            ? { ...img, isMain: e.target.checked }
-                                            : e.target.checked
-                                              ? { ...img, isMain: false }
-                                              : img,
-                                        ),
-                                      });
+                                      if (e.target.checked) {
+                                        const clickedImg = { ...image, isMain: true, sortOrder: 1 };
+                                        let nextOrder = 2;
+                                        const otherImgs = formData.productImages
+                                          .filter((img) => img.id !== image.id)
+                                          .map((img) => ({
+                                            ...img,
+                                            isMain: false,
+                                            sortOrder: nextOrder++,
+                                          }));
+                                        setFormData({
+                                          ...formData,
+                                          productImages: [clickedImg, ...otherImgs],
+                                        });
+                                      } else {
+                                        setFormData({
+                                          ...formData,
+                                          productImages: formData.productImages.map((img) =>
+                                            img.id === image.id ? { ...img, isMain: false } : img
+                                          ),
+                                        });
+                                      }
                                     }}
                                     className="w-3 h-3 text-violet-500 rounded border-slate-700 bg-slate-900 focus:ring-1 focus:ring-violet-500"
                                   />

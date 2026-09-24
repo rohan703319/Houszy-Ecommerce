@@ -339,26 +339,36 @@ export default function PermissionsDashboard() {
       return true;
     }
     
-    // Check override state
+    // Role baseline is the ceiling
+    const roleHasPermission = !!rolesBaseline[pageId]?.[action];
+    if (!roleHasPermission) {
+      return false;
+    }
+
+    // User override check: if explicit false (Deny), it is false. Otherwise (null), it inherits role permission (true).
     const override = localUserOverrides[pageId]?.[action];
-    if (override === true) return true;
-    if (override === false) return false;
-    
-    // Fall back to baseline
-    return !!rolesBaseline[pageId]?.[action];
+    if (override === false) {
+      return false;
+    }
+
+    return true;
   };
 
   const handleSaveUserOverrides = async () => {
     if (!selectedStaff) return;
     setUserSaving(true);
     try {
-      const payload = Object.entries(localUserOverrides).map(([pageId, overrides]) => ({
-        pageId,
-        canView: overrides.view,
-        canCreate: overrides.create,
-        canEdit: overrides.edit,
-        canDelete: overrides.delete
-      }));
+      const payload = Object.entries(localUserOverrides).map(([pageId, overrides]) => {
+        const roleBase = rolesBaseline[pageId] || { view: false, create: false, edit: false, delete: false };
+        return {
+          pageId,
+          // Only persist Deny (false) if the role actually had the permission; otherwise null
+          canView: roleBase.view && overrides.view === false ? false : null,
+          canCreate: roleBase.create && overrides.create === false ? false : null,
+          canEdit: roleBase.edit && overrides.edit === false ? false : null,
+          canDelete: roleBase.delete && overrides.delete === false ? false : null,
+        };
+      });
       
       await permissionsService.setUserMatrix(selectedStaff.id, payload);
       setSuccessBanner(`Your changes for user '${selectedStaff.fullName}' have been saved. Website updates may take up to 1 minute to reflect.`);
@@ -777,12 +787,20 @@ export default function PermissionsDashboard() {
                 </div>
 
                 {/* Overrides Info Explainer Banner */}
-                <div className="px-4 py-2 bg-slate-50 dark:bg-[#0b1329]/50 border-b border-slate-200 dark:border-slate-800 text-[10px] text-slate-650 dark:text-slate-400 space-y-1">
-                  <p>
-                    <span className="text-blue-600 dark:text-blue-455 font-bold">Inherit</span> = Follow the role baseline permission.
-                    <span className="text-green-600 dark:text-green-455 font-bold ml-3">Allow</span> = Explicitly grant, overriding role denial.
-                    <span className="text-red-600 dark:text-red-455 font-bold ml-3">Deny</span> = Explicitly block, overriding role grant.
-                  </p>
+                <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#0b1329]/50 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Permission Hierarchy:</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] border border-emerald-500/20">Allow</span>
+                    <span>Inherited from Role</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-[10px] border border-rose-500/20">Deny</span>
+                    <span>Restricted for this User</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-[10px] border border-slate-300 dark:border-slate-700">—</span>
+                    <span>Not in Role (Ceiling)</span>
+                  </span>
                 </div>
 
                 {loading ? (
@@ -838,47 +856,54 @@ export default function PermissionsDashboard() {
                                 edit: item.override.edit,
                                 delete: item.override.delete
                               };
+                              const isSuperAdminStaff = selectedStaff?.roles.some(r => r.toLowerCase() === "superadmin");
 
-                              // Mini Segmented Toggle Component
+                              // Mini Segmented Toggle Component respecting Role Ceiling
                               const OverrideToggle = ({ action }: { action: "view" | "create" | "edit" | "delete" }) => {
                                 const currentVal = overrides[action];
+                                const roleHasAction = isSuperAdminStaff || Boolean(rolesBaseline[pageId]?.[action]);
+
+                                if (!roleHasAction) {
+                                  return (
+                                    <div 
+                                      className="inline-flex items-center justify-center min-w-[70px] py-1 bg-slate-100 dark:bg-slate-800/30 text-slate-400 dark:text-slate-600 rounded-lg text-xs font-semibold select-none cursor-not-allowed border border-slate-200/60 dark:border-slate-800/60"
+                                      title="Not granted in role (Role Ceiling)"
+                                    >
+                                      <span>—</span>
+                                    </div>
+                                  );
+                                }
+
+                                const isDeny = currentVal === false;
+
                                 return (
-                                  <div className="inline-flex bg-slate-50 dark:bg-[#0b1329] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800/80">
-                                    {/* Inherit Toggle */}
+                                  <div className="inline-flex bg-slate-100 dark:bg-[#0b1329] p-0.5 rounded-lg border border-slate-200 dark:border-slate-800/80 shadow-sm">
+                                    {/* Allow Toggle (Inherits from Role) */}
                                     <button
                                       type="button"
+                                      disabled={isSuperAdminStaff}
                                       onClick={() => handleUserOverrideChange(pageId, action, null)}
-                                      className={`px-2.5 py-0.5 text-[9px] rounded font-bold transition-all ${
-                                        currentVal == null 
-                                          ? "bg-slate-200 dark:bg-slate-700/80 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 shadow-sm"
-                                          : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"
+                                      className={`px-3 py-1 text-[10px] rounded-md font-bold transition-all ${
+                                        !isDeny 
+                                          ? "bg-emerald-600 text-white shadow-sm"
+                                          : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                                       }`}
+                                      title="Allow (Inherited from role)"
                                     >
-                                      Inh
+                                      Allow
                                     </button>
                                     
-                                    {/* Allow Toggle */}
+                                    {/* Deny Toggle (Restrict for this user) */}
                                     <button
                                       type="button"
-                                      onClick={() => handleUserOverrideChange(pageId, action, true)}
-                                      className={`px-2.5 py-0.5 text-[9px] rounded font-bold transition-all ${
-                                        currentVal === true
-                                          ? "bg-green-600 dark:bg-green-500/20 text-white dark:text-green-400 border border-green-600 dark:border-green-500/40 shadow-sm"
-                                          : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"
-                                      }`}
-                                    >
-                                      Allw
-                                    </button>
-                                    
-                                    {/* Deny Toggle */}
-                                    <button
-                                      type="button"
+                                      disabled={isSuperAdminStaff}
                                       onClick={() => handleUserOverrideChange(pageId, action, false)}
-                                      className={`px-2.5 py-0.5 text-[9px] rounded font-bold transition-all ${
-                                        currentVal === false
-                                          ? "bg-red-650 dark:bg-red-500/20 text-white dark:text-red-400 border border-red-600 dark:border-red-500/40 shadow-sm"
-                                          : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"
+                                      className={`px-3 py-1 text-[10px] rounded-md font-bold transition-all ${
+                                        isDeny
+                                          ? "bg-rose-600 text-white shadow-sm"
+                                          : "text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400"
                                       }`}
+                                      title="Deny (Override & restrict for this user)"
                                     >
                                       Deny
                                     </button>

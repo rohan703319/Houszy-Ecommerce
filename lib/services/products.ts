@@ -136,6 +136,7 @@ export interface ProductVariant {
   // Next Day Delivery overrides (null = inherit from parent product)
   nextDayDeliveryEnabled?: boolean | null;
   nextDayDeliveryFree?: boolean | null;
+  handlingTimeDays?: number | null;
   nextDayDeliveryCutoffTime?: string | null;
 
   // Order Quantity Limits overrides (null = inherit from parent product)
@@ -148,6 +149,9 @@ export interface ProductVariant {
   displaySaleCount?: number;
   monthlySaleCount?: number;
   weeklySaleCount?: number;
+
+  // Assigned Discounts (e.g. Coupon Discounts)
+  assignedDiscounts?: any[];
 }
 
 
@@ -232,6 +236,7 @@ recurringTotalCycles?:number;
 deliveryDateId?:number;
 dispatchTimeNote?:string;
   nextDayDeliveryFree?:boolean;
+  handlingTimeDays?: number;
   nextDayDeliveryCutoffTime?:string;
   aPlusTemplateId?: string | null;
   aPlusContent?: string | null;
@@ -1127,6 +1132,22 @@ importExcel: async (file: File) => {
   }) =>
     apiClient.put<ApiResponse<any>>(
       `${API_ENDPOINTS.products}/${productId}/images/${imageId}`,
+      data
+    ),
+
+  /**
+   * Bulk update multiple product images at once (sortOrder, altText, isMain)
+   */
+  updateProductImages: (productId: string, data: {
+    images: {
+      imageId: string;
+      altText?: string;
+      sortOrder?: number;
+      isMain?: boolean;
+    }[];
+  }) =>
+    apiClient.put<ApiResponse<any>>(
+      `${API_ENDPOINTS.products}/${productId}/images`,
       data
     ),
 

@@ -55,6 +55,7 @@ import {
   Order,
   formatCurrency,
   formatDate,
+  formatDateOnly,
   getPaymentMethodInfo,
   OrderAdminComment,
 } from '@/lib/services/orders';
@@ -774,7 +775,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const orderId = params.id as string;
   const [hasEditHistory, setHasEditHistory] = useState<boolean | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
@@ -1525,12 +1526,19 @@ export default function OrderDetailPage() {
     refundablePaidAmount > 0 &&
     ['Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned'].includes(order.status);
 
-  const allActions = getAllAvailableActions(
+  const rawActions = getAllAvailableActions(
     order,
     canRefund(),
     true,
     canRefundShipping
   );
+
+  const allActions = rawActions.filter((btn) => {
+    if (['mark-ready', 'mark-collected', 'update-status', 'cancel-order', 'regenerate-invoice', 'mark-paid', 'refund'].includes(btn.action)) {
+      return hasPermission('orders', 'edit');
+    }
+    return true; // 'download-invoice', 'view-refund-history', 'view-edit-history' are view actions
+  });
 
   return (
     <div className="space-y-3 pb-6">
@@ -1560,9 +1568,9 @@ export default function OrderDetailPage() {
 
         {/* ✅ STATUS BADGES WITH CLEAR LABELS */}
         <div className="flex items-center gap-3 flex-wrap">
-          <StatusBadge 
-            statusInfo={statusInfo} 
-            label="Order" 
+          <StatusBadge
+            statusInfo={statusInfo}
+            label="Order"
             description={
               order.status === 'CancellationRequested' && order.cancellationRequestedAt
                 ? `Customer has requested order cancellation on ${formatDate(order.cancellationRequestedAt)}.${order.cancellationRequestReason ? ` Reason: "${order.cancellationRequestReason}"` : ''}`
@@ -1761,8 +1769,8 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
-              {/* Approve / Reject Buttons — only for Pending */}
-              {order.pharmacyVerificationStatus === 'Pending' && (
+              {/* Approve / Reject Buttons — only for Pending and if user has edit permission */}
+              {hasPermission('orders', 'edit') && order.pharmacyVerificationStatus === 'Pending' && (
                 <div className="flex gap-2 pt-1 border-t border-slate-700/50">
                   <button
                     onClick={() => setPharmaAction('approve')}
@@ -2172,7 +2180,26 @@ export default function OrderDetailPage() {
                 </span>
 
                 <span className="text-white font-medium text-right">
-                  {formatDate(order.estimatedDispatchDate)}
+                  {formatDateOnly(order.estimatedDispatchDate)}
+                </span>
+              </div>
+            )}
+
+            {(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax) && (
+              <div
+                title="Estimated delivery date range"
+                className="flex items-start justify-between gap-3"
+              >
+                <span className="text-slate-400 flex items-center gap-1 text-xs">
+                  <Package className="h-3 w-3" />
+                  Estimated Delivery
+                </span>
+
+                <span className="text-white font-medium text-right">
+                  {order.estimatedDeliveryDateMin && order.estimatedDeliveryDateMax &&
+                  order.estimatedDeliveryDateMin.split('T')[0] !== order.estimatedDeliveryDateMax.split('T')[0]
+                    ? `${formatDateOnly(order.estimatedDeliveryDateMin)} – ${formatDateOnly(order.estimatedDeliveryDateMax)}`
+                    : formatDateOnly(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax)}
                 </span>
               </div>
             )}
@@ -2310,7 +2337,7 @@ export default function OrderDetailPage() {
               {order.orderItems.length} Items
             </span>
 
-            {isOrderEditable() && (
+            {hasPermission('orders', 'edit') && isOrderEditable() && (
               <button
                 onClick={() => setEditModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm rounded-lg hover:opacity-90 transition-all"
@@ -2366,9 +2393,16 @@ export default function OrderDetailPage() {
                       )}
                     </p>
                   </Link>
-                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                    <Hash className="h-3 w-3" />
-                    SKU: {item.productSku}
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <Hash className="h-3 w-3" />
+                      SKU: {item.productSku}
+                    </span>
+                    {item.handlingTimeDays !== null && item.handlingTimeDays !== undefined && item.handlingTimeDays > 0 && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Handling: +{item.handlingTimeDays}d
+                      </span>
+                    )}
                   </p>
                 </div>
 

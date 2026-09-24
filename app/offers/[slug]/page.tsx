@@ -100,6 +100,9 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
           initialHasMore={initialHasMore}
           pageSize={PAGE_SIZE}
           discountName={discount.name}
+          discountPercentage={discount.usePercentage ? discount.discountPercentage : undefined}
+          requiresCouponCode={discount.requiresCouponCode === true}
+          assignedProductIds={discount.assignedProductIds ? discount.assignedProductIds.split(',').map((s: string) => s.trim()).filter(Boolean) : []}
         />
       </main>
     </div>

@@ -20,7 +20,9 @@ interface Product {
   shortDescription: string;
   slug: string;
   sku: string;
+  gtin?: string;
   price: number;
+  sellPrice?: number;
   oldPrice: number;
   stockQuantity: number;
   categoryName: string;
@@ -37,6 +39,11 @@ interface Product {
   crossSellProductIds: string; // ✅ ADD THIS
   brandId?: string;
   brandSlug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  status?: string;
+  isPublished?: boolean;
 }
 
 
@@ -163,51 +170,96 @@ export async function generateMetadata({
 
   const product = data.product;
 
-  const description = (product.shortDescription ?? "")
-    .replace(/<[^>]*>/g, "")
+  // Clean fallback description if metaDescription is empty
+  const fallbackDescription = (product.shortDescription || product.description || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
     .slice(0, 160);
 
-  const imageUrl = product.images?.[0]?.imageUrl
-    ? product.images[0].imageUrl.startsWith("http")
-      ? product.images[0].imageUrl
-      : `${process.env.NEXT_PUBLIC_API_URL}${product.images[0].imageUrl}`
+  const metaTitle = product.metaTitle?.trim();
+  const metaDescription = product.metaDescription?.trim() || fallbackDescription;
+  const metaKeywords = product.metaKeywords?.trim() || product.tags || product.name;
+
+  const primaryImage = product.images?.[0];
+  const imageUrl = primaryImage?.imageUrl
+    ? primaryImage.imageUrl.startsWith("http")
+      ? primaryImage.imageUrl
+      : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.houszy.co.uk'}${primaryImage.imageUrl}`
     : undefined;
 
-return {
-  title: `${product.name} | Houszy`,
+  const allImages = product.images?.length
+    ? product.images.map((img: any) => ({
+        url: img.imageUrl?.startsWith("http")
+          ? img.imageUrl
+          : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.houszy.co.uk'}${img.imageUrl || ""}`,
+        alt: img.altText || product.name,
+        width: 1200,
+        height: 630,
+      }))
+    : imageUrl
+    ? [
+        {
+          url: imageUrl,
+          alt: primaryImage?.altText || product.name,
+          width: 1200,
+          height: 630,
+        },
+      ]
+    : [];
 
-  description,
+  const productUrl = `https://houszy.co.uk/product/${product.slug}`;
+  const effectivePrice = product.sellPrice ?? product.price ?? 0;
 
-  keywords: product.tags || product.name,
+  return {
+    title: metaTitle ? { absolute: metaTitle } : { absolute: `${product.name} | Houszy` },
 
-  openGraph: {
-    title: product.name,
-    description: description || product.name,
-    url: `https://www.houszy.co.uk/product/${product.slug}`,
-    siteName: "Houszy",
-    images: imageUrl
-      ? [
-          {
-            url: imageUrl,
-           width: 1200,
-height: 630,
-          },
-        ]
-      : [],
-  type: "website",
-  },
+    description: metaDescription,
 
-  twitter: {
-    card: "summary_large_image",
-    title: product.name,
-    description: description,
-    images: imageUrl ? [imageUrl] : [],
-  },
+    keywords: metaKeywords,
 
-  alternates: {
-    canonical: `https://www.houszy.co.uk/product/${product.slug}`,
-  },
-};
+    openGraph: {
+      title: metaTitle || `${product.name} | Houszy`,
+      description: metaDescription || product.name,
+      url: productUrl,
+      siteName: "Houszy",
+      locale: "en_GB",
+      type: "website",
+      images: allImages,
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title: metaTitle || `${product.name} | Houszy`,
+      description: metaDescription,
+      images: imageUrl ? [imageUrl] : [],
+    },
+
+    alternates: {
+      canonical: productUrl,
+    },
+
+    robots: {
+      index: product.isPublished !== false && product.status === "Active",
+      follow: product.isPublished !== false && product.status === "Active",
+      googleBot: {
+        index: product.isPublished !== false && product.status === "Active",
+        follow: product.isPublished !== false && product.status === "Active",
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+
+    other: {
+      "product:price:amount": effectivePrice.toString(),
+      "product:price:currency": "GBP",
+      "product:availability": (product.stockQuantity ?? 0) > 0 ? "in stock" : "out of stock",
+      "product:brand": product.brandName || "",
+      "product:retailer_item_id": product.sku || product.id,
+      "product:condition": "new",
+    },
+  };
 }
 
 // ⭐ FIX: params is now Promise
@@ -229,55 +281,63 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
  return (
   <>
     {/* ✅ PRODUCT SCHEMA (SEO BOOST) */}
- <script
-  type="application/ld+json"
-  dangerouslySetInnerHTML={{
-    __html: JSON.stringify({
-      "@context": "https://schema.org/",
-      "@type": "Product",
-      name: data.product.name,
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          "@context": "https://schema.org/",
+          "@type": "Product",
+          name: data.product.name,
 
-      image: data.product.images?.map((img: any) =>
-        img?.imageUrl?.startsWith("http")
-          ? img.imageUrl
-          : `${process.env.NEXT_PUBLIC_API_URL}${img?.imageUrl || ""}`
-      ),
+          image: data.product.images?.map((img: any) =>
+            img?.imageUrl?.startsWith("http")
+              ? img.imageUrl
+              : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.houszy.co.uk'}${img?.imageUrl || ""}`
+          ),
 
-      description: (data.product.shortDescription || data.product.description || "")
-        .replace(/<[^>]*>/g, "")
-        .slice(0, 155),
+          description: (
+            data.product.metaDescription ||
+            data.product.shortDescription ||
+            data.product.description ||
+            ""
+          )
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim(),
 
-      sku: data.product.sku,
+          sku: data.product.sku,
+          ...(data.product.gtin ? { gtin: data.product.gtin } : {}),
 
-      brand: {
-        "@type": "Brand",
-        name: data.product.brandName,
-      },
+          brand: {
+            "@type": "Brand",
+            name: data.product.brandName || "Houszy",
+          },
 
-      category: data.product.categoryName,
+          category: data.product.categoryName,
 
-      offers: {
-        "@type": "Offer",
-      url: `https://www.houszy.co.uk/product/${data.product.slug}`,
-        priceCurrency: "GBP",
-        price: data.product.price,
-        availability:
-          data.product.stockQuantity > 0
-            ? "https://schema.org/InStock"
-            : "https://schema.org/OutOfStock",
-      },
+          offers: {
+            "@type": "Offer",
+            url: `https://houszy.co.uk/product/${data.product.slug}`,
+            priceCurrency: "GBP",
+            price: data.product.sellPrice ?? data.product.price,
+            itemCondition: "https://schema.org/NewCondition",
+            availability:
+              data.product.stockQuantity > 0
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+          },
 
-      aggregateRating:
-        data.product.averageRating > 0
-          ? {
-              "@type": "AggregateRating",
-              ratingValue: data.product.averageRating,
-              reviewCount: data.product.reviewCount || 1,
-            }
-          : undefined,
-    }),
-  }}
-/>
+          aggregateRating:
+            data.product.averageRating > 0
+              ? {
+                  "@type": "AggregateRating",
+                  ratingValue: data.product.averageRating,
+                  reviewCount: data.product.reviewCount || 1,
+                }
+              : undefined,
+        }),
+      }}
+    />
 
     {/* 🔥 EXISTING UI */}
     <ProductClient 

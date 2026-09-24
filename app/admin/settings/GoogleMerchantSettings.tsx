@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../_components/CustomToast";
 import ConfirmDialog from "../_components/ConfirmDialog";
-import { googleMerchantService } from "@/lib/services/GoogleMerchant";
+import { googleMerchantService, GoogleMerchantSyncStatus } from "@/lib/services/GoogleMerchant";
 import { Product, productsService } from "@/lib/services/products";
 import { storeSettingsService } from "@/lib/services/storeSettingsService";
 
@@ -204,6 +204,23 @@ export default function GoogleMerchantSettings() {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
 
+  // Background sync tracking state
+  const [syncStatus, setSyncStatus] = useState<GoogleMerchantSyncStatus | null>(null);
+
+  const checkSyncStatus = async () => {
+    try {
+      const response = await googleMerchantService.getSyncStatus();
+      if (response.data && (response.data as any).data) {
+        const data = (response.data as any).data as GoogleMerchantSyncStatus;
+        setSyncStatus(data);
+        return data;
+      }
+    } catch (error) {
+      console.error("Failed to fetch Google Merchant sync status", error);
+    }
+    return null;
+  };
+
 const handleOpenFeed = async () => {
   try {
     setButtonLoading("feed");
@@ -332,7 +349,27 @@ const handleOpenReviewsFeed = async () => {
   useEffect(() => {
     loadProducts();
     loadSettings();
+    checkSyncStatus();
   }, []);
+
+  useEffect(() => {
+    if (!syncStatus?.isRunning) return;
+
+    const interval = setInterval(async () => {
+      const updated = await checkSyncStatus();
+      if (updated && !updated.isRunning) {
+        if (updated.status === "Completed") {
+          toast.success(updated.message || "Google Merchant sync completed successfully!");
+        } else if (updated.status === "CompletedWithErrors") {
+          toast.warning(updated.message || "Google Merchant sync completed with some errors.");
+        } else if (updated.status === "Failed") {
+          toast.error(updated.message || "Google Merchant sync failed.");
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [syncStatus?.isRunning]);
 
   const filteredSyncProducts = useMemo(() => {
     const keyword = syncSearchTerm.trim().toLowerCase();
@@ -401,9 +438,12 @@ const handleOpenReviewsFeed = async () => {
       if (confirmState.action === "sync-all") {
         const response = await googleMerchantService.syncAll();
         if (response.error || response.data?.success === false) {
-          throw new Error(response.error || response.data?.message || "Sync all failed");
+          throw new Error(response.error || response.data?.message || "Sync all failed to start");
         }
-        toast.success(response.data?.message || "All products synced successfully");
+        toast.success(response.data?.message || "Sync started in background. Tracking progress below.");
+        setConfirmState({ open: false, action: null });
+        await checkSyncStatus();
+        return;
       }
 
       if (confirmState.action === "sync-selected") {
@@ -455,9 +495,12 @@ const handleOpenReviewsFeed = async () => {
       if (confirmState.action === "clean-resync") {
         const response = await googleMerchantService.cleanResync();
         if (response.error || response.data?.success === false) {
-          throw new Error(response.error || response.data?.message || "Clean resync failed");
+          throw new Error(response.error || response.data?.message || "Clean resync failed to start");
         }
-        toast.success(response.data?.message || "Clean resync completed successfully");
+        toast.success(response.data?.message || "Clean resync started in background. Tracking progress below.");
+        setConfirmState({ open: false, action: null });
+        await checkSyncStatus();
+        return;
       }
     } catch (error: any) {
       toast.error(error?.message || "Action failed");
@@ -572,6 +615,59 @@ const handleOpenReviewsFeed = async () => {
           </div>
         </div>
 
+        {/* Live Background Sync Progress Banner */}
+        {syncStatus?.isRunning && (
+          <div className="mt-6 overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 p-5 shadow-xl backdrop-blur-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    Google Merchant Sync In Progress
+                    <span className="rounded-md bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300">
+                      {syncStatus.currentAction === "clean-resync" ? "Clean Resync" : "Sync All"}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {syncStatus.message || "Processing batches in background..."}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-lg font-extrabold text-blue-400">
+                  {syncStatus.percentComplete}%
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  {syncStatus.processed} / {syncStatus.totalEligible > 0 ? syncStatus.totalEligible : "..."} products (Batch {syncStatus.currentBatch} of {syncStatus.totalBatches})
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500"
+                style={{ width: `${Math.max(5, syncStatus.percentComplete)}%` }}
+              />
+            </div>
+
+            {/* Sub-counters */}
+            <div className="mt-3 flex flex-wrap items-center justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-2.5">
+              <div className="flex items-center gap-4">
+                <span className="text-emerald-400 font-semibold">✓ {syncStatus.synced} synced</span>
+                {syncStatus.failed > 0 && (
+                  <span className="text-rose-400 font-semibold">✗ {syncStatus.failed} failed</span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-500">
+                Safe to leave page or refresh • Processing on server in batches of 100
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {/* Card 1: Sync All */}
           <div className="flex flex-col justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 gap-3">
@@ -583,11 +679,21 @@ const handleOpenReviewsFeed = async () => {
             <div>
               <button
                 type="button"
+                disabled={syncStatus?.isRunning || actionLoading}
                 onClick={() => setConfirmState({ open: true, action: "sync-all" })}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-emerald-500/20"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Sync All
+                {syncStatus?.isRunning && syncStatus.currentAction === "sync-all" ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Sync All
+                  </>
+                )}
               </button>
               <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
                 Push all available products to Google Merchant Center.
@@ -676,11 +782,21 @@ const handleOpenReviewsFeed = async () => {
             <div>
               <button
                 type="button"
+                disabled={syncStatus?.isRunning || actionLoading}
                 onClick={() => setConfirmState({ open: true, action: "clean-resync" })}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-indigo-500/20"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-2.5 text-xs font-semibold text-white transition hover:shadow-lg hover:shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Clean Resync
+                {syncStatus?.isRunning && syncStatus.currentAction === "clean-resync" ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Resyncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Clean Resync
+                  </>
+                )}
               </button>
               <p className="mt-2.5 text-xs text-slate-400 leading-relaxed">
                 Perform a clean resync by purging and re-pushing all products.

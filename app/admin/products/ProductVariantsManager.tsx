@@ -20,10 +20,10 @@ interface ProductVariantsManagerProps {
   onVariantImageUpload?: (variantId: string, file: File) => Promise<void>;
   parentNextDayDeliveryEnabled?: boolean;
   parentNextDayDeliveryFree?: boolean;
-  parentNextDayDeliveryCutoffTime?: string | null;
   parentFakeSaleCount?: number | string | null;
   parentOrderMinimumQuantity?: number | string | null;
   parentOrderMaximumQuantity?: number | string | null;
+  parentHandlingTimeDays?: number | string | null;
 }
 
 export default function ProductVariantsManager({
@@ -38,10 +38,10 @@ export default function ProductVariantsManager({
   onVariantImageUpload,
   parentNextDayDeliveryEnabled = false,
   parentNextDayDeliveryFree = false,
-  parentNextDayDeliveryCutoffTime = null,
   parentFakeSaleCount = 0,
   parentOrderMinimumQuantity = 1,
   parentOrderMaximumQuantity = 10000,
+  parentHandlingTimeDays = 0,
 }: ProductVariantsManagerProps) {
   const toast = useToast();
   const [collapsedVariants, setCollapsedVariants] = useState<Set<string>>(new Set());
@@ -145,7 +145,6 @@ export default function ProductVariantsManager({
       barcode: null,
       nextDayDeliveryEnabled: parentNextDayDeliveryEnabled ? parentNextDayDeliveryEnabled : false,
       nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
-      nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
       fakeSaleCount: null,
       saleCount: 0,
       orderMinimumQuantity: null,
@@ -194,7 +193,6 @@ export default function ProductVariantsManager({
       barcode: null,
       nextDayDeliveryEnabled: parentNextDayDeliveryEnabled ? parentNextDayDeliveryEnabled : false,
       nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
-      nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
       fakeSaleCount: null,
       saleCount: 0,
       orderMinimumQuantity: null,
@@ -319,11 +317,11 @@ export default function ProductVariantsManager({
         barcode: null,
         nextDayDeliveryEnabled: parentNextDayDeliveryEnabled ? parentNextDayDeliveryEnabled : false,
         nextDayDeliveryFree: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryFree ?? false) : false,
-        nextDayDeliveryCutoffTime: parentNextDayDeliveryEnabled ? (parentNextDayDeliveryCutoffTime ?? '') : '',
         fakeSaleCount: null,
         saleCount: 0,
         orderMinimumQuantity: null,
-        orderMaximumQuantity: null
+        orderMaximumQuantity: null,
+        handlingTimeDays: parentHandlingTimeDays ? (parseInt(parentHandlingTimeDays.toString()) || 0) : 0,
       };
 
       newVariants.push(newVariant);
@@ -633,11 +631,10 @@ export default function ProductVariantsManager({
                           }
                           placeholder="99.99"
                           disabled={disabled}
-                          className={`w-full px-3 py-2 text-sm bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:ring-2 disabled:opacity-50 ${
-                            variant.price !== null && variant.price !== undefined && (Number(variant.price) <= 0 || isNaN(Number(variant.price)))
+                          className={`w-full px-3 py-2 text-sm bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:ring-2 disabled:opacity-50 ${variant.price !== null && variant.price !== undefined && (Number(variant.price) <= 0 || isNaN(Number(variant.price)))
                               ? 'border-red-500 focus:ring-red-500'
                               : 'border-slate-600 focus:ring-violet-500'
-                          }`}
+                            }`}
                         />
                         {variant.price !== null && variant.price !== undefined && (Number(variant.price) <= 0 || isNaN(Number(variant.price))) && (
                           <p className="mt-1 text-xs text-red-400">
@@ -749,13 +746,13 @@ export default function ProductVariantsManager({
                         </label>
                         <input
                           type="number"
-                          value={variant.fakeSaleCount ?? parentFakeSaleCount ?? ''}
+                          value={variant.fakeSaleCount ?? ''}
                           onChange={(e) => {
                             const val = e.target.value;
                             updateProductVariant(
                               variant.id,
                               'fakeSaleCount',
-                              val === '' ? '' : parseInt(val) || 0
+                              val === '' ? null : parseInt(val) || 0
                             );
                           }}
                           placeholder={
@@ -855,73 +852,76 @@ export default function ProductVariantsManager({
                       </label>
                     </div>
 
-                    {/* Row 3.5: Next-Day Delivery Settings */}
-                    <div className="pt-3 border-t border-slate-700/50 flex flex-wrap items-center gap-4">
-                      {/* Enable Next-Day Delivery Checkbox */}
-                      <label className="flex items-center gap-2 cursor-pointer group">
+                    {/* Row 3.5: Delivery & Handling Time */}
+                    <div className="pt-3 border-t border-slate-700/50 flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex flex-wrap items-center gap-4">
+                        {/* Next-Day Delivery Enable Checkbox */}
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={variant.nextDayDeliveryEnabled || false}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              onVariantsChange(
+                                variants.map((v) =>
+                                  v.id === variant.id
+                                    ? {
+                                      ...v,
+                                      nextDayDeliveryEnabled: checked,
+                                      ...(!checked && {
+                                        nextDayDeliveryFree: false,
+                                      }),
+                                    }
+                                    : v
+                                )
+                              );
+                            }}
+                            disabled={disabled}
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                          />
+                          <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                            🚀 Enable Next-Day Delivery
+                          </span>
+                        </label>
+
+                        {variant.nextDayDeliveryEnabled && (
+                          <div className="flex items-center gap-2 pl-3 border-l border-slate-700/50">
+                            {/* Next-Day Delivery Free Checkbox */}
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={variant.nextDayDeliveryFree || false}
+                                onChange={(e) => {
+                                  updateProductVariant(variant.id, 'nextDayDeliveryFree', e.target.checked);
+                                }}
+                                disabled={disabled}
+                                className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                              />
+                              <span className="text-sm text-slate-300">
+                                🎁 Next-Day Delivery Free
+                              </span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Handling Time Days (Always visible) */}
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-slate-400 whitespace-nowrap">
+                          Handling Time (Days):
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={variant.nextDayDeliveryEnabled || false}
+                          type="number"
+                          min="0"
+                          placeholder={parentHandlingTimeDays ? `Inherit (${parentHandlingTimeDays})` : 'Inherit (0)'}
+                          value={variant.handlingTimeDays ?? ''}
                           onChange={(e) => {
-                            const checked = e.target.checked;
-                            onVariantsChange(
-                              variants.map((v) =>
-                                v.id === variant.id
-                                  ? {
-                                    ...v,
-                                    nextDayDeliveryEnabled: checked,
-                                    ...(!checked && {
-                                      nextDayDeliveryFree: false,
-                                      nextDayDeliveryCutoffTime: '',
-                                    }),
-                                  }
-                                  : v
-                              )
-                            );
+                            updateProductVariant(variant.id, 'handlingTimeDays', e.target.value !== '' ? parseInt(e.target.value) : null);
                           }}
                           disabled={disabled}
-                          className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                          className="px-3 py-1.5 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50 w-28"
                         />
-                        <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                          🚀 Enable Next-Day Delivery
-                        </span>
-                      </label>
-
-                      {variant.nextDayDeliveryEnabled && (
-                        <div className="flex flex-wrap items-center gap-4 pl-4 border-l border-slate-700/50">
-                          {/* Next-Day Delivery Free Checkbox */}
-                          <label className="flex items-center gap-2 cursor-pointer group">
-                            <input
-                              type="checkbox"
-                              checked={variant.nextDayDeliveryFree || false}
-                              onChange={(e) => {
-                                updateProductVariant(variant.id, 'nextDayDeliveryFree', e.target.checked);
-                              }}
-                              disabled={disabled}
-                              className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
-                            />
-                            <span className="text-sm text-slate-300">
-                              🎁 Next-Day Delivery Free
-                            </span>
-                          </label>
-
-                          {/* Cutoff Time Input */}
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs text-slate-400 whitespace-nowrap">
-                              Cutoff Time (UK Time)<span className="text-red-400">*</span>
-                            </label>
-                            <input
-                              type="time"
-                              value={variant.nextDayDeliveryCutoffTime || ''}
-                              onChange={(e) => {
-                                updateProductVariant(variant.id, 'nextDayDeliveryCutoffTime', e.target.value || '');
-                              }}
-                              disabled={disabled}
-                              className="px-3 py-1.5 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500 disabled:opacity-50 w-28"
-                            />
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Row 3.6: Order Limits */}
@@ -982,7 +982,7 @@ export default function ProductVariantsManager({
                     {/* Row 4: Variant Image (Full Width) */}
                     <div className="pt-3 border-t border-slate-700/50">
                       <label className="block text-xs font-semibold text-slate-300 mb-2">
-                        Variant Image
+                        Variant Image (recommended size 1500 x 1500)
                       </label>
                       <div className="flex items-center gap-3">
                         {/* Image Preview */}

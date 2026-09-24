@@ -45,6 +45,7 @@ interface BulkUpdateResult {
   failed: number;
   errors: string[];
   warnings: string[];
+  updates?: string[];
 }
 
 interface OrderBulkUpdateResult {
@@ -124,6 +125,8 @@ const EDITABLE_FIELDS: { key: string; label: string }[] = [
   { key: 'gender', label: 'Gender' },
   { key: 'vendor', label: 'Vendor' },
   { key: 'tags', label: 'Tags' },
+  { key: 'createdBy', label: 'Created By' },
+  { key: 'modifiedBy', label: 'Modified By' },
 
   { key: 'price', label: 'Price' },
   { key: 'sellPrice', label: 'Sell Price' },
@@ -172,7 +175,8 @@ const EDITABLE_FIELDS: { key: string; label: string }[] = [
   { key: 'nextDayDeliveryEnabled', label: 'Next Day Delivery Enabled' },
   { key: 'nextDayDeliveryFree', label: 'Next Day Delivery Free' },
   { key: 'standardDeliveryEnabled', label: 'Standard Delivery Enabled' },
-  { key: 'nextDayDeliveryCutoffTime', label: 'Next Day Cutoff Time' },
+  { key: 'handlingTimeDays', label: 'Handling Time (Days)' },
+  { key: 'clickAndCollect', label: 'Click and Collect' },
 
   { key: 'weight', label: 'Weight' },
   { key: 'length', label: 'Length' },
@@ -460,7 +464,8 @@ function ProductsBulkUpdateTab() {
     'price',
     'oldPrice',
     'nextDayDeliveryEnabled',
-    'nextDayDeliveryCutoffTime',
+    'handlingTimeDays',
+    'clickAndCollect',
     'brandNames',
     'categoryIds',
     'gtin',
@@ -742,8 +747,8 @@ function ProductsBulkUpdateTab() {
                       <label
                         key={category.id}
                         className={`flex min-h-11 items-center gap-2 cursor-pointer rounded-lg px-3 py-2 text-xs transition-colors border ${checked
-                            ? 'bg-emerald-500/10 border-emerald-500/40 text-slate-100'
-                            : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-slate-100'
+                          : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
                           }`}
                         title={category.path}
                       >
@@ -813,8 +818,8 @@ function ProductsBulkUpdateTab() {
                   <label
                     key={f.key}
                     className={`flex min-h-10 items-center gap-2 cursor-pointer rounded-lg px-3 py-2 text-xs transition-colors border ${checked
-                        ? 'bg-cyan-500/10 border-cyan-500/40 text-slate-100'
-                        : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                      ? 'bg-cyan-500/10 border-cyan-500/40 text-slate-100'
+                      : 'bg-slate-900/40 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-600'
                       }`}
                   >
                     <input
@@ -949,6 +954,12 @@ function ProductsBulkUpdateTab() {
               ))}
             </div>
 
+            {result.updates && result.updates.length > 0 && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 max-h-48 overflow-y-auto">
+                <p className="text-xs font-semibold text-emerald-300 mb-2">Updates ({result.updates.length})</p>
+                {result.updates.map((u, i) => <p key={i} className="text-xs text-emerald-400">{u}</p>)}
+              </div>
+            )}
             {result.errors.length > 0 && (
               <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 max-h-40 overflow-y-auto">
                 <p className="text-xs font-semibold text-red-300 mb-2">Errors ({result.errors.length})</p>
@@ -1080,8 +1091,8 @@ function TravelbookExportTab() {
                 key={opt.id}
                 onClick={() => setRange(opt.id)}
                 className={`relative rounded-lg border px-3 py-2.5 text-left transition-all ${active
-                    ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
-                    : 'bg-slate-800/40 border-slate-700/50 text-slate-300 hover:border-slate-600'
+                  ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                  : 'bg-slate-800/40 border-slate-700/50 text-slate-300 hover:border-slate-600'
                   }`}
               >
                 <p className="text-sm font-semibold">{opt.label}</p>
@@ -1195,8 +1206,8 @@ function CreateShipmentTab() {
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-5 py-3 flex items-start gap-3">
         <Truck className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
         <div className="text-xs text-slate-300">
-          <span className="font-semibold text-amber-400">Bulk Shipment</span> — Download all Processing (Home Delivery) orders,
-          fill in the Tracking Number and Carrier columns, then re-upload to ship them all at once.
+          <span className="font-semibold text-amber-400">Bulk Shipment</span> — Download all Processing (Home Delivery) orders with pre-filled Carrier Name &amp; Service Name,
+          fill in the Tracking Number, then re-upload to ship them all at once.
         </div>
       </div>
 
@@ -1206,7 +1217,7 @@ function CreateShipmentTab() {
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-400 border border-amber-500/30 flex-shrink-0">1</span>
           <div>
             <p className="text-sm font-semibold text-slate-200">Download Processing Orders</p>
-            <p className="text-xs text-slate-400">Exports all Processing + Home Delivery orders with empty Tracking Number &amp; Carrier columns</p>
+            <p className="text-xs text-slate-400">Exports all Processing + Home Delivery orders with pre-filled Carrier Name &amp; Service Name, ready for Tracking Number entry</p>
           </div>
         </div>
         <div className="p-5 flex items-center gap-4">
@@ -1233,7 +1244,7 @@ function CreateShipmentTab() {
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-400 border border-amber-500/30 flex-shrink-0">2</span>
           <div>
             <p className="text-sm font-semibold text-slate-200">Upload Filled Excel</p>
-            <p className="text-xs text-slate-400">Fill Tracking Number &amp; Carrier columns then upload — orders will be marked Shipped and customers notified</p>
+            <p className="text-xs text-slate-400">Fill Tracking Number (Carrier Name &amp; Service Name are prefilled and editable) then upload — orders will be marked Shipped and customers notified</p>
           </div>
         </div>
         <div className="p-5 space-y-4">

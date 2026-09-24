@@ -20,11 +20,87 @@ type AddressSuggestion = {
   id: string;
   type: string;
   text: string;
+  description?: string;
+  highlight?: string;
 };
 
 function formatCurrency(n = 0) {
   return `£${n.toFixed(2)}`;
 }
+
+function CutoffCountdownBadge({ nextCutoffUtc }: { nextCutoffUtc?: string | null }) {
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!nextCutoffUtc) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const target = new Date(nextCutoffUtc).getTime();
+      const now = Date.now();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft(null);
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % 60000) / 1000);
+
+      const parts: string[] = [];
+      if (hours > 0) parts.push(`${hours}h`);
+      parts.push(`${minutes}m`);
+      parts.push(`${seconds}s`);
+      setTimeLeft(parts.join(" "));
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [nextCutoffUtc]);
+
+  if (!timeLeft) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full mt-1.5 shadow-sm">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+      </span>
+      Order within {timeLeft} for dispatch today
+    </span>
+  );
+}
+
+// 🇬🇧 Clean and normalize UK phone number (strips +44, 0044, leading 0s, and limits to 10 digits)
+function sanitizeUKPhone(val: string): string {
+  if (!val) return "";
+  let cleaned = val.replace(/\D/g, "");
+  if (cleaned.startsWith("0044") && cleaned.length > 12) {
+    cleaned = cleaned.slice(4);
+  } else if (cleaned.startsWith("44") && cleaned.length > 10) {
+    cleaned = cleaned.slice(2);
+  }
+  cleaned = cleaned.replace(/^0+/, "");
+  return cleaned.slice(0, 10);
+}
+function getShippingOptionTitle(opt: any): string {
+  if (!opt) return "Standard Delivery";
+  if (opt.carrierName && opt.serviceName) {
+    const carrier = opt.carrierName.trim();
+    const service = opt.serviceName.trim();
+    if (service.toLowerCase().startsWith(carrier.toLowerCase())) {
+      return service;
+    }
+    return `${carrier} ${service}`;
+  }
+  return opt.serviceName || opt.displayName || opt.name || opt.methodName || "Standard Delivery";
+}
+
 function isBundleComplete(cartItems: any[], mainProductId: string) {
   const mainItem = cartItems.find(
     i => i.productId === mainProductId && !i.parentProductId
@@ -111,10 +187,89 @@ function CheckoutPayment({
   const [processing, setProcessing] = useState(false);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
 
+  // Extract paymentIntentId from clientSecret (format: pi_xxx_secret_yyy)
+  const paymentIntentId = useMemo(() => {
+    if (!clientSecret) return null;
+    const parts = clientSecret.split("_secret_");
+    return parts[0] || null;
+  }, [clientSecret]);
+
+  const lastUpdatedMethodRef = useRef<string>("");
+  const updateTimerRef = useRef<any>(null);
+
+  const handlePaymentElementChange = (event: any) => {
+    const rawType = event.value?.type;
+    if (!rawType || !paymentIntentId) return;
+
+    let friendlyName = "Card";
+    switch (rawType.toLowerCase()) {
+      case "revolut_pay":
+      case "revolut":
+        friendlyName = "Revolut Pay";
+        break;
+      case "amazon_pay":
+      case "amazonpay":
+        friendlyName = "Amazon Pay";
+        break;
+      case "klarna":
+        friendlyName = "Klarna";
+        break;
+      case "paypal":
+        friendlyName = "PayPal";
+        break;
+      case "pay_by_bank":
+      case "pay_by_bank_app":
+      case "fps":
+        friendlyName = "Pay By Bank App";
+        break;
+      case "bacs_direct_debit":
+      case "bacs":
+        friendlyName = "Bacs Direct Debit";
+        break;
+      case "link":
+        friendlyName = "Stripe Link";
+        break;
+      case "apple_pay":
+        friendlyName = "Apple Pay";
+        break;
+      case "google_pay":
+        friendlyName = "Google Pay";
+        break;
+      case "card":
+        friendlyName = "Card";
+        break;
+      default:
+        friendlyName = rawType;
+        break;
+    }
+
+    if (lastUpdatedMethodRef.current === friendlyName) return;
+    lastUpdatedMethodRef.current = friendlyName;
+
+    if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
+    updateTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/update-method`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentIntentId,
+            paymentMethod: friendlyName,
+          }),
+        });
+      } catch (err) {
+        console.warn("Failed to sync payment method to backend:", err);
+      }
+    }, 250);
+  };
+
   const handlePay = async () => {
     if (!stripe || !elements || !paymentElementReady) return;
 
     setProcessing(true);
+
+    const bPhone = orderPayload.billingPhone ? `+44${sanitizeUKPhone(orderPayload.billingPhone)}` : undefined;
+    const sPhone = orderPayload.shippingPhone ? `+44${sanitizeUKPhone(orderPayload.shippingPhone)}` : bPhone;
 
     const result = await stripe.confirmPayment({
       elements,
@@ -122,10 +277,15 @@ function CheckoutPayment({
         return_url: `${window.location.origin}/order/success?orderId=${orderId}`,
         payment_method_data: {
           billing_details: {
-            name: `${orderPayload.billingFirstName} ${orderPayload.billingLastName}`,
-            email: orderPayload.customerEmail,
+            name: `${orderPayload.billingFirstName || ""} ${orderPayload.billingLastName || ""}`.trim() || undefined,
+            email: orderPayload.customerEmail || undefined,
+            phone: bPhone,
             address: {
-              line1: orderPayload.billingAddressLine1,
+              line1: orderPayload.billingAddressLine1 || "",
+              line2: orderPayload.billingAddressLine2 || undefined,
+              city: orderPayload.billingCity || "",
+              state: orderPayload.billingState || undefined,
+              postal_code: (orderPayload.billingPostalCode || "").trim(),
               country: "GB",
             },
           },
@@ -135,6 +295,20 @@ function CheckoutPayment({
     });
 
     if (result.error) {
+      if (paymentIntentId) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/fail`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              paymentIntentId,
+              failureReason: result.error.message || "Payment authorization failed",
+            }),
+          });
+        } catch {
+          // ignore
+        }
+      }
       onError(result.error);
       setProcessing(false);
       return;
@@ -144,9 +318,13 @@ function CheckoutPayment({
       setProcessing(false);
       return;
     }
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/confirm/${result.paymentIntent.id}`, {
-      method: "POST",
-    });
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Payment/confirm/${result.paymentIntent.id}`, {
+        method: "POST",
+      });
+    } catch (e) {
+      console.error("Confirmation call error:", e);
+    }
 
     onPaymentSuccess({ data: { id: orderId } });
     setProcessing(false);
@@ -156,7 +334,10 @@ function CheckoutPayment({
 
   return (
     <div className="space-y-3">
-      <PaymentElement onReady={() => setPaymentElementReady(true)} />
+      <PaymentElement
+        onReady={() => setPaymentElementReady(true)}
+        onChange={handlePaymentElementChange}
+      />
       <button
         onClick={handlePay}
         disabled={isButtonDisabled}
@@ -239,6 +420,23 @@ async function getErrorMessage(res: Response, fallback: string): Promise<string>
   } catch { }
   return fallback;
 }
+
+const toIsoDateOnlyString = (dateVal: string | Date | null | undefined): string | null => {
+  if (!dateVal) return null;
+  if (typeof dateVal === "string") {
+    const match = dateVal.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) {
+      return `${match[1]}T00:00:00.000Z`;
+    }
+  }
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString();
+  } catch {
+    return null;
+  }
+};
 
 /* === Main Checkout Page === */
 export default function CheckoutPage() {
@@ -533,6 +731,12 @@ export default function CheckoutPage() {
   const [showShippingSuggestions, setShowShippingSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const [isFindingBilling, setIsFindingBilling] = useState(false);
+  const [isFindingShipping, setIsFindingShipping] = useState(false);
+  const [billingSelectValue, setBillingSelectValue] = useState("");
+  const [shippingSelectValue, setShippingSelectValue] = useState("");
+  const [billingLookupError, setBillingLookupError] = useState<string | null>(null);
+  const [shippingLookupError, setShippingLookupError] = useState<string | null>(null);
 
   const clearFieldError = (key: string) => {
     setFieldErrors(prev => {
@@ -592,13 +796,8 @@ export default function CheckoutPage() {
     setBillingPostalCode(addr.postalCode);
     setBillingCountry(addr.country || "United Kingdom");
     // 🔥 FIXED PHONE LOGIC (UK Safe)
-    // 🔥 SAFE PHONE
     const phoneRaw = addr.phoneNumber ?? "";
-
-    const cleaned = phoneRaw
-      .replace("+44", "")
-      .replace(/^0/, "")
-      .replace(/\D/g, "");
+    const cleaned = sanitizeUKPhone(phoneRaw);
 
     setBillingPhone(cleaned);
     setFieldErrors((prev) => {
@@ -708,7 +907,7 @@ export default function CheckoutPage() {
   const shippingTrackedRef = useRef<string>("");
   useEffect(() => {
     if (!selectedShippingOption || checkoutItems.length === 0) return;
-    const key = selectedShippingOption.deliveryOptionId ?? selectedShippingOption.name ?? "";
+    const key = (selectedShippingOption.deliveryServiceId || selectedShippingOption.deliveryOptionId || selectedShippingOption.name) ?? "";
     if (shippingTrackedRef.current === key) return;
     shippingTrackedRef.current = key;
     trackAddShippingInfo(
@@ -875,35 +1074,26 @@ export default function CheckoutPage() {
   const allSupportNextDay = useMemo(() =>
     checkoutItems.length > 0 &&
     checkoutItems.every(i => {
+      if (i.nextDayDeliveryEnabled === true) return true;
       if (i.variantId && i.productData?.variants?.length) {
         const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v && typeof v.nextDayDeliveryEnabled === "boolean") {
-          return v.nextDayDeliveryEnabled === true;
-        }
+        if (v?.nextDayDeliveryEnabled === true) return true;
       }
-      return i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
+      return i.productData?.nextDayDeliveryEnabled === true;
     }),
     [checkoutItems]);
 
   const allNextDayFree = useMemo(() =>
     checkoutItems.length > 0 &&
     checkoutItems.every(i => {
-      let isEnabled = false;
-      let isFree = false;
-      if (i.variantId && i.productData?.variants?.length) {
-        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v) {
-          isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
-            ? v.nextDayDeliveryEnabled === true
-            : (i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true);
-          isFree = typeof v.nextDayDeliveryFree === "boolean"
-            ? v.nextDayDeliveryFree === true
-            : (i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true);
-          return isEnabled && isFree;
-        }
-      }
-      isEnabled = i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
-      isFree = i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      const isEnabled = i.nextDayDeliveryEnabled === true ||
+        (i.variantId && i.productData?.variants?.find((x: any) => x.id === i.variantId)?.nextDayDeliveryEnabled === true) ||
+        i.productData?.nextDayDeliveryEnabled === true;
+
+      const isFree = i.nextDayDeliveryFree === true ||
+        (i.variantId && i.productData?.variants?.find((x: any) => x.id === i.variantId)?.nextDayDeliveryFree === true) ||
+        i.productData?.nextDayDeliveryFree === true;
+
       return isEnabled && isFree;
     }),
     [checkoutItems]
@@ -912,22 +1102,14 @@ export default function CheckoutPage() {
   const hasAnyNextDayFree = useMemo(() =>
     checkoutItems.length > 0 &&
     checkoutItems.some(i => {
-      let isEnabled = false;
-      let isFree = false;
-      if (i.variantId && i.productData?.variants?.length) {
-        const v = i.productData.variants.find((x: any) => x.id === i.variantId);
-        if (v) {
-          isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
-            ? v.nextDayDeliveryEnabled === true
-            : (i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true);
-          isFree = typeof v.nextDayDeliveryFree === "boolean"
-            ? v.nextDayDeliveryFree === true
-            : (i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true);
-          return isEnabled && isFree;
-        }
-      }
-      isEnabled = i.nextDayDeliveryEnabled === true || i.productData?.nextDayDeliveryEnabled === true;
-      isFree = i.nextDayDeliveryFree === true || i.productData?.nextDayDeliveryFree === true;
+      const isEnabled = i.nextDayDeliveryEnabled === true ||
+        (i.variantId && i.productData?.variants?.find((x: any) => x.id === i.variantId)?.nextDayDeliveryEnabled === true) ||
+        i.productData?.nextDayDeliveryEnabled === true;
+
+      const isFree = i.nextDayDeliveryFree === true ||
+        (i.variantId && i.productData?.variants?.find((x: any) => x.id === i.variantId)?.nextDayDeliveryFree === true) ||
+        i.productData?.nextDayDeliveryFree === true;
+
       return isEnabled && isFree;
     }),
     [checkoutItems]
@@ -1003,15 +1185,18 @@ export default function CheckoutPage() {
       setShippingOptions([]);
       setSelectedShippingOption(null);
       setShippingError(null);
+      setShippingQuoteLoading(false);
       return;
     }
-    const itemCount = checkoutItems.reduce((s, i) => s + i.quantity, 0);
+
+    const controller = new AbortController();
 
     const timer = setTimeout(async () => {
       try {
         setShippingQuoteLoading(true);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=${encodeURIComponent(postcode)}&orderTotal=${cartValue}&productIds=${encodeURIComponent(productIdsParam)}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=${encodeURIComponent(postcode)}&orderTotal=${cartValue}&productIds=${encodeURIComponent(productIdsParam)}`,
+          { signal: controller.signal }
         );
         const json = await res.json();
 
@@ -1063,14 +1248,38 @@ export default function CheckoutPage() {
           setShippingOptions(options);
 
           if (options.length > 0) {
-            setSelectedShippingOption(options[0]);
+            setSelectedShippingOption((prev: any) => {
+              if (prev) {
+                const found = options.find((o: any) =>
+                  o.deliveryServiceId && prev.deliveryServiceId
+                    ? o.deliveryServiceId === prev.deliveryServiceId
+                    : o.deliveryOptionId === prev.deliveryOptionId &&
+                    (o.serviceName === prev.serviceName || o.name === prev.name || o.displayName === prev.displayName)
+                );
+                if (found) return found;
+              }
+              const defaultOpt = options.find((o: any) => o.isDefault);
+              return defaultOpt || options[0];
+            });
+          } else {
+            setSelectedShippingOption(null);
           }
         }
-      } catch { /* silent */ } finally {
-        setShippingQuoteLoading(false);
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.error("Shipping quote fetch error:", err);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setShippingQuoteLoading(false);
+        }
       }
-    }, 600);
-    return () => clearTimeout(timer);
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [billingPostalCode, shippingPostalCode, shippingSameAsBilling, deliveryMethod, allSupportNextDay, allSupportSameDay, allNextDayFree, productIdsParam, cartValue]);
   useEffect(() => {
     if (deliveryMethod !== "ClickAndCollect") {
@@ -1167,7 +1376,7 @@ export default function CheckoutPage() {
       if (savedLastName) setBillingLastName(savedLastName);
 
       const savedPhone = localStorage.getItem("guestBillingPhone");
-      if (savedPhone) setBillingPhone(savedPhone);
+      if (savedPhone) setBillingPhone(sanitizeUKPhone(savedPhone));
 
       const savedCompany = localStorage.getItem("guestBillingCompany");
       if (savedCompany) setBillingCompany(savedCompany);
@@ -1223,7 +1432,7 @@ export default function CheckoutPage() {
       if (savedShippingCountry) setShippingCountry(savedShippingCountry);
 
       const savedShippingPhone = localStorage.getItem("guestShippingPhone");
-      if (savedShippingPhone) setShippingPhone(savedShippingPhone);
+      if (savedShippingPhone) setShippingPhone(sanitizeUKPhone(savedShippingPhone));
 
       const savedNotes = localStorage.getItem("guestNotes");
       if (savedNotes) setNotes(savedNotes);
@@ -1283,14 +1492,16 @@ export default function CheckoutPage() {
     shippingPhone,
     notes,
   ]);
-  // Debounced autocomplete using the single API you provided
+  // Autocomplete search using Royal Mail AddressNow
   const doAutocomplete = useCallback(async (q: string) => {
+    setBillingLookupError(null);
     if (!q || q.trim().length < 3) {
       setAddressSuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
+    setIsFindingBilling(true);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/search?query=${encodeURIComponent(q.trim())}&country=GB`
@@ -1298,27 +1509,58 @@ export default function CheckoutPage() {
 
       const json = await res.json();
 
-      if (!json?.success || !Array.isArray(json.data)) {
+      if (!json?.success) {
+        setBillingLookupError(json?.message || "Failed to search addresses");
         setAddressSuggestions([]);
         setShowSuggestions(false);
         return;
+      }
+
+      if (!Array.isArray(json.data)) {
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      // Check if we should automatically drill down (if first result is postcode container and matches query)
+      if (json.data.length > 0) {
+        const firstItem = json.data[0];
+        const cleanText = firstItem.text.replace(/\s+/g, "").toLowerCase();
+        const cleanQuery = q.replace(/\s+/g, "").toLowerCase();
+        if (firstItem.type === "Postcode" && cleanText === cleanQuery) {
+          const drillDownRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/search?query=${encodeURIComponent(q.trim())}&container=${encodeURIComponent(firstItem.id)}&country=GB`
+          );
+          const drillDownJson = await drillDownRes.json();
+          if (drillDownJson?.success && Array.isArray(drillDownJson.data)) {
+            setAddressSuggestions(drillDownJson.data);
+            setShowSuggestions(drillDownJson.data.length > 0);
+            return;
+          }
+        }
       }
 
       setAddressSuggestions(json.data);
       setShowSuggestions(json.data.length > 0);
     } catch (err) {
       console.error("Address lookup failed", err);
+      setBillingLookupError("Address lookup failed. Please enter address manually.");
       setAddressSuggestions([]);
       setShowSuggestions(false);
+    } finally {
+      setIsFindingBilling(false);
     }
   }, []);
+
   const doShippingAutocomplete = useCallback(async (q: string) => {
+    setShippingLookupError(null);
     if (!q || q.trim().length < 3) {
       setShippingAddressSuggestions([]);
       setShowShippingSuggestions(false);
       return;
     }
 
+    setIsFindingShipping(true);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/search?query=${encodeURIComponent(q.trim())}&country=GB`
@@ -1326,20 +1568,49 @@ export default function CheckoutPage() {
 
       const json = await res.json();
 
-      if (!json?.success || !Array.isArray(json.data)) {
+      if (!json?.success) {
+        setShippingLookupError(json?.message || "Failed to search addresses");
         setShippingAddressSuggestions([]);
         setShowShippingSuggestions(false);
         return;
+      }
+
+      if (!Array.isArray(json.data)) {
+        setShippingAddressSuggestions([]);
+        setShowShippingSuggestions(false);
+        return;
+      }
+
+      // Check if we should automatically drill down (if first result is postcode container and matches query)
+      if (json.data.length > 0) {
+        const firstItem = json.data[0];
+        const cleanText = firstItem.text.replace(/\s+/g, "").toLowerCase();
+        const cleanQuery = q.replace(/\s+/g, "").toLowerCase();
+        if (firstItem.type === "Postcode" && cleanText === cleanQuery) {
+          const drillDownRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/search?query=${encodeURIComponent(q.trim())}&container=${encodeURIComponent(firstItem.id)}&country=GB`
+          );
+          const drillDownJson = await drillDownRes.json();
+          if (drillDownJson?.success && Array.isArray(drillDownJson.data)) {
+            setShippingAddressSuggestions(drillDownJson.data);
+            setShowShippingSuggestions(drillDownJson.data.length > 0);
+            return;
+          }
+        }
       }
 
       setShippingAddressSuggestions(json.data);
       setShowShippingSuggestions(json.data.length > 0);
     } catch (err) {
       console.error("Shipping address lookup failed", err);
+      setShippingLookupError("Address lookup failed. Please enter address manually.");
       setShippingAddressSuggestions([]);
       setShowShippingSuggestions(false);
+    } finally {
+      setIsFindingShipping(false);
     }
   }, []);
+
   const fetchAddressDetails = async (id: string) => {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/details/${encodeURIComponent(
@@ -1354,15 +1625,6 @@ export default function CheckoutPage() {
     }
     return json.data;
   };
-  const debouncedAutocomplete = useDebouncedCallback(doAutocomplete, 350);
-  const debouncedShippingAutocomplete = useDebouncedCallback(doShippingAutocomplete, 350);
-  useEffect(() => {
-    debouncedAutocomplete(addressQuery);
-  }, [addressQuery, debouncedAutocomplete]);
-
-  useEffect(() => {
-    debouncedShippingAutocomplete(shippingAddressQuery);
-  }, [shippingAddressQuery, debouncedShippingAutocomplete]);
 
   useEffect(() => {
     if (!shippingSameAsBilling) return;
@@ -1380,6 +1642,7 @@ export default function CheckoutPage() {
     shippingSameAsBilling,
     billingFirstName,
     billingLastName,
+    billingPhone,
     billingCompany,
     billingAddress1,
     billingAddress2,
@@ -1391,26 +1654,38 @@ export default function CheckoutPage() {
   // When user selects suggestion -> autofill fields
   const handleSelectSuggestion = async (s: AddressSuggestion) => {
     try {
-      setShowSuggestions(false);
-      setAddressSuggestions([]); // ⭐ ADD THIS
-      setAddressQuery(""); // 🔥 clear search input after select
+      if (s.type !== "Address") {
+        // It's a container! Drill down to get actual addresses.
+        setIsFindingBilling(true);
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/search?query=${encodeURIComponent(addressQuery)}&container=${encodeURIComponent(s.id)}&country=GB`
+          );
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setAddressSuggestions(json.data);
+            setBillingSelectValue(""); // Reset dropdown to placeholder so they can select a child option
+          }
+        } catch (err) {
+          console.error("Failed to drill down billing address", err);
+        } finally {
+          setIsFindingBilling(false);
+        }
+        return;
+      }
+
+      // It's a final address!
       const details = await fetchAddressDetails(s.id);
-      const line1 =
-        details.line1 ||
-        details.line2 ||
-        details.line3 ||
-        s.text || "";
-      const city =
-        details.city ||
-        details.town ||
-        details.locality ||
-        details.administrativeArea ||
-        "";
-      const state = details.province || "";
-      const postcode = details.postalCode || "";
+      const line1 = details.line1 || "";
+      const line2 = details.line2 || "";
+      const city = details.townOrCity || "";
+      const state = details.county || "";
+      const postcode = details.postalCode || billingPostalCode;
       const country = details.country || "United Kingdom";
+
       // 🔹 Billing
       setBillingAddress1(line1);
+      setBillingAddress2(line2);
       setBillingCity(city);
       setBillingState(state);
       setBillingPostalCode(postcode);
@@ -1426,13 +1701,67 @@ export default function CheckoutPage() {
       // 🔹 Shipping (respect checkbox)
       if (shippingSameAsBilling) {
         setShippingAddress1(line1);
+        setShippingAddress2(line2);
         setShippingCity(city);
         setShippingState(state);
         setShippingPostalCode(postcode);
         setShippingCountry(country);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Address details error", err);
+      setBillingLookupError(err.message || "Failed to fetch address details");
+    }
+  };
+
+  const handleSelectShippingSuggestion = async (s: AddressSuggestion) => {
+    try {
+      if (s.type !== "Address") {
+        // It's a container! Drill down to get actual addresses.
+        setIsFindingShipping(true);
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/address-lookup/search?query=${encodeURIComponent(shippingAddressQuery)}&container=${encodeURIComponent(s.id)}&country=GB`
+          );
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setShippingAddressSuggestions(json.data);
+            setShippingSelectValue(""); // Reset dropdown to placeholder so they can select a child option
+          }
+        } catch (err) {
+          console.error("Failed to drill down shipping address", err);
+        } finally {
+          setIsFindingShipping(false);
+        }
+        return;
+      }
+
+      // It's a final address!
+      const details = await fetchAddressDetails(s.id);
+      const line1 = details.line1 || "";
+      const line2 = details.line2 || "";
+      const city = details.townOrCity || "";
+      const state = details.county || "";
+      const postcode = details.postalCode || shippingPostalCode;
+      const country = details.country || "United Kingdom";
+
+      // 🔹 Shipping
+      setShippingAddress1(line1);
+      setShippingAddress2(line2);
+      setShippingCity(city);
+      setShippingState(state);
+      setShippingPostalCode(postcode);
+      setShippingCountry(country);
+      setFieldErrors((prev) => {
+        const updated = { ...prev };
+        delete updated.shippingAddress1;
+        delete updated.shippingPostalCode;
+        delete updated.shippingCity;
+        delete updated.shippingState;
+        return updated;
+      });
+    } catch (err: any) {
+      console.error("Shipping address details error", err);
+      setShippingLookupError(err.message || "Failed to fetch address details");
     }
   };
 
@@ -1496,9 +1825,9 @@ export default function CheckoutPage() {
           : null,
       paymentMethod: "Card",
       customerEmail: billingEmail,
-      customerPhone: `+44${billingPhone}`,
-      billingPhone: `+44${billingPhone}`,
-      shippingPhone: `+44${shippingSameAsBilling ? billingPhone : shippingPhone}`,
+      customerPhone: `+44${sanitizeUKPhone(billingPhone)}`,
+      billingPhone: `+44${sanitizeUKPhone(billingPhone)}`,
+      shippingPhone: `+44${sanitizeUKPhone(shippingSameAsBilling ? billingPhone : shippingPhone)}`,
       isGuestOrder: !isAuthenticated,
       userId: isAuthenticated ? user?.id : null,
       pharmacySessionId,
@@ -1522,16 +1851,26 @@ export default function CheckoutPage() {
       shippingCountry: shippingSameAsBilling ? billingCountry : shippingCountry,
       orderItems: items,
       couponCode: getAppliedCouponCode(),
-      // ✅ ADD THIS
       selectedShippingMethodId:
         selectedShippingOption?.deliveryOptionId ?? null,
 
-      selectedShippingMethodName:
-        selectedShippingOption?.displayName ||
-        selectedShippingOption?.name ||
-        null,
+      selectedShippingMethodName: selectedShippingOption
+        ? getShippingOptionTitle(selectedShippingOption)
+        : null,
 
       shippingCost: selectedShippingOption?.price ?? 0,
+
+      // Snapshot fields for audit and fulfillment freeze
+      deliveryOptionId: selectedShippingOption?.deliveryOptionId ?? null,
+      deliveryServiceId: selectedShippingOption?.deliveryServiceId ?? null,
+      carrierName: selectedShippingOption?.carrierName ?? null,
+      serviceName: selectedShippingOption?.serviceName ?? null,
+      estimatedDeliveryMinDays: selectedShippingOption?.deliveryMinDays ?? selectedShippingOption?.estimatedMinDays ?? null,
+      estimatedDeliveryMaxDays: selectedShippingOption?.deliveryMaxDays ?? selectedShippingOption?.estimatedMaxDays ?? null,
+      estimatedDispatchDate: toIsoDateOnlyString(selectedShippingOption?.dispatchDate),
+      estimatedDeliveryDateMin: toIsoDateOnlyString(selectedShippingOption?.estimatedDeliveryDateMin),
+      estimatedDeliveryDateMax: toIsoDateOnlyString(selectedShippingOption?.estimatedDeliveryDateMax),
+
       notes,
       pointsToRedeem: pointsToRedeem || 0,
       pointsDiscountAmount: pointsDiscount || 0,
@@ -1549,29 +1888,40 @@ export default function CheckoutPage() {
       errors.billingEmail = "Enter a valid email address";
     }
     if (!billingFirstName.trim()) errors.billingFirstName = "First name is required";
-    if (!billingPhone.trim()) {
+    const cleanBillingPhone = sanitizeUKPhone(billingPhone);
+    if (!billingPhone.trim() || !cleanBillingPhone) {
       errors.billingPhone = "Phone number is required";
-    } else if (!/^\d{10}$/.test(billingPhone.trim())) {
+    } else if (cleanBillingPhone.length !== 10) {
       errors.billingPhone = "Phone number must be exactly 10 digits";
     }
 
+    const ukPostcodeRegex = /^([A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}|GIR ?0AA)$/i;
+
     if (!billingAddress1.trim()) errors.billingAddress1 = "Address line 1 is required";
-    if (!billingPostalCode.trim()) errors.billingPostalCode = "Postcode is required";
+    if (!billingPostalCode.trim()) {
+      errors.billingPostalCode = "Postcode is required";
+    } else if (!ukPostcodeRegex.test(billingPostalCode.trim())) {
+      errors.billingPostalCode = "Please enter a valid UK postcode";
+    }
     if (!billingCity.trim()) errors.billingCity = "City is required";
 
     // ✅ SHIPPING VALIDATION (same as billing)
     if (deliveryMethod === "HomeDelivery" && !shippingSameAsBilling) {
       if (!shippingFirstName.trim())
         errors.shippingFirstName = "Shipping first name is required";
-      if (!shippingPhone.trim()) {
+      const cleanShippingPhone = sanitizeUKPhone(shippingPhone);
+      if (!shippingPhone.trim() || !cleanShippingPhone) {
         errors.shippingPhone = "Shipping phone number is required";
-      } else if (!/^\d{10}$/.test(shippingPhone.trim())) {
-        errors.shippingPhone = "Phone number must be exactly 10 digits after +44";
+      } else if (cleanShippingPhone.length !== 10) {
+        errors.shippingPhone = "Phone number must be exactly 10 digits";
       }
       if (!shippingAddress1.trim())
         errors.shippingAddress1 = "Shipping address line 1 is required";
-      if (!shippingPostalCode.trim())
+      if (!shippingPostalCode.trim()) {
         errors.shippingPostalCode = "Shipping postcode is required";
+      } else if (!ukPostcodeRegex.test(shippingPostalCode.trim())) {
+        errors.shippingPostalCode = "Please enter a valid UK postcode";
+      }
       if (!shippingCity.trim())
         errors.shippingCity = "Shipping city is required";
     }
@@ -1605,7 +1955,7 @@ export default function CheckoutPage() {
                 : item.frequencyPeriod,
               shippingFirstName: shippingSameAsBilling ? billingFirstName : shippingFirstName,
               shippingLastName: shippingSameAsBilling ? billingLastName : shippingLastName,
-              shippingPhone: `+44${shippingSameAsBilling ? billingPhone : shippingPhone}`,
+              shippingPhone: `+44${sanitizeUKPhone(shippingSameAsBilling ? billingPhone : shippingPhone)}`,
               shippingAddressLine1: shippingSameAsBilling ? billingAddress1 : shippingAddress1,
               shippingAddressLine2: shippingSameAsBilling ? billingAddress2 : shippingAddress2,
               shippingCity: shippingSameAsBilling ? billingCity : shippingCity,
@@ -1774,7 +2124,9 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex flex-col space-y-0.5 col-span-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-gray-700">Phone (UK) *</label>
+                    <label className="text-xs font-medium text-gray-700">
+                      Phone (UK) * <span className="text-gray-400 font-normal text-[11px]">(without leading 0)</span>
+                    </label>
                     <span className={`text-[10px] font-semibold tabular-nums transition-colors ${billingPhone.length === 10
                       ? "text-green-600"
                       : billingPhone.length > 0
@@ -1785,7 +2137,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   <div className="flex">
-                    <span className={`flex items-center bg-gray-100 border border-r-0 px-2 rounded text-xs font-semibold transition-colors ${fieldErrors.billingPhone
+                    <span className={`flex items-center bg-gray-100 border border-r-0 px-2 rounded-l text-xs font-semibold transition-colors ${fieldErrors.billingPhone
                       ? "border-red-400 text-red-600"
                       : "border-gray-300 text-gray-700"
                       }`}>+44</span>
@@ -1793,14 +2145,14 @@ export default function CheckoutPage() {
                       type="tel"
                       value={billingPhone}
                       onChange={(e) => {
-                        const cleaned = e.target.value.replace(/\D/g, "");
-                        if (cleaned.length <= 10) {
-                          setBillingPhone(cleaned);
+                        const cleaned = sanitizeUKPhone(e.target.value);
+                        setBillingPhone(cleaned);
+                        if (cleaned.length === 10) {
                           clearFieldError("billingPhone");
                         }
                       }}
-                      placeholder="7xxxxxxxxx"
-                      maxLength={10}
+                      placeholder="7123456789"
+                      maxLength={15}
                       className={`w-full border p-1.5 text-sm rounded-r focus:ring-2 transition-all ${fieldErrors.billingPhone
                         ? "border-red-400 focus:ring-red-200 focus:border-red-500"
                         : "border-gray-300 focus:ring-[#f38918]/20 focus:border-[#f38918]"
@@ -1809,7 +2161,7 @@ export default function CheckoutPage() {
                   </div>
                   {billingPhone.length > 0 && billingPhone.length < 10 && (
                     <p className="text-[11px] text-orange-500 flex items-center gap-1 mt-0.5">
-                      <span>⚠</span> {10 - billingPhone.length} more digit{10 - billingPhone.length !== 1 ? "s" : ""} needed
+                      <span>⚠</span> {10 - billingPhone.length} more digit{10 - billingPhone.length !== 1 ? "s" : ""} needed (without leading 0)
                     </p>
                   )}
                   <ErrorText error={fieldErrors.billingPhone} />
@@ -1822,25 +2174,52 @@ export default function CheckoutPage() {
                     className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
                   />
                 </div>
-                {/*
-                <div className="flex flex-col space-y-0.5 col-span-2 relative z-[40]">
-                  <label className="text-xs font-medium text-gray-700">Search address or postcode</label>
-                  <input
-                    type="text"
-                    value={addressQuery}
-                    onChange={(e) => setAddressQuery(e.target.value)}
-                    placeholder="Start typing city, postcode or address..."
-                    className="w-full border p-1.5 text-sm rounded"
-                  />
-                  {showSuggestions && addressSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded max-h-48 overflow-auto shadow-lg z-[40]">
+                <div className="flex flex-col space-y-0.5 col-span-2">
+                  <label className="text-xs font-medium text-gray-700">Please enter your postcode to find your address</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={addressQuery}
+                      onChange={(e) => setAddressQuery(e.target.value)}
+                      placeholder="e.g. SW1A 1AA or street name..."
+                      className="flex-1 border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => doAutocomplete(addressQuery)}
+                      disabled={isFindingBilling}
+                      className="border border-[#f38918] hover:bg-[#f38918] hover:text-white text-[#f38918] px-4 py-1.5 text-sm rounded font-semibold transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isFindingBilling ? "Finding..." : "Find address"}
+                    </button>
+                  </div>
+                  {billingLookupError && (
+                    <p className="text-xs text-red-500 mt-1 font-medium">⚠️ {billingLookupError}</p>
+                  )}
+                  {addressSuggestions.length > 0 && (
+                    <select
+                      value={billingSelectValue}
+                      onChange={async (e) => {
+                        const selectedId = e.target.value;
+                        setBillingSelectValue(selectedId);
+                        if (selectedId) {
+                          const selectedSuggestion = addressSuggestions.find(s => s.id === selectedId);
+                          if (selectedSuggestion) {
+                            await handleSelectSuggestion(selectedSuggestion);
+                          }
+                        }
+                      }}
+                      className="w-full border border-gray-300 p-2 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all bg-white mt-2"
+                    >
+                      <option value="">-- Select your address --</option>
                       {addressSuggestions.map((s) => (
-                        <button key={s.id} onClick={() => handleSelectSuggestion(s)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100">{s.text}</button>
+                        <option key={s.id} value={s.id}>
+                          {s.text} {s.description ? `(${s.description})` : ""}
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   )}
                 </div>
-                */}
                 <div className="flex flex-col space-y-0.5 col-span-2">
                   <label className="text-xs font-medium text-gray-700">Address line 1 *</label>
                   <input
@@ -1862,7 +2241,23 @@ export default function CheckoutPage() {
                   <label className="text-xs font-medium text-gray-700">Postcode *</label>
                   <input
                     value={billingPostalCode}
-                    onChange={(e) => { setBillingPostalCode(e.target.value); clearFieldError("billingPostalCode"); }}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBillingPostalCode(val);
+                      if (!val.trim()) {
+                        clearFieldError("billingPostalCode");
+                      } else {
+                        const ukPostcodeRegex = /^([A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}|GIR ?0AA)$/i;
+                        if (!ukPostcodeRegex.test(val.trim())) {
+                          setFieldErrors((prev) => ({
+                            ...prev,
+                            billingPostalCode: "Please enter a valid UK postcode",
+                          }));
+                        } else {
+                          clearFieldError("billingPostalCode");
+                        }
+                      }
+                    }}
                     className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
                   />
                   <ErrorText error={fieldErrors.billingPostalCode} />
@@ -1943,69 +2338,52 @@ export default function CheckoutPage() {
                 </div>
                 {!shippingSameAsBilling ? (
                   <div className="grid grid-cols-2 gap-2">
-                    {/*
-                    <div className="flex flex-col space-y-0.5 mt-2 col-span-2 relative z-[40]">
-                      <label className="text-xs font-medium text-gray-700">
-                        Search shipping address or postcode
-                      </label>
-
-                      <input
-                        type="text"
-                        value={shippingAddressQuery}
-                        onChange={(e) => setShippingAddressQuery(e.target.value)}
-                        placeholder="Start typing city, postcode or address..."
-                        className="w-full border p-1.5 text-sm rounded"
-                      />
-
-                      {showShippingSuggestions && shippingAddressSuggestions.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded max-h-48 overflow-auto shadow-lg z-[40]">
+                    <div className="flex flex-col space-y-0.5 mt-2 col-span-2">
+                      <label className="text-xs font-medium text-gray-700">Please enter your postcode to find your address</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={shippingAddressQuery}
+                          onChange={(e) => setShippingAddressQuery(e.target.value)}
+                          placeholder="e.g. SW1A 1AA or street name..."
+                          className="flex-1 border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => doShippingAutocomplete(shippingAddressQuery)}
+                          disabled={isFindingShipping}
+                          className="border border-[#f38918] hover:bg-[#f38918] hover:text-white text-[#f38918] px-4 py-1.5 text-sm rounded font-semibold transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isFindingShipping ? "Finding..." : "Find address"}
+                        </button>
+                      </div>
+                      {shippingLookupError && (
+                        <p className="text-xs text-red-500 mt-1 font-medium">⚠️ {shippingLookupError}</p>
+                      )}
+                      {shippingAddressSuggestions.length > 0 && (
+                        <select
+                          value={shippingSelectValue}
+                          onChange={async (e) => {
+                            const selectedId = e.target.value;
+                            setShippingSelectValue(selectedId);
+                            if (selectedId) {
+                              const selectedSuggestion = shippingAddressSuggestions.find(s => s.id === selectedId);
+                              if (selectedSuggestion) {
+                                await handleSelectShippingSuggestion(selectedSuggestion);
+                              }
+                            }
+                          }}
+                          className="w-full border border-gray-300 p-2 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all bg-white mt-2"
+                        >
+                          <option value="">-- Select your address --</option>
                           {shippingAddressSuggestions.map((s) => (
-                            <button
-                              key={s.id}
-                              onClick={async () => {
-                                try {
-                                  const details = await fetchAddressDetails(s.id);
-
-                                  const line1 =
-                                    details.line1 ||
-                                    details.line2 ||
-                                    details.line3 ||
-                                    s.text ||
-                                    "";
-
-                                  const city =
-                                    details.city ||
-                                    details.town ||
-                                    details.locality ||
-                                    details.administrativeArea ||
-                                    "";
-
-                                  const state = details.province || "";
-                                  const postcode = details.postalCode || "";
-                                  const country = details.country || "United Kingdom";
-
-                                  setShippingAddress1(line1);
-                                  setShippingCity(city);
-                                  setShippingState(state);
-                                  setShippingPostalCode(postcode);
-                                  setShippingCountry(country);
-
-                                  setShowShippingSuggestions(false);
-                                  setShippingAddressSuggestions([]);
-                                  setShippingAddressQuery("");
-                                } catch (err) {
-                                  console.error("Shipping address lookup error", err);
-                                }
-                              }}
-                              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100"
-                            >
-                              {s.text}
-                            </button>
+                            <option key={s.id} value={s.id}>
+                              {s.text} {s.description ? `(${s.description})` : ""}
+                            </option>
                           ))}
-                        </div>
+                        </select>
                       )}
                     </div>
-                    */}
                     <div className="flex flex-col space-y-0.5">
                       <label className="text-xs font-medium text-gray-700">First name *</label>
                       <input value={shippingFirstName} onChange={(e) => { setShippingFirstName(e.target.value); clearFieldError("shippingFirstName"); }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all" />
@@ -2017,7 +2395,9 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex flex-col space-y-0.5 col-span-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium text-gray-700">Phone (UK) *</label>
+                        <label className="text-xs font-medium text-gray-700">
+                          Phone (UK) * <span className="text-gray-400 font-normal text-[11px]">(without leading 0)</span>
+                        </label>
                         <span className={`text-[10px] font-semibold tabular-nums transition-colors ${shippingPhone.length === 10
                           ? "text-green-600"
                           : shippingPhone.length > 0
@@ -2028,7 +2408,7 @@ export default function CheckoutPage() {
                         </span>
                       </div>
                       <div className="flex">
-                        <span className={`flex items-center bg-gray-100 border border-r-0 px-2 rounded text-xs font-semibold transition-colors ${fieldErrors.shippingPhone
+                        <span className={`flex items-center bg-gray-100 border border-r-0 px-2 rounded-l text-xs font-semibold transition-colors ${fieldErrors.shippingPhone
                           ? "border-red-400 text-red-600"
                           : "border-gray-300 text-gray-700"
                           }`}>+44</span>
@@ -2036,14 +2416,14 @@ export default function CheckoutPage() {
                           type="tel"
                           value={shippingPhone}
                           onChange={(e) => {
-                            const cleaned = e.target.value.replace(/\D/g, "");
-                            if (cleaned.length <= 10) {
-                              setShippingPhone(cleaned);
+                            const cleaned = sanitizeUKPhone(e.target.value);
+                            setShippingPhone(cleaned);
+                            if (cleaned.length === 10) {
                               clearFieldError("shippingPhone");
                             }
                           }}
-                          placeholder="7xxxxxxxxx"
-                          maxLength={10}
+                          placeholder="7123456789"
+                          maxLength={15}
                           className={`w-full border p-1.5 text-sm rounded-r focus:ring-2 transition-all ${fieldErrors.shippingPhone
                             ? "border-red-400 focus:ring-red-200 focus:border-red-500"
                             : "border-gray-300 focus:ring-[#f38918]/20 focus:border-[#f38918]"
@@ -2052,7 +2432,7 @@ export default function CheckoutPage() {
                       </div>
                       {shippingPhone.length > 0 && shippingPhone.length < 10 && (
                         <p className="text-[11px] text-orange-500 flex items-center gap-1 mt-0.5">
-                          <span>⚠</span> {10 - shippingPhone.length} more digit{10 - shippingPhone.length !== 1 ? "s" : ""} needed
+                          <span>⚠</span> {10 - shippingPhone.length} more digit{10 - shippingPhone.length !== 1 ? "s" : ""} needed (without leading 0)
                         </p>
                       )}
                       <ErrorText error={fieldErrors.shippingPhone} />
@@ -2072,7 +2452,27 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex flex-col space-y-0.5">
                       <label className="text-xs font-medium text-gray-700">Postcode *</label>
-                      <input value={shippingPostalCode} onChange={(e) => { setShippingPostalCode(e.target.value); clearFieldError("shippingPostalCode"); }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all" />
+                      <input
+                        value={shippingPostalCode}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setShippingPostalCode(val);
+                          if (!val.trim()) {
+                            clearFieldError("shippingPostalCode");
+                          } else {
+                            const ukPostcodeRegex = /^([A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}|GIR ?0AA)$/i;
+                            if (!ukPostcodeRegex.test(val.trim())) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                shippingPostalCode: "Please enter a valid UK postcode",
+                              }));
+                            } else {
+                              clearFieldError("shippingPostalCode");
+                            }
+                          }
+                        }}
+                        className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-2 focus:ring-[#f38918]/20 focus:border-[#f38918] transition-all"
+                      />
                       <ErrorText error={fieldErrors.shippingPostalCode} />
                       {!shippingSameAsBilling && isSurchargeApplied && (
                         <p className="text-[11px] text-amber-600 font-medium mt-1">
@@ -2187,10 +2587,22 @@ export default function CheckoutPage() {
             </fieldset>
           )}
           {/* SHIPPING OPTIONS */}
-          {deliveryMethod === "HomeDelivery" && shippingOptions.length > 0 && (
+          {deliveryMethod === "HomeDelivery" && (shippingOptions.length > 0 || shippingQuoteLoading) && (
             <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
               <div className="bg-white p-3 rounded shadow">
-                <h2 className="text-sm font-semibold mb-2">Delivery options</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm font-semibold">Delivery options</h2>
+                  {shippingQuoteLoading && (
+                    <div className="flex items-center gap-1.5 text-xs text-[#f38918] font-medium">
+                      <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Updating...
+                    </div>
+                  )}
+                </div>
+
                 {hasMixedNextDayFree && (
                   <div className="mb-3 p-3 bg-amber-50 border border-amber-250 rounded-lg text-xs text-amber-800 flex items-start gap-2 animate-in fade-in duration-200">
                     <Info className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
@@ -2199,8 +2611,9 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 )}
-                {shippingQuoteLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-gray-500 py-2">
+
+                {shippingOptions.length === 0 && shippingQuoteLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 py-3">
                     <svg className="animate-spin h-4 w-4 text-[#f38918]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
@@ -2208,45 +2621,92 @@ export default function CheckoutPage() {
                     Loading delivery options...
                   </div>
                 ) : shippingOptions.length === 0 ? (
-                  <p className="text-xs text-gray-400">Enter your postcode above to see delivery options.</p>
+                  <p className="text-xs text-gray-400 py-2">Enter your postcode above to see delivery options.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {shippingOptions.map((opt: any) => (
-                      <label
-                        key={opt.deliveryOptionId}
-                        className={`flex items-center justify-between gap-3 border roundedg px-3 py-2.5 cursor-pointer transition-all ${selectedShippingOption?.deliveryOptionId === opt.deliveryOptionId
-                          ? "border-[#f38918] bg-[#f38918]/5"
-                          : "border-gray-200 hover:border-[#f38918]/50"
-                          }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <input
-                            type="radio"
-                            name="shippingOption"
-                            checked={selectedShippingOption?.deliveryOptionId === opt.deliveryOptionId}
-                            onChange={() => setSelectedShippingOption(opt)}
-                            className="accent-[#f38918]"
-                          />
-                          <div>
-                            <p className="text-xs font-semibold text-gray-800">{opt.displayName}</p>
-                            {opt.estimatedDelivery && (
-                              <p className="text-[11px] text-gray-500">{opt.estimatedDelivery}</p>
-                            )}
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 transition-opacity ${shippingQuoteLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
+                    {shippingOptions.map((opt: any) => {
+                      const isSelected = selectedShippingOption
+                        ? (opt.deliveryServiceId && selectedShippingOption.deliveryServiceId
+                          ? selectedShippingOption.deliveryServiceId === opt.deliveryServiceId
+                          : selectedShippingOption.deliveryOptionId === opt.deliveryOptionId &&
+                          (selectedShippingOption.serviceName === opt.serviceName ||
+                            selectedShippingOption.name === opt.name ||
+                            selectedShippingOption.displayName === opt.displayName))
+                        : false;
+
+                      const uniqueKey = opt.deliveryServiceId || `${opt.deliveryOptionId}-${opt.carrierName || ""}-${opt.serviceName || opt.name || opt.displayName || opt.price}`;
+                      const title = getShippingOptionTitle(opt);
+
+                      return (
+                        <label
+                          key={uniqueKey}
+                          className={`flex items-start justify-between gap-3 border rounded-xl p-3.5 cursor-pointer transition-all ${isSelected
+                              ? "border-[#f38918] bg-[#f38918]/5 shadow-sm ring-1 ring-[#f38918]"
+                              : "border-gray-200 hover:border-[#f38918]/50 hover:bg-gray-50/50"
+                            }`}
+                        >
+                          <div className="flex items-start gap-2.5 flex-1">
+                            <input
+                              type="radio"
+                              name="shippingOption"
+                              checked={isSelected}
+                              onChange={() => setSelectedShippingOption(opt)}
+                              className="accent-[#f38918] mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <p className="text-xs font-bold text-gray-900">{title}</p>
+                              {opt.estimatedDelivery && (
+                                <p className="text-[11px] text-gray-600 mt-1 flex items-center gap-1 font-medium">
+                                  <span>🚚</span> {opt.estimatedDelivery}
+                                </p>
+                              )}
+                              {(() => {
+                                const isNextDay =
+                                  (opt.name || opt.displayName || opt.title || opt.methodName || opt.serviceName || "").toLowerCase().includes("next") ||
+                                  opt.deliveryOptionId === "451bb725-19f7-441a-9dd0-d282cf268397" ||
+                                  opt.category === "NextDay" ||
+                                  opt.category === 1;
+
+                                if (!isNextDay) return null;
+
+                                return (
+                                  <>
+                                    {opt.nextCutoffUtc && !opt.isCutoffPassed && (
+                                      <div>
+                                        <CutoffCountdownBadge nextCutoffUtc={opt.nextCutoffUtc} />
+                                      </div>
+                                    )}
+                                    {opt.isCutoffPassed && (
+                                      <p className="text-[10px] text-amber-700 font-medium mt-1">
+                                        🕒 Cutoff passed for today — dispatches next working day
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                              {opt.surchargeApplied > 0 && (
+                                <p className="text-[10px] text-amber-700 font-medium mt-1">
+                                  ⚠️ Surcharge of £{Number(opt.surchargeApplied).toFixed(2)} included for remote postcode
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <span className={`text-xs font-bold shrink-0 ${opt.isFree || (allNextDayFree && (opt.name || opt.displayName || opt.title || "").toLowerCase().includes("next")) ? "text-orange-600" : "text-gray-800"}`}>
-                          {(() => {
-                            const isNextDay =
-                              (opt.name || opt.displayName || opt.title || opt.methodName || "").toLowerCase().includes("next") ||
-                              opt.deliveryOptionId === "451bb725-19f7-441a-9dd0-d282cf268397";
+                          <span className={`text-xs font-bold shrink-0 mt-0.5 ${opt.isFree || (allNextDayFree && (opt.name || opt.displayName || opt.title || "").toLowerCase().includes("next")) ? "text-orange-600" : "text-gray-900"}`}>
+                            {(() => {
+                              const isNextDay =
+                                (opt.name || opt.displayName || opt.title || opt.methodName || "").toLowerCase().includes("next") ||
+                                opt.deliveryOptionId === "451bb725-19f7-441a-9dd0-d282cf268397" ||
+                                opt.category === "NextDay" ||
+                                opt.category === 1;
 
-                            if (isNextDay && allNextDayFree) return "FREE";
+                              if (isNextDay && allNextDayFree) return "FREE";
 
-                            return opt.isFree ? "FREE" : `£${Number(opt.price).toFixed(2)}`;
-                          })()}
-                        </span>
-                      </label>
-                    ))}
+                              return opt.isFree ? "FREE" : `£${Number(opt.price).toFixed(2)}`;
+                            })()}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2320,22 +2780,14 @@ export default function CheckoutPage() {
                           {/* FREE NEXTDAY DELIVERY BADGE */}
                           {(() => {
                             const isItemNextDayFree = (() => {
-                              let isEnabled = false;
-                              let isFree = false;
-                              if (it.variantId && it.productData?.variants?.length) {
-                                const v = it.productData.variants.find((x: any) => x.id === it.variantId);
-                                if (v) {
-                                  isEnabled = typeof v.nextDayDeliveryEnabled === "boolean"
-                                    ? v.nextDayDeliveryEnabled === true
-                                    : (it.nextDayDeliveryEnabled === true || it.productData?.nextDayDeliveryEnabled === true);
-                                  isFree = typeof v.nextDayDeliveryFree === "boolean"
-                                    ? v.nextDayDeliveryFree === true
-                                    : (it.nextDayDeliveryFree === true || it.productData?.nextDayDeliveryFree === true);
-                                  return isEnabled && isFree;
-                                }
-                              }
-                              isEnabled = it.nextDayDeliveryEnabled === true || it.productData?.nextDayDeliveryEnabled === true;
-                              isFree = it.nextDayDeliveryFree === true || it.productData?.nextDayDeliveryFree === true;
+                              const isEnabled = it.nextDayDeliveryEnabled === true ||
+                                (it.variantId && it.productData?.variants?.find((x: any) => x.id === it.variantId)?.nextDayDeliveryEnabled === true) ||
+                                it.productData?.nextDayDeliveryEnabled === true;
+
+                              const isFree = it.nextDayDeliveryFree === true ||
+                                (it.variantId && it.productData?.variants?.find((x: any) => x.id === it.variantId)?.nextDayDeliveryFree === true) ||
+                                it.productData?.nextDayDeliveryFree === true;
+
                               return isEnabled && isFree;
                             })();
 
@@ -2477,7 +2929,7 @@ export default function CheckoutPage() {
                 {/* Shipping */}
                 {deliveryMethod === "HomeDelivery" && selectedShippingOption && (
                   <div className="flex items-center justify-between text-sm text-gray-700">
-                    <span className="font-medium">{selectedShippingOption.displayName || selectedShippingOption.methodName}</span>
+                    <span className="font-medium">{getShippingOptionTitle(selectedShippingOption)}</span>
                     <span className={`font-semibold ${shippingCost === 0 ? "text-orange-600" : ""}`}>
                       {(() => {
                         const isNextDay =
@@ -2731,7 +3183,20 @@ export default function CheckoutPage() {
                           billingFirstName,
                           billingLastName,
                           customerEmail: billingEmail,
+                          billingPhone,
                           billingAddressLine1: billingAddress1,
+                          billingAddressLine2: billingAddress2,
+                          billingCity,
+                          billingState,
+                          billingPostalCode,
+                          shippingFirstName: shippingSameAsBilling ? billingFirstName : shippingFirstName,
+                          shippingLastName: shippingSameAsBilling ? billingLastName : shippingLastName,
+                          shippingPhone: shippingSameAsBilling ? billingPhone : shippingPhone,
+                          shippingAddressLine1: shippingSameAsBilling ? billingAddress1 : shippingAddress1,
+                          shippingAddressLine2: shippingSameAsBilling ? billingAddress2 : shippingAddress2,
+                          shippingCity: shippingSameAsBilling ? billingCity : shippingCity,
+                          shippingState: shippingSameAsBilling ? billingState : shippingState,
+                          shippingPostalCode: shippingSameAsBilling ? billingPostalCode : shippingPostalCode,
                         }}
                         onPaymentSuccess={onPaymentSuccess}
                         onError={onPaymentError}
@@ -2761,7 +3226,7 @@ export default function CheckoutPage() {
                       }
                     }}
                   />
-                  <span>I agree to the <Link href="/terms-and-conditions" className="text-blue-600 underline">Terms & Conditions</Link></span>
+                  <span>I agree to the <Link href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">Terms & Conditions</Link></span>
                 </label>
                 <label className="flex items-start gap-2 text-xs text-gray-700">
                   <input type="checkbox" className="accent-[#f38918]" checked={subscribeNewsletter} onChange={(e) => setSubscribeNewsletter(e.target.checked)} />

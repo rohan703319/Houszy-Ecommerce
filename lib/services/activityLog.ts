@@ -27,12 +27,47 @@ export interface ActivityLog {
   activityLogType: string;
   activityLogTypeName: string;
   comment: string;
-  entityName: string;
-  entityId: string;
+  entityName?: string;
+  entityId?: string;
   createdOnUtc: string;
   userName: string;
-  entityDetails: EntityDetails;
-    ipAddress?: string;
+  userEmail?: string;
+  userId?: string;
+  entityDetails?: EntityDetails;
+  ipAddress?: string;
+  changesJson?: string;
+  uploadedFileId?: string;
+  uploadedFileName?: string;
+  uploadedFileSize?: number;
+}
+
+export interface UploadedFileItem {
+  id: string;
+  originalFileName: string;
+  storedPath: string;
+  contentType?: string;
+  sizeBytes: number;
+  purpose: number;
+  purposeName: string;
+  uploadedOnUtc: string;
+  uploadedByUserId?: string;
+  uploadedByUserName: string;
+  uploadedByUserEmail?: string;
+}
+
+export interface AuditTrailEventItem {
+  id: string;
+  eventType: number;
+  eventTypeName: string;
+  targetId?: string;
+  summary: string;
+  targetSnapshotJson?: string;
+  affectedCount: number;
+  createdOnUtc: string;
+  performedByUserId?: string;
+  performedByUserName: string;
+  performedByUserEmail?: string;
+  ipAddress?: string;
 }
 
 export interface ActivityLogListResponse {
@@ -43,6 +78,13 @@ export interface ActivityLogListResponse {
   totalPages: number;
   hasPrevious: boolean;
   hasNext: boolean;
+}
+
+export interface AuditTrailListResponse {
+  items: AuditTrailEventItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface ApiResponse<T> {
@@ -60,6 +102,8 @@ export interface ActivityLogQueryParams {
   activityLogType?: ActivityLogType;
   ipAddress?: string;
   searchTerm?: string;
+  entityName?: string;
+  userName?: string;
   sortDirection?: 'asc' | 'desc';
 }
 
@@ -121,6 +165,10 @@ export type ActivityLogType =
   | 'RedeemLoyaltyPoints'
   | 'UpdateSettings'
   | 'BulkUpdateInventory'
+  | 'BulkUpdateProductsFromExcel'
+  | 'BulkShipFromExcel'
+  | 'BulkUpdateOrdersFromExcel'
+  | 'ImportProductsFromExcel'
   | 'Other';
 
 // ========== Service ==========
@@ -198,6 +246,51 @@ export const activityLogService = {
     apiClient.get<ApiResponse<ActivityLogListResponse>>(
       API_ENDPOINTS.activityLogs.base,
       { params: { ...params, searchTerm: userName } }
+    ),
+
+  /**
+   * Get uploaded Excel / bulk update files
+   */
+  getUploadedFiles: (purpose?: number) =>
+    apiClient.get<ApiResponse<UploadedFileItem[]>>(
+      API_ENDPOINTS.activityLogs.files,
+      { params: purpose !== undefined ? { purpose } : {} }
+    ),
+
+  /**
+   * Download an uploaded file by ID
+   */
+  downloadUploadedFile: async (id: string, fileName: string) => {
+    const response = await apiClient.get(
+      API_ENDPOINTS.activityLogs.downloadFile(id),
+      { responseType: 'blob' }
+    );
+    const blob = new Blob([response.data as BlobPart]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Delete an uploaded file by ID
+   */
+  deleteUploadedFile: (id: string) =>
+    apiClient.delete<ApiResponse<boolean>>(
+      API_ENDPOINTS.activityLogs.deleteFile(id)
+    ),
+
+  /**
+   * Get Audit Trail / Deletion events
+   */
+  getAuditTrail: (params?: { page?: number; pageSize?: number; eventType?: number; searchTerm?: string }) =>
+    apiClient.get<ApiResponse<AuditTrailListResponse>>(
+      API_ENDPOINTS.activityLogs.auditTrail,
+      { params }
     ),
 };
 

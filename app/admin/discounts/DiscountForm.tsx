@@ -467,7 +467,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
   useEffect(() => {
     setProductPage(1);
     fetchProductsList(1, false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, debouncedPct, formData.requiresCouponCode, formData.assignedCategoryIds.join(",")]);
 
   // Handle page scrolling/loading more
@@ -477,18 +477,25 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     fetchProductsList(nextPage, true);
   };
 
-  // Toggle selection
-  const handleProductSelect = (product: Product) => {
-    const isSelected = formData.assignedProductIds.includes(product.id);
+  // Toggle selection for product or individual variant
+  const handleItemSelect = (id: string, product: Product) => {
+    const isSelected = formData.assignedProductIds.includes(id);
     let newIds: string[];
     let newSelected: Product[];
 
     if (isSelected) {
-      newIds = formData.assignedProductIds.filter(id => id !== product.id);
-      newSelected = selectedProducts.filter(p => p.id !== product.id);
+      newIds = formData.assignedProductIds.filter(assignedId => assignedId !== id);
+      const hasOtherVariantSelected = product.variants?.some((v: any) => newIds.includes(v.id));
+      if (!newIds.includes(product.id) && !hasOtherVariantSelected) {
+        newSelected = selectedProducts.filter(p => p.id !== product.id);
+      } else {
+        newSelected = selectedProducts;
+      }
     } else {
-      newIds = [...formData.assignedProductIds, product.id];
-      newSelected = [...selectedProducts, product];
+      newIds = [...formData.assignedProductIds, id];
+      newSelected = selectedProducts.some(p => p.id === product.id)
+        ? selectedProducts
+        : [...selectedProducts, product];
     }
 
     setFormData({ ...formData, assignedProductIds: newIds });
@@ -500,8 +507,18 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     const newSelected = [...selectedProducts];
 
     products.forEach(p => {
-      if (!newIds.includes(p.id)) {
-        newIds.push(p.id);
+      if (p.variants && p.variants.length > 0) {
+        p.variants.forEach((v: any) => {
+          if (!newIds.includes(v.id)) {
+            newIds.push(v.id);
+          }
+        });
+      } else {
+        if (!newIds.includes(p.id)) {
+          newIds.push(p.id);
+        }
+      }
+      if (!newSelected.some(sp => sp.id === p.id)) {
         newSelected.push(p);
       }
     });
@@ -1018,7 +1035,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                         type="text"
                         value={localSearchTerm}
                         onChange={(e) => setLocalSearchTerm(e.target.value)}
-                        placeholder="Search matching products by name..."
+                        placeholder="Search matching products by name, sku..."
                         className="w-full pl-9 pr-3 py-2 bg-slate-950/40 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
                       />
                     </div>
@@ -1069,7 +1086,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
                           if (product.variants && product.variants.length > 0) {
                             return product.variants.map((v: any) => {
-                              const isSelected = formData.assignedProductIds.includes(product.id);
+                              const isSelected = formData.assignedProductIds.includes(v.id);
                               const imageUrl = v.imageUrl || getProductImage(product.images || []);
                               const hasVarDiscount = v.discountPercentage > 0 || (v.sellPrice && v.price > v.sellPrice);
 
@@ -1079,7 +1096,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                   onClick={(e) => {
                                     if (isDisabled) return;
                                     if ((e.target as HTMLElement).tagName === "INPUT") return;
-                                    handleProductSelect(product);
+                                    handleItemSelect(v.id, product);
                                   }}
                                   className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${isSelected
                                     ? "bg-violet-950/20 border-violet-500/40"
@@ -1090,7 +1107,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                     type="checkbox"
                                     checked={isSelected}
                                     disabled={isDisabled}
-                                    onChange={() => handleProductSelect(product)}
+                                    onChange={() => handleItemSelect(v.id, product)}
                                     className="w-4 h-4 rounded border-slate-700 text-violet-500 focus:ring-violet-500 bg-slate-950 cursor-pointer shrink-0"
                                   />
 
@@ -1144,7 +1161,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                               onClick={(e) => {
                                 if (isDisabled) return;
                                 if ((e.target as HTMLElement).tagName === "INPUT") return;
-                                handleProductSelect(product);
+                                handleItemSelect(product.id, product);
                               }}
                               className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${isSelected
                                 ? "bg-violet-950/20 border-violet-500/40"
@@ -1155,7 +1172,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                 type="checkbox"
                                 checked={isSelected}
                                 disabled={isDisabled}
-                                onChange={() => handleProductSelect(product)}
+                                onChange={() => handleItemSelect(product.id, product)}
                                 className="w-4 h-4 rounded border-slate-700 text-violet-500 focus:ring-violet-500 bg-slate-950 cursor-pointer shrink-0"
                               />
 
@@ -1332,7 +1349,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
             <div className="space-y-4">
               {/* DESKTOP BANNER */}
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Desktop Banner Image</label>
+                <label className="block text-xs font-semibold text-slate-300">Desktop Banner Image (Recommended size: 662 x 413 px) webp only.</label>
                 {desktopPreview ? (
                   <div className="relative rounded-xl overflow-hidden border border-violet-500 bg-slate-950 p-1.5">
                     <img src={desktopPreview} alt="Desktop Preview" className="w-full h-28 object-cover rounded-lg" />
@@ -1380,7 +1397,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
               {/* MOBILE BANNER */}
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Mobile Banner Image</label>
+                <label className="block text-xs font-semibold text-slate-300">Mobile Banner Image (Recommended size: 662 x 413 px) webp only</label>
                 {mobilePreview ? (
                   <div className="relative rounded-xl overflow-hidden border border-violet-500 bg-slate-955 p-1.5">
                     <img src={mobilePreview} alt="Mobile Preview" className="w-full h-28 object-cover rounded-lg" />
@@ -1426,7 +1443,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                 )}
               </div>
             </div>
-            <p className="text-[9px] text-slate-550">Recommended sizes: Desktop 1200×400px, Mobile 600×300px</p>
+
           </div>
         )}
       </div>

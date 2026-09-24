@@ -485,17 +485,164 @@ restoreMethod: async (id: string) => {
     }
   },
 
+  // ==================== DELIVERY OPTIONS & SERVICES ====================
+
   /**
-   * Get all delivery options
+   * Get all delivery options (with nested services)
    */
-  getDeliveryOptions: async (config: any = {}) => {
+  getDeliveryOptions: async (params?: boolean | { includeInactive?: boolean }) => {
     try {
-      return await apiClient.get<any>(
-        `${API_ENDPOINTS.deliveryOptions}`,
-        config
+      const includeInactive = typeof params === "boolean" ? params : (params?.includeInactive ?? false);
+      return await apiClient.get<{ success: boolean; data: any[] }>(
+        `${API_ENDPOINTS.deliveryOptions}?includeInactive=${includeInactive}`
       );
     } catch (error: any) {
       console.error("Error fetching delivery options:", error);
+      throw error;
+    }
+  },
+
+  createDeliveryOption: async (data: any) => {
+    try {
+      return await apiClient.post(API_ENDPOINTS.deliveryOptions, data);
+    } catch (error: any) {
+      console.error("Error creating delivery option:", error);
+      throw error;
+    }
+  },
+
+  updateDeliveryOption: async (id: string, data: any) => {
+    try {
+      return await apiClient.put(`${API_ENDPOINTS.deliveryOptions}/${id}`, data);
+    } catch (error: any) {
+      console.error("Error updating delivery option:", error);
+      throw error;
+    }
+  },
+
+  deleteDeliveryOption: async (id: string) => {
+    try {
+      return await apiClient.delete(`${API_ENDPOINTS.deliveryOptions}/${id}`);
+    } catch (error: any) {
+      console.error("Error deleting delivery option:", error);
+      throw error;
+    }
+  },
+
+  // ── Delivery Services ──
+
+  createDeliveryService: async (data: any) => {
+    try {
+      return await apiClient.post(API_ENDPOINTS.deliveryServices, data);
+    } catch (error: any) {
+      console.error("Error creating delivery service:", error);
+      throw error;
+    }
+  },
+
+  updateDeliveryService: async (id: string, data: any) => {
+    try {
+      return await apiClient.put(`${API_ENDPOINTS.deliveryServices}/${id}`, data);
+    } catch (error: any) {
+      console.error("Error updating delivery service:", error);
+      throw error;
+    }
+  },
+
+  deleteDeliveryService: async (id: string) => {
+    try {
+      return await apiClient.delete(`${API_ENDPOINTS.deliveryServices}/${id}`);
+    } catch (error: any) {
+      console.error("Error deleting delivery service:", error);
+      throw error;
+    }
+  },
+
+  setDefaultDeliveryService: async (id: string) => {
+    try {
+      return await apiClient.post(`${API_ENDPOINTS.deliveryServices}/${id}/set-default`);
+    } catch (error: any) {
+      console.error("Error setting default delivery service:", error);
+      throw error;
+    }
+  },
+
+  // ==================== NON-WORKING DAYS (HOLIDAYS) ====================
+
+  getNonWorkingDays: async (includeInactive = false) => {
+    try {
+      return await apiClient.get<{ success: boolean; data: any[] }>(
+        `${API_ENDPOINTS.nonWorkingDays}?includeInactive=${includeInactive}`
+      );
+    } catch (error: any) {
+      console.error("Error fetching non-working days:", error);
+      throw error;
+    }
+  },
+
+  createNonWorkingDay: async (data: any) => {
+    try {
+      return await apiClient.post(API_ENDPOINTS.nonWorkingDays, data);
+    } catch (error: any) {
+      console.error("Error creating non-working day:", error);
+      throw error;
+    }
+  },
+
+  updateNonWorkingDay: async (id: string, data: any) => {
+    try {
+      return await apiClient.put(`${API_ENDPOINTS.nonWorkingDays}/${id}`, data);
+    } catch (error: any) {
+      console.error("Error updating non-working day:", error);
+      throw error;
+    }
+  },
+
+  deleteNonWorkingDay: async (id: string) => {
+    try {
+      return await apiClient.delete(`${API_ENDPOINTS.nonWorkingDays}/${id}`);
+    } catch (error: any) {
+      console.error("Error deleting non-working day:", error);
+      throw error;
+    }
+  },
+
+  // ==================== POSTCODE RULES ====================
+
+  getPostcodeRules: async (includeInactive = false) => {
+    try {
+      return await apiClient.get<{ success: boolean; data: any[] }>(
+        `${API_ENDPOINTS.postcodeRules}?includeInactive=${includeInactive}`
+      );
+    } catch (error: any) {
+      console.error("Error fetching postcode rules:", error);
+      throw error;
+    }
+  },
+
+  createPostcodeRule: async (data: any) => {
+    try {
+      return await apiClient.post(API_ENDPOINTS.postcodeRules, data);
+    } catch (error: any) {
+      console.error("Error creating postcode rule:", error);
+      throw error;
+    }
+  },
+
+  updatePostcodeRule: async (id: string, data: any) => {
+    try {
+      return await apiClient.put(`${API_ENDPOINTS.postcodeRules}/${id}`, data);
+    } catch (error: any) {
+      console.error("Error updating postcode rule:", error);
+      throw error;
+    }
+  },
+
+  deletePostcodeRule: async (id: string) => {
+    try {
+      return await apiClient.delete(`${API_ENDPOINTS.postcodeRules}/${id}`);
+    } catch (error: any) {
+      console.error("Error deleting postcode rule:", error);
       throw error;
     }
   },
