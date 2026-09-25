@@ -122,6 +122,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             `,
           }}
         />
+        {/* Google tag (gtag.js) - GT-PHRGNXKZ */}
+        <Script
+          strategy="afterInteractive"
+          src="https://www.googletagmanager.com/gtag/js?id=GT-PHRGNXKZ"
+        />
+        <Script
+          id="google-tag-gt-phrgnxkz"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'GT-PHRGNXKZ');
+            `,
+          }}
+        />
         {/* Google Tag Manager - Deferred via requestIdleCallback to eliminate TBT */}
         <Script
           id="google-tag-manager"

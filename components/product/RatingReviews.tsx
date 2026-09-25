@@ -14,6 +14,7 @@ import { Navigation, FreeMode } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/free-mode';
+import TrustpilotCarousel from "@/components/TrustpilotCarousel";
 
 interface RatingReviewsProps {
   productId: string;
@@ -809,6 +810,11 @@ export default function RatingReviews({ productId, allowCustomerReviews, highlig
             </Swiper>
           </div>
         )}
+
+        {/* Official Trustpilot Reviews Carousel */}
+        <div className="mt-8 pt-6 border-t border-gray-100">
+          <TrustpilotCarousel isContained={true} />
+        </div>
       </section>
 
       {/* MEDIA MODAL */}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, ArrowUpRight } from "lucide-react";
 import { useNewsletter } from "@/app/hooks/useNewsletter";
+import TrustpilotFooterBadge from "@/components/TrustpilotFooterBadge";
 
 export default function Footer() {
   const [open, setOpen] = useState<Record<string, boolean>>({
@@ -177,6 +178,12 @@ export default function Footer() {
           <p className="text-[14px] text-gray-300 font-semibold tracking-wide text-center md:text-left">
             Copyright © 2026 <span className="text-[#f39a16]">Houszy</span> Designed by <a href="https://www.mezzex.com/" target="_blank" rel="noopener noreferrer" className="text-[#f39a16] hover:underline">Mezzex</a>
           </p>
+
+          {/* Center: Trustpilot Micro Star Widget */}
+          <div className="flex items-center justify-center min-w-[340px] flex-shrink-0">
+            <TrustpilotFooterBadge className="w-[340px] min-w-[340px]" />
+          </div>
+
           <div className="flex items-center">
             {/* Using next/image for better performance and caching control */}
             <Image src="/payments/visa.png" unoptimized alt="Payments" width={220} height={34} className="h-7 w-auto object-contain" />

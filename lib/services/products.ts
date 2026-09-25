@@ -273,6 +273,7 @@ dispatchTimeNote?:string;
   notifyQuantityBelow?: number;
   loyaltyPointsEarnable?: number;
   subscriptionDiscountPercentage?: number;
+  subscriptionUptoDiscountPercentage?: number;
   allowBackorder?: boolean;
   loyaltyPointsMessage?: string;
   estimatedDispatchDays?: string;

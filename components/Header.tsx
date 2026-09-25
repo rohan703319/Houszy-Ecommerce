@@ -393,8 +393,8 @@ export default function Header({
             </div>
 
             {/* Right: Trustpilot Review Collector Badge */}
-            <div className="hidden xl:flex items-center justify-end flex-shrink-0 min-w-[200px] outline-none">
-              <TrustpilotBadge />
+            <div className="hidden lg:flex items-center justify-end flex-shrink-0 min-w-[340px]">
+              <TrustpilotBadge className="w-[340px] min-w-[340px]" />
             </div>
           </div>
         </div>

@@ -60,14 +60,17 @@ export default function HeaderCartDropdown() {
         return;
       }
 
-      // 5. Ignore clicks on any add-to-cart or buy-now buttons to prevent race conditions/blockage
+      // 5. Ignore clicks on any add-to-cart, subscription, or buy-now buttons to prevent race conditions/blockage
       const buttonText = target.closest("button")?.textContent?.toLowerCase() || "";
       if (
         buttonText.includes("add to cart") ||
         buttonText.includes("add to basket") ||
         buttonText.includes("buy now") ||
-        buttonText.includes("add subscription to cart") ||
-        (buttonText.includes("add") && buttonText.includes("cart"))
+        buttonText.includes("subscription") ||
+        buttonText.includes("add subscription") ||
+        (buttonText.includes("add") && buttonText.includes("cart")) ||
+        target.closest('[data-cart-button="true"]') ||
+        target.closest('[data-add-to-cart="true"]')
       ) {
         return;
       }

@@ -34,6 +34,10 @@ const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedPr
   loading: () => <div className="h-[400px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
   ssr: true
 });
+const TrustpilotCarousel = dynamic(() => import("@/components/TrustpilotCarousel"), {
+  loading: () => <div className="h-[140px] w-full bg-white animate-pulse" />,
+  ssr: true
+});
 import type { Metadata } from "next";
 
 export const revalidate = 60;
@@ -419,6 +423,9 @@ export default async function Home() {
             </div>
           </section>
         )}
+
+        {/* ===== TRUSTPILOT REVIEWS CAROUSEL ===== */}
+        <TrustpilotCarousel />
       </div>
     </>
   );

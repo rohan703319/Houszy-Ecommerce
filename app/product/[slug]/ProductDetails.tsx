@@ -180,6 +180,7 @@ interface Product {
   recurringCyclePeriod?: string;
   recurringTotalCycles?: number;
   subscriptionDiscountPercentage?: number;
+  subscriptionUptoDiscountPercentage?: number;
   allowCustomerReviews?: boolean;
   allowBackorder?: boolean;
   backorderMode?: string;
@@ -2519,8 +2520,8 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
           {/* RIGHT: Product Info */}
           <div>
             {/* TITLE */}
-            <div className="mb-2">
-              <h1 className="text-xl md:text-2xl lg:text-[26px] font-bold text-gray-900 leading-tight tracking-tight">
+            <div className="mb-1">
+              <h1 className="text-lg md:text-xl lg:text-[22px] font-bold text-gray-900 leading-snug tracking-tight">
                 {selectedVariant
                   ? `${product.name} (${[
                     selectedOptions.option1,
@@ -2530,17 +2531,17 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   : product.name}
               </h1>
               {(selectedVariant?.sku || product.sku || soldText) && (
-                <div className="flex flex-wrap items-center gap-3 mt-1">
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   {(selectedVariant?.sku || product.sku) && (
-                    <p className="text-xs md:text-sm text-gray-500">
+                    <p className="text-xs text-gray-500">
                       Sku: {selectedVariant?.sku ?? product.sku}
                     </p>
                   )}
                   {soldText && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[#e17b07] bg-orange-50 border border-orange-200/60 rounded-full text-xs font-semibold shadow-sm">
-                      <span className="relative flex h-2 w-2">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[#e17b07] bg-orange-50 border border-orange-200/60 rounded-full text-[11px] font-semibold shadow-sm">
+                      <span className="relative flex h-1.5 w-1.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#f38918]" />
                       </span>
                       <span>{soldText.includes("this") ? soldText : `${soldText} this month`}</span>
                     </div>
@@ -2549,10 +2550,10 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
               {/* Brand */}
               {product.brandName && (
-                <p className="text-sm text-gray-600">
+                <p className="text-xs md:text-sm text-gray-600">
                   by{" "}
                   {product.brandSlug ? (
                     <Link
@@ -2567,16 +2568,16 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 </p>
               )}
               {/* Rating + Reviews */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-0.5">
                   {[...Array(5)].map((_, i) => {
                     const rating = product.averageRating || 0;
                     if (rating >= i + 1) {
-                      return <Star key={i} className="h-4 w-4 fill-[#f2ad43] text-[#f2ad43] flex-shrink-0" />;
+                      return <Star key={i} className="h-3.5 w-3.5 fill-[#f2ad43] text-[#f2ad43] flex-shrink-0" />;
                     } else if (rating > i && rating < i + 1) {
-                      return <StarHalf key={i} className="h-4 w-4 fill-[#f2ad43] text-[#f2ad43] flex-shrink-0" />;
+                      return <StarHalf key={i} className="h-3.5 w-3.5 fill-[#f2ad43] text-[#f2ad43] flex-shrink-0" />;
                     }
-                    return <Star key={i} className="h-4 w-4 text-gray-300 flex-shrink-0" />;
+                    return <Star key={i} className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />;
                   })}
                 </div>
                 <div
@@ -2668,62 +2669,52 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             {/* 🔥 LIVE CART ACTIVITY BANNER */}
             <LiveCartActivityBanner activity={cartActivity?.productId === product.id ? cartActivity : null} />
             {/* 🔥 DYNAMIC SHIPPING / DELIVERY BANNER (NEXT DAY OR STANDARD) */}
-            <div className="mt-1.5 mb-2 rounded-xl border border-[#fdecd2] bg-[#fdf8f0] px-3 py-2 shadow-sm overflow-hidden">
-              {/* Header: Delivery Mode */}
-              <div className="flex items-center justify-between gap-2 mb-1.5 pb-1 border-b border-amber-200/60">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{effectiveNextDayEnabled ? "⚡" : "🚚"}</span>
-                  <span className="text-xs font-bold text-gray-900">
-                    {effectiveNextDayEnabled ? "Next Day Delivery" : "Standard Delivery"}
-                  </span>
-                </div>
-              </div>
-
+            <div className="my-1 rounded-xl border border-[#fdecd2] bg-[#fdf8f0] px-2.5 py-1 shadow-xs overflow-hidden">
               {/* Timeline */}
               {effectiveNextDayEnabled ? (
                 /* Next Day Delivery: Order within -> Ships -> Delivers */
                 <div className="flex items-center justify-between">
                   {/* STEP 1: ORDER WITHIN / DISPATCH */}
                   <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Clock className="h-3.5 w-3.5 text-white" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Clock className="h-3 w-3 text-white" />
                     </div>
-                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
                       Order within
                     </p>
-                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
                       {countdownTimeLeft || "Calculating..."}
                     </p>
                   </div>
 
                   {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
 
                   {/* STEP 2: SHIPS / DISPATCH */}
                   <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Truck className="h-3.5 w-3.5 text-white" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Truck className="h-3 w-3 text-white" />
                     </div>
-                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
                       Ships
                     </p>
-                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
                       {shipDate || "Today"}
                     </p>
                   </div>
 
                   {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
 
                   {/* STEP 3: DELIVERS */}
                   <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <MapPin className="h-3.5 w-3.5 text-white" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <MapPin className="h-3 w-3 text-white" />
                     </div>
-                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
                       Delivers
                     </p>
-                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
                       {deliveryDate || "1-2 days"}
                     </p>
                   </div>
@@ -2733,26 +2724,26 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 <div className="flex items-center justify-between">
                   {/* STEP 1: SHIPS */}
                   <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Truck className="h-3.5 w-3.5 text-white" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Truck className="h-3 w-3 text-white" />
                     </div>
-                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
                       Ships
                     </p>
-                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
                       {shipDate || "Today"}
                     </p>
                   </div>
 
                   {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
 
                   {/* STEP 2: SERVICE NAME */}
                   <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Package className="h-3.5 w-3.5 text-white" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <Package className="h-3 w-3 text-white" />
                     </div>
-                    <p className="mt-1 text-xs font-extrabold text-amber-950 truncate max-w-full">
+                    <p className="mt-0.5 text-[11px] font-extrabold text-amber-950 truncate max-w-full">
                       {(activeQuote?.serviceName || activeQuote?.displayName || "Standard Delivery")
                         .replace(/\s*service\s*$/i, "")
                         .trim()}
@@ -2760,17 +2751,17 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                   </div>
 
                   {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-4 md:w-8 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-3.5" />
+                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
 
                   {/* STEP 3: DELIVERS */}
                   <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <MapPin className="h-3.5 w-3.5 text-white" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                      <MapPin className="h-3 w-3 text-white" />
                     </div>
-                    <p className="mt-0.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
                       Delivers
                     </p>
-                    <p className="text-xs font-extrabold text-amber-950 truncate max-w-full">
+                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
                       {deliveryDate || "2-3 days"}
                     </p>
                   </div>
@@ -2779,27 +2770,27 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
               {/* BOTTOM BANNER: Free shipping indicator if applicable */}
               {effectiveNextDayEnabled && (effectiveNextDayFree || activeQuote?.isFree) ? (
-                <div className="mt-2 -mx-3 -mb-2 px-3 py-1 bg-black flex items-center justify-center gap-2">
-                  <span className="relative flex h-2 w-2">
+                <div className="mt-1 -mx-2.5 -mb-1 px-2 py-0.5 bg-black flex items-center justify-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#f38918]" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#f38918]" />
                   </span>
-                  <p className="text-white text-[10px] md:text-[11px] font-bold tracking-wide uppercase">
+                  <p className="text-white text-[9px] md:text-[10px] font-bold tracking-wide uppercase">
                     🚚 Next Day Delivery is FREE on this product!
                   </p>
                 </div>
               ) : !effectiveNextDayEnabled && (activeQuote?.isFree || (activeQuote?.price === 0)) ? (
-                <div className="mt-2 -mx-3 -mb-2 px-3 py-1 bg-gradient-to-r from-[#f38918] to-[#e07010] flex items-center justify-center gap-2">
-                  <p className="text-white text-[10px] md:text-[11px] font-bold tracking-wide uppercase">
+                <div className="mt-1 -mx-2.5 -mb-1 px-2 py-0.5 bg-black flex items-center justify-center gap-1.5">
+                  <p className="text-white text-[9px] md:text-[10px] font-bold tracking-wide uppercase">
                     🚚 FREE Standard Delivery
                   </p>
                 </div>
               ) : null}
             </div>
             {product.disableBuyButton && (
-              <div className="mb-3 flex">
-                <div className="inline-flex items-center rounded-lg border border-red-300 bg-yellow-50 px-4 py-2">
-                  <p className="text-sm font-medium text-red-800 whitespace-nowrap">
+              <div className="mb-2 flex">
+                <div className="inline-flex items-center rounded-lg border border-red-300 bg-yellow-50 px-3 py-1.5">
+                  <p className="text-xs font-medium text-red-800 whitespace-nowrap">
                     This product is currently not available for purchase.
                   </p>
                 </div>
@@ -2807,14 +2798,14 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             )}
             {/* VARIANTS UI */}
             {product.variants && product.variants?.length > 0 && (
-              <div className="space-y-4 mb-5">
+              <div className="space-y-1.5 mb-2">
                 {/* OPTION 1 */}
                 {product.variants?.[0]?.option1Name && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-sm text-gray-950">
-                      <span className="font-bold">{product.variants?.[0]?.option1Name}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-gray-950 font-bold">
+                      {product.variants?.[0]?.option1Name}:
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {[
                         ...new Set(
                           [...(product.variants ?? [])]
@@ -2825,7 +2816,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <button
                           key={opt}
                           onClick={() => updateSelection(1, opt)}
-                          className={`px-2 py-1 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option1 === opt
+                          className={`px-2 py-0.5 rounded-md border text-xs font-semibold transition-all duration-150 ${selectedOptions.option1 === opt
                             ? "border-black ring-1 ring-black text-black font-bold bg-white"
                             : "border-gray-200 text-gray-800 hover:border-gray-400 bg-white"
                             }`}
@@ -2839,11 +2830,11 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
                 {/* OPTION 2 */}
                 {product.variants?.[0]?.option2Name && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-sm text-gray-950">
-                      <span className="font-bold">{product.variants?.[0]?.option2Name}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-gray-950 font-bold">
+                      {product.variants?.[0]?.option2Name}:
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {[...new Set(
                         product.variants
                           ?.filter(v => v.option1Value === selectedOptions.option1)
@@ -2852,7 +2843,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <button
                           key={opt}
                           onClick={() => updateSelection(2, opt)}
-                          className={`px-2 py-1 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option2 === opt
+                          className={`px-2 py-0.5 rounded-md border text-xs font-semibold transition-all duration-150 ${selectedOptions.option2 === opt
                             ? "border-black ring-1 ring-black text-black font-bold bg-white"
                             : "border-gray-200 text-gray-800 hover:border-gray-400 bg-white"
                             }`}
@@ -2865,11 +2856,11 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                 )}
                 {/* OPTION 3 */}
                 {product.variants?.some(v => v.option3Name && v.option3Value) && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-sm text-gray-950">
-                      <span className="font-bold">{product.variants?.[0]?.option3Name}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-gray-950 font-bold">
+                      {product.variants?.[0]?.option3Name}:
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {[...new Set(
                         product.variants
                           ?.filter(v =>
@@ -2881,7 +2872,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         <button
                           key={opt}
                           onClick={() => updateSelection(3, opt)}
-                          className={`px-2 py-1 rounded-md border text-sm font-medium transition-all duration-150 ${selectedOptions.option3 === opt
+                          className={`px-2 py-0.5 rounded-md border text-xs font-semibold transition-all duration-150 ${selectedOptions.option3 === opt
                             ? "border-black ring-1 ring-black text-black font-bold bg-white"
                             : "border-gray-200 text-gray-800 hover:border-gray-400 bg-white"
                             }`}
@@ -2895,198 +2886,141 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
               </div>
             )}
             {/* Price Card (Flattened/No-Border for Houszy look) */}
-            <div className="mb-4">
+            <div className="mb-2">
               <div className="p-0">
                 {/* PURCHASE MODE CARDS SIDE BY SIDE */}
                 {product.isRecurring ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-0">
-                    {/* LEFT NORMAL PURCHASE CARD */}
-                    <div
-                      id="normal-purchase-card"
-                      onClick={() => setPurchaseType("one")}
-                      className={`w-full transition-all duration-300 rounded-2xl  ${purchaseType === "one"
-                        ? "border-2 border-[#f38918] bg-[#f8faf9] shadow-md"
-                        : "border border-gray-200 bg-white"
-                        }`}
-                    >
-                      {/* <<< Your current full card starts here >>> */}
-                      <Card className="shadow-sm bg-transparent border-none">
-                        <CardContent className="px-3 pt-3 pb-2">
-                          <label className="flex items-center gap-2 cursor-pointer mb-2">
-                            <input
-                              type="radio"
-                              name="purchaseType"
-                              value="one"
-                              checked={purchaseType === "one"}
-                              onChange={() => setPurchaseType("one")}
-                              className="h-4 w-4 accent-[#f38918] cursor-pointer"
-                            />
-                            <span className="font-semibold text-sm">One-Time Purchase</span>
-                          </label>
-                          {/* Price + VAT + Loyalty — all compact inline */}
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            {/* Strikethrough MRP — shown when discount exists or coupon/auto-discount applied */}
-                            {(appliedCoupon || activeAutoDiscount) ? (
-                              <span className="text-xs text-gray-400 line-through">
-                                £{(appliedCoupon ? (appliedCoupon.isCumulative ? sellPriceToShow : basePrice) : sellPriceToShow).toFixed(2)} GBP
-                              </span>
-                            ) : hasDiscount ? (
-                              <span className="text-xs text-gray-400 line-through">
-                                £{basePrice.toFixed(2)} GBP
-                              </span>
-                            ) : null}
+                  <div className="w-full space-y-1.5">
+                    {/* ─── PRICE SECTION ─── */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Old Prices */}
+                        {(appliedCoupon || activeAutoDiscount) ? (
+                          <span className="text-base md:text-lg font-medium text-gray-400 line-through">
+                            £{(appliedCoupon ? (appliedCoupon.isCumulative ? sellPriceToShow : basePrice) : sellPriceToShow).toFixed(2)} GBP
+                          </span>
+                        ) : hasDiscount ? (
+                          <span className="text-base md:text-lg font-medium text-gray-400 line-through">
+                            £{basePrice.toFixed(2)} GBP
+                          </span>
+                        ) : null}
 
-                            <span className="text-sm font-medium text-[#e57e25]">
-                              £{finalPrice.toFixed(2)} GBP
-                            </span>
-                            {discountPercentage > 0 && (
-                              <span className="bg-[#E31B23] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm leading-none flex items-center justify-center">
-                                {discountPercentage}% Off
-                              </span>
-                            )}
-                            {loyaltyPoints && (
-                              <span className="inline-flex items-center gap-1 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-md">
-                                <AwardIcon className="h-3 w-3 text-orange-600" />
-                                Earn {loyaltyPoints} pts
-                              </span>
-                            )}
-                          </div>
+                        {/* Sale Price */}
+                        <span className="text-xl md:text-2xl font-bold text-[#e57e25]">
+                          £{finalPrice.toFixed(2)} GBP
+                        </span>
 
-                          {/* 🔥 OFFER PAGE BADGE — show when product has assigned discount */}
-                          {discountSlug && (
-                            <Link
-                              href={`/offers/${discountSlug}`}
-                              className="inline-flex items-center gap-1.5 mt-1.5 mb-2 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm hover:shadow transition-all duration-150 group w-fit"
+                        {/* Discount Percentage Pill */}
+                        {discountPercentage > 0 && (
+                          <span className="bg-[#d0021b] text-white text-[11px] md:text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            {discountPercentage}% OFF
+                          </span>
+                        )}
+
+                        {/* Stock Badge - On the price line at the end */}
+                        {stockDisplay.show && (
+                          <span
+                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md border whitespace-nowrap ml-auto sm:ml-0 ${stockDisplay.type === "out"
+                              ? "bg-red-50 border-red-200 text-red-700"
+                              : stockDisplay.type === "low"
+                                ? "bg-amber-50 border-amber-200 text-amber-800"
+                                : "bg-orange-50 border-orange-200 text-orange-700"
+                              }`}
+                          >
+                            <span
+                              className={`inline-block w-2 h-2 rounded-full ${stockDisplay.type === "out"
+                                ? "bg-red-600"
+                                : stockDisplay.type === "low"
+                                  ? "bg-amber-600"
+                                  : "bg-[#f38918]"
+                                }`}
+                            ></span>
+                            {stockDisplay.text}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Offer Page Badge */}
+                      {discountSlug && (
+                        <Link
+                          href={`/offers/${discountSlug}`}
+                          className="inline-flex items-center gap-1.5 mt-0.5 mb-0.5 px-3 py-1 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm transition-all group w-fit"
+                        >
+                          <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
+                          <span>Qualifying Items — View Offer</span>
+                          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                        </Link>
+                      )}
+
+                      {/* Coupon Apply / Remove */}
+                      {(hasCouponAvailable || appliedCoupon) && (
+                        <div className="mt-0.5 mb-0.5">
+                          {appliedCoupon ? (
+                            <button
+                              type="button"
+                              onClick={handleRemoveCoupon}
+                              className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all shadow-sm cursor-pointer"
                             >
-                              <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
-                              <span>Qualifying Items — View Offer</span>
-                              <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                            </Link>
+                              <BadgePercent className="h-4 w-4 shrink-0 text-red-600" />
+                              <span className="underline">Click to remove coupon</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowCouponModal(true)}
+                              className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-dashed border-orange-400 bg-orange-50/80 hover:bg-orange-100 text-[#e57e25] text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            >
+                              <BadgePercent className="h-4 w-4 shrink-0 text-[#f38918]" />
+                              <span className="underline">Click to apply coupon</span>
+                            </button>
                           )}
+                        </div>
+                      )}
 
-                          {/* 🔥 COUPON APPLY / REMOVE BUTTON */}
-                          {(hasCouponAvailable || appliedCoupon) && (
-                            <div className="mt-1 mb-2">
-                              {appliedCoupon ? (
-                                <button
-                                  type="button"
-                                  onClick={handleRemoveCoupon}
-                                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all shadow-sm group cursor-pointer"
-                                >
-                                  <BadgePercent className="h-4 w-4 shrink-0 text-red-600" />
-                                  <span className="underline group-hover:text-red-700">
-                                    Click to remove coupon
-                                  </span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowCouponModal(true)}
-                                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-dashed border-orange-400 bg-orange-50/80 hover:bg-orange-100 text-[#e57e25] text-xs font-bold transition-all shadow-sm group cursor-pointer"
-                                >
-                                  <BadgePercent className="h-4 w-4 shrink-0 text-[#f38918]" />
-                                  <span className="underline group-hover:text-orange-600">
-                                    Click to apply coupon
-                                  </span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Qty + Stock — same row */}
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <QuantitySelector
-                              quantity={normalQty}
-                              setQuantity={setNormalQty}
-                              maxStock={groupedMaxQty}
-                              stockError={normalStockError}
-                              setStockError={setNormalStockError}
-                              minQty={product.orderMinimumQuantity ?? 1}
-                              maxQty={product.orderMaximumQuantity}
-                            />
-                            {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-                              <span className="text-[10px] text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap">
-                                {vatRate}% VAT
-                              </span>
-                            )}
-                            {stockDisplay.show && (
-                              <span
-                                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-semibold border whitespace-nowrap ${stockDisplay.type === "out"
-                                  ? "bg-red-50 border-red-200 text-red-700"
-                                  : stockDisplay.type === "low"
-                                    ? "bg-yellow-50 border-yellow-200 text-yellow-800"
-                                    : "bg-orange-50 border-orange-200 text-orange-700"
-                                  }`}
-                              >
-                                <span
-                                  className={`inline-block w-1.5 h-1.5 rounded-full ${stockDisplay.type === "out"
-                                    ? "bg-red-600"
-                                    : stockDisplay.type === "low"
-                                      ? "bg-yellow-600"
-                                      : "bg-[#f38918]"
-                                    }`}
-                                ></span>
-                                {stockDisplay.text}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {/* ADD TO CART */}
-                            {purchaseType === "one" && backorderState.canBuy && (
-                              <Button
-                                onClick={handleAddToCart}
-                                disabled={product.disableBuyButton || (isGroupedProduct && !allRequiredSelected)}
-                                className="flex-1 h-10 rounded-md text-sm font-bold uppercase bg-black hover:bg-gray-900 text-white disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                Add to Cart
-                              </Button>
-                            )}
-                            {/* BUY NOW */}
-                            {purchaseType === "one" && backorderState.canBuy && (
-                              <Button
-                                onClick={handleBuyNow}
-                                disabled={product.disableBuyButton}
-                                className="flex-1 h-10 rounded-md text-sm font-bold uppercase bg-[#f2ad43] hover:bg-[#eba73a] text-black disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                Buy Now &gt;&gt;
-                              </Button>
-                            )}
-                            {purchaseType === "one" && !backorderState.canBuy && (
-                              <Button
-                                onClick={() => setShowNotifyModal(true)}
-                                className="flex-1 h-10 rounded-md text-sm font-bold uppercase bg-white border border-orange-200 hover:bg-orange-50 text-orange-500 flex items-center justify-center gap-2"
-                              >
-                                <Bell className="h-4 w-4 animate-pulse text-amber-200" />
-                                Notify me
-                              </Button>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
+                      {/* VAT & Loyalty Badges */}
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        {vatRate !== null && vatRate > 0 && !product.vatExempt && (
+                          <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold">
+                            {vatRate}% VAT
+                          </span>
+                        )}
+                        {loyaltyPoints && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
+                            <AwardIcon className="h-3 w-3 text-orange-600" />
+                            Earn {loyaltyPoints} points
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {/* RIGHT SUBSCRIPTION CARD */}
-                    <div
-                      id="subscription-card"
-                      onClick={() => setPurchaseType("subscription")}
-                      className={`w-full transition-all duration-300 rounded-2xl ${purchaseType === "subscription"
-                        ? "border-2 border-[#f38918] bg-[#f8faf9] shadow-md"
-                        : "border border-gray-200 bg-white"
-                        }`}
-                    >
-                      <SubscriptionPurchaseCard
-                        product={product}
-                        selectedVariant={selectedVariant}
-                        selectedPurchaseType={purchaseType}
-                        setSelectedPurchaseType={setPurchaseType}
-                        quantity={subscriptionQty}
-                        setQuantity={setSubscriptionQty}
-                        stockError={subscriptionStockError}
-                        setStockError={setSubscriptionStockError}
-                        vatRate={vatRate}   // 🟢 Add this
-                        backorderState={backorderState}   // ⭐ REQUIRED
-                      />
-                    </div>
+
+                    {/* ─── CHEMISTDIRECT-STYLE RECURRING PURCHASE COMPONENT ─── */}
+                    <SubscriptionPurchaseCard
+                      product={product}
+                      selectedVariant={selectedVariant}
+                      selectedPurchaseType={purchaseType}
+                      setSelectedPurchaseType={setPurchaseType}
+                      quantity={normalQty}
+                      setQuantity={(val: any) => {
+                        if (typeof val === "function") {
+                          setNormalQty((prev) => {
+                            const next = val(prev);
+                            setSubscriptionQty(next);
+                            return next;
+                          });
+                        } else {
+                          setNormalQty(val);
+                          setSubscriptionQty(val);
+                        }
+                      }}
+                      stockError={normalStockError}
+                      setStockError={setNormalStockError}
+                      vatRate={vatRate}
+                      backorderState={backorderState}
+                      onAddToCart={handleAddToCart}
+                      onBuyNow={handleBuyNow}
+                      onNotifyMe={() => setShowNotifyModal(true)}
+                      disableBuyButton={product.disableBuyButton || (isGroupedProduct && !allRequiredSelected)}
+                    />
                   </div>
                 ) : (
                   <>
@@ -3095,38 +3029,59 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
                         <div className="mb-4">
                           {/* Price Section */}
-                          <div className="flex flex-col gap-1 mb-4">
-                            <div className="flex flex-wrap items-baseline gap-2.5">
+                          <div className="flex flex-col gap-1 mb-2">
+                            <div className="flex flex-wrap items-center gap-1 md:gap-2">
                               {/* Old Prices */}
                               {(appliedCoupon || activeAutoDiscount) ? (
-                                <span className="text-lg md:text-xl font-medium text-gray-400 line-through">
+                                <span className="text-base md:text-lg font-medium text-gray-400 line-through">
                                   £{(appliedCoupon ? (appliedCoupon.isCumulative ? sellPriceToShow : basePrice) : sellPriceToShow).toFixed(2)} GBP
                                 </span>
                               ) : hasDiscount ? (
-                                <span className="text-lg md:text-xl font-medium text-gray-400 line-through">
+                                <span className="text-base md:text-lg font-medium text-gray-400 line-through">
                                   £{basePrice.toFixed(2)} GBP
                                 </span>
                               ) : null}
 
                               {/* Sale Price */}
-                              <span className="text- md:text-2xl font-medium text-[#e57e25]">
+                              <span className="text-xl md:text-2xl font-bold text-[#e57e25]">
                                 £{finalPrice.toFixed(2)} GBP
                               </span>
 
                               {/* Discount Percentage Pill */}
                               {discountPercentage > 0 && (
-                                <span className="bg-[#d0021b] text-white text-sm font-extrabold px-3.5 py-1.5 rounded-full uppercase tracking-wider ml-1">
+                                <span className="bg-[#d0021b] text-white text-[11px] md:text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                                   {discountPercentage}% OFF
                                 </span>
                               )}
 
+                              {/* Stock Badge - On the price line at the end */}
+                              {stockDisplay.show && (
+                                <span
+                                  className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-md border whitespace-nowrap ml-auto sm:ml-0 ${stockDisplay.type === "out"
+                                    ? "bg-red-50 border-red-200 text-red-700"
+                                    : stockDisplay.type === "low"
+                                      ? "bg-amber-50 border-amber-200 text-amber-800"
+                                      : "bg-orange-50 border-orange-200 text-orange-700"
+                                    }`}
+                                >
+                                  <span
+                                    className={`inline-block w-2 h-2 rounded-full ${stockDisplay.type === "out"
+                                      ? "bg-red-600"
+                                      : stockDisplay.type === "low"
+                                        ? "bg-amber-600"
+                                        : "bg-[#f38918]"
+                                      }`}
+                                  ></span>
+                                  {stockDisplay.text}
+                                </span>
+                              )}
                             </div>
 
                             {/* 🔥 OFFER PAGE BADGE — show when product has assigned discount */}
                             {discountSlug && (
                               <Link
                                 href={`/offers/${discountSlug}`}
-                                className="inline-flex items-center gap-1.5 mt-1.5 mb-2 px-3 py-1.5 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm hover:shadow transition-all duration-150 group w-fit"
+                                className="inline-flex items-center gap-1.5 mt-0.5 mb-1 px-3 py-1 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm transition-all duration-150 group w-fit"
                               >
                                 <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
                                 <span>Qualifying Items — View Offer</span>
@@ -3136,12 +3091,12 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
 
                             {/* 🔥 COUPON APPLY / REMOVE BUTTON */}
                             {(hasCouponAvailable || appliedCoupon) && (
-                              <div className="mt-1 mb-2">
+                              <div className="mt-0.5 mb-1">
                                 {appliedCoupon ? (
                                   <button
                                     type="button"
                                     onClick={handleRemoveCoupon}
-                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all shadow-sm group cursor-pointer"
+                                    className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all shadow-sm group cursor-pointer"
                                   >
                                     <BadgePercent className="h-4 w-4 shrink-0 text-red-600" />
                                     <span className="underline group-hover:text-red-700">
@@ -3152,7 +3107,7 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                   <button
                                     type="button"
                                     onClick={() => setShowCouponModal(true)}
-                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-dashed border-orange-400 bg-orange-50/80 hover:bg-orange-100 text-[#e57e25] text-xs font-bold transition-all shadow-sm group cursor-pointer"
+                                    className="inline-flex items-center gap-2 px-3 py-1 rounded-xl border border-dashed border-orange-400 bg-orange-50/80 hover:bg-orange-100 text-[#e57e25] text-xs font-bold transition-all shadow-sm group cursor-pointer"
                                   >
                                     <BadgePercent className="h-4 w-4 shrink-0 text-[#f38918]" />
                                     <span className="underline group-hover:text-orange-600">
@@ -3163,62 +3118,18 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               </div>
                             )}
 
-                            {/* Delivery Truck Line */}
-                            {(() => {
-                              const standardThresholdOpt = product.freeShippingThresholds?.find((x: any) => {
-                                const name = (x.name || x.displayName || "").toLowerCase();
-                                return name.includes("standard");
-                              });
-                              const isFree = !standardThresholdOpt || standardThresholdOpt.threshold === 0;
-                              if (isFree) {
-                                return (
-                                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
-                                    <Truck className="h-5 w-5 text-[#e57e25]" />
-                                    <span>Free Standard Delivery</span>
-                                  </div>
-                                );
-                              } else {
-                                return (
-                                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mt-2">
-                                    <Truck className="h-5 w-5 text-[#e57e25]" />
-                                    <span>Free Standard Delivery over £{standardThresholdOpt.threshold}</span>
-                                  </div>
-                                );
-                              }
-                            })()}
-
-                            {/* VAT, Loyalty and Stock */}
-                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                            {/* VAT and Loyalty */}
+                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
                               {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-                                <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold">
+                                <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold">
                                   {vatRate}% VAT
                                 </span>
                               )}
                               {loyaltyPoints && (
-                                <span className="inline-flex items-center gap-1 text-xs text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
+                                <span className="inline-flex items-center gap-1 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
                                   <AwardIcon className="h-3 w-3 text-orange-600" />
                                   Earn {loyaltyPoints} points
                                 </span>
-                              )}
-                              {stockDisplay.show && (
-                                <div
-                                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${stockDisplay.type === "out"
-                                    ? "bg-red-50 border border-red-200 text-red-700"
-                                    : stockDisplay.type === "low"
-                                      ? "bg-yellow-50 border border-yellow-200 text-yellow-800"
-                                      : "bg-orange-50 border border-orange-200 text-orange-700"
-                                    }`}
-                                >
-                                  <span
-                                    className={`inline-block w-1.5 h-1.5 rounded-full ${stockDisplay.type === "out"
-                                      ? "bg-red-600"
-                                      : stockDisplay.type === "low"
-                                        ? "bg-yellow-600"
-                                        : "bg-orange-600"
-                                      }`}
-                                  ></span>
-                                  {stockDisplay.text}
-                                </div>
                               )}
                             </div>
                           </div>

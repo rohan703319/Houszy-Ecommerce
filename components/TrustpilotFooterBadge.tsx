@@ -2,12 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 
-interface TrustpilotBadgeProps {
+interface TrustpilotFooterBadgeProps {
   className?: string;
-  isMobile?: boolean;
 }
 
-export default function TrustpilotBadge({ className = '' }: TrustpilotBadgeProps) {
+export default function TrustpilotFooterBadge({ className = '' }: TrustpilotFooterBadgeProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,14 +28,14 @@ export default function TrustpilotBadge({ className = '' }: TrustpilotBadgeProps
   return (
     <div
       ref={ref}
-      className={`trustpilot-widget ${className}`}
+      className={`trustpilot-widget min-w-[320px] ${className}`}
       data-locale="en-US"
-      data-template-id="5406e65db0d04a09e042d5fc"
+      data-template-id="5419b732fbfb950b10de65e5"
       data-businessunit-id="6aa3de0ca2bcf6af73013f15"
-      data-style-height="28px"
+      data-style-height="24px"
       data-style-width="100%"
       data-theme="dark"
-      data-token="30604246-a78b-4e2f-93f4-923af7ba3ec7"
+      data-token="196ae862-5164-450b-bab9-b5fd5d10b9fb"
       data-text-color="#f3a916"
     >
       <a

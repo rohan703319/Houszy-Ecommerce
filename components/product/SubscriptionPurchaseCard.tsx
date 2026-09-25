@@ -2,28 +2,31 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/toast/CustomToast";
 import { useCart } from "@/context/CartContext";
 import QuantitySelector from "@/components/shared/QuantitySelector";
-import { AwardIcon } from "lucide-react";
+import { Repeat, ChevronDown, Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
+
 interface Props {
   product: any;
   selectedVariant: any | null;
   selectedPurchaseType: "one" | "subscription";
   setSelectedPurchaseType: (val: "one" | "subscription") => void;
   quantity: number;
-  setQuantity: React.Dispatch<React.SetStateAction<number>>;
+  setQuantity: React.Dispatch<React.SetStateAction<number>> | ((val: number) => void);
   stockError: string | null;
-  setStockError: React.Dispatch<React.SetStateAction<string | null>>;
-  vatRate: number | null;   // 🟢 Add this
-  // ⭐ ADD THIS
+  setStockError: React.Dispatch<React.SetStateAction<string | null>> | ((val: string | null) => void);
+  vatRate: number | null;
   backorderState: {
     canBuy: boolean;
     showNotify: boolean;
     label: string;
   };
+  onAddToCart?: () => void;
+  onBuyNow?: () => void;
+  onNotifyMe?: () => void;
+  disableBuyButton?: boolean;
 }
 
 export default function SubscriptionPurchaseCard({
@@ -37,20 +40,20 @@ export default function SubscriptionPurchaseCard({
   setStockError,
   vatRate,
   backorderState,
-
+  onAddToCart,
+  onBuyNow,
+  onNotifyMe,
+  disableBuyButton = false,
 }: Props) {
-
-  const { addToCart } = useCart();
+  const { addToCart, openCart } = useCart();
   const toast = useToast();
   const router = useRouter();
-  const basePrice = selectedVariant?.price ?? product.price;
-  // ✅ STOCK (variant aware)
-  const stock =
-    selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
 
-  // ✅ STOCK DISPLAY LOGIC (same as PDP)
+  const basePrice = selectedVariant?.price ?? product.price;
+  const stock = selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
+
+  // Stock display logic
   const stockDisplay = (() => {
-    // ❌ Always dominant
     if (stock === 0) {
       return {
         show: true,
@@ -59,7 +62,6 @@ export default function SubscriptionPurchaseCard({
       };
     }
 
-    // ✅ Exact quantity priority
     if (product.displayStockQuantity === true) {
       if (stock <= 5) {
         return {
@@ -76,7 +78,6 @@ export default function SubscriptionPurchaseCard({
       };
     }
 
-    // ✅ Generic availability
     if (product.displayStockAvailability === true) {
       return {
         show: true,
@@ -101,13 +102,14 @@ export default function SubscriptionPurchaseCard({
     : (Number(product.discountPercentage) || 0);
 
   const subscriptionDiscount = Number(product.subscriptionDiscountPercentage) || 0;
-  // ----------------- NEW STATE FOR DROPDOWN -----------------
+  const uptoDiscountPercentage = Number(product?.subscriptionUptoDiscountPercentage) || 10;
+
+  // Frequencies for dropdown
   const frequencies = product?.allowedSubscriptionFrequencies
     ? product.allowedSubscriptionFrequencies.split(",").map((f: string) => f.trim()).filter(Boolean)
     : [];
 
   const defaultFrequency = frequencies[0] || "";
-
   const [selectedFrequency, setSelectedFrequency] = useState<string>(defaultFrequency);
 
   useEffect(() => {
@@ -124,28 +126,24 @@ export default function SubscriptionPurchaseCard({
       cycleLength = Number(selectedFrequencyMatch[1]);
       cyclePeriod = selectedFrequencyMatch[2];
     } else if (selectedFrequency) {
-      cycleLength = selectedFrequency; // weekly, monthly, yearly
+      cycleLength = selectedFrequency;
       cyclePeriod = selectedFrequency;
     }
-    const stockQty =
-      selectedVariant?.stockQuantity ??
-      product.stockQuantity ??
-      0;
 
+    const stockQty = selectedVariant?.stockQuantity ?? product.stockQuantity ?? 0;
     const maxQty = (selectedVariant?.orderMaximumQuantity ?? product.orderMaximumQuantity) ?? Infinity;
 
-    // 🔥 STOCK CHECK
+    // Stock check
     if (quantity > stockQty) {
       toast.error(`Only ${stockQty} items available`);
       return;
     }
 
-    // 🔥 MAX ORDER CHECK
+    // Max order check
     if (quantity > maxQty) {
       toast.error(`Maximum order quantity is ${maxQty}`);
       return;
     }
-
 
     const nextDayDeliveryEnabled = selectedVariant
       ? selectedVariant.nextDayDeliveryEnabled === true
@@ -202,152 +200,189 @@ export default function SubscriptionPurchaseCard({
       nextDayDeliveryEnabled: nextDayDeliveryEnabled ?? false,
       nextDayDeliveryFree: nextDayDeliveryFree ?? false,
       sameDayDeliveryEnabled: product.sameDayDeliveryEnabled ?? false,
+      productData: JSON.parse(JSON.stringify(product)),
     });
+
+    openCart();
   };
 
   return (
-    <Card className="shadow-sm bg-transparent border-none">
-      <CardContent className="px-3 pt-3 pb-2">
-        {/* Radio */}
-        <label className="flex items-center gap-2 cursor-pointer mb-2">
-          <input
-            type="radio"
-            name="purchaseType"
-            value="subscription"
-            checked={selectedPurchaseType === "subscription"}
-            onChange={() => setSelectedPurchaseType("subscription")}
-            className="h-4 w-4 accent-[#f38918] cursor-pointer"
-          />
+    <div className="w-full space-y-1.5">
+      {/* ─── CHEMISTDIRECT-INSPIRED UNIFIED PURCHASE OPTIONS CONTAINER ─── */}
+      <div className="rounded-xl border border-gray-200 p-1 space-y-1 bg-white shadow-xs">
 
-          <span className="font-semibold text-sm">
-            Subscribe & Save
-          </span>
-
-        </label>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <span className="text-lg font-extrabold text-[#f38918]">
-            £{(currentSellPrice * quantity).toFixed(2)}
-          </span>
-          {directDiscountPercentage > 0 && (
-            <>
-              <span className="text-xs font-bold text-gray-400 line-through">
-                £{(basePrice * quantity).toFixed(2)}
-              </span>
-              <span className="bg-[#E31B23] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shadow-sm leading-none flex items-center justify-center">
-                {directDiscountPercentage}% Off
-              </span>
-            </>
-          )}
-          {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-            <span className="text-xs text-gray-700 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded font-medium">
-              {vatRate}% VAT
-            </span>
-          )}
-          {(product as any).loyaltyPointsEnabled && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-md">
-              <AwardIcon className="h-3 w-3 text-green-600" />
-              Earn {(product as any).loyaltyPointsEarnable} pts
-            </span>
-          )}
-        </div>
-        {/* Benefits Block */}
-        {subscriptionDiscount > 0 && (
-          <ul className="bg-[#f8faf9] border border-orange-200 rounded p-2 mb-2 text-[11px] text-gray-700 space-y-0.5">
-            <li className="flex items-center gap-2">
-              <span className="text-orange-700 font-bold">✓</span> Save up to Extra {subscriptionDiscount}% from 2nd delivery onwards
-            </li>
-          </ul>
-        )}
-        {/* Dropdown appears ONLY if subscription selected */}
-        {selectedPurchaseType === "subscription" && (
-          <div className="mb-2">
-            {/* <label className="text-sm font-semibold text-gray-700 mb-1 block">
-    Delivery Frequency
-  </label> */}
-
-            <div className="relative">
-              <select
-                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-3 py-1.5 text-xs font-medium text-gray-700
-      shadow-sm focus:outline-none focus:ring-2 focus:ring-[#f38918] focus:border-[#f38918] transition-all cursor-pointer"
-                value={selectedFrequency}
-                onChange={(e) => setSelectedFrequency(e.target.value)}
-              >
-                {frequencies.map((option: string) => (
-                  <option key={option} value={option}>
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </option>
-                ))}
-              </select>
-
-              {/* Custom Down Arrow */}
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">
-                ▼
-              </span>
-            </div>
-          </div>
-        )}
-        <div className="flex items-center gap-[0.5rem] mt-2 mb-0">
-
-          <div className="flex-shrink-0 w-[7rem]">
-            <QuantitySelector
-              quantity={quantity}
-              setQuantity={setQuantity}
-              maxStock={backorderState.canBuy ? (selectedVariant?.stockQuantity ?? product.stockQuantity) : 0}
-              stockError={stockError}
-              setStockError={setStockError}
-              allowedQuantities={product.allowedQuantities}
+        {/* OPTION 1: Order one time only */}
+        <div
+          onClick={() => setSelectedPurchaseType("one")}
+          className={`w-full rounded-lg px-2.5 py-1.5 transition-all cursor-pointer flex items-center justify-between ${selectedPurchaseType === "one"
+            ? "bg-orange-50/50 border border-orange-200"
+            : "hover:bg-gray-50/60 border border-transparent"
+            }`}
+        >
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="radio"
+              name="purchaseType"
+              value="one"
+              checked={selectedPurchaseType === "one"}
+              onChange={() => setSelectedPurchaseType("one")}
+              className="h-3.5 w-3.5 accent-[#f38918] cursor-pointer"
             />
+            <span className="text-xs md:text-sm font-semibold text-gray-900">
+              Order one time only
+            </span>
+          </label>
+        </div>
+
+        {/* OPTION 2: Subscribe & Save */}
+        <div
+          onClick={() => setSelectedPurchaseType("subscription")}
+          className={`w-full rounded-lg transition-all cursor-pointer ${selectedPurchaseType === "subscription"
+            ? "border-2 border-[#f38918] bg-[#fdf8f0]/80 p-2 shadow-xs"
+            : "border border-gray-200 hover:border-orange-300 p-1.5 hover:bg-orange-50/20"
+            }`}
+        >
+          {/* Header Row */}
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="radio"
+                name="purchaseType"
+                value="subscription"
+                checked={selectedPurchaseType === "subscription"}
+                onChange={() => setSelectedPurchaseType("subscription")}
+                className="h-3.5 w-3.5 accent-[#f38918] cursor-pointer"
+              />
+              <span className="inline-flex items-center gap-1.5 font-bold text-[#e57e25] text-xs md:text-sm">
+                <Repeat className="h-3.5 w-3.5 text-[#f38918]" />
+                Subscribe & Save
+              </span>
+            </label>
+
 
           </div>
 
-          {stockDisplay.show && (
-            <div
-              className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold shadow-sm mb-1 ${stockDisplay.type === "out"
-                ? "bg-red-100 text-red-700"
-                : stockDisplay.type === "low"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-orange-50 border border-orange-200 text-orange-700"
-                }`}
-            >
-              <span
-                className={`inline-block w-2 h-2 rounded-full ${stockDisplay.type === "out"
-                  ? "bg-red-600"
-                  : stockDisplay.type === "low"
-                    ? "bg-yellow-600"
-                    : "bg-[#f38918]"
-                  }`}
-              ></span>
+          {/* Expanded Benefits & Frequency (Shown when Subscribe & Save is selected) */}
+          {selectedPurchaseType === "subscription" && (
+            <div className="mt-1.5 pl-5 sm:pl-6 border-t border-orange-200/70 pt-1.5 space-y-1">
+              {/* Deliver every Dropdown */}
+              {frequencies.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-gray-700 whitespace-nowrap">
+                    Deliver every:
+                  </span>
+                  <div className="relative min-w-[120px] max-w-[180px]">
+                    <select
+                      value={selectedFrequency}
+                      onChange={(e) => setSelectedFrequency(e.target.value)}
+                      className="w-full appearance-none bg-white border border-[#f38918] rounded px-2 py-0.5 pr-6 text-xs font-semibold text-gray-800 shadow-xs focus:outline-none focus:ring-1 focus:ring-[#f38918] cursor-pointer"
+                    >
+                      {frequencies.map((option: string) => (
+                        <option key={option} value={option}>
+                          {option.charAt(0).toUpperCase() + option.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#f38918]" />
+                  </div>
+                </div>
+              )}
 
-              {stockDisplay.text}
+              {/* Compact Benefits Bar */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-gray-600 pt-0.5">
+                {uptoDiscountPercentage > 0 && (
+                  <span className="inline-flex items-center gap-1 font-semibold text-gray-800">
+                    <span className="text-[#f38918] font-bold">✓</span> Get up to {uptoDiscountPercentage}% off from second delivery onwards
+                  </span>
+                )}
+
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-[#f38918] font-bold">✓</span> Cancel anytime
+                </span>
+              </div>
             </div>
           )}
+        </div>
+      </div>
 
-
+      {/* ─── UNIFIED QUANTITY & ACTION BUTTONS ROW ─── */}
+      <div className={`pt-0.5 w-full ${
+        selectedPurchaseType === "subscription"
+          ? "flex items-center gap-2"
+          : "flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+      }`}>
+        {/* Quantity Stepper */}
+        <div className="flex-shrink-0">
+          <QuantitySelector
+            quantity={quantity}
+            setQuantity={setQuantity}
+            maxStock={backorderState.canBuy ? stock : 0}
+            stockError={stockError}
+            setStockError={setStockError}
+            allowedQuantities={product.allowedQuantities}
+            minQty={product.orderMinimumQuantity ?? 1}
+            maxQty={product.orderMaximumQuantity}
+          />
         </div>
 
-
-
-        {selectedPurchaseType === "subscription" && backorderState.canBuy && (
-          <Button
-            onClick={handleAddSubscriptionToCart}
-            className="w-full py-2 rounded-xl text-sm font-semibold mt-1.5
-      bg-black hover:bg-[#f38918] text-white"
-          >
-            Add Subscription to Cart
-          </Button>
-        )}
-
-        {selectedPurchaseType === "subscription" && !backorderState.canBuy && (
-          <Button
-            disabled
-            className="w-full py-2 rounded-xl text-sm font-semibold mt-1.5
-      bg-red-400 cursor-not-allowed opacity-70"
-          >
-            Subscription unavailable
-          </Button>
-        )}
-
-      </CardContent>
-    </Card>
+        {/* Action Buttons */}
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          {selectedPurchaseType === "subscription" ? (
+            backorderState.canBuy ? (
+              <Button
+                type="button"
+                data-cart-button="true"
+                data-add-to-cart="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddSubscriptionToCart();
+                }}
+                className="w-full h-9 rounded-md text-xs sm:text-sm font-bold bg-[#f2ad43] hover:bg-[#eba73a] text-black shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap px-2"
+              >
+                <Repeat className="h-3.5 w-3.5 text-black shrink-0" />
+                <span className="truncate sm:whitespace-normal">Add subscription to cart</span>
+              </Button>
+            ) : (
+              <Button
+                disabled
+                className="w-full h-9 rounded-md text-xs sm:text-sm font-bold bg-gray-400 text-white cursor-not-allowed opacity-70"
+              >
+                Subscription unavailable
+              </Button>
+            )
+          ) : (
+            backorderState.canBuy ? (
+              <>
+                <Button
+                  type="button"
+                  onClick={onAddToCart}
+                  disabled={disableBuyButton}
+                  className="flex-1 h-9 rounded-md text-xs md:text-sm font-bold uppercase bg-black hover:bg-gray-900 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Add to Cart
+                </Button>
+                <Button
+                  type="button"
+                  onClick={onBuyNow}
+                  disabled={disableBuyButton}
+                  className="flex-1 h-9 rounded-md text-xs md:text-sm font-bold uppercase bg-[#f2ad43] hover:bg-[#eba73a] text-black disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Buy Now &gt;&gt;
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                onClick={onNotifyMe}
+                className="w-full h-9 rounded-md text-xs md:text-sm font-bold uppercase bg-white border border-orange-200 hover:bg-orange-50 text-orange-500 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Bell className="h-3.5 w-3.5 animate-pulse text-amber-500" />
+                <span>Notify me</span>
+              </Button>
+            )
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
