@@ -14,6 +14,17 @@ interface PageProps {
 }
 
 function formatDiscount(d: any): string {
+  if (d.discountType === "FixedPrice") return `FIXED £${(d.discountAmount ?? 0).toFixed(2)}`;
+  if (d.discountType === "UptoXPrice") return `UP TO £${(d.discountAmount ?? 0).toFixed(2)}`;
+  if (d.discountType === "UptoXPercent") return `UP TO ${d.discountPercentage ?? 0}% OFF`;
+  if (d.discountType === "BuyXGetY") {
+    const buy = d.buyQuantity || 1;
+    const get = d.getQuantity || 1;
+    const pct = d.discountPercentage || 0;
+    if (pct === 100) return buy === 1 && get === 1 ? "BUY 1 GET 1 FREE" : `BUY ${buy} GET ${get} FREE`;
+    if (buy === 1 && get === 1) return `BUY 1, GET 2ND AT ${pct}% OFF`;
+    return `BUY ${buy} GET ${get} AT ${pct}% OFF`;
+  }
   if (d.usePercentage && d.discountPercentage) return `${d.discountPercentage}% OFF`;
   if (d.discountAmount > 0) return `£${d.discountAmount.toFixed(2)} OFF`;
   return "Special Offer";

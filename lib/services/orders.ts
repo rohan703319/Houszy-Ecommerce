@@ -163,6 +163,7 @@ export interface Shipment {
   deliveredAt?: string;
   notes?: string;
   createdAt: string;
+  trackingUrl?: string;
   shipmentItems: ShipmentItem[];
 }
 export interface RefundHistory {
@@ -367,7 +368,7 @@ export interface CreateShipmentRequest {
   orderId: string;
   trackingNumber: string;
   carrier: string;
-  shippingMethod: string;
+  shippingMethod?: string;
   notes?: string;
   shipmentItems?: {
     orderItemId: string;
@@ -409,6 +410,7 @@ async getAllOrders(params?: {
   includeGuestOrders?: boolean;
   isClickAndCollect?: boolean;
   shippingMethodName?: string;
+  deliveryOptionId?: string;
   deliveryMethod?: string;
   paymentMethod?: string;
   paymentStatus?: string;

@@ -1328,7 +1328,7 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                     </span>
                     <span>Desktop Banner Image *</span>
                     <span className="text-xs text-amber-400 font-medium ml-2">
-                      (Recommended: {formData.bannerType === "Seasonal" ? "2666 × 590 px" : "1920 × 765 px"} · WebP only)
+                      (Recommended: {formData.bannerType === "Seasonal" ? "1536 x 255 px" : "1920 × 765 px"} · WebP only)
                     </span>
                   </h3>
 
@@ -1422,7 +1422,7 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                             </p>
                             {formData.title && (
                               <p className="text-xs text-amber-400 font-medium">
-                                Recommended: {formData.bannerType === "Seasonal" ? "2666 × 590 px" : "1920 × 765 px"} (WebP only)
+                                Recommended: {formData.bannerType === "Seasonal" ? "1536 x 255 px" : "1920 × 765 px"} (WebP only)
                               </p>
                             )}
                           </div>
@@ -1460,7 +1460,7 @@ flex flex-col overflow-hidden shadow-2xl shadow-violet-500/10">
                     <span>Mobile Banner Image</span>
                     <span className="text-xs text-slate-400 font-normal ml-1">(optional)</span>
                     <span className="text-xs text-amber-400 font-medium ml-2">
-                      (Recommended: {formData.bannerType === "Seasonal" ? "2666 × 590 px" : "1175 × 1338 px"} · WebP only)
+                      (Recommended: {formData.bannerType === "Seasonal" ? "1536 x 255 px" : "1175 × 1338 px"} · WebP only)
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400 mb-4">If set, this image will be shown on mobile devices. Otherwise the desktop image will be used.</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface TrustpilotCarouselProps {
   className?: string;
@@ -9,8 +9,15 @@ interface TrustpilotCarouselProps {
 
 export default function TrustpilotCarousel({ className = '', isContained = false }: TrustpilotCarouselProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const loadWidget = () => {
       if (typeof window !== 'undefined' && (window as any).Trustpilot && ref.current) {
         try {
@@ -24,9 +31,9 @@ export default function TrustpilotCarousel({ className = '', isContained = false
     loadWidget();
     const timer = setTimeout(loadWidget, 300);
     return () => clearTimeout(timer);
-  }, []);
+  }, [mounted]);
 
-  const widgetContent = (
+  const widgetContent = mounted ? (
     <div
       ref={ref}
       className="trustpilot-widget w-full"
@@ -38,7 +45,8 @@ export default function TrustpilotCarousel({ className = '', isContained = false
       data-token="f9e3e5af-cbe3-4c1f-9e65-e9690930353e"
       data-stars="1,2,3,4,5"
       data-review-languages="en"
-      data-text-color="#f38a16"
+      data-text-color="#191919"
+      suppressHydrationWarning
     >
       <a
         href="https://www.trustpilot.com/review/www.houszy.co.uk"
@@ -48,6 +56,8 @@ export default function TrustpilotCarousel({ className = '', isContained = false
         Trustpilot
       </a>
     </div>
+  ) : (
+    <div className="w-full h-[140px] bg-transparent" />
   );
 
   if (isContained) {

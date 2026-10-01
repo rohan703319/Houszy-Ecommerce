@@ -484,6 +484,8 @@ export interface ProductQueryParams {
   standardDeliveryEnabled?: boolean;
   exactDiscountPercentage?: number;
   maxDiscountPercentage?: number;
+  maxSellPrice?: number;
+  exactSellPrice?: number;
 
   // Sorting
   sortBy?: string;
@@ -647,6 +649,18 @@ getAll: async (params?: ProductQueryParams, options?: any) => {
     queryParams.append(
       "maxDiscountPercentage",
       params.maxDiscountPercentage.toString()
+    );
+
+  if (params?.maxSellPrice !== undefined)
+    queryParams.append(
+      "maxSellPrice",
+      params.maxSellPrice.toString()
+    );
+
+  if (params?.exactSellPrice !== undefined)
+    queryParams.append(
+      "exactSellPrice",
+      params.exactSellPrice.toString()
     );
 
   if (params?.outOfStockLast !== undefined)

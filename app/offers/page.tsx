@@ -18,11 +18,40 @@ interface Discount {
   mobileBannerImageUrl?: string;
   productCount?: number;
   adminComment?: string;
+  buyQuantity?: number;
+  getQuantity?: number;
 }
 
 function formatDiscount(d: Discount): string {
+  if (d.discountType === "FixedPrice" && d.discountAmount) {
+    return `FIXED £${d.discountAmount.toFixed(2)}`;
+  }
   if (d.discountType === "UptoXPercent" && d.discountPercentage) {
     return `UP TO ${d.discountPercentage}% OFF`;
+  }
+  if (d.discountType === "UptoXPrice" && d.discountAmount) {
+    return `UP TO £${d.discountAmount.toFixed(2)}`;
+  }
+  if (d.discountType === "BuyXGetY") {
+    const buy = d.buyQuantity || 1;
+    const get = d.getQuantity || 1;
+    const pct = d.discountPercentage || 0;
+    if (pct === 100) {
+      return buy === 1 && get === 1 ? "BUY 1 GET 1 FREE" : `BUY ${buy} GET ${get} FREE`;
+    }
+    if (buy === 1 && get === 1) {
+      return `BUY 1, GET 2ND AT ${pct}% OFF`;
+    }
+    return `BUY ${buy} GET ${get} AT ${pct}% OFF`;
+  }
+  if (d.discountType === "TieredQuantity") {
+    const tiers = (d as any).tiers;
+    if (tiers && tiers.length > 0) {
+      const maxPct = Math.max(...tiers.map((t: any) => t.discountPercentage));
+      const minQty = Math.min(...tiers.map((t: any) => t.quantity));
+      return `BUY ${minQty}+ GET UP TO ${maxPct}% OFF`;
+    }
+    return "BULK SAVINGS";
   }
   if (d.usePercentage && d.discountPercentage) return `${d.discountPercentage}% OFF`;
   if (d.discountAmount > 0) return `£${d.discountAmount.toFixed(2)} OFF`;
@@ -163,7 +192,7 @@ function DiscountCard({ discount: d }: { discount: Discount }) {
   const bannerUrl = d.desktopBannerImageUrl || d.mobileBannerImageUrl;
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-  const isProductLevel = d.discountType === "AssignedToProducts" || d.discountType === "AssignedToCategories" || d.discountType === "UptoXPercent";
+  const isProductLevel = d.discountType === "AssignedToProducts" || d.discountType === "AssignedToCategories" || d.discountType === "UptoXPercent" || d.discountType === "UptoXPrice" || d.discountType === "FixedPrice" || d.discountType === "BuyXGetY" || d.discountType === "TieredQuantity";
   const href = isProductLevel && d.slug ? `/offers/${d.slug}` : "#";
 
   return (

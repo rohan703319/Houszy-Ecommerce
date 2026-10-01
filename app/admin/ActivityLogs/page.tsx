@@ -73,7 +73,6 @@ const ACTIVITY_TYPES: { value: ActivityLogType | "all"; label: string }[] = [
   { value: "AddBrand", label: "Add Brand" },
   { value: "UpdateBrand", label: "Update Brand" },
   { value: "DeleteBrand", label: "Delete Brand" },
-  { value: "AddOrder", label: "Add Order" },
   { value: "UpdateOrder", label: "Update Order" },
   { value: "CancelOrder", label: "Cancel Order" },
   { value: "CreateShipment", label: "Create Shipment" },

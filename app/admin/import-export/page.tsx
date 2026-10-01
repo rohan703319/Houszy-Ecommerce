@@ -199,6 +199,10 @@ const EDITABLE_FIELDS: { key: string; label: string }[] = [
   { key: 'metaDescription', label: 'Meta Description' },
   { key: 'metaKeywords', label: 'Meta Keywords' },
   { key: 'searchEngineFriendlyPageName', label: 'Search Engine Friendly Page Name' },
+  { key: 'customLabel0', label: 'Custom Label 0' },
+  { key: 'customLabel1', label: 'Custom Label 1' },
+  { key: 'customLabel3', label: 'Custom Label 3' },
+  { key: 'customLabel4', label: 'Custom Label 4' },
 
   { key: 'viewCount', label: 'View Count' },
   { key: 'averageRating', label: 'Average Rating' },
@@ -520,11 +524,8 @@ function ProductsBulkUpdateTab() {
     setTemplateFilters(prev => ({ ...prev, categoryIds: Array.from(new Set([...prev.categoryIds, ...ids])) }));
   }
   function selectFilteredFields() {
-    const query = debouncedFieldSearch.trim().toLowerCase();
-    if (!query) return;
-    const keys = EDITABLE_FIELDS
-      .filter(f => f.label.toLowerCase().includes(query))
-      .map(f => f.key);
+    if (filteredFields.length === 0) return;
+    const keys = filteredFields.map(f => f.key);
     setSelectedFields(prev => Array.from(new Set([...prev, ...keys])));
   }
 
@@ -534,7 +535,13 @@ function ProductsBulkUpdateTab() {
 
   const filteredFields = debouncedFieldSearch.trim().length === 0
     ? EDITABLE_FIELDS
-    : EDITABLE_FIELDS.filter(f => f.label.toLowerCase().includes(debouncedFieldSearch.trim().toLowerCase()));
+    : EDITABLE_FIELDS.filter(f => {
+        const query = debouncedFieldSearch.trim().toLowerCase();
+        const label = f.label.toLowerCase();
+        if (label.includes(query)) return true;
+        if (query.includes('custom label') && label.includes('custom label')) return true;
+        return false;
+      });
   const sortedFields = [
     ...filteredFields.filter(f =>
       DEFAULT_SELECTED_FIELDS.includes(f.key)
@@ -1174,6 +1181,11 @@ function CreateShipmentTab() {
     try {
       const response = await orderService.exportProcessingForShipment();
       const blob = response.data as Blob;
+      if (blob?.type?.includes('application/json')) {
+        const text = await blob.text();
+        const json = JSON.parse(text);
+        throw new Error(json.message || 'Failed to generate shipment export');
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `processing-orders-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -1181,7 +1193,15 @@ function CreateShipmentTab() {
       URL.revokeObjectURL(a.href);
       setDownloadDone(true);
     } catch (err: any) {
-      alert(`Download failed: ${err?.message || 'Unknown error'}`);
+      let errorMsg = err?.message || 'Unknown error';
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          if (json?.message) errorMsg = json.message;
+        } catch {}
+      }
+      alert(`Download failed: ${errorMsg}`);
     } finally {
       setDownloading(false);
     }

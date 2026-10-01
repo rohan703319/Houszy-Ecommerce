@@ -52,7 +52,7 @@ export default function LatestBlogs({ blogs }: LatestBlogsProps) {
 
   return (
     <div className="w-full -mt-8">
-      <h2 className="text-[15px] md:text-[22px] font-bold text-center mb-8 md:mb-10 text-black tracking-tight">
+      <h2 className="text-[20px] sm:text-[24px] md:text-[28px] lg:text-[32px] xl:text-[34px] font-extrabold text-center mb-8 md:mb-10 text-black tracking-tight">
         Our Latest Blogs
       </h2>
 

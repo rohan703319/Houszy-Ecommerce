@@ -278,7 +278,7 @@ export default function ProductCard({
             />
           )}
           {/* DISCOUNT BADGE — show when discountPercentage > 0 */}
-          {hasDiscount && (
+          {hasDiscount ? (
             <div className="absolute z-20 left-2 top-2">
               <div className="px-1 py-1 md:px-3 md:py-1.5 rounded-full bg-[#E31B23] flex items-center justify-center text-white shadow-md">
                 <span className="text-[10px] md:text-[13px] font-bold leading-none tracking-wider">
@@ -286,7 +286,43 @@ export default function ProductCard({
                 </span>
               </div>
             </div>
-          )}
+          ) : (() => {
+            const discounts: any[] = product.assignedDiscounts ?? [];
+            const buyDeal = discounts.find((d: any) => d && d.discountType === "BuyXGetY" && d.isActive !== false && (d.discountPercentage > 0));
+            if (buyDeal) {
+              const buyQty = buyDeal.buyQuantity || 1;
+              const getQty = buyDeal.getQuantity || 1;
+              const pct = buyDeal.discountPercentage || 0;
+              const badgeLabel = (buyQty === 1 && getQty === 1)
+                ? `Buy 1, Get 2nd at ${pct}% Off`
+                : `Buy ${buyQty} Get ${getQty} at ${pct}% Off`;
+              return (
+                <div className="absolute z-20 left-2 top-2">
+                  <div className="px-1.5 py-0.5 md:px-2 md:py-1 rounded bg-gradient-to-r from-[#f38918] to-amber-600 flex items-center justify-center text-white shadow-md">
+                    <span className="text-[9px] md:text-[10px] font-extrabold leading-none tracking-wide">
+                      {badgeLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+            const tieredDeal = discounts.find((d: any) => d && d.discountType === "TieredQuantity" && d.isActive !== false && d.tiers && d.tiers.length > 0);
+            if (tieredDeal) {
+              const sortedTiers = [...tieredDeal.tiers].sort((a: any, b: any) => a.quantity - b.quantity);
+              const maxTier = sortedTiers[sortedTiers.length - 1];
+              const badgeLabel = `Buy More, Save Up to ${maxTier.discountPercentage}%`;
+              return (
+                <div className="absolute z-20 left-2 top-2">
+                  <div className="px-1.5 py-0.5 md:px-2 md:py-1 rounded bg-gradient-to-r from-[#f38918] to-amber-600 flex items-center justify-center text-white shadow-md">
+                    <span className="text-[9px] md:text-[10px] font-extrabold leading-none tracking-wide">
+                      {badgeLabel}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
           {/* COUPON BADGE - Disabled */}
           {/* {!hasDiscount && hasActiveCoupon && (
             <div className="absolute z-20 top-1 md:top-2 left-1 md:left-2">

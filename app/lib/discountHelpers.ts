@@ -12,6 +12,7 @@ export function getActiveDiscount(product: any) {
     product.assignedDiscounts.find((d: any) => {
       if (!d.isActive) return false;
       if (d.requiresCouponCode) return false;
+      if (d.discountType === "BuyXGetY") return false;
 
       if (d.startDate && now < new Date(d.startDate)) return false;
       if (d.endDate && now > new Date(d.endDate)) return false;

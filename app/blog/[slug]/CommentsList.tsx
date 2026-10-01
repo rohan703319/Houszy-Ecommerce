@@ -12,7 +12,7 @@ export default function CommentsList({ blogPostId }: { blogPostId: string }) {
   async function loadComments() {
     try {
       const res = await fetch(
-        `${API_BASE}/api/BlogComments/post/${blogPostId}?includeUnapproved=true`
+        `${API_BASE}/api/BlogComments/post/${blogPostId}?includeUnapproved=false`
       );
       const json = await res.json();
       setComments(json?.data ?? []);

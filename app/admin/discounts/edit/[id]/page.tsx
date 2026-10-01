@@ -16,8 +16,12 @@ export default function EditDiscountPage() {
     if (id) {
       discountsService.getById(id)
         .then(res => {
-          const data = (res?.data?.data || res?.data || res) as any;
-          if (data) {
+          if ((res as any)?.error || (res as any)?.status >= 400) {
+            toast.error((res as any)?.error || "Failed to load discount details");
+            return;
+          }
+          const data = (res?.data?.data || res?.data) as any;
+          if (data && data.id) {
             setDiscount(data);
           } else {
             toast.error("Failed to load discount details");

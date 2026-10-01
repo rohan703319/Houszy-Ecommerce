@@ -509,18 +509,30 @@ export default function OrderActionsModal({
   const isPaid = isOrderPaid(order);
   const paymentDisplay = getPaymentStatusDisplay(order);
 
+  // ✅ Check if this is a re-shipment flow (order already has shipments or is Shipped)
+  const isReshipment =
+    order.status === 'Shipped' ||
+    ((order.shipments?.length ?? 0) > 0 && action === 'create-shipment');
+
   // ✅ Initialize shipment items when modal opens for create-shipment action
   useEffect(() => {
     if (isOpen && action === 'create-shipment') {
-      setShipmentData((prev) => ({
-        ...prev,
+      const isReship =
+        order.status === 'Shipped' ||
+        ((order.shipments?.length ?? 0) > 0);
+
+      setShipmentData({
+        trackingNumber: '',
+        carrier: order.carrierName || order.shipments?.[0]?.carrier || '',
+        shippingMethod: order.shippingMethodName || (order as any).carrierServiceTitle || order.shipments?.[0]?.shippingMethod || '',
+        notes: isReship ? 'Re-dispatch: previous delivery unfulfilled' : '',
         selectedItems: order.orderItems.map((item: any) => ({
           orderItemId: item.id,
-          quantity: item.quantity // ✅ default full qty
+          quantity: item.quantity // default full qty
         }))
-      }));
+      });
     }
-  }, [isOpen, action, order.orderItems]);
+  }, [isOpen, action, order]);
   // ✅ Reset form data when modal opens/closes or action changes
   useEffect(() => {
     if (isOpen) {
@@ -581,13 +593,13 @@ export default function OrderActionsModal({
     'create-shipment': async () => {
       const res = await orderService.createShipment({
         orderId: order.id,
-        trackingNumber: shipmentData.trackingNumber,
-        carrier: shipmentData.carrier,
-        shippingMethod: shipmentData.shippingMethod,
-        notes: shipmentData.notes || undefined,
+        trackingNumber: shipmentData.trackingNumber.trim(),
+        carrier: shipmentData.carrier.trim(),
+        shippingMethod: shipmentData.shippingMethod?.trim() || undefined,
+        notes: shipmentData.notes?.trim() || undefined,
         shipmentItems: shipmentData.selectedItems.filter(item => item.quantity > 0)
       });
-      toast.success(res?.message || 'Shipment created');
+      toast.success(res?.message || (isReshipment ? 'Re-shipment created successfully' : 'Shipment created successfully'));
     },
 
     'mark-delivered': async () => {
@@ -1063,12 +1075,38 @@ export default function OrderActionsModal({
         return (
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-              <Truck className="h-6 w-6 text-purple-400" />
+              <Truck className="h-6 w-6 text-purple-400 shrink-0" />
               <div>
-                <p className="text-white font-medium">Create Shipment</p>
-                <p className="text-sm text-slate-400">Add tracking and shipment details.</p>
+                <p className="text-white font-medium">
+                  {isReshipment ? 'Re-ship Order (New Shipment)' : 'Create Shipment'}
+                </p>
+                <p className="text-sm text-slate-400">
+                  {isReshipment
+                    ? 'Previous delivery was not completed. Enter new carrier and tracking details to re-dispatch.'
+                    : 'Add tracking and shipment details.'}
+                </p>
               </div>
             </div>
+
+            {/* Previous shipments info banner if re-shipping */}
+            {isReshipment && order.shipments && order.shipments.length > 0 && (
+              <div className="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl text-xs space-y-1.5">
+                <p className="text-slate-400 font-medium flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>Previous Shipment History ({order.shipments.length} {order.shipments.length === 1 ? 'shipment' : 'shipments'} recorded):</span>
+                </p>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {order.shipments.map((s: any, idx: number) => (
+                    <span
+                      key={s.id || idx}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px] border border-slate-700"
+                    >
+                      #{idx + 1}: {s.trackingNumber || 'No tracking'} ({s.carrier || 'Carrier'})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <PaymentWarning />
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -1146,28 +1184,37 @@ export default function OrderActionsModal({
                     (si) => si.orderItemId === item.id
                   );
 
-                  // ✅ detect shipped
+                  // detect shipped in standard partial fulfillment (lock only if NOT a re-shipment)
                   const isShipped = order.shipments?.some(shipment =>
                     shipment.shipmentItems?.some(si => si.orderItemId === item.id)
                   ) ?? false;
+
+                  const isItemLocked = !isReshipment && isShipped;
 
                   return (
                     <div
                       key={item.id}
                       className={`flex items-center justify-between p-3 rounded-lg border 
-        ${isShipped
+        ${isItemLocked
                           ? 'bg-emerald-500/10 border-emerald-500/30 opacity-70'
-                          : 'bg-slate-900/50 border-slate-700'
+                          : isReshipment
+                            ? 'bg-slate-900/70 border-purple-500/30'
+                            : 'bg-slate-900/50 border-slate-700'
                         }`}
                     >
                       <div className="flex-1">
                         <p className="text-white text-sm font-medium flex items-center gap-2">
                           {item.productName}
 
-                          {/* ✅ SHIPPED BADGE */}
-                          {isShipped && (
+                          {/* BADGES */}
+                          {isItemLocked && (
                             <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded border border-emerald-500/30">
                               Shipped
+                            </span>
+                          )}
+                          {isReshipment && (
+                            <span className="text-[10px] px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
+                              Re-dispatch
                             </span>
                           )}
                         </p>
@@ -1177,10 +1224,15 @@ export default function OrderActionsModal({
                           Price: {formatCurrency(item.unitPrice, order.currency)}
                         </p>
 
-                        {/* ✅ USER FEEDBACK */}
-                        {isShipped && (
+                        {/* USER FEEDBACK */}
+                        {isItemLocked && (
                           <p className="text-[11px] text-emerald-400 mt-1">
                             Already shipped. Quantity locked.
+                          </p>
+                        )}
+                        {isReshipment && (
+                          <p className="text-[11px] text-purple-400/80 mt-1">
+                            Select quantity to include in this re-shipment.
                           </p>
                         )}
                       </div>
@@ -1193,20 +1245,19 @@ export default function OrderActionsModal({
                         onChange={(e) => {
                           let value = Number(e.target.value);
 
-                          // ✅ HARD LIMIT
                           if (value > item.quantity) value = item.quantity;
                           if (value < 0) value = 0;
 
                           updateShipmentItemQuantity(item.id, value);
                         }}
                         className={`w-20 px-2 py-1.5 border rounded-lg text-center
-          ${isShipped
+          ${isItemLocked
                             ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
                             : 'bg-slate-800 border-slate-600 text-white focus:ring-2 focus:ring-violet-500'
                           }`}
-                        disabled={isShipped || (!isPaid)}
+                        disabled={isItemLocked || (!isPaid)}
                         title={
-                          isShipped
+                          isItemLocked
                             ? 'This item is already shipped and cannot be modified'
                             : ''
                         }
@@ -1428,7 +1479,7 @@ export default function OrderActionsModal({
       case 'update-status':
         return 'Update Order Status';
       case 'create-shipment':
-        return 'Create Shipment';
+        return isReshipment ? 'Re-ship Order (New Shipment)' : 'Create Shipment';
       case 'mark-delivered':
         return 'Mark as Delivered';
       case 'cancel-order':
@@ -1549,7 +1600,9 @@ export default function OrderActionsModal({
                   Processing...
                 </>
               ) : (
-                'Confirm'
+                action === 'create-shipment'
+                  ? (isReshipment ? 'Confirm Re-shipment' : 'Create Shipment')
+                  : 'Confirm'
               )}
             </button>
           </div>

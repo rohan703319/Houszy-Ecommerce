@@ -1007,8 +1007,8 @@ export default function SuccessClient() {
                                 <span className="text-red-500 font-medium">
                                   You saved{" "}
                                   {formatCurrency(
-                                    item.productSavingAmount ||
-                                    item.discountAmount
+                                    (item.productSavingAmount || 0) +
+                                      (item.discountAmount || 0)
                                   )}
                                 </span>
                               </>
@@ -1021,11 +1021,11 @@ export default function SuccessClient() {
                           {/* FINAL PRICE */}
                           <span className="text-base font-semibold text-black">
                             {formatCurrency(
-                              (
-                                item.discountAmount > 0
-                                  ? item.unitPrice - item.discountAmount
-                                  : item.unitPrice
-                              ) * item.quantity
+                              Math.max(
+                                0,
+                                item.unitPrice * item.quantity -
+                                  (item.discountAmount || 0)
+                              )
                             )}
                           </span>
 

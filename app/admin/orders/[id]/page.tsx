@@ -49,7 +49,10 @@ import {
   Wallet,
   EyeOff,
   Store,
+  ExternalLink,
+  Copy,
 } from 'lucide-react';
+import { buildTrackingUrl } from '@/lib/tracking';
 import {
   orderService,
   Order,
@@ -521,6 +524,25 @@ const getAllAvailableActions = (
 
 
   // ===========================
+  // 🚚 SHIPMENT / RE-SHIP
+  // ===========================
+  const canShipOrReship =
+    !isClickAndCollect &&
+    ['Processing', 'PartiallyShipped', 'Shipped'].includes(status) &&
+    order.pharmacyVerificationStatus !== 'Pending';
+
+  if (canShipOrReship) {
+    const isReship = status === 'Shipped' || (order.shipments && order.shipments.length > 0);
+    actions.push({
+      label: isReship ? 'Re-ship Order' : 'Create Shipment',
+      action: 'create-shipment',
+      icon: <Truck className="h-3.5 w-3.5" />,
+      color: 'bg-purple-600 hover:bg-purple-700',
+      category: 'workflow',
+    });
+  }
+
+  // ===========================
   // ✏️ UPDATE STATUS
   // ===========================
   const canUpdateStatus =
@@ -779,6 +801,7 @@ export default function OrderDetailPage() {
   const orderId = params.id as string;
   const [hasEditHistory, setHasEditHistory] = useState<boolean | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
+  const [carriers, setCarriers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState('');
@@ -859,6 +882,26 @@ export default function OrderDetailPage() {
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
+
+  useEffect(() => {
+    const fetchCarriers = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/carriers`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setCarriers(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching carriers:", err);
+      }
+    };
+    fetchCarriers();
+  }, []);
 
   const handleAddComment = async () => {
     if (!newCommentText.trim()) return;
@@ -1534,7 +1577,7 @@ export default function OrderDetailPage() {
   );
 
   const allActions = rawActions.filter((btn) => {
-    if (['mark-ready', 'mark-collected', 'update-status', 'cancel-order', 'regenerate-invoice', 'mark-paid', 'refund'].includes(btn.action)) {
+    if (['mark-ready', 'mark-collected', 'update-status', 'cancel-order', 'regenerate-invoice', 'mark-paid', 'refund', 'create-shipment'].includes(btn.action)) {
       return hasPermission('orders', 'edit');
     }
     return true; // 'download-invoice', 'view-refund-history', 'view-edit-history' are view actions
@@ -2687,14 +2730,28 @@ export default function OrderDetailPage() {
       {/* ✅ Shipments */}
       {order.shipments && order.shipments.length > 0 && (
         <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 hover:border-purple-500/30 transition-all">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
               <Truck className="h-4 w-4 text-white" />
             </div>
             <h3 className="text-lg font-bold text-white">Shipments</h3>
-            <span className="text-xs text-slate-400 ml-auto" title="Total shipments created">
-              {order.shipments.length} {order.shipments.length === 1 ? 'Shipment' : 'Shipments'}
-            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-slate-400" title="Total shipments created">
+                {order.shipments.length} {order.shipments.length === 1 ? 'Shipment' : 'Shipments'}
+              </span>
+              {order.deliveryMethod !== 'ClickAndCollect' &&
+                !['Delivered', 'Cancelled', 'Refunded'].includes(order.status) &&
+                hasPermission('orders', 'edit') && (
+                  <button
+                    onClick={() => handleAction('create-shipment')}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:scale-105"
+                    title="Re-ship or create a new shipment for this order"
+                  >
+                    <Truck className="h-3.5 w-3.5" />
+                    <span>+ Re-ship Order</span>
+                  </button>
+                )}
+            </div>
           </div>
           <div className="space-y-3">
             {order.shipments.map((shipment, index) => (
@@ -2703,21 +2760,65 @@ export default function OrderDetailPage() {
                 className="p-3 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-purple-500/30 transition-all"
                 title={`Shipment #${index + 1}`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs">
+                <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
                       {index + 1}
                     </span>
-                    <p className="text-white font-medium text-sm" title="Tracking number for this shipment">
-                      Tracking: {shipment.trackingNumber || 'Not available'}
-                    </p>
+                    <span className="text-slate-300 font-medium text-sm">Tracking:</span>
+                    {shipment.trackingNumber ? (
+                      <span className="font-mono text-xs font-semibold text-slate-200 bg-slate-800/90 px-2.5 py-1 rounded-md border border-slate-700 select-all" title="Tracking number">
+                        {shipment.trackingNumber}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 text-sm">Not available</span>
+                    )}
+
+                    {(() => {
+                      const carrierMatch = carriers.find(
+                        (c) => c.name?.toLowerCase().trim() === (shipment.carrier || order?.carrierName || '').toLowerCase().trim()
+                      );
+                      const trackUrl =
+                        shipment.trackingUrl ||
+                        (shipment.trackingNumber
+                          ? buildTrackingUrl(
+                              carrierMatch?.trackingUrl,
+                              shipment.trackingNumber,
+                              shipment.carrier || order?.carrierName
+                            )
+                          : undefined);
+
+                      if (trackUrl) {
+                        return (
+                          <a
+                            href={trackUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 font-medium text-xs border border-blue-500/30 hover:border-blue-500/50 transition-all group"
+                            title={`Click to track parcel on ${shipment.carrier || 'carrier'} website (${trackUrl})`}
+                          >
+                            <Truck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                            <span>{shipment.carrier ? `Track on ${shipment.carrier}` : 'Track Shipment'}</span>
+                            <ExternalLink className="w-3 h-3 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                          </a>
+                        );
+                      }
+
+                      if (shipment.carrier) {
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0"
+                            title="Shipping carrier"
+                          >
+                            <Truck className="w-3.5 h-3.5 shrink-0" />
+                            <span>{shipment.carrier}</span>
+                          </span>
+                        );
+                      }
+
+                      return null;
+                    })()}
                   </div>
-                  <span
-                    className="inline-block px-2 py-1 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                    title="Shipping carrier"
-                  >
-                    {shipment.carrier || 'N/A'}
-                  </span>
                 </div>
                 <div className="space-y-1 text-xs text-slate-400">
                   <p title="Shipping method used">

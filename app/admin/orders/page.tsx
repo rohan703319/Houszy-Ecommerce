@@ -44,7 +44,9 @@ import {
   Loader2,
   Copy,
   Check,
+  ExternalLink,
 } from 'lucide-react';
+import { buildTrackingUrl } from '@/lib/tracking';
 import {
   orderService,
   Order,
@@ -76,6 +78,26 @@ import ImagePreviewModal from '../_components/ImagePreviewModal';
 import { scrollCls } from '../_utils/styles';
 import { useAuth } from '../_context/auth-context';
 
+// Helper to simplify payment method label on listing view for clean, non-wrapping UI
+const formatListingPaymentMethod = (label?: string): string => {
+  if (!label || label === 'N/A') return 'N/A';
+  const norm = label.toLowerCase().trim();
+  if (
+    norm.includes('card') ||
+    norm.includes('visa') ||
+    norm.includes('mastercard') ||
+    norm.includes('amex') ||
+    norm.includes('debit') ||
+    norm.includes('credit')
+  ) {
+    return 'Card';
+  }
+  if (norm.includes('stripe link') || norm === 'link') {
+    return 'Stripe';
+  }
+  return label;
+};
+
 // ✅ Get Available Actions based on Order Status (matching backend rules)
 const getAvailableActions = (order: Order) => {
   const actions: string[] = [];
@@ -95,7 +117,7 @@ const getAvailableActions = (order: Order) => {
       }
       break;
     case 'Shipped':
-      actions.push('mark-delivered', 'update-status', 'cancel-order');
+      actions.push('create-shipment', 'mark-delivered', 'update-status', 'cancel-order');
       break;
     case 'PartiallyShipped':
       actions.push('create-shipment', 'mark-delivered', 'update-status', 'cancel-order');
@@ -144,12 +166,14 @@ export default function OrdersListPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [deliveryOptions, setDeliveryOptions] = useState<any[]>([]);
+  const [carriers, setCarriers] = useState<any[]>([]);
   const [filters, setFilters] = useState({
     searchTerm: "",
     status: "",
     fromDate: "",
     toDate: "",
     shippingMethodName: "",
+    deliveryOptionId: "",
     paymentMethod: "",
     paymentStatus: "",
     pharmacyVerificationStatus: "" as PharmacyVerificationStatus | "",
@@ -276,6 +300,25 @@ export default function OrdersListPage() {
     };
 
     fetchDeliveryOptions();
+
+    const fetchCarriers = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/carriers`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setCarriers(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching carriers:", err);
+      }
+    };
+
+    fetchCarriers();
   }, []);
 
   useEffect(() => {
@@ -313,13 +356,14 @@ export default function OrdersListPage() {
         isClickAndCollect:
           filters.shippingMethodName === "ClickAndCollect"
             ? true
-            : filters.shippingMethodName !== ""
+            : (filters.shippingMethodName !== "" || filters.deliveryOptionId !== "")
               ? false
               : undefined,
         shippingMethodName:
           filters.shippingMethodName !== "" && filters.shippingMethodName !== "ClickAndCollect"
             ? filters.shippingMethodName
             : undefined,
+        deliveryOptionId: filters.deliveryOptionId || undefined,
         isPharmaProduct:
           filters.isPharmaProduct !== ""
             ? filters.isPharmaProduct === "true"
@@ -354,6 +398,7 @@ export default function OrdersListPage() {
     filters.fromDate,
     filters.toDate,
     filters.shippingMethodName,
+    filters.deliveryOptionId,
     filters.paymentMethod,
     filters.paymentStatus,
     filters.pharmacyVerificationStatus,
@@ -606,6 +651,7 @@ export default function OrdersListPage() {
       fromDate: "",
       toDate: "",
       shippingMethodName: "",
+      deliveryOptionId: "",
       paymentMethod: "",
       paymentStatus: "",
       pharmacyVerificationStatus: "",
@@ -829,9 +875,9 @@ export default function OrdersListPage() {
   const isDateFilterActive = !!(filters.fromDate || filters.toDate);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {/* Header */}
-      <div className="relative space-y-3">
+      <div className="relative space-y-2">
         <div className="flex items-start justify-between gap-4">
 
           {/* 🔹 LEFT SIDE — TITLE */}
@@ -839,9 +885,7 @@ export default function OrdersListPage() {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent">
               Order Management
             </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Manage and track customer orders efficiently
-            </p>
+
           </div>
 
           {/* 🔹 RIGHT SIDE — ACTION BUTTONS */}
@@ -1113,13 +1157,13 @@ export default function OrdersListPage() {
       </div>
 
       {/* FILTERS */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-2 space-y-3">
+      <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3 space-y-2">
 
-        {/* ✅ WRAP ROW - ALL FILTERS WITH SPACING */}
-        <div className="flex flex-wrap items-center gap-3 w-full">
+        {/* ✅ ROW 1 - SEARCH + MAIN FILTERS */}
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-2.5 w-full">
 
-          {/* SEARCH - Spacious width */}
-          <div className="relative flex-1 min-w-[320px] md:min-w-[420px]">
+          {/* SEARCH */}
+          <div className="relative flex-1 min-w-[220px]">
 
             {/* ICON */}
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -1159,7 +1203,7 @@ export default function OrdersListPage() {
                 isGuestOrder: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[155px] xl:w-[175px] flex-shrink-0 transition-colors
         ${filters.isGuestOrder !== "" ? "border-violet-500 bg-violet-500/10" : "border-slate-700"}`}
           >
             <option value="">Customer Type: All</option>
@@ -1176,7 +1220,7 @@ export default function OrdersListPage() {
                 orderType: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[155px] xl:w-[175px] flex-shrink-0 transition-colors
         ${filters.orderType ? "border-violet-500 bg-violet-500/10" : "border-slate-700"}`}
           >
             <option value="">Order Type: All</option>
@@ -1193,7 +1237,7 @@ export default function OrdersListPage() {
                 status: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[160px] xl:w-[180px] flex-shrink-0 transition-colors
         ${filters.status ? "border-blue-500 bg-blue-500/10" : "border-slate-700"}`}
           >
             <option value="">Order Status: All</option>
@@ -1218,7 +1262,7 @@ export default function OrdersListPage() {
                 source: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[150px] xl:w-[170px] flex-shrink-0 transition-colors
         ${filters.source ? "border-green-500 bg-green-500/10" : "border-slate-700"}`}
           >
             <option value="">Order Source: All</option>
@@ -1229,22 +1273,46 @@ export default function OrdersListPage() {
 
           {/* SHIPPING METHOD */}
           <select
-            value={filters.shippingMethodName}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                shippingMethodName: e.target.value,
-              }))
-            }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
-        ${filters.shippingMethodName ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
+            value={filters.deliveryOptionId || filters.shippingMethodName}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) {
+                setFilters((prev) => ({
+                  ...prev,
+                  deliveryOptionId: "",
+                  shippingMethodName: "",
+                }));
+                return;
+              }
+              const selectedOpt = deliveryOptions.find(
+                (opt) => opt.id === val || opt.displayName === val
+              );
+              if (selectedOpt) {
+                setFilters((prev) => ({
+                  ...prev,
+                  deliveryOptionId: selectedOpt.id,
+                  shippingMethodName:
+                    selectedOpt.name === "ClickCollect"
+                      ? "ClickAndCollect"
+                      : selectedOpt.displayName,
+                }));
+              } else {
+                setFilters((prev) => ({
+                  ...prev,
+                  deliveryOptionId: "",
+                  shippingMethodName: val,
+                }));
+              }
+            }}
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[165px] xl:w-[185px] flex-shrink-0 transition-colors
+        ${filters.shippingMethodName || filters.deliveryOptionId ? "border-cyan-500 bg-cyan-500/10" : "border-slate-700"}`}
           >
             <option value="">Shipping Method: All</option>
             {deliveryOptions.length > 0 ? (
               deliveryOptions.map((opt) => (
                 <option
                   key={opt.id}
-                  value={opt.name === "ClickCollect" ? "ClickAndCollect" : opt.displayName}
+                  value={opt.id}
                 >
                   {opt.displayName}
                 </option>
@@ -1258,6 +1326,11 @@ export default function OrdersListPage() {
             )}
           </select>
 
+        </div>
+
+        {/* ✅ ROW 2 - PAYMENT + DATE RANGE + RESET */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full">
+
           {/* PAYMENT METHOD */}
           <select
             value={filters.paymentMethod}
@@ -1267,7 +1340,7 @@ export default function OrdersListPage() {
                 paymentMethod: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[190px] flex-shrink-0
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[170px] xl:w-[190px] flex-shrink-0 transition-colors
         ${filters.paymentMethod ? "border-amber-500 bg-amber-500/10" : "border-slate-700"}`}
           >
             <option value="">Payment Method: All</option>
@@ -1292,7 +1365,7 @@ export default function OrdersListPage() {
                 paymentStatus: e.target.value,
               }))
             }
-            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[180px] flex-shrink-0
+            className={`px-3 py-2 rounded-lg text-sm text-white border bg-slate-800 w-[160px] xl:w-[180px] flex-shrink-0 transition-colors
         ${filters.paymentStatus ? "border-green-500 bg-green-500/10" : "border-slate-700"}`}
           >
             <option value="">Payment Status: All</option>
@@ -1302,10 +1375,8 @@ export default function OrdersListPage() {
             <option value="Refunded">Refunded</option>
           </select>
 
-
-
           {/* DATE RANGE */}
-          <div className="relative w-[210px] flex-shrink-0" ref={datePickerRef}>
+          <div className="relative w-[195px] xl:w-[210px] flex-shrink-0" ref={datePickerRef}>
             <button
               onClick={() => setShowDatePicker(!showDatePicker)}
               className={`w-full pl-9 pr-8 py-2 rounded-lg text-sm text-left
@@ -1438,19 +1509,19 @@ export default function OrdersListPage() {
               </>
             )}
           </div>
+
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
               title="Clear Filters"
-              className="px-2 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all whitespace-nowrap"
+              className="px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all flex items-center gap-1.5 whitespace-nowrap"
             >
-              <X className="w-4 h-4 " />
+              <X className="w-4 h-4" />
+              <span>Reset</span>
             </button>
           )}
 
         </div>
-
-
       </div>
 
       {/* Orders Table */}
@@ -1470,11 +1541,11 @@ export default function OrdersListPage() {
           </div>
         ) : (
           <div className={`overflow-x-auto max-h-[70vh] ${scrollCls}`}>
-            <table className="w-full">
+            <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-slate-800/85 backdrop-blur-sm z-50">
                 <tr className="border-b border-slate-700">
 
-                  <th className="py-2 px-2">
+                  <th className="py-2 px-2.5 w-10 text-center">
                     <input
                       type="checkbox"
                       checked={selectedOrders.length === orders.length && orders.length > 0}
@@ -1484,31 +1555,31 @@ export default function OrdersListPage() {
                     />
                   </th>
 
-                  <th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[550px]">
+                  <th className="text-left py-2 px-2.5 text-slate-300 font-semibold text-xs min-w-[280px]">
                     Order
                   </th>
 
-                  <th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[350px]">
+                  <th className="text-left py-2 px-2.5 text-slate-300 font-semibold text-xs w-[205px] xl:w-[230px]">
                     Customer
                   </th>
 
-                  <th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[10px]">
+                  <th className="text-left py-2 px-2.5 text-slate-300 font-semibold text-xs w-[85px] xl:w-[95px] whitespace-nowrap">
                     Amount
                   </th>
 
-                  <th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[170px]">
+                  <th className="text-left py-2 px-2 text-slate-300 font-semibold text-xs w-[125px] xl:w-[140px] whitespace-nowrap">
                     Dispatch / Delivery
                   </th>
 
-                  <th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs w-[250px]">
+                  <th className="text-center py-2 px-2.5 text-slate-300 font-semibold text-xs w-[130px] xl:w-[150px]">
                     Status
                   </th>
 
-                  <th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs w-[150px]">
+                  <th className="text-center py-2 px-2.5 text-slate-300 font-semibold text-xs w-[125px] xl:w-[140px]">
                     Payment
                   </th>
 
-                  <th className="text-center py-2 px-2 text-slate-300 font-semibold text-xs">
+                  <th className="text-center py-2 px-2.5 text-slate-300 font-semibold text-xs w-[75px]">
                     Actions
                   </th>
 
@@ -1557,7 +1628,7 @@ export default function OrdersListPage() {
                       title={`Order ${order.orderNumber}`}
                     >
 
-                      <td className="py-3 px-3">
+                      <td className="py-2 px-2.5 text-center align-middle">
                         <input
                           type="checkbox"
                           checked={selectedOrders.includes(order.id)}
@@ -1567,10 +1638,9 @@ export default function OrdersListPage() {
                         />
                       </td>
 
-
                       {/* ORDER */}
-                      <td className="py-2 px-2">
-                        <div className="flex items-center justify-center gap-2.5">
+                      <td className="py-2 px-2.5 align-middle">
+                        <div className="flex items-center justify-start gap-2.5">
 
                           {/* IMAGE */}
                           {order.orderItems?.length > 0 && order.orderItems[0]?.productImageUrl ? (
@@ -1586,7 +1656,7 @@ export default function OrdersListPage() {
                               }}
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                            <div className="w-12 h-12 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-400 flex-shrink-0">
                               No Image
                             </div>
                           )}
@@ -1626,7 +1696,7 @@ export default function OrdersListPage() {
 
                             {/* PRODUCT NAME */}
                             <p
-                              className="text-xs text-slate-200 leading-tight line-clamp-2 max-w-[420px]"
+                              className="text-xs text-slate-200 leading-tight line-clamp-2 max-w-[360px] xl:max-w-[480px] 2xl:max-w-[650px] break-words"
                               title={order.orderItems[0]?.productName}
                             >
                               {order.orderItems[0]?.productName}
@@ -1657,17 +1727,18 @@ export default function OrdersListPage() {
                           </div>
                         </div>
                       </td>
+
                       {/* CUSTOMER */}
-                      <td className="p-2 align-top">
+                      <td className="py-2 px-2.5 align-middle">
                         <div className="flex items-start gap-2">
 
                           {/* AVATAR */}
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                             <User className="h-4 w-4 text-white" />
                           </div>
 
                           {/* TEXT */}
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 max-w-[170px] xl:max-w-[195px]">
 
                             {/* NAME */}
                             <p
@@ -1717,15 +1788,15 @@ export default function OrdersListPage() {
 
                       {/* AMOUNT */}
                       <td
-                        className="py-3 px-3 text-green-400 font-semibold text-sm"
+                        className="py-2 px-2.5 align-middle text-green-400 font-semibold text-sm whitespace-nowrap"
                         title={`Total amount ${formatCurrency(order.totalAmount, order.currency)}`}
                       >
                         {formatCurrency(order.totalAmount, order.currency)}
                       </td>
 
                       {/* DISPATCH / DELIVERY */}
-                      <td className="py-2 px-2 text-left">
-                        <div className="flex flex-col gap-0.5 text-xs whitespace-nowrap">
+                      <td className="py-2 px-2 align-middle text-left">
+                        <div className="flex flex-col text-[11px] leading-tight whitespace-nowrap">
                           {order.estimatedDispatchDate ? (
                             <div className="text-slate-300">
                               <span className="text-slate-400">Dispatch: </span>
@@ -1734,19 +1805,28 @@ export default function OrdersListPage() {
                               </span>
                             </div>
                           ) : (
-                            <div className="text-slate-500 text-xs">
+                            <div className="text-slate-500">
                               <span className="text-slate-500">Dispatch: </span>
                               <span>—</span>
                             </div>
                           )}
 
                           {(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax) ? (
-                            <div className="text-slate-300">
+                            <div className="text-slate-300 mt-0.5">
                               <span className="text-slate-400">Delivery: </span>
                               <span className="font-medium text-slate-200">
                                 {order.estimatedDeliveryDateMin && order.estimatedDeliveryDateMax &&
-                                order.estimatedDeliveryDateMin.split('T')[0] !== order.estimatedDeliveryDateMax.split('T')[0]
-                                  ? `${formatDateOnly(order.estimatedDeliveryDateMin)} – ${formatDateOnly(order.estimatedDeliveryDateMax)}`
+                                  order.estimatedDeliveryDateMin.split('T')[0] !== order.estimatedDeliveryDateMax.split('T')[0]
+                                  ? (() => {
+                                      const minOnly = formatDateOnly(order.estimatedDeliveryDateMin!);
+                                      const maxOnly = formatDateOnly(order.estimatedDeliveryDateMax!);
+                                      const minP = minOnly.split(' ');
+                                      const maxP = maxOnly.split(' ');
+                                      if (minP.length === 3 && maxP.length === 3 && minP[2] === maxP[2]) {
+                                        return `${minP[0]} ${minP[1]} – ${maxP[0]} ${maxP[1]}`;
+                                      }
+                                      return `${minOnly} – ${maxOnly}`;
+                                    })()
                                   : formatDateOnly(order.estimatedDeliveryDateMin || order.estimatedDeliveryDateMax)}
                               </span>
                             </div>
@@ -1755,7 +1835,7 @@ export default function OrdersListPage() {
                       </td>
 
                       {/* STATUS */}
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-2 px-2.5 align-middle text-center">
                         <div className="flex flex-col items-center gap-1">
 
                           <span
@@ -1765,22 +1845,52 @@ export default function OrdersListPage() {
                             {statusInfo.label}
                           </span>
 
-                          {order.status === "Shipped" && trackingNumbers.length > 0 && (
+                          {order.status === "Shipped" && ((order.shipments && order.shipments.some((s) => !!s.trackingNumber)) || trackingNumbers.length > 0) && (
                             <div className="mt-1 flex flex-col gap-1 items-center">
-                              {trackingNumbers.map((trackNo, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCopyTrackingNumber(trackNo);
-                                  }}
-                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-800 hover:border-slate-700 bg-slate-900/60 text-[10px] text-slate-400 font-mono hover:text-white transition cursor-pointer hover:bg-slate-800"
-                                  title="Click to copy tracking number"
-                                >
-                                  <Truck className="h-3 w-3 text-amber-500" />
-                                  <span>{trackNo}</span>
-                                </button>
-                              ))}
+                              {(order.shipments && order.shipments.length > 0
+                                ? order.shipments.filter((s) => !!s.trackingNumber)
+                                : trackingNumbers.map((tn) => ({ trackingNumber: tn, carrier: order.carrierName, id: tn, trackingUrl: undefined }))
+                              ).map((s: any, idx: number) => {
+                                const carrierMatch = carriers.find(
+                                  (c) => c.name?.toLowerCase().trim() === (s.carrier || order.carrierName || '').toLowerCase().trim()
+                                );
+                                const trackUrl =
+                                  s.trackingUrl ||
+                                  buildTrackingUrl(
+                                    carrierMatch?.trackingUrl,
+                                    s.trackingNumber,
+                                    s.carrier || order.carrierName
+                                  );
+
+                                if (trackUrl) {
+                                  return (
+                                    <a
+                                      key={s.id || idx}
+                                      href={trackUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-800 hover:border-amber-500/50 bg-slate-900/80 text-[10px] text-amber-400 hover:text-amber-300 font-mono whitespace-nowrap transition-colors"
+                                      title={`Track on ${s.carrier || 'carrier'} website (${s.trackingNumber})`}
+                                    >
+                                      <Truck className="h-3 w-3 text-amber-500 shrink-0" />
+                                      <span>{s.trackingNumber}</span>
+                                      <ExternalLink className="h-2.5 w-2.5 opacity-60 hover:opacity-100 shrink-0" />
+                                    </a>
+                                  );
+                                }
+
+                                return (
+                                  <span
+                                    key={s.id || idx}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-800 bg-slate-900/60 text-[10px] text-slate-400 font-mono whitespace-nowrap"
+                                    title={s.trackingNumber}
+                                  >
+                                    <Truck className="h-3 w-3 text-amber-500 shrink-0" />
+                                    <span>{s.trackingNumber}</span>
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
 
@@ -1812,7 +1922,7 @@ export default function OrdersListPage() {
                       </td>
 
                       {/* PAYMENT */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-2 px-2.5 align-middle text-center">
                         <div className="flex flex-col items-center gap-1">
 
                           <span
@@ -1824,7 +1934,7 @@ export default function OrdersListPage() {
                             ) : (
                               <PoundSterling className="h-3 w-3" />
                             )}
-                            {methodInfo.label}
+                            {formatListingPaymentMethod(methodInfo.label)}
                           </span>
 
                           {paymentInfo && (
@@ -1840,7 +1950,7 @@ export default function OrdersListPage() {
                       </td>
 
                       {/* ACTIONS */}
-                      <td className="py-3 px-3 relative">
+                      <td className="py-2 px-2.5 align-middle text-center">
                         <div className="flex items-center justify-center gap-1.5">
 
                           <button
@@ -1862,8 +1972,6 @@ export default function OrdersListPage() {
                             </button>
                           )}
                         </div>
-
-
                       </td>
                     </tr>
                   );

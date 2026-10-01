@@ -332,7 +332,7 @@ export default function FeaturedProductsSlider({
   return (
     <div className="relative w-full bg-transparent">
 
-      <h2 className="text-[15px] md:text-[22px] font-bold -mt-[20px] mb-8 text-black text-center">
+      <h2 className="text-[20px] sm:text-[24px] md:text-[28px] lg:text-[32px] xl:text-[34px] font-extrabold -mt-[20px] mb-8 text-black text-center tracking-tight">
         {title}
       </h2>
       {shouldShowNav && (

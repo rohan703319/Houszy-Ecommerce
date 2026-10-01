@@ -1,13 +1,11 @@
 //app/page.tsx
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import HomeBannerSlider from "@/components/HomeBannerSlider";
-import NewArrivalsProductsSlider from "@/components/NewArrivalsProductsSlider";
-import TopBrandsSlider from "@/components/TopBrandsSlider";
+
 import NewsletterWrapper from "@/components/NewsletterWrapper";
-import CategoryOffersSlider from "@/components/CategoryOffersSlider";
+
+import HomeOffersSection from "@/components/HomeOffersSection";
 import { getActiveBanners } from "@/lib/bannerUtils";
 import Script from "next/script";
 import { TrendingUp, Zap, Gift, Shield, ChevronRight } from "lucide-react";
@@ -30,10 +28,7 @@ const LatestBlogs = dynamic(() => import("@/components/LatestBlogs"), {
   loading: () => <div className="h-[320px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
   ssr: true
 });
-const DiscountedProductsSlider = dynamic(() => import("@/components/DiscountedProductsSlider"), {
-  loading: () => <div className="h-[400px] w-full bg-slate-100/50 animate-pulse rounded-xl" />,
-  ssr: true
-});
+
 const TrustpilotCarousel = dynamic(() => import("@/components/TrustpilotCarousel"), {
   loading: () => <div className="h-[140px] w-full bg-white animate-pulse" />,
   ssr: true
@@ -42,13 +37,7 @@ import type { Metadata } from "next";
 
 export const revalidate = 60;
 
-// ✅ Static feature section
-const features = [
-  { icon: Zap, title: "Fast Delivery", description: "Get your orders in 24-48 hours" },
-  { icon: Shield, title: "Secure Payment", description: "100% secure transactions" },
-  { icon: Gift, title: "Gift Cards", description: "Perfect for any occasion" },
-  { icon: TrendingUp, title: "Best Prices", description: "Competitive pricing guaranteed" },
-];
+
 type BannerType = "Homepage" | "Seasonal" | string;
 
 interface Banner {
@@ -97,15 +86,7 @@ interface Category {
   subCategories?: Category[];
 }
 
-interface Brand {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string;
-  showOnHomepage: boolean;
-  displayOrder: number;
-  productCount: number;
-}
+
 
 interface HomeBanner {
   id: string;
@@ -187,27 +168,20 @@ async function getHomeBlogs(baseUrl: string): Promise<BlogPost[]> {
   }
 }
 
-/*
-async function getDiscountedProducts(baseUrl: string) {
+async function getPublicOffers(baseUrl: string) {
   try {
-    // No showOnHomepage filter — fetch ALL published products to find discounted ones
-    const res = await fetch(
-      `${baseUrl}/api/Products?page=1&pageSize=100&sortDirection=asc&isPublished=true&isDeleted=false`,
-      { cache: "no-store" }
-    );
-    const result = await res.json();
-    if (!result.success) return [];
-    const items: any[] = result.data?.items ?? [];
-    return items
-      .filter(
-        (p: any) => Array.isArray(p.assignedDiscounts) && p.assignedDiscounts.length > 0
-      )
-      .slice(0, 16);
+    const res = await fetch(`${baseUrl}/api/Discounts/public`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.success && Array.isArray(json.data) ? json.data : [];
   } catch {
     return [];
   }
 }
-*/
+
+
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.houszy.co.uk"),
@@ -248,11 +222,12 @@ export const metadata: Metadata = {
 export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL!;
 
-  const [products, categories, banners, blogs] = await Promise.all([
+  const [products, categories, banners, blogs, offers] = await Promise.all([
     getProducts(baseUrl),
     getCategories(baseUrl),
     getBanners(baseUrl),
     getHomeBlogs(baseUrl),
+    getPublicOffers(baseUrl),
   ]);
   const activeBanners = getActiveBanners(banners);
 
@@ -324,8 +299,7 @@ export default async function Home() {
           <HomeBannerSlider banners={homeBanners} baseUrl={baseUrl} />
         </section>
 
-        {/* ===== CATEGORY OFFERS (NEW) ===== */}
-        {/* <CategoryOffersSlider categories={categories} baseUrl={baseUrl} /> */}
+
 
 
         {/* ===== OUR POPULAR COLLECTIONS ===== */}
@@ -337,18 +311,7 @@ export default async function Home() {
               <h2 className="text-[15px] md:text-[22px] font-bold text-black text-center">
                 Our Popular Collections
               </h2>
-              {/* <div className="absolute right-0 md:right-1">
-                <Link href="/category">
-                  <Button
-                    variant="outline"
-                    className="text-[9px] md:text-[13px] font-bold border border-gray-300 text-gray-700 hover:bg-black hover:text-white hover:border-black transition-all duration-300 rounded px-1 py-0 md:px-4 md:py-2 flex items-center gap-1 shadow-sm bg-white"
-                  >
-                    <span className="md:hidden">View All</span>
-                    <span className="hidden md:inline">View All Collections</span>
-                    <ChevronRight className="h-2.5 w-2.5 md:h-3.5 md:w-3.5" />
-                  </Button>
-                </Link>
-              </div> */}
+
             </div>
 
             {/* Category Slider for dynamic Swiper support across devices */}
@@ -356,6 +319,12 @@ export default async function Home() {
 
           </div>
         </section>
+
+        {/* ===== EXCLUSIVE OFFERS & DEALS ===== */}
+        {offers && offers.length > 0 && (
+          <HomeOffersSection discounts={offers} baseUrl={baseUrl} />
+        )}
+
         {/* ===== PROMO BANNER ===== */}
         {seasonalBanners.length > 0 && (
           <section className="w-full py-5 md:py-10 bg-white">
@@ -395,11 +364,7 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* <section className="w-full bg-white py-10 md:py-14">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
-            <NewArrivalsProductsSlider baseUrl={baseUrl} />
-          </div>
-        </section> */}
+
 
         {/* ===== WHY CHOOSE US ===== */}
         <section className="w-full bg-white py-10 md:py-12">
@@ -408,12 +373,7 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ===== DISCOUNTED PRODUCTS (FITNESS HOT DEALS) ===== */}
-        {/* <section className="w-full bg-white pt-0 pb-10">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-16">
-            <DiscountedProductsSlider products={discountedProducts} baseUrl={baseUrl} />
-          </div>
-        </section> */}
+
 
         {/* ===== LATEST BLOGS ===== */}
         {blogs.length > 0 && (

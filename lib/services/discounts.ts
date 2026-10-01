@@ -11,7 +11,18 @@ export type DiscountType =
   | "AssignedToManufacturers"
   | "AssignedToShipping"
   | "AssignedToOrderSubTotal"
-  | "UptoXPercent";
+  | "UptoXPercent"
+  | "UptoXPrice"
+  | "FixedPrice"
+  | "BuyXGetY"
+  | "TieredQuantity";
+
+export interface DiscountTier {
+  id?: string;
+  discountId?: string;
+  quantity: number;
+  discountPercentage: number;
+}
 
 export type DiscountLimitationType = "Unlimited" | "NTimesOnly" | "NTimesPerCustomer";
 
@@ -37,6 +48,9 @@ export interface Discount {
   maximumDiscountedQuantity: number | null;
   appliedToSubOrders: boolean;
   adminComment: string;
+  buyQuantity?: number | null;
+  getQuantity?: number | null;
+  tiers?: DiscountTier[];
   desktopBannerImageUrl: string | null;
   mobileBannerImageUrl: string | null;
   assignedProductIds: string;
@@ -115,6 +129,9 @@ export interface CreateDiscountDto {
   maximumDiscountedQuantity: number | null;
   appliedToSubOrders: boolean;
   adminComment: string;
+  buyQuantity?: number | null;
+  getQuantity?: number | null;
+  tiers?: DiscountTier[];
   assignedProductIds: string;
   assignedCategoryIds: string;
   assignedManufacturerIds: string;
@@ -128,15 +145,31 @@ const validateDiscountData = (data: Partial<CreateDiscountDto>): string[] => {
     errors.push("Discount name is required");
   }
 
-  if (data.usePercentage && data.discountPercentage !== undefined) {
-    if (data.discountPercentage < 0 || data.discountPercentage > 100) {
-      errors.push("Discount percentage must be between 0 and 100");
+  if (data.discountType === "TieredQuantity") {
+    if (!data.tiers || data.tiers.length === 0) {
+      errors.push("At least one tier is required for Tiered Quantity discount");
+    } else {
+      for (let i = 0; i < data.tiers.length; i++) {
+        const tier = data.tiers[i];
+        if (!tier.quantity || tier.quantity < 1) {
+          errors.push(`Tier #${i + 1}: Quantity must be at least 1`);
+        }
+        if (tier.discountPercentage === undefined || tier.discountPercentage < 0 || tier.discountPercentage > 100) {
+          errors.push(`Tier #${i + 1}: Discount percentage must be between 0 and 100`);
+        }
+      }
     }
-  }
+  } else {
+    if (data.usePercentage && data.discountPercentage !== undefined) {
+      if (data.discountPercentage < 0 || data.discountPercentage > 100) {
+        errors.push("Discount percentage must be between 0 and 100");
+      }
+    }
 
-  if (!data.usePercentage && data.discountAmount !== undefined) {
-    if (data.discountAmount < 0) {
-      errors.push("Discount amount must be positive");
+    if (!data.usePercentage && data.discountAmount !== undefined) {
+      if (data.discountAmount < 0) {
+        errors.push("Discount amount must be positive");
+      }
     }
   }
 

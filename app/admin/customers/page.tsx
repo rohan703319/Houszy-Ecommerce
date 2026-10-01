@@ -86,6 +86,7 @@ export default function CustomersPage() {
   // ✅ State Management
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -114,6 +115,11 @@ export default function CustomersPage() {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
+  // Reset to first page only when debounced search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
+
   // ✅ Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -134,7 +140,6 @@ export default function CustomersPage() {
   // ✅ Fetch Customers - ONLY BACKEND FILTERING
   const fetchCustomers = useCallback(async () => {
     try {
-      setLoading(true);
       setFilterLoading(true);
 
       const params: CustomerQueryParams = {
@@ -167,6 +172,7 @@ export default function CustomersPage() {
       toast.error(error?.response?.data?.message || "Failed to fetch customers");
     } finally {
       setLoading(false);
+      setInitialLoading(false);
       setFilterLoading(false);
     }
   }, [currentPage, pageSize, debouncedSearchTerm, statusFilter, tierFilter]);
@@ -448,7 +454,7 @@ const modalTier = selectedCustomer
     );
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -564,7 +570,7 @@ const modalTier = selectedCustomer
               type="search"
               placeholder="Search by name,email or phone..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
             {filterLoading && <Loader2 className="h-3 w-3 animate-spin text-slate-400 absolute right-2 top-1/2 -translate-y-1/2" />}
@@ -601,7 +607,15 @@ const modalTier = selectedCustomer
       </div>
 
       {/* Customers Table */}
-      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl overflow-hidden relative min-h-[300px]">
+        {filterLoading && (
+          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center z-20">
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/90 border border-slate-700/60 rounded-xl shadow-xl">
+              <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
+              <span className="text-slate-300 text-xs font-medium">Searching customers...</span>
+            </div>
+          </div>
+        )}
         {customers.length === 0 ? (
           <div className="text-center py-10">
             <AlertCircle className="h-14 w-14 text-slate-600 mx-auto mb-3" />

@@ -65,6 +65,8 @@ interface FormData {
   limitationTimes: number | null;
   maximumDiscountedQuantity: number | null;
   appliedToSubOrders: boolean;
+  buyQuantity?: number | null;
+  getQuantity?: number | null;
   adminComment: string;
   assignedProductIds: string[];
   assignedCategoryIds: string[];
@@ -150,6 +152,13 @@ const processCategoryData = (categories: any[]): SelectOption[] => {
   return categories.map((cat) => ({ value: cat.id, label: cat.name }));
 };
 
+const getTodayStartDate = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}T00:00:00`;
+};
 
 // ========== MAIN COMPONENT ==========
 export default function DiscountsPage() {
@@ -209,7 +218,7 @@ const [mobileFile, setMobileFile] = useState<File | null>(null);
     discountAmount: 0,
     discountPercentage: 0,
     maximumDiscountAmount: null,
-    startDate: "",
+    startDate: getTodayStartDate(),
     endDate: "",
     requiresCouponCode: false,
     couponCode: "",
@@ -218,6 +227,8 @@ const [mobileFile, setMobileFile] = useState<File | null>(null);
     limitationTimes: null,
     maximumDiscountedQuantity: null,
     appliedToSubOrders: false,
+    buyQuantity: 1,
+    getQuantity: 1,
     adminComment: "",
     assignedProductIds: [],
     assignedCategoryIds: [],
@@ -331,6 +342,48 @@ const fetchProducts = async () => {
       }
     }
 
+    if (formData.discountType === "FixedPrice") {
+      // category filter
+      if (productCategoryFilter) {
+        params.categoryId = productCategoryFilter;
+      }
+
+      // brand filter
+      if (productBrandFilter) {
+        params.brandId = productBrandFilter;
+      }
+
+      // search filter
+      if (productSearchTerm?.trim()) {
+        params.searchTerm = productSearchTerm.trim();
+      }
+
+      if (formData.discountAmount > 0) {
+        params.exactSellPrice = formData.discountAmount;
+      }
+    }
+
+    if (formData.discountType === "UptoXPrice") {
+      // category filter
+      if (productCategoryFilter) {
+        params.categoryId = productCategoryFilter;
+      }
+
+      // brand filter
+      if (productBrandFilter) {
+        params.brandId = productBrandFilter;
+      }
+
+      // search filter
+      if (productSearchTerm?.trim()) {
+        params.searchTerm = productSearchTerm.trim();
+      }
+
+      if (formData.discountAmount > 0) {
+        params.maxSellPrice = formData.discountAmount;
+      }
+    }
+
     console.log("🔥 API PARAMS:", params);
 
     const res = await productsService.getAll(params);
@@ -430,7 +483,12 @@ const handleStatusToggle = async () => {
         statusConfirm.maximumDiscountedQuantity ?? undefined,
     };
 
-    await discountsService.update(statusConfirm.id, payload);
+    const res = await discountsService.update(statusConfirm.id, payload);
+    if ((res as any)?.error || (res as any)?.status >= 400 || (res as any)?.data?.success === false) {
+      const errMsg = (res as any)?.error || (res as any)?.data?.message || "Failed to update status";
+      toast.error(errMsg);
+      return;
+    }
 
     toast.success("Status updated successfully!");
     await fetchDiscounts();
@@ -487,11 +545,22 @@ const handleRestore = async () => {
       setFormData({
         ...formData,
         discountType: newType,
+        usePercentage: (newType === "UptoXPrice" || newType === "FixedPrice") ? false : (newType === "UptoXPercent" || newType === "BuyXGetY") ? true : formData.usePercentage,
+        buyQuantity: newType === "BuyXGetY" ? (formData.buyQuantity || 1) : formData.buyQuantity,
+        getQuantity: newType === "BuyXGetY" ? (formData.getQuantity || 1) : formData.getQuantity,
+        discountPercentage: newType === "BuyXGetY" ? (formData.discountPercentage || 10) : formData.discountPercentage,
         assignedProductIds: [],
         assignedCategoryIds: [],
       });
     } else {
-      setFormData({ ...formData, discountType: newType });
+      setFormData({ 
+        ...formData, 
+        discountType: newType,
+        usePercentage: (newType === "UptoXPrice" || newType === "FixedPrice") ? false : (newType === "UptoXPercent" || newType === "BuyXGetY") ? true : formData.usePercentage,
+        buyQuantity: newType === "BuyXGetY" ? (formData.buyQuantity || 1) : formData.buyQuantity,
+        getQuantity: newType === "BuyXGetY" ? (formData.getQuantity || 1) : formData.getQuantity,
+        discountPercentage: newType === "BuyXGetY" ? (formData.discountPercentage || 10) : formData.discountPercentage,
+      });
     }
 
     setProductCategoryFilter("");
@@ -557,9 +626,21 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
 }   
 
-  if (!formData.discountPercentage) {
-    toast.error("Discount percentage is required");
-    return;
+  if (formData.discountType === "FixedPrice") {
+    if (!formData.discountAmount || formData.discountAmount <= 0) {
+      toast.error("Fixed price amount is required and must be greater than 0");
+      return;
+    }
+  } else if (formData.discountType === "UptoXPrice") {
+    if (!formData.discountAmount || formData.discountAmount <= 0) {
+      toast.error("Up to price amount is required and must be greater than 0");
+      return;
+    }
+  } else {
+    if (!formData.discountPercentage) {
+      toast.error("Discount percentage is required");
+      return;
+    }
   }
 
 // ✅ FIX: Make banner images optional during CREATE, required during EDIT
@@ -577,8 +658,24 @@ if (editingDiscount) {
 
 
   try {
+    const sanitizeDateTime = (val: string | null | undefined, isEnd = false): string | null => {
+      if (!val) return null;
+      const trimmed = val.trim();
+      if (!trimmed) return null;
+      if (trimmed.length === 10) {
+        return isEnd ? `${trimmed}T23:59:59` : `${trimmed}T00:00:00`;
+      }
+      return trimmed;
+    };
+
     const payload = {
       ...formData,
+      startDate: sanitizeDateTime(formData.startDate, false),
+      endDate: sanitizeDateTime(formData.endDate, true),
+      couponCode: formData.requiresCouponCode ? (formData.couponCode?.trim() || null) : null,
+      limitationTimes: formData.discountLimitation === "Unlimited" ? null : (formData.limitationTimes || null),
+      maximumDiscountAmount: formData.maximumDiscountAmount || null,
+      maximumDiscountedQuantity: formData.maximumDiscountedQuantity || null,
       assignedProductIds: formData.assignedProductIds.join(","),
       assignedCategoryIds: formData.assignedCategoryIds.join(","),
       assignedManufacturerIds: formData.assignedManufacturerIds.join(","),
@@ -594,15 +691,27 @@ if (editingDiscount) {
         await handleUploadBannerImage(editingDiscount.id, mobileFile, "mobile");
       }
       
-      await discountsService.update(editingDiscount.id, payload);
+      const res = await discountsService.update(editingDiscount.id, payload as any);
+      if ((res as any)?.error || (res as any)?.status >= 400 || (res as any)?.data?.success === false) {
+        const errMsg = (res as any)?.error || (res as any)?.data?.message || "Failed to update discount";
+        toast.error(errMsg);
+        return;
+      }
       toast.success("Discount updated successfully!");
     } else {
-      const res = await discountsService.create(payload);
+      const res = await discountsService.create(payload as any);
 
-      const discountId = res?.data?.data?.id;
+      const discountId =
+        (res as any)?.data?.data?.id ||
+        (res as any)?.data?.data?.Id ||
+        (res as any)?.data?.id ||
+        (res as any)?.data?.Id ||
+        (res as any)?.id ||
+        (res as any)?.Id;
 
       if (!discountId) {
-        toast.error("Failed to get discount ID");
+        const errMsg = (res as any)?.data?.message || (res as any)?.message || "Failed to get discount ID";
+        toast.error(errMsg);
         return;
       }
 
@@ -640,7 +749,7 @@ const handleEdit = (discount: Discount) => {
       discountAmount: 0,
       discountPercentage: 0,
       maximumDiscountAmount: null,
-      startDate: "",
+      startDate: getTodayStartDate(),
       endDate: "",
       requiresCouponCode: false,
       couponCode: "",
@@ -845,6 +954,10 @@ const handleExportAllUsage = async () => {
           ? "Products"
           : u.discountType === "UptoXPercent"
           ? "Up to %"
+          : u.discountType === "UptoXPrice"
+          ? "Up to £X"
+          : u.discountType === "FixedPrice"
+          ? "Fixed Price"
           : u.discountType === "AssignedToCategories"
           ? "Categories"
           : u.discountType === "AssignedToOrderTotal"
@@ -910,6 +1023,10 @@ const hasActiveFilters =
       AssignedToManufacturers: "",
       AssignedToOrderSubTotal: "",
       UptoXPercent: "Up to X% Off",
+      UptoXPrice: "Up to £X (price umbrella)",
+      FixedPrice: "Fixed Price (e.g. \"£10 Tuesday\")",
+      BuyXGetY: "Buy X Get Y % Off",
+      TieredQuantity: "Tiered Quantity (Buy More, Save More)",
     };
     return labels[type];
   };
@@ -923,11 +1040,34 @@ const hasActiveFilters =
       AssignedToManufacturers: "🏭",
       AssignedToOrderSubTotal: "💵",
       UptoXPercent: "⚡",
+      UptoXPrice: "🏷️",
+      FixedPrice: "🏷️",
+      BuyXGetY: "🎁",
+      TieredQuantity: "📊",
     };
     return icons[type];
   };
 
   const formatDiscountValue = (discount: Discount): string => {
+    if (discount.discountType === "TieredQuantity") {
+      if (discount.tiers && discount.tiers.length > 0) {
+        const sorted = [...discount.tiers].sort((a, b) => a.quantity - b.quantity);
+        return sorted.map((t) => `${t.quantity}+ (${t.discountPercentage}%)`).join(", ");
+      }
+      return "Tiered Quantity";
+    }
+    if (discount.discountType === "BuyXGetY") {
+      return `Buy ${discount.buyQuantity ?? 1} Get ${discount.getQuantity ?? 1} at ${discount.discountPercentage ?? 0}% Off`;
+    }
+    if (discount.discountType === "FixedPrice") {
+      return `Fixed £${(discount.discountAmount ?? 0).toFixed(2)}`;
+    }
+    if (discount.discountType === "UptoXPrice") {
+      return `Up to £${(discount.discountAmount ?? 0).toFixed(2)}`;
+    }
+    if (discount.discountType === "UptoXPercent") {
+      return `Up to ${discount.discountPercentage ?? 0}%`;
+    }
     if (discount.usePercentage) {
       return `${discount.discountPercentage}%`;
     }
@@ -1475,6 +1615,11 @@ const filteredDiscounts = discounts.filter((discount) => {
         <option value="AssignedToOrderTotal">Order Total</option>
         <option value="AssignedToProducts">Products</option>
         <option value="AssignedToCategories">Categories</option>
+        <option value="UptoXPercent">Up to X% Off</option>
+        <option value="UptoXPrice">Up to £X</option>
+        <option value="FixedPrice">Fixed Price</option>
+        <option value="BuyXGetY">Buy X Get Y</option>
+        <option value="TieredQuantity">Tiered Quantity</option>
       </select>
 
       <select

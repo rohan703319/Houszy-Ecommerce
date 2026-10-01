@@ -33,7 +33,7 @@ export default function WhyChooseUs() {
 
         {/* Heading */}
         <div className="text-center mb-10 md:mb-14">
-          <h2 className="text-[16px] md:text-[22px] font-bold text-black md:-mt-[35px]">
+          <h2 className="text-[20px] sm:text-[24px] md:text-[28px] lg:text-[32px] xl:text-[34px] font-extrabold text-black md:-mt-[35px] tracking-tight">
             Why Choose Houszy?
           </h2>
         </div>

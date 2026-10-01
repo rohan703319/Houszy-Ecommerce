@@ -47,7 +47,7 @@ export const blogCommentsService = {
   /**
    * Get all comments for a specific post
    */
-  getByPostId: (postId: string, includeUnapproved: boolean = true, config: any = {}) =>
+  getByPostId: (postId: string, includeUnapproved: boolean = false, config: any = {}) =>
     apiClient.get<ApiResponse<BlogComment[]>>(
       `${API_ENDPOINTS.blogComments}/post/${postId}?includeUnapproved=${includeUnapproved}`,
       config

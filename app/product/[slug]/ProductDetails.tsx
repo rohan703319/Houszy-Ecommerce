@@ -16,8 +16,7 @@ import { Autoplay, Navigation, Pagination } from "swiper/modules";
 import { getBackorderUIState } from "@/app/lib/backorderHelpers";
 import "swiper/css";
 import "swiper/css/navigation";
-import "swiper/css/pagination";
-import { Heart, Star, StarHalf, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Share, Share2Icon, LucideShare2, ShareIcon, Bell } from "lucide-react";
+import { Heart, Star, StarHalf, Minus, Plus, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Truck, RotateCcw, ShieldCheck, Pause, Play, Package, Bike, Users, BadgePercent, Zap, BellRing, Share2, Gift, AwardIcon, MapPin, Clock, TruckElectric, TruckElectricIcon, Share, Share2Icon, LucideShare2, ShareIcon, Bell, Sparkles } from "lucide-react";
 import ShareMenu from "@/components/share/ShareMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import ProductFeatures from "@/components/product/ProductFeatures";
@@ -100,6 +99,7 @@ interface AssignedDiscount {
   id: string;
   name: string;
   isActive: boolean;
+  discountType?: string;
   usePercentage: boolean;
   discountAmount: number;
   discountPercentage: number;
@@ -109,6 +109,9 @@ interface AssignedDiscount {
   requiresCouponCode: boolean;
   isCumulative?: boolean;
   couponCode?: string;
+  buyQuantity?: number | null;
+  getQuantity?: number | null;
+  tiers?: { id?: string; quantity: number; discountPercentage: number }[];
 }
 interface GroupedProduct {
   slug: string | undefined;
@@ -491,9 +494,11 @@ export default function ProductDetails({
     const now = new Date();
     return product.assignedDiscounts.find(d =>
       d.isActive &&
+      d.discountType !== "BuyXGetY" &&
+      d.discountType !== "TieredQuantity" &&
       (!d.startDate || new Date(d.startDate) <= now) &&
       (!d.endDate || new Date(d.endDate) >= now)
-    ) || product.assignedDiscounts[0];
+    ) || null;
   }, [product.assignedDiscounts]);
 
   // Convert discount name to URL slug
@@ -607,6 +612,41 @@ export default function ProductDetails({
     return () => window.removeEventListener("resize", check);
   }, []);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+
+  // Check for BuyXGetY offer
+  const buyXGetYDiscount = useMemo(() => {
+    const discounts: any[] = (selectedVariant as any)?.assignedDiscounts?.length
+      ? (selectedVariant as any).assignedDiscounts
+      : (product.assignedDiscounts || []);
+
+    const now = new Date();
+    return discounts.find((d: any) =>
+      d &&
+      d.discountType === "BuyXGetY" &&
+      d.isActive &&
+      d.discountPercentage > 0 &&
+      (!d.startDate || new Date(d.startDate) <= now) &&
+      (!d.endDate || new Date(d.endDate) >= now)
+    ) || null;
+  }, [selectedVariant, product.assignedDiscounts]);
+
+  // Check for TieredQuantity offer
+  const tieredQuantityDiscount = useMemo(() => {
+    const discounts: any[] = (selectedVariant as any)?.assignedDiscounts?.length
+      ? (selectedVariant as any).assignedDiscounts
+      : (product.assignedDiscounts || []);
+
+    const now = new Date();
+    return discounts.find((d: any) =>
+      d &&
+      d.discountType === "TieredQuantity" &&
+      d.isActive &&
+      d.tiers &&
+      d.tiers.length > 0 &&
+      (!d.startDate || new Date(d.startDate) <= now) &&
+      (!d.endDate || new Date(d.endDate) >= now)
+    ) || null;
+  }, [selectedVariant, product.assignedDiscounts]);
 
   const [shippingQuotes, setShippingQuotes] = useState<any[]>([]);
 
@@ -1231,6 +1271,8 @@ export default function ProductDetails({
     return product.assignedDiscounts.find(
       d =>
         d.isActive &&
+        d.discountType !== "BuyXGetY" &&
+        d.discountType !== "TieredQuantity" &&
         d.requiresCouponCode === false &&
         new Date(d.startDate) <= now &&
         new Date(d.endDate) >= now
@@ -1263,7 +1305,7 @@ export default function ProductDetails({
   // ✅ STOCK DISPLAY LOGIC (backend driven)
   const stockDisplay = useMemo(() => {
     // ❌ Always dominant
-    if (stock === 0) {
+    if (stock <= 0) {
       return {
         show: true,
         text: "Out of Stock",
@@ -1304,6 +1346,14 @@ export default function ProductDetails({
     product.displayStockAvailability,
     product.displayStockQuantity,
   ]);
+
+  // ✅ Stock availability for shipping/delivery UI banner (variant-aware)
+  const isInStock = useMemo(() => {
+    if (product.variants && product.variants.length > 0) {
+      return !!selectedVariant && (selectedVariant.stockQuantity ?? 0) > 0;
+    }
+    return (product.stockQuantity ?? 0) > 0;
+  }, [product.variants, product.stockQuantity, selectedVariant]);
   // ✅ BACKORDER UI STATE (single source of truth)
   const backorderState = useMemo(() => {
     return getBackorderUIState({
@@ -2669,124 +2719,126 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
             {/* 🔥 LIVE CART ACTIVITY BANNER */}
             <LiveCartActivityBanner activity={cartActivity?.productId === product.id ? cartActivity : null} />
             {/* 🔥 DYNAMIC SHIPPING / DELIVERY BANNER (NEXT DAY OR STANDARD) */}
-            <div className="my-1 rounded-xl border border-[#fdecd2] bg-[#fdf8f0] px-2.5 py-1 shadow-xs overflow-hidden">
-              {/* Timeline */}
-              {effectiveNextDayEnabled ? (
-                /* Next Day Delivery: Order within -> Ships -> Delivers */
-                <div className="flex items-center justify-between">
-                  {/* STEP 1: ORDER WITHIN / DISPATCH */}
-                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Clock className="h-3 w-3 text-white" />
+            {isInStock && (
+              <div className="my-1 rounded-xl border border-[#fdecd2] bg-[#fdf8f0] px-2.5 py-1 shadow-xs overflow-hidden">
+                {/* Timeline */}
+                {effectiveNextDayEnabled ? (
+                  /* Next Day Delivery: Order within -> Ships -> Delivers */
+                  <div className="flex items-center justify-between">
+                    {/* STEP 1: ORDER WITHIN / DISPATCH */}
+                    <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                        <Clock className="h-3 w-3 text-white" />
+                      </div>
+                      <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                        Order within
+                      </p>
+                      <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
+                        {countdownTimeLeft || "Calculating..."}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                      Order within
-                    </p>
-                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
-                      {countdownTimeLeft || "Calculating..."}
+
+                    {/* CONNECTOR LINE */}
+                    <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
+
+                    {/* STEP 2: SHIPS / DISPATCH */}
+                    <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                        <Truck className="h-3 w-3 text-white" />
+                      </div>
+                      <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                        Ships
+                      </p>
+                      <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
+                        {shipDate || "Today"}
+                      </p>
+                    </div>
+
+                    {/* CONNECTOR LINE */}
+                    <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
+
+                    {/* STEP 3: DELIVERS */}
+                    <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                        <MapPin className="h-3 w-3 text-white" />
+                      </div>
+                      <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                        Delivers
+                      </p>
+                      <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
+                        {deliveryDate || "1-2 days"}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Standard Delivery: Ships -> Carrier -> Delivers */
+                  <div className="flex items-center justify-between">
+                    {/* STEP 1: SHIPS */}
+                    <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                        <Truck className="h-3 w-3 text-white" />
+                      </div>
+                      <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                        Ships
+                      </p>
+                      <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
+                        {shipDate || "Today"}
+                      </p>
+                    </div>
+
+                    {/* CONNECTOR LINE */}
+                    <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
+
+                    {/* STEP 2: SERVICE NAME */}
+                    <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                        <Package className="h-3 w-3 text-white" />
+                      </div>
+                      <p className="mt-0.5 text-[11px] font-extrabold text-amber-950 truncate max-w-full">
+                        {(activeQuote?.serviceName || activeQuote?.displayName || "Standard Delivery")
+                          .replace(/\s*service\s*$/i, "")
+                          .trim()}
+                      </p>
+                    </div>
+
+                    {/* CONNECTOR LINE */}
+                    <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
+
+                    {/* STEP 3: DELIVERS */}
+                    <div className="flex flex-col items-center text-center flex-1 min-w-0">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
+                        <MapPin className="h-3 w-3 text-white" />
+                      </div>
+                      <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                        Delivers
+                      </p>
+                      <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
+                        {deliveryDate || "2-3 days"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* BOTTOM BANNER: Free shipping indicator if applicable */}
+                {effectiveNextDayEnabled && (effectiveNextDayFree || activeQuote?.isFree) ? (
+                  <div className="mt-1 -mx-2.5 -mb-1 px-2 py-0.5 bg-black flex items-center justify-center gap-1.5">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#f38918]" />
+                    </span>
+                    <p className="text-white text-[9px] md:text-[10px] font-bold tracking-wide uppercase">
+                      🚚 Next Day Delivery is FREE on this product!
                     </p>
                   </div>
-
-                  {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
-
-                  {/* STEP 2: SHIPS / DISPATCH */}
-                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Truck className="h-3 w-3 text-white" />
-                    </div>
-                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                      Ships
-                    </p>
-                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
-                      {shipDate || "Today"}
+                ) : !effectiveNextDayEnabled && (activeQuote?.isFree || (activeQuote?.price === 0)) ? (
+                  <div className="mt-1 -mx-2.5 -mb-1 px-2 py-0.5 bg-black flex items-center justify-center gap-1.5">
+                    <p className="text-white text-[9px] md:text-[10px] font-bold tracking-wide uppercase">
+                      🚚 FREE Standard Delivery
                     </p>
                   </div>
-
-                  {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
-
-                  {/* STEP 3: DELIVERS */}
-                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <MapPin className="h-3 w-3 text-white" />
-                    </div>
-                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                      Delivers
-                    </p>
-                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
-                      {deliveryDate || "1-2 days"}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* Standard Delivery: Ships -> Carrier -> Delivers */
-                <div className="flex items-center justify-between">
-                  {/* STEP 1: SHIPS */}
-                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Truck className="h-3 w-3 text-white" />
-                    </div>
-                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                      Ships
-                    </p>
-                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
-                      {shipDate || "Today"}
-                    </p>
-                  </div>
-
-                  {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
-
-                  {/* STEP 2: SERVICE NAME */}
-                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <Package className="h-3 w-3 text-white" />
-                    </div>
-                    <p className="mt-0.5 text-[11px] font-extrabold text-amber-950 truncate max-w-full">
-                      {(activeQuote?.serviceName || activeQuote?.displayName || "Standard Delivery")
-                        .replace(/\s*service\s*$/i, "")
-                        .trim()}
-                    </p>
-                  </div>
-
-                  {/* CONNECTOR LINE */}
-                  <div className="mx-1 h-0.5 w-3 md:w-6 bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 shrink-0 self-start mt-2.5" />
-
-                  {/* STEP 3: DELIVERS */}
-                  <div className="flex flex-col items-center text-center flex-1 min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f2ad43] shadow-sm">
-                      <MapPin className="h-3 w-3 text-white" />
-                    </div>
-                    <p className="mt-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                      Delivers
-                    </p>
-                    <p className="text-[11px] font-extrabold text-amber-950 truncate max-w-full">
-                      {deliveryDate || "2-3 days"}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* BOTTOM BANNER: Free shipping indicator if applicable */}
-              {effectiveNextDayEnabled && (effectiveNextDayFree || activeQuote?.isFree) ? (
-                <div className="mt-1 -mx-2.5 -mb-1 px-2 py-0.5 bg-black flex items-center justify-center gap-1.5">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f38918] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#f38918]" />
-                  </span>
-                  <p className="text-white text-[9px] md:text-[10px] font-bold tracking-wide uppercase">
-                    🚚 Next Day Delivery is FREE on this product!
-                  </p>
-                </div>
-              ) : !effectiveNextDayEnabled && (activeQuote?.isFree || (activeQuote?.price === 0)) ? (
-                <div className="mt-1 -mx-2.5 -mb-1 px-2 py-0.5 bg-black flex items-center justify-center gap-1.5">
-                  <p className="text-white text-[9px] md:text-[10px] font-bold tracking-wide uppercase">
-                    🚚 FREE Standard Delivery
-                  </p>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            )}
             {product.disableBuyButton && (
               <div className="mb-2 flex">
                 <div className="inline-flex items-center rounded-lg border border-red-300 bg-yellow-50 px-3 py-1.5">
@@ -2944,12 +2996,106 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                       {discountSlug && (
                         <Link
                           href={`/offers/${discountSlug}`}
-                          className="inline-flex items-center gap-1.5 mt-0.5 mb-0.5 px-3 py-1 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm transition-all group w-fit"
+                          className="inline-flex items-center gap-1 mt-0.5 mb-0.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-xs transition-all group w-fit"
                         >
-                          <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
+                          <Zap className="h-3 w-3 flex-shrink-0 animate-pulse" />
                           <span>Qualifying Items — View Offer</span>
-                          <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                          <ChevronRight className="h-3 w-3 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
                         </Link>
+                      )}
+
+                      {/* Buy X Get Y Promotional Deal Box - Single Line */}
+                      {buyXGetYDiscount && (
+                        <div className="mt-1 mb-1 px-2.5 py-1.5 bg-orange-50/70 border border-orange-200/90 rounded-lg flex flex-wrap items-center gap-2 text-xs">
+                          <div className="flex items-center gap-1 font-bold text-orange-950 shrink-0">
+                            <Sparkles className="w-3.5 h-3.5 text-[#f38918] shrink-0" />
+                            <span>Special Deal:</span>
+                          </div>
+                          <span className="text-gray-800 font-medium">
+                            Buy {buyXGetYDiscount.buyQuantity ?? 1}, Get {buyXGetYDiscount.getQuantity ?? 1} at <span className="font-extrabold text-[#d0021b]">{buyXGetYDiscount.discountPercentage ?? 0}% OFF</span>
+                          </span>
+                          <span className="text-[10px] text-orange-800/80 font-medium ml-auto hidden sm:inline shrink-0">
+                            Auto-applied in cart
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Tiered Quantity Promotional Box */}
+                      {tieredQuantityDiscount && tieredQuantityDiscount.tiers && tieredQuantityDiscount.tiers.length > 0 && (
+                        <div className="mt-1 mb-1">
+                          <div className={`grid gap-1.5 ${tieredQuantityDiscount.tiers.length === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-3"}`}>
+                            {[...tieredQuantityDiscount.tiers]
+                              .sort((a: any, b: any) => a.quantity - b.quantity)
+                              .map((t: any, idx: number) => {
+                                const unitPrice = sellPriceToShow > 0 ? sellPriceToShow : basePrice;
+                                const discountedUnit = unitPrice * (1 - (t.discountPercentage / 100));
+                                const isSelected = normalQty >= t.quantity;
+
+                                if (tieredQuantityDiscount.tiers.length === 1) {
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => setNormalQty(t.quantity)}
+                                      title={`Click to select ${t.quantity} items`}
+                                      className={`w-full px-3 py-2 rounded-lg border text-left cursor-pointer transition-all duration-150 flex items-center justify-between gap-2 ${
+                                        isSelected
+                                          ? "bg-amber-100/90 border-[#f38918] ring-1 ring-[#f38918] shadow-xs"
+                                          : "bg-amber-50/60 border-amber-200/90 hover:border-amber-400 hover:bg-amber-50/90 shadow-2xs"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                                        <Sparkles className="w-3.5 h-3.5 text-[#f38918] shrink-0" />
+                                        <span className="font-bold text-gray-900">Buy {t.quantity} or more:</span>
+                                        <span className="text-sm font-extrabold text-[#e57e25]">£{discountedUnit.toFixed(2)}</span>
+                                        <span className="text-[11px] text-gray-500 font-medium">each</span>
+                                        <span className="text-[10px] font-extrabold text-[#d0021b] bg-red-50 border border-red-200 px-1.5 py-0.5 rounded leading-none ml-0.5">
+                                          {t.discountPercentage}% OFF
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-xs text-gray-400 line-through">£{unitPrice.toFixed(2)}</span>
+                                      </div>
+                                    </button>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => setNormalQty(t.quantity)}
+                                    title={`Click to select ${t.quantity} items`}
+                                    className={`p-2 rounded-lg border text-left cursor-pointer transition-all duration-150 relative ${
+                                      isSelected
+                                        ? "bg-amber-100/90 border-[#f38918] ring-1 ring-[#f38918] shadow-xs"
+                                        : "bg-amber-50/60 border-amber-200/90 hover:border-amber-400 hover:bg-amber-50/90 shadow-2xs"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="text-xs font-bold text-gray-900">
+                                        Buy {t.quantity} or more
+                                      </span>
+                                      <span className="text-[10px] font-extrabold text-[#d0021b] bg-red-50 border border-red-200 px-1.5 py-0.5 rounded leading-none">
+                                        {t.discountPercentage}% OFF
+                                      </span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                      <span className="text-sm font-extrabold text-[#e57e25]">
+                                        £{discountedUnit.toFixed(2)}
+                                      </span>
+                                      <span className="text-[11px] font-medium text-gray-500">
+                                        each
+                                      </span>
+                                      <span className="text-[10px] text-gray-400 line-through ml-auto">
+                                        £{unitPrice.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
                       )}
 
                       {/* Coupon Apply / Remove */}
@@ -3081,12 +3227,106 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                             {discountSlug && (
                               <Link
                                 href={`/offers/${discountSlug}`}
-                                className="inline-flex items-center gap-1.5 mt-0.5 mb-1 px-3 py-1 rounded-md text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm transition-all duration-150 group w-fit"
+                                className="inline-flex items-center gap-1 mt-0.5 mb-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-xs transition-all duration-150 group w-fit"
                               >
-                                <Zap className="h-3.5 w-3.5 flex-shrink-0 animate-pulse" />
+                                <Zap className="h-3 w-3 flex-shrink-0 animate-pulse" />
                                 <span>Qualifying Items — View Offer</span>
-                                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                                <ChevronRight className="h-3 w-3 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
                               </Link>
+                            )}
+
+                            {/* Buy X Get Y Promotional Deal Box - Single Line */}
+                            {buyXGetYDiscount && (
+                              <div className="mt-1 mb-1 px-2.5 py-1.5 bg-orange-50/70 border border-orange-200/90 rounded-lg flex flex-wrap items-center gap-2 text-xs">
+                                <div className="flex items-center gap-1 font-bold text-orange-950 shrink-0">
+                                  <Sparkles className="w-3.5 h-3.5 text-[#f38918] shrink-0" />
+                                  <span>Special Deal:</span>
+                                </div>
+                                <span className="text-gray-800 font-medium">
+                                  Buy {buyXGetYDiscount.buyQuantity ?? 1}, Get {buyXGetYDiscount.getQuantity ?? 1} at <span className="font-extrabold text-[#d0021b]">{buyXGetYDiscount.discountPercentage ?? 0}% OFF</span>
+                                </span>
+                                <span className="text-[10px] text-orange-800/80 font-medium ml-auto hidden sm:inline shrink-0">
+                                  Auto-applied in cart
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Tiered Quantity Promotional Box */}
+                            {tieredQuantityDiscount && tieredQuantityDiscount.tiers && tieredQuantityDiscount.tiers.length > 0 && (
+                              <div className="mt-1 mb-1">
+                                <div className={`grid gap-1.5 ${tieredQuantityDiscount.tiers.length === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-3"}`}>
+                                  {[...tieredQuantityDiscount.tiers]
+                                    .sort((a: any, b: any) => a.quantity - b.quantity)
+                                    .map((t: any, idx: number) => {
+                                      const unitPrice = sellPriceToShow > 0 ? sellPriceToShow : basePrice;
+                                      const discountedUnit = unitPrice * (1 - (t.discountPercentage / 100));
+                                      const isSelected = normalQty >= t.quantity;
+
+                                      if (tieredQuantityDiscount.tiers.length === 1) {
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => setNormalQty(t.quantity)}
+                                            title={`Click to select ${t.quantity} items`}
+                                            className={`w-full px-3 py-2 rounded-lg border text-left cursor-pointer transition-all duration-150 flex items-center justify-between gap-2 ${
+                                              isSelected
+                                                ? "bg-amber-100/90 border-[#f38918] ring-1 ring-[#f38918] shadow-xs"
+                                                : "bg-amber-50/60 border-amber-200/90 hover:border-amber-400 hover:bg-amber-50/90 shadow-2xs"
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                                              <Sparkles className="w-3.5 h-3.5 text-[#f38918] shrink-0" />
+                                              <span className="font-bold text-gray-900">Buy {t.quantity} or more:</span>
+                                              <span className="text-sm font-extrabold text-[#e57e25]">£{discountedUnit.toFixed(2)}</span>
+                                              <span className="text-[11px] text-gray-500 font-medium">each</span>
+                                              <span className="text-[10px] font-extrabold text-[#d0021b] bg-red-50 border border-red-200 px-1.5 py-0.5 rounded leading-none ml-0.5">
+                                                {t.discountPercentage}% OFF
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <span className="text-xs text-gray-400 line-through">£{unitPrice.toFixed(2)}</span>
+                                            </div>
+                                          </button>
+                                        );
+                                      }
+
+                                      return (
+                                        <button
+                                          key={idx}
+                                          type="button"
+                                          onClick={() => setNormalQty(t.quantity)}
+                                          title={`Click to select ${t.quantity} items`}
+                                          className={`p-2 rounded-lg border text-left cursor-pointer transition-all duration-150 relative ${
+                                            isSelected
+                                              ? "bg-amber-100/90 border-[#f38918] ring-1 ring-[#f38918] shadow-xs"
+                                              : "bg-amber-50/60 border-amber-200/90 hover:border-amber-400 hover:bg-amber-50/90 shadow-2xs"
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between gap-1">
+                                            <span className="text-xs font-bold text-gray-900">
+                                              Buy {t.quantity} or more
+                                            </span>
+                                            <span className="text-[10px] font-extrabold text-[#d0021b] bg-red-50 border border-red-200 px-1.5 py-0.5 rounded leading-none">
+                                              {t.discountPercentage}% OFF
+                                            </span>
+                                          </div>
+                                          <div className="flex items-baseline gap-1 mt-1">
+                                            <span className="text-sm font-extrabold text-[#e57e25]">
+                                              £{discountedUnit.toFixed(2)}
+                                            </span>
+                                            <span className="text-[11px] font-medium text-gray-500">
+                                              each
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 line-through ml-auto">
+                                              £{unitPrice.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                </div>
+                              </div>
                             )}
 
                             {/* 🔥 COUPON APPLY / REMOVE BUTTON */}

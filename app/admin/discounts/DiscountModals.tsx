@@ -57,6 +57,8 @@ interface FormData {
   limitationTimes: number | null;
   maximumDiscountedQuantity: number | null;
   appliedToSubOrders: boolean;
+  buyQuantity?: number | null;
+  getQuantity?: number | null;
   adminComment: string;
   assignedProductIds: string[];
   assignedCategoryIds: string[];
@@ -64,6 +66,19 @@ interface FormData {
   desktopBannerImageUrl: string | null;
   mobileBannerImageUrl: string | null;
 }
+
+const getNowDateTimeString = (offsetDays = 0): string => {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 interface DiscountModalsProps {
     discounts?: Discount[]; // Add this line
@@ -183,16 +198,37 @@ setMobileFile,
         matches = parentPct === campaignPercent;
       } else if (formData.discountType === "UptoXPercent") {
         matches = parentPct >= 1 && parentPct <= campaignPercent;
+      } else if (formData.discountType === "FixedPrice") {
+        const exactP = Number(formData.discountAmount) || 0;
+        if (prod.productType !== "variable") {
+          const parentSellPrice = prod.sellPrice && prod.sellPrice > 0 ? prod.sellPrice : prod.price;
+          matches = parentSellPrice === exactP;
+        }
+      } else if (formData.discountType === "UptoXPrice") {
+        const maxP = Number(formData.discountAmount) || 0;
+        if (prod.productType !== "variable") {
+          const parentSellPrice = prod.sellPrice && prod.sellPrice > 0 ? prod.sellPrice : prod.price;
+          matches = parentSellPrice <= maxP;
+        }
       }
 
       // Check variant discounts if parent didn't match and it is a variable product
       if (!matches && prod.productType === "variable" && prod.variants && prod.variants.length > 0) {
         matches = prod.variants.some(v => {
-          const vPct = v.discountPercentage || 0;
           if (formData.discountType === "AssignedToProducts") {
+            const vPct = v.discountPercentage || 0;
             return vPct === campaignPercent;
           } else if (formData.discountType === "UptoXPercent") {
+            const vPct = v.discountPercentage || 0;
             return vPct >= 1 && vPct <= campaignPercent;
+          } else if (formData.discountType === "FixedPrice") {
+            const exactP = Number(formData.discountAmount) || 0;
+            const vSellPrice = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+            return vSellPrice === exactP;
+          } else if (formData.discountType === "UptoXPrice") {
+            const maxP = Number(formData.discountAmount) || 0;
+            const vSellPrice = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+            return vSellPrice <= maxP;
           }
           return false;
         });
@@ -203,7 +239,7 @@ setMobileFile,
       seen.add(opt.value);
       return true;
     });
-  }, [categoryFilteredProductOptions, formData.discountType, formData.discountPercentage, props.products]);
+  }, [categoryFilteredProductOptions, formData.discountType, formData.discountPercentage, formData.discountAmount, props.products]);
   useEffect(() => {
   if (editingDiscount?.assignedProductIds) {
     const ids = editingDiscount.assignedProductIds.split(",").map(id => id.trim());
@@ -620,6 +656,12 @@ useEffect(() => {
     if (discount.discountType === "UptoXPercent") {
       return `Up to ${discount.discountPercentage ?? 0}%`;
     }
+    if (discount.discountType === "FixedPrice") {
+      return `Fixed £${(discount.discountAmount ?? 0).toFixed(2)}`;
+    }
+    if (discount.discountType === "UptoXPrice") {
+      return `Up to £${(discount.discountAmount ?? 0).toFixed(2)}`;
+    }
     if (discount.usePercentage) {
       return `${discount.discountPercentage}%`;
     }
@@ -705,7 +747,9 @@ useEffect(() => {
                 <div className={`grid gap-4 ${
                   formData.discountType === "AssignedToCategories" ||
                   formData.discountType === "AssignedToProducts" ||
-                  formData.discountType === "UptoXPercent"
+                  formData.discountType === "UptoXPercent" ||
+                  formData.discountType === "UptoXPrice" ||
+                  formData.discountType === "FixedPrice"
                     ? "grid-cols-1 md:grid-cols-3" 
                     : "grid-cols-1 md:grid-cols-2"
                 }`}>
@@ -734,7 +778,10 @@ useEffect(() => {
                     >
                       <option value="AssignedToProducts">Assigned to products</option>
                       <option value="AssignedToCategories">Assigned to categories</option>
-                      <option value="UptoXPercent">Up to X% Discount</option>
+                      <option value="UptoXPercent">Up to X% (umbrella)</option>
+                      <option value="UptoXPrice">Up to £X (price umbrella)</option>
+                      <option value="FixedPrice">Fixed Price (e.g. "£10 Tuesday")</option>
+                      <option value="BuyXGetY">Buy X Get Y % Off (e.g. "Buy 1 Get 2nd at 50% Off")</option>
                     </select>
                   </div>
 
@@ -762,6 +809,123 @@ useEffect(() => {
                           className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all pr-12"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Buy X Get Y % Off Inputs */}
+                  {formData.discountType === "BuyXGetY" && (
+                    <div className="col-span-1 md:col-span-3 space-y-4">
+                      <div className="p-3 bg-purple-950/20 border border-purple-500/30 rounded-xl text-xs text-purple-300 leading-relaxed">
+                        <strong>🎁 Buy X Get Y % Off:</strong> Applies automatically at checkout. Total items needed = Buy + Get.
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">Buy *</label>
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            step="1"
+                            placeholder="1"
+                            value={formData.buyQuantity ?? 1}
+                            onChange={(e) => setFormData({ ...formData, buyQuantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">Get *</label>
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            step="1"
+                            placeholder="1"
+                            value={formData.getQuantity ?? 1}
+                            onChange={(e) => setFormData({ ...formData, getQuantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">At % Off *</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              required
+                              min="0.01"
+                              max="100"
+                              step="0.01"
+                              placeholder="e.g. 10"
+                              value={formData.discountPercentage || ""}
+                              onChange={(e) => {
+                                const value = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+                                setFormData({ ...formData, discountPercentage: value, usePercentage: true });
+                              }}
+                              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all pr-12 text-sm"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 leading-relaxed flex items-start gap-2">
+                        <span>✅</span>
+                        <div>
+                          <strong>What the customer sees:</strong> Buy <strong>{(formData.buyQuantity || 1) + (formData.getQuantity || 1)}</strong> — <strong>{formData.buyQuantity || 1}</strong> at full price and <strong>{formData.getQuantity || 1}</strong> at <strong>{formData.discountPercentage || 0}% off</strong>.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fixed Price Amount (£) (Only visible if FixedPrice) */}
+                  {formData.discountType === "FixedPrice" && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Fixed Price Amount (£) <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">£</span>
+                        <input
+                          type="number"
+                          required
+                          min="0.01"
+                          step="0.01"
+                          placeholder="e.g. 10"
+                          value={formData.discountAmount || ""}
+                          onChange={(e) => {
+                            const value = Math.max(0, parseFloat(e.target.value) || 0);
+                            setFormData({ 
+                              ...formData, 
+                              discountAmount: value,
+                              usePercentage: false
+                            });
+                          }}
+                          className="w-full pl-8 pr-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Up to Price (£) (Only visible if UptoXPrice) */}
+                  {formData.discountType === "UptoXPrice" && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Up to Price (£) <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">£</span>
+                        <input
+                          type="number"
+                          required
+                          min="0.01"
+                          step="0.01"
+                          placeholder="e.g. 10"
+                          value={formData.discountAmount || ""}
+                          onChange={(e) => {
+                            const value = Math.max(0, parseFloat(e.target.value) || 0);
+                            setFormData({ 
+                              ...formData, 
+                              discountAmount: value,
+                              usePercentage: false
+                            });
+                          }}
+                          className="w-full pl-8 pr-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        />
                       </div>
                     </div>
                   )}
@@ -813,13 +977,47 @@ useEffect(() => {
 
                 <div className="space-y-4">
                   
-                  {/* FOR ASSIGNED TO PRODUCTS OR UPTO X PERCENT */}
-                  {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent") && (
+                  {/* FOR ASSIGNED TO PRODUCTS, UPTO X PERCENT, UPTO X PRICE, FIXED PRICE, OR BUY X GET Y */}
+                  {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent" || formData.discountType === "UptoXPrice" || formData.discountType === "FixedPrice" || formData.discountType === "BuyXGetY") && (
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Select Products     <span className="text-red-500">*</span>
+                        Select Products {(formData.discountType === "FixedPrice" || formData.discountType === "UptoXPrice" || formData.discountType === "BuyXGetY") ? (
+                          <span className="text-xs text-amber-400 font-normal ml-2">(Optional - Auto-picks matching products if none selected)</span>
+                        ) : (
+                          <span className="text-red-500">*</span>
+                        )}
                         <span className="text-xs text-slate-400 ml-2">Choose which products this discount applies to</span>
                       </label>
+
+                      {/* Auto-Pick Notice for BuyXGetY */}
+                      {formData.discountType === "BuyXGetY" && formData.assignedProductIds.length === 0 && (
+                        <div className="p-3 mb-3 bg-purple-500/10 border border-purple-500/30 rounded-xl flex items-start gap-2.5">
+                          <span className="text-purple-400 text-sm mt-0.5">ℹ️</span>
+                          <div className="text-xs text-purple-300">
+                            <strong>All Matching Products Active:</strong> Leave unselected to include every matching product automatically, or pick specific ones to limit the deal.
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Auto-Pick Notice for FixedPrice */}
+                      {formData.discountType === "FixedPrice" && formData.assignedProductIds.length === 0 && (
+                        <div className="p-3 mb-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
+                          <span className="text-amber-400 text-sm mt-0.5">ℹ️</span>
+                          <div className="text-xs text-amber-300">
+                            <strong>Auto-Pick Mode Active:</strong> No products manually selected. All store products & variants with Sell Price = £{(formData.discountAmount || 0).toFixed(2)} will automatically be included.
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Auto-Pick Notice for UptoXPrice */}
+                      {formData.discountType === "UptoXPrice" && formData.assignedProductIds.length === 0 && (
+                        <div className="p-3 mb-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
+                          <span className="text-amber-400 text-sm mt-0.5">ℹ️</span>
+                          <div className="text-xs text-amber-300">
+                            <strong>Auto-Pick Mode Active:</strong> No products manually selected. All store products & variants with Sell Price ≤ £{formData.discountAmount || 0} will automatically be included.
+                          </div>
+                        </div>
+                      )}
 
 
 
@@ -1014,7 +1212,7 @@ useEffect(() => {
 
 </div>
                           {/* SECTION 3: DISCOUNT VALUE */}
-              {formData.discountType !== "AssignedToProducts" && formData.discountType !== "UptoXPercent" && (
+              {formData.discountType !== "AssignedToProducts" && formData.discountType !== "UptoXPercent" && formData.discountType !== "UptoXPrice" && formData.discountType !== "FixedPrice" && (
                 <div className="bg-slate-800/30 p-2 rounded-2xl border border-slate-700/50">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-sm">3</span>
@@ -1157,24 +1355,44 @@ useEffect(() => {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Start Date & Time     <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Start Date & Time <span className="text-red-500">*</span></label>
                     <input
                       type="datetime-local"
                       required
-                      value={formData.startDate}
+                      value={formData.startDate ? formData.startDate.slice(0, 16) : ""}
+                      onFocus={() => {
+                        if (!formData.startDate) {
+                          setFormData({ ...formData, startDate: getNowDateTimeString(0) });
+                        }
+                      }}
+                      onPointerDown={() => {
+                        if (!formData.startDate) {
+                          setFormData({ ...formData, startDate: getNowDateTimeString(0) });
+                        }
+                      }}
                       onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">End Date & Time     <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">End Date & Time <span className="text-red-500">*</span></label>
                     <input
                       type="datetime-local"
                       required
-                      value={formData.endDate}
+                      value={formData.endDate ? formData.endDate.slice(0, 16) : ""}
+                      onFocus={() => {
+                        if (!formData.endDate) {
+                          setFormData({ ...formData, endDate: getNowDateTimeString(1) });
+                        }
+                      }}
+                      onPointerDown={() => {
+                        if (!formData.endDate) {
+                          setFormData({ ...formData, endDate: getNowDateTimeString(1) });
+                        }
+                      }}
                       onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all text-sm"
                     />
                   </div>
                 </div>
@@ -1545,7 +1763,7 @@ useEffect(() => {
               )}
             </div>
 
-            {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent") && (
+            {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent" || formData.discountType === "UptoXPrice" || formData.discountType === "FixedPrice") && (
               <div className="flex items-center gap-2">
                 <div className="w-[260px]">
                   <Select
@@ -1824,6 +2042,14 @@ useEffect(() => {
             return vPct === campaignPercent;
           } else if (formData.discountType === "UptoXPercent") {
             return vPct >= 1 && vPct <= campaignPercent;
+          } else if (formData.discountType === "FixedPrice") {
+            const exactP = Number(formData.discountAmount) || 0;
+            const vSellPrice = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+            return vSellPrice === exactP;
+          } else if (formData.discountType === "UptoXPrice") {
+            const maxP = Number(formData.discountAmount) || 0;
+            const vSellPrice = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+            return vSellPrice <= maxP;
           }
           return true;
         })
@@ -2003,6 +2229,8 @@ useEffect(() => {
                         viewingDiscount.discountType === 'AssignedToOrderTotal' ? 'bg-orange-500/10 text-orange-400' :
                         viewingDiscount.discountType === 'AssignedToOrderSubTotal' ? 'bg-pink-500/10 text-pink-400' :
                         viewingDiscount.discountType === 'UptoXPercent' ? 'bg-indigo-500/10 text-indigo-400' :
+                        viewingDiscount.discountType === 'UptoXPrice' ? 'bg-amber-500/10 text-amber-400' :
+                        viewingDiscount.discountType === 'FixedPrice' ? 'bg-emerald-500/10 text-emerald-400' :
                         'bg-cyan-500/10 text-cyan-400'
                       }`}>
                         {getDiscountTypeIcon(viewingDiscount.discountType)}
@@ -2259,7 +2487,7 @@ useEffect(() => {
 </div>
 
                   {/* Assignments */}
-                  {(viewingDiscount.assignedProductIds || viewingDiscount.assignedCategoryIds || viewingDiscount.assignedManufacturerIds) && (
+                  {(viewingDiscount.assignedProductIds || viewingDiscount.assignedCategoryIds || viewingDiscount.assignedManufacturerIds || viewingDiscount.discountType === 'UptoXPrice' || viewingDiscount.discountType === 'FixedPrice') && (
                     <div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
                       <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                         <span className="text-xl">🎯</span>
@@ -2267,8 +2495,24 @@ useEffect(() => {
                       </h3>
                       <div className="space-y-4">
                         
-                        {/* FOR ASSIGNED TO PRODUCTS */}
-                        {viewingDiscount.discountType === 'AssignedToProducts' && viewingDiscount.assignedProductIds && (
+                        {/* Auto-Pick banner for FixedPrice without specific products */}
+                        {viewingDiscount.discountType === 'FixedPrice' && !viewingDiscount.assignedProductIds && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
+                            <span>ℹ️</span>
+                            <span><strong>Auto-Pick Mode:</strong> All products & variants with Sell Price = £{viewingDiscount.discountAmount?.toFixed(2) || "0.00"} are automatically included.</span>
+                          </div>
+                        )}
+
+                        {/* Auto-Pick banner for UptoXPrice without specific products */}
+                        {viewingDiscount.discountType === 'UptoXPrice' && !viewingDiscount.assignedProductIds && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
+                            <span>ℹ️</span>
+                            <span><strong>Auto-Pick Mode:</strong> All products & variants with Sell Price ≤ £{viewingDiscount.discountAmount?.toFixed(2) || "0.00"} are automatically included.</span>
+                          </div>
+                        )}
+
+                        {/* FOR ASSIGNED TO PRODUCTS / UPTO X PERCENT / UPTO X PRICE / FIXED PRICE */}
+                        {(viewingDiscount.discountType === 'AssignedToProducts' || viewingDiscount.discountType === 'UptoXPercent' || viewingDiscount.discountType === 'UptoXPrice' || viewingDiscount.discountType === 'FixedPrice') && viewingDiscount.assignedProductIds && (
                           <div>
                             <div className="flex items-center gap-2 mb-3">
                               <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -2621,7 +2865,7 @@ useEffect(() => {
         </div>
       )}
 
-      {/* ========== ✅ DISCOUNT USAGE MODAL (DIRECT CARE STYLE) ========== */}
+      {/* ========== ✅ DISCOUNT USAGE MODAL ========== */}
       {usageHistoryModal && selectedDiscountHistory && (() => {
         const stats = calculateFilteredStats();
         const filteredList = getFilteredUsageHistory();

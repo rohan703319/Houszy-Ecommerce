@@ -221,6 +221,245 @@ export default function CartPage() {
     return Array.from(map.values());
   }, [cart]);
 
+  // 🔹 Fetch active public BuyXGetY discounts
+  const [publicDiscounts, setPublicDiscounts] = useState<any[]>([]);
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/Discounts/public`)
+      .then((r) => r.json())
+      .then((res) => {
+        const list = res?.data || (Array.isArray(res) ? res : []);
+        if (Array.isArray(list)) {
+          setPublicDiscounts(list.filter((d: any) => d.discountType === "BuyXGetY" || d.discountType === "TieredQuantity"));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const getBuyXGetYInfo = (item: any) => {
+    if (item.type === "subscription") return null;
+
+    const assigns: any[] = item.productData?.variants?.find((v: any) => v.id === item.variantId)?.assignedDiscounts
+      || item.productData?.assignedDiscounts
+      || [];
+    
+    let deal = assigns.find((d: any) => d && d.discountType === "BuyXGetY" && d.isActive !== false && isDiscountActive(d) && (d.discountPercentage > 0));
+
+    if (!deal && publicDiscounts.length > 0) {
+      const targetProdId = (item.productId || item.id || "").toLowerCase();
+      const targetVarId = (item.variantId || "").toLowerCase();
+      const itemCatIds = (item.productData?.categories || []).map((c: any) => (c.categoryId || c.id || "").toLowerCase());
+
+      deal = publicDiscounts.find((d: any) => {
+        if (d.discountType !== "BuyXGetY" || !isDiscountActive(d) || !d.discountPercentage || d.discountPercentage <= 0) return false;
+        const assignedProds = (d.assignedProductIds || "")
+          .split(",")
+          .map((id: string) => id.trim().toLowerCase())
+          .filter(Boolean);
+        const assignedCats = (d.assignedCategoryIds || "")
+          .split(",")
+          .map((id: string) => id.trim().toLowerCase())
+          .filter(Boolean);
+
+        if (assignedProds.length > 0) {
+          return assignedProds.includes(targetProdId) || (targetVarId && assignedProds.includes(targetVarId));
+        }
+        if (assignedCats.length > 0) {
+          return itemCatIds.some((cid: string) => assignedCats.includes(cid));
+        }
+        return true; // storewide
+      });
+    }
+
+    if (!deal || deal.discountType !== "BuyXGetY" || !deal.discountPercentage || deal.discountPercentage <= 0) return null;
+
+    const buy = deal.buyQuantity || 1;
+    const get = deal.getQuantity || 1;
+    const groupSize = buy + get;
+    const pct = deal.discountPercentage || 0;
+    const qty = item.quantity || 1;
+    const completed = Math.floor(qty / groupSize);
+    const remainder = qty % groupSize;
+    const needed = groupSize - remainder;
+    const discountedItemCount = completed * get;
+    const itemPrice = item.finalPrice ?? item.sellPrice ?? item.price ?? 0;
+    let lineDiscount = discountedItemCount * (itemPrice * (pct / 100));
+
+    if (deal.maximumDiscountAmount && lineDiscount > deal.maximumDiscountAmount) {
+      lineDiscount = deal.maximumDiscountAmount;
+    }
+
+    const nextTarget = (completed + 1) * groupSize;
+    const getOrdinal = (n: number) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+    const targetOrdinal = get === 1 ? getOrdinal(nextTarget) : null;
+    const nudgeText = get === 1
+      ? `Add ${needed} more to get the ${targetOrdinal} item at ${pct}% OFF!`
+      : `Add ${needed} more to get ${get} items at ${pct}% OFF!`;
+
+    const unlockedText = completed > 1 
+      ? (buy === 1 && get === 1
+          ? `Buy 1, Get 2nd at ${pct}% Off (${completed}x applied)`
+          : `Buy ${buy} Get ${get} at ${pct}% Off (${completed}x applied)`)
+      : (buy === 1 && get === 1
+          ? `Buy 1, Get 2nd at ${pct}% Off applied!`
+          : `Buy ${buy} Get ${get} at ${pct}% Off applied!`);
+
+    const dealLabel = (() => {
+      if (pct === 100) {
+        return buy === 1 && get === 1 ? "Buy 1, Get 1 Free" : `Buy ${buy}, Get ${get} Free`;
+      }
+      if (buy === 1 && get === 1) {
+        return `Buy 1, Get 2nd at ${pct}% Off`;
+      }
+      if (get === 1) {
+        return `Buy ${buy}, Get ${getOrdinal(buy + 1)} at ${pct}% Off`;
+      }
+      return `Buy ${buy}, Get ${get} at ${pct}% Off`;
+    })();
+
+    return {
+      buy,
+      get,
+      groupSize,
+      pct,
+      isUnlocked: completed > 0,
+      completed,
+      needed,
+      remainder,
+      lineDiscount,
+      nudgeText,
+      unlockedText,
+      dealLabel,
+      dealName: deal.name
+    };
+  };
+
+  const getTieredQuantityInfo = (item: any) => {
+    if (item.type === "subscription") return null;
+
+    const assigns: any[] = item.productData?.variants?.find((v: any) => v.id === item.variantId)?.assignedDiscounts
+      || item.productData?.assignedDiscounts
+      || [];
+    
+    let deal = assigns.find((d: any) => d && d.discountType === "TieredQuantity" && d.isActive !== false && isDiscountActive(d));
+
+    if (!deal && publicDiscounts.length > 0) {
+      const targetProdId = (item.productId || item.id || "").toLowerCase();
+      const targetVarId = (item.variantId || "").toLowerCase();
+      const itemCatIds = (item.productData?.categories || []).map((c: any) => (c.categoryId || c.id || "").toLowerCase());
+
+      deal = publicDiscounts.find((d: any) => {
+        if (d.discountType !== "TieredQuantity" || !isDiscountActive(d)) return false;
+        const assignedProds = (d.assignedProductIds || "")
+          .split(",")
+          .map((id: string) => id.trim().toLowerCase())
+          .filter(Boolean);
+        const assignedCats = (d.assignedCategoryIds || "")
+          .split(",")
+          .map((id: string) => id.trim().toLowerCase())
+          .filter(Boolean);
+
+        if (assignedProds.length > 0) {
+          return assignedProds.includes(targetProdId) || (targetVarId && assignedProds.includes(targetVarId));
+        }
+        if (assignedCats.length > 0) {
+          return itemCatIds.some((cid: string) => assignedCats.includes(cid));
+        }
+        return true;
+      });
+    }
+
+    if (!deal || !deal.tiers || deal.tiers.length === 0) return null;
+
+    const sortedTiers = [...deal.tiers].sort((a: any, b: any) => a.quantity - b.quantity);
+    const qty = item.quantity || 1;
+    const itemPrice = item.finalPrice ?? item.sellPrice ?? item.price ?? 0;
+
+    // Find highest qualifying tier
+    const qualifyingTier = [...sortedTiers].reverse().find((t: any) => qty >= t.quantity) || null;
+
+    // Find next tier for nudge
+    const nextTier = sortedTiers.find((t: any) => qty < t.quantity) || null;
+
+    let lineDiscount = 0;
+    if (qualifyingTier && qualifyingTier.discountPercentage > 0) {
+      lineDiscount = qty * (itemPrice * (qualifyingTier.discountPercentage / 100));
+      if (deal.maximumDiscountAmount && lineDiscount > deal.maximumDiscountAmount) {
+        lineDiscount = deal.maximumDiscountAmount;
+      }
+    }
+
+    const nudgeText = nextTier
+      ? `Add ${nextTier.quantity - qty} more to get ${nextTier.discountPercentage}% OFF each!`
+      : null;
+
+    const unlockedText = qualifyingTier
+      ? `Buy ${qualifyingTier.quantity}+ for ${qualifyingTier.discountPercentage}% Off applied!`
+      : null;
+
+    const dealLabel = qualifyingTier
+      ? `Buy ${qualifyingTier.quantity}+ Save ${qualifyingTier.discountPercentage}%`
+      : `Buy ${sortedTiers[0].quantity}+ Save ${sortedTiers[0].discountPercentage}%`;
+
+    return {
+      deal,
+      tiers: sortedTiers,
+      qualifyingTier,
+      nextTier,
+      isUnlocked: !!qualifyingTier,
+      lineDiscount,
+      nudgeText,
+      unlockedText,
+      dealLabel,
+      dealName: deal.name
+    };
+  };
+
+  const appliedBuyXGetYDeals = useMemo(() => {
+    const dealsMap = new Map<string, { label: string; savings: number }>();
+    cart.forEach((item) => {
+      const info = getBuyXGetYInfo(item);
+      if (info && info.lineDiscount > 0) {
+        const key = info.dealLabel;
+        const current = dealsMap.get(key) || { label: info.dealLabel, savings: 0 };
+        current.savings += info.lineDiscount;
+        dealsMap.set(key, current);
+      }
+    });
+    return Array.from(dealsMap.values());
+  }, [cart, publicDiscounts]);
+
+  const totalBuyXGetYSavings = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const info = getBuyXGetYInfo(item);
+      return sum + (info?.lineDiscount ?? 0);
+    }, 0);
+  }, [cart, publicDiscounts]);
+
+  const appliedTieredQuantityDeals = useMemo(() => {
+    const dealsMap = new Map<string, { label: string; savings: number }>();
+    cart.forEach((item) => {
+      const info = getTieredQuantityInfo(item);
+      if (info && info.lineDiscount > 0) {
+        const key = info.dealLabel;
+        const current = dealsMap.get(key) || { label: info.dealLabel, savings: 0 };
+        current.savings += info.lineDiscount;
+        dealsMap.set(key, current);
+      }
+    });
+    return Array.from(dealsMap.values());
+  }, [cart, publicDiscounts]);
+
+  const totalTieredQuantitySavings = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const info = getTieredQuantityInfo(item);
+      return sum + (info?.lineDiscount ?? 0);
+    }, 0);
+  }, [cart, publicDiscounts]);
+
   const subtotalBeforeDiscount = useMemo(() => {
     return cart.reduce((sum, item) => {
       const base = item.priceBeforeDiscount ?? item.price;
@@ -296,7 +535,7 @@ export default function CartPage() {
     }, 0);
   }, [cart]);
 
-  const totalCombinedDiscount = bundleSavings + finalDiscount;
+  const totalCombinedDiscount = bundleSavings + finalDiscount + totalBuyXGetYSavings + totalTieredQuantitySavings;
   const applyCouponFromBackend = (item: any, couponData: any) => {
     const basePrice = item.priceBeforeDiscount ?? item.price ?? 0;
     const sellPrice = item.sellPrice ?? basePrice;
@@ -394,8 +633,20 @@ export default function CartPage() {
         // Check if this item is eligible for the coupon
         let isEligible = false;
         const targetId = (item.productId || item.id).toLowerCase();
-        if (match.discountType === "AssignedToProducts" || match.discountType === "UptoXPercent") {
-          isEligible = assignedProdIds.includes(targetId);
+        if (match.discountType === "AssignedToProducts" || match.discountType === "UptoXPercent" || match.discountType === "UptoXPrice" || match.discountType === "FixedPrice" || match.discountType === "BuyXGetY") {
+          if (match.discountType === "FixedPrice" && assignedProdIds.length === 0) {
+            const itemPrice = item.price ?? 0;
+            const targetPrice = match.discountAmount ?? 0;
+            isEligible = itemPrice === targetPrice;
+          } else if (match.discountType === "UptoXPrice" && assignedProdIds.length === 0) {
+            const itemPrice = item.price ?? 0;
+            const maxPrice = match.discountAmount ?? 0;
+            isEligible = itemPrice <= maxPrice;
+          } else if (match.discountType === "BuyXGetY" && assignedProdIds.length === 0 && assignedCatIds.length === 0) {
+            isEligible = true;
+          } else {
+            isEligible = assignedProdIds.includes(targetId);
+          }
         } else if (match.discountType === "AssignedToCategories") {
           if (assignedProdIds.includes(targetId)) {
             isEligible = true;
@@ -423,7 +674,7 @@ export default function CartPage() {
         // Find AUTO discount (non-coupon)
         const assigns: any[] = item.productData?.assignedDiscounts ?? [];
         const activeAutoDiscount = assigns.find(
-          (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+          (d: any) => d && !d.requiresCouponCode && d.discountType !== "BuyXGetY" && d.discountType !== "TieredQuantity" && isDiscountActive(d)
         );
 
         let autoDiscountAmount = 0;
@@ -519,6 +770,8 @@ export default function CartPage() {
         (d: any) =>
           d &&
           !d.requiresCouponCode &&
+          d.discountType !== "BuyXGetY" &&
+          d.discountType !== "TieredQuantity" &&
           isDiscountActive(d)
       );
 
@@ -564,7 +817,7 @@ export default function CartPage() {
       const basePrice = item.priceBeforeDiscount ?? item.price;
 
       const autoDiscount = assigns.find(
-        (d: any) => d && !d.requiresCouponCode && isDiscountActive(d)
+        (d: any) => d && !d.requiresCouponCode && d.discountType !== "BuyXGetY" && d.discountType !== "TieredQuantity" && isDiscountActive(d)
       );
 
       const origSellPrice = (item.productData?.sellPrice && typeof item.productData.sellPrice === "number" && item.productData.sellPrice > 0)
@@ -808,7 +1061,7 @@ export default function CartPage() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col">
             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Total</span>
-            <span className="text-lg font-black text-gray-900 leading-none mt-0.5">£{cartTotal.toFixed(2)}</span>
+            <span className="text-lg font-black text-gray-900 leading-none mt-0.5">£{Math.max(0, correctSubtotal - totalCombinedDiscount).toFixed(2)}</span>
           </div>
           <button
             onClick={handleCheckout}
@@ -878,16 +1131,24 @@ export default function CartPage() {
                             </h2>
                           </Link>
                           {/* Price Row */}
-                          <div className="flex items-baseline gap-2 mt-0.5 mb-2">
-                            <span className="text-sm font-bold text-[#f38918]">
-                              £{(finalPrice * (item.quantity ?? 1)).toFixed(2)}
-                            </span>
-                            {hasDiscount && (
-                              <span className="text-xs font-semibold text-gray-400 line-through">
-                                £{(basePrice * (item.quantity ?? 1)).toFixed(2)}
-                              </span>
-                            )}
-                          </div>
+                          {(() => {
+                            const dealInfo = getBuyXGetYInfo(item);
+                            const buyXDiscount = dealInfo?.lineDiscount ?? 0;
+                            const lineTotal = Math.max(0, (finalPrice * (item.quantity ?? 1)) - buyXDiscount);
+                            const showStrike = hasDiscount || buyXDiscount > 0;
+                            return (
+                              <div className="flex items-baseline gap-2 mt-0.5 mb-2">
+                                <span className="text-sm font-bold text-[#f38918]">
+                                  £{lineTotal.toFixed(2)}
+                                </span>
+                                {showStrike && (
+                                  <span className="text-xs font-semibold text-gray-400 line-through">
+                                    £{(basePrice * (item.quantity ?? 1)).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {/* QTY & BADGES IN ONE ROW */}
                           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -992,6 +1253,58 @@ export default function CartPage() {
                             )}
                             {stockError[item.id] && <span className="text-red-600 text-[10px] font-medium">{stockError[item.id]}</span>}
                           </div>
+
+                          {/* Buy X Get Y Offer Nudge / Unlocked status */}
+                          {(() => {
+                            const dealInfo = getBuyXGetYInfo(item);
+                            if (!dealInfo) return null;
+                            return (
+                              <div className="mt-1">
+                                {dealInfo.isUnlocked ? (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-900 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded shadow-sm">
+                                      🎉 {dealInfo.unlockedText} (-£{dealInfo.lineDiscount.toFixed(2)})
+                                    </span>
+                                    {dealInfo.remainder > 0 && (
+                                      <span className="text-[10px] text-amber-800 font-semibold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                        ⚡ {dealInfo.nudgeText}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                                    ⚡ {dealInfo.nudgeText}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Tiered Quantity Offer Nudge / Unlocked status */}
+                          {(() => {
+                            const tieredInfo = getTieredQuantityInfo(item);
+                            if (!tieredInfo) return null;
+                            return (
+                              <div className="mt-1">
+                                {tieredInfo.isUnlocked ? (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-900 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded shadow-sm">
+                                      🎉 {tieredInfo.unlockedText} (-£{tieredInfo.lineDiscount.toFixed(2)})
+                                    </span>
+                                    {tieredInfo.nudgeText && (
+                                      <span className="text-[10px] text-amber-800 font-semibold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                        ⚡ {tieredInfo.nudgeText}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                                    ⚡ {tieredInfo.nudgeText}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Top-right trash icon */}
@@ -1175,6 +1488,33 @@ export default function CartPage() {
                     <span>-£{totalCouponDiscount.toFixed(2)}</span>
                   </div>
                 )}
+                {appliedBuyXGetYDeals.length > 0 ? (
+                  appliedBuyXGetYDeals.map((deal, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-sm font-bold text-orange-600">
+                      <span>{deal.label}</span>
+                      <span>-£{deal.savings.toFixed(2)}</span>
+                    </div>
+                  ))
+                ) : totalBuyXGetYSavings > 0 ? (
+                  <div className="flex justify-between items-center text-sm font-bold text-orange-600">
+                    <span>Multi-Buy Savings</span>
+                    <span>-£{totalBuyXGetYSavings.toFixed(2)}</span>
+                  </div>
+                ) : null}
+
+                {appliedTieredQuantityDeals.length > 0 ? (
+                  appliedTieredQuantityDeals.map((deal, idx) => (
+                    <div key={`tier-${idx}`} className="flex justify-between items-center text-sm font-bold text-orange-600">
+                      <span>{deal.label}</span>
+                      <span>-£{deal.savings.toFixed(2)}</span>
+                    </div>
+                  ))
+                ) : totalTieredQuantitySavings > 0 ? (
+                  <div className="flex justify-between items-center text-sm font-bold text-orange-600">
+                    <span>Tiered Quantity Savings</span>
+                    <span>-£{totalTieredQuantitySavings.toFixed(2)}</span>
+                  </div>
+                ) : null}
               </div>
 
               <div className="border-t border-gray-100 my-3"></div>

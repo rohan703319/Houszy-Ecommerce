@@ -46,18 +46,21 @@ interface FormData {
   isActive: boolean;
   discountType: DiscountType;
   usePercentage: boolean;
-  discountAmount: number;
-  discountPercentage: number;
-  maximumDiscountAmount: number | null;
+  discountAmount: number | "";
+  discountPercentage: number | "";
+  maximumDiscountAmount: number | null | "";
   startDate: string;
   endDate: string;
   requiresCouponCode: boolean;
   couponCode: string;
   isCumulative: boolean;
   discountLimitation: DiscountLimitationType;
-  limitationTimes: number | null;
-  maximumDiscountedQuantity: number | null;
+  limitationTimes: number | null | "";
+  maximumDiscountedQuantity: number | null | "";
   appliedToSubOrders: boolean;
+  buyQuantity?: number | null | "";
+  getQuantity?: number | null | "";
+  tiers?: { id?: string; quantity: number | ""; discountPercentage: number | "" }[];
   adminComment: string;
   assignedProductIds: string[];
   assignedCategoryIds: string[];
@@ -79,15 +82,28 @@ interface DiscountFormProps {
   isEdit?: boolean;
 }
 
+const getNowDateTimeString = (offsetDays = 0): string => {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const defaultFormData: FormData = {
   name: "",
   isActive: true,
   discountType: "AssignedToProducts",
   usePercentage: true,
-  discountAmount: 0,
-  discountPercentage: 0,
+  discountAmount: "",
+  discountPercentage: "",
   maximumDiscountAmount: null,
-  startDate: "",
+  startDate: getNowDateTimeString(0),
   endDate: "",
   requiresCouponCode: false,
   couponCode: "",
@@ -96,6 +112,9 @@ const defaultFormData: FormData = {
   limitationTimes: null,
   maximumDiscountedQuantity: null,
   appliedToSubOrders: false,
+  buyQuantity: "",
+  getQuantity: "",
+  tiers: [{ quantity: "", discountPercentage: "" }],
   adminComment: "",
   assignedProductIds: [],
   assignedCategoryIds: [],
@@ -205,8 +224,8 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         isActive: initialData.isActive !== false,
         discountType: initialData.discountType || "AssignedToProducts",
         usePercentage: initialData.usePercentage !== false,
-        discountAmount: initialData.discountAmount || 0,
-        discountPercentage: initialData.discountPercentage || 0,
+        discountAmount: (initialData.discountAmount !== undefined && initialData.discountAmount !== null) ? initialData.discountAmount : "",
+        discountPercentage: (initialData.discountPercentage !== undefined && initialData.discountPercentage !== null) ? initialData.discountPercentage : "",
         maximumDiscountAmount: initialData.maximumDiscountAmount ?? null,
         startDate: initialData.startDate ? initialData.startDate.slice(0, 16) : "",
         endDate: initialData.endDate ? initialData.endDate.slice(0, 16) : "",
@@ -217,6 +236,15 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         limitationTimes: initialData.limitationTimes ?? null,
         maximumDiscountedQuantity: initialData.maximumDiscountedQuantity ?? null,
         appliedToSubOrders: initialData.appliedToSubOrders === true,
+        buyQuantity: (initialData as any).buyQuantity ?? "",
+        getQuantity: (initialData as any).getQuantity ?? "",
+        tiers: (initialData as any).tiers && (initialData as any).tiers.length > 0
+          ? (initialData as any).tiers.map((t: any) => ({
+              ...(t.id ? { id: t.id } : {}),
+              quantity: t.quantity ?? "",
+              discountPercentage: t.discountPercentage ?? ""
+            }))
+          : [{ quantity: "", discountPercentage: "" }],
         adminComment: initialData.adminComment || "",
         assignedProductIds: initialData.assignedProductIds
           ? initialData.assignedProductIds.split(",").map(id => id.trim()).filter(Boolean)
@@ -274,8 +302,8 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         isActive: initialData.isActive !== false,
         discountType: initialData.discountType || "AssignedToProducts",
         usePercentage: initialData.usePercentage !== false,
-        discountAmount: initialData.discountAmount || 0,
-        discountPercentage: initialData.discountPercentage || 0,
+        discountAmount: (initialData.discountAmount !== undefined && initialData.discountAmount !== null) ? initialData.discountAmount : "",
+        discountPercentage: (initialData.discountPercentage !== undefined && initialData.discountPercentage !== null) ? initialData.discountPercentage : "",
         maximumDiscountAmount: initialData.maximumDiscountAmount ?? null,
         startDate: initialData.startDate ? initialData.startDate.slice(0, 16) : "",
         endDate: initialData.endDate ? initialData.endDate.slice(0, 16) : "",
@@ -286,6 +314,15 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         limitationTimes: initialData.limitationTimes ?? null,
         maximumDiscountedQuantity: initialData.maximumDiscountedQuantity ?? null,
         appliedToSubOrders: initialData.appliedToSubOrders === true,
+        buyQuantity: (initialData as any).buyQuantity ?? "",
+        getQuantity: (initialData as any).getQuantity ?? "",
+        tiers: (initialData as any).tiers && (initialData as any).tiers.length > 0
+          ? (initialData as any).tiers.map((t: any) => ({
+              id: t.id,
+              quantity: t.quantity ?? "",
+              discountPercentage: t.discountPercentage ?? ""
+            }))
+          : [{ quantity: "", discountPercentage: "" }],
         adminComment: initialData.adminComment || "",
         assignedProductIds: initialData.assignedProductIds
           ? initialData.assignedProductIds.split(",").map(id => id.trim()).filter(Boolean)
@@ -419,14 +456,18 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         params.searchTerm = productSearchTerm.trim();
       }
 
-      // ONLY apply percentage filters if Requires Coupon is FALSE
-      if (!formData.requiresCouponCode) {
-        const campaignPercent = Number(formData.discountPercentage) || 0;
-        if ((formData.discountType === "AssignedToProducts" || formData.discountType === "AssignedToCategories") && campaignPercent > 0) {
-          params.exactDiscountPercentage = campaignPercent;
-        } else if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
-          params.maxDiscountPercentage = campaignPercent;
-        }
+      // Apply percentage or max price filters
+      const campaignPercent = Number(formData.discountPercentage) || 0;
+      const campaignAmount = Number(formData.discountAmount) || 0;
+
+      if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+        params.exactSellPrice = campaignAmount;
+      } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+        params.maxSellPrice = campaignAmount;
+      } else if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+        params.maxDiscountPercentage = campaignPercent;
+      } else if (!formData.requiresCouponCode && campaignPercent > 0 && (formData.discountType === "AssignedToProducts" || formData.discountType === "AssignedToCategories")) {
+        params.exactDiscountPercentage = campaignPercent;
       }
 
       const response = await productsService.getAll(params);
@@ -452,23 +493,31 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     } finally {
       setProductsLoading(false);
     }
-  }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, formData.discountPercentage, formData.requiresCouponCode, formData.assignedCategoryIds.join(",")]);
+  }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, formData.discountPercentage, formData.discountAmount, formData.requiresCouponCode, formData.assignedCategoryIds.join(",")]);
 
-  // Debounce discount percentage so rapid typing doesn't fire multiple API calls
+  // Debounce discount percentage and discount amount so rapid typing doesn't fire multiple API calls
   const discountPctRef = useRef(formData.discountPercentage);
   discountPctRef.current = formData.discountPercentage;
-  const [debouncedPct, setDebouncedPct] = useState(initialData ? initialData.discountPercentage || 0 : 0);
+  const [debouncedPct, setDebouncedPct] = useState<number | "">(initialData ? initialData.discountPercentage || 0 : 0);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedPct(discountPctRef.current), 600);
     return () => clearTimeout(t);
   }, [formData.discountPercentage]);
+
+  const discountAmtRef = useRef(formData.discountAmount);
+  discountAmtRef.current = formData.discountAmount;
+  const [debouncedAmt, setDebouncedAmt] = useState<number | "">(initialData ? initialData.discountAmount || 0 : 0);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedAmt(discountAmtRef.current), 600);
+    return () => clearTimeout(t);
+  }, [formData.discountAmount]);
 
   // Reset pagination on filter or discount criteria changes
   useEffect(() => {
     setProductPage(1);
     fetchProductsList(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, debouncedPct, formData.requiresCouponCode, formData.assignedCategoryIds.join(",")]);
+  }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, debouncedPct, debouncedAmt, formData.requiresCouponCode, formData.assignedCategoryIds.join(",")]);
 
   // Handle page scrolling/loading more
   const handleLoadMore = () => {
@@ -505,21 +554,43 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
   const selectAllShown = () => {
     const newIds = [...formData.assignedProductIds];
     const newSelected = [...selectedProducts];
+    const campaignAmount = Number(formData.discountAmount) || 0;
 
     products.forEach(p => {
       if (p.variants && p.variants.length > 0) {
-        p.variants.forEach((v: any) => {
+        const eligibleVars = p.variants.filter((v: any) => {
+          if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+            const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+            return vSell === campaignAmount;
+          }
+          if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+            const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+            return vSell <= campaignAmount;
+          }
+          return true;
+        });
+        eligibleVars.forEach((v: any) => {
           if (!newIds.includes(v.id)) {
             newIds.push(v.id);
           }
         });
+        if (eligibleVars.length > 0 && !newSelected.some(sp => sp.id === p.id)) {
+          newSelected.push(p);
+        }
       } else {
+        if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+          const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
+          if (pSell !== campaignAmount) return;
+        } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+          const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
+          if (pSell > campaignAmount) return;
+        }
         if (!newIds.includes(p.id)) {
           newIds.push(p.id);
         }
-      }
-      if (!newSelected.some(sp => sp.id === p.id)) {
-        newSelected.push(p);
+        if (!newSelected.some(sp => sp.id === p.id)) {
+          newSelected.push(p);
+        }
       }
     });
 
@@ -585,6 +656,62 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
       return;
     }
 
+    if (formData.discountType === "FixedPrice" && (!formData.discountAmount || Number(formData.discountAmount) <= 0)) {
+      toast.error("Please enter a valid price for Fixed Price discount");
+      setActiveTab("assignment-value");
+      return;
+    }
+
+    if (formData.discountType === "UptoXPrice" && (!formData.discountAmount || Number(formData.discountAmount) <= 0)) {
+      toast.error("Please enter a valid price for Up to £X discount");
+      setActiveTab("assignment-value");
+      return;
+    }
+
+    if (formData.discountType === "BuyXGetY") {
+      if (!formData.buyQuantity || Number(formData.buyQuantity) < 1) {
+        toast.error("Please enter a valid Buy quantity (at least 1)");
+        setActiveTab("assignment-value");
+        return;
+      }
+      if (!formData.getQuantity || Number(formData.getQuantity) < 1) {
+        toast.error("Please enter a valid Get quantity (at least 1)");
+        setActiveTab("assignment-value");
+        return;
+      }
+      if (!formData.discountPercentage || Number(formData.discountPercentage) <= 0 || Number(formData.discountPercentage) > 100) {
+        toast.error("Please enter a valid discount percentage (1-100%)");
+        setActiveTab("assignment-value");
+        return;
+      }
+    }
+
+    if (formData.discountType === "TieredQuantity") {
+      if (formData.assignedProductIds.length === 0) {
+        toast.error("Please select at least one product for Tiered Quantity discount");
+        setActiveTab("assignment-value");
+        return;
+      }
+      if (!formData.tiers || formData.tiers.length === 0) {
+        toast.error("Please add at least one quantity tier");
+        setActiveTab("assignment-value");
+        return;
+      }
+      for (let i = 0; i < formData.tiers.length; i++) {
+        const tier = formData.tiers[i];
+        if (!tier.quantity || Number(tier.quantity) < 1) {
+          toast.error(`Tier #${i + 1}: Quantity must be at least 1`);
+          setActiveTab("assignment-value");
+          return;
+        }
+        if (tier.discountPercentage === undefined || tier.discountPercentage === "" || Number(tier.discountPercentage) <= 0 || Number(tier.discountPercentage) > 100) {
+          toast.error(`Tier #${i + 1}: Discount percentage must be between 1% and 100%`);
+          setActiveTab("assignment-value");
+          return;
+        }
+      }
+    }
+
     if (formData.requiresCouponCode && !formData.couponCode.trim()) {
       toast.error("Coupon code is required");
       setActiveTab("coupon-settings");
@@ -593,8 +720,36 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
     setIsSubmitting(true);
     try {
+      const sanitizeDateTime = (val: string | null | undefined, isEnd = false): string | null => {
+        if (!val) return null;
+        const trimmed = val.trim();
+        if (!trimmed) return null;
+        if (trimmed.length === 10) {
+          return isEnd ? `${trimmed}T23:59:59` : `${trimmed}T00:00:00`;
+        }
+        return trimmed;
+      };
+
       const payload = {
         ...formData,
+        discountAmount: Number(formData.discountAmount) || 0,
+        discountPercentage: Number(formData.discountPercentage) || 0,
+        usePercentage: (formData.discountType === "FixedPrice" || formData.discountType === "UptoXPrice") ? false : true,
+        buyQuantity: formData.discountType === "BuyXGetY" ? (Number(formData.buyQuantity) || 1) : null,
+        getQuantity: formData.discountType === "BuyXGetY" ? (Number(formData.getQuantity) || 1) : null,
+        tiers: formData.discountType === "TieredQuantity"
+          ? (formData.tiers || []).map(t => ({
+              ...(t.id ? { id: t.id } : {}),
+              quantity: Number(t.quantity),
+              discountPercentage: Number(t.discountPercentage),
+            }))
+          : [],
+        startDate: sanitizeDateTime(formData.startDate, false),
+        endDate: sanitizeDateTime(formData.endDate, true),
+        couponCode: formData.requiresCouponCode ? (formData.couponCode?.trim() || null) : null,
+        limitationTimes: formData.discountLimitation === "Unlimited" ? null : (formData.limitationTimes ? Number(formData.limitationTimes) : null),
+        maximumDiscountAmount: formData.maximumDiscountAmount ? Number(formData.maximumDiscountAmount) : null,
+        maximumDiscountedQuantity: formData.maximumDiscountedQuantity ? Number(formData.maximumDiscountedQuantity) : null,
         assignedProductIds: formData.assignedProductIds.join(","),
         assignedCategoryIds: formData.assignedCategoryIds.join(","),
         assignedManufacturerIds: formData.assignedManufacturerIds.join(","),
@@ -609,14 +764,37 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
           await handleUploadBannerImage(initialData.id, mobileFile, "mobile");
         }
 
-        await discountsService.update(initialData.id, payload);
+        const res = await discountsService.update(initialData.id, payload as any);
+        if (res?.error || (res as any)?.status >= 400 || (res as any)?.data?.success === false) {
+          const errMsg = res?.error || (res as any)?.data?.message || "Failed to update discount";
+          toast.error(errMsg);
+          setIsSubmitting(false);
+          return;
+        }
         toast.success("Discount updated successfully!");
+        router.push("/admin/discounts");
       } else {
-        const res = await discountsService.create(payload);
-        const discountId = res?.data?.data?.id;
+        const res = await discountsService.create(payload as any);
+        console.log("Create discount response:", res);
+
+        if (res?.error || (res as any)?.status >= 400 || (res as any)?.data?.success === false) {
+          const errMsg = res?.error || (res as any)?.data?.message || "Failed to create discount";
+          toast.error(errMsg);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const discountId =
+          (res as any)?.data?.data?.id ||
+          (res as any)?.data?.data?.Id ||
+          (res as any)?.data?.id ||
+          (res as any)?.data?.Id ||
+          (res as any)?.id ||
+          (res as any)?.Id;
 
         if (!discountId) {
-          toast.error("Failed to get discount ID");
+          const errMsg = (res as any)?.data?.message || (res as any)?.message || "Failed to get discount ID";
+          toast.error(errMsg);
           setIsSubmitting(false);
           return;
         }
@@ -632,9 +810,10 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
       }
 
       router.push("/admin/discounts");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Failed to save discount");
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to save discount";
+      toast.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -661,12 +840,20 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     if (!formData.name.trim()) return true;
 
     // 2. Discount value validation
-    if (formData.usePercentage) {
-      const pct = Number(formData.discountPercentage) || 0;
-      if (pct <= 0 || pct > 100) return true;
+    if (formData.discountType === "TieredQuantity") {
+      if (!formData.tiers || formData.tiers.length === 0) return true;
+      if (formData.tiers.some(t => t.quantity === "" || Number(t.quantity) < 1 || t.discountPercentage === "" || Number(t.discountPercentage) <= 0 || Number(t.discountPercentage) > 100)) return true;
+      if (formData.assignedProductIds.length === 0) return true;
+    } else if (formData.discountType === "BuyXGetY") {
+      if (formData.buyQuantity === "" || Number(formData.buyQuantity) < 1) return true;
+      if (formData.getQuantity === "" || Number(formData.getQuantity) < 1) return true;
+      if (formData.discountPercentage === "" || Number(formData.discountPercentage) <= 0 || Number(formData.discountPercentage) > 100) return true;
+    } else if (formData.discountType === "FixedPrice" || formData.discountType === "UptoXPrice") {
+      if (formData.discountAmount === "" || Number(formData.discountAmount) <= 0) return true;
+    } else if (formData.usePercentage) {
+      if (formData.discountPercentage === "" || Number(formData.discountPercentage) <= 0 || Number(formData.discountPercentage) > 100) return true;
     } else {
-      const amt = Number(formData.discountAmount) || 0;
-      if (amt <= 0) return true;
+      if (formData.discountAmount === "" || Number(formData.discountAmount) <= 0) return true;
     }
 
     // 3. Assignment selection validations
@@ -686,16 +873,16 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12 px-4">
       {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/40 py-3 px-4 rounded-xl border border-slate-800/80 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900/40 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800/80 shadow-sm backdrop-blur-md">
         <div>
-          <h1 className="text-base font-bold bg-gradient-to-r from-violet-400 via-cyan-400 to-pink-400 bg-clip-text text-transparent flex items-center gap-1.5">
+          <h1 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
             <ArrowLeft
-              className="h-4 w-4 text-slate-400 cursor-pointer hover:text-white transition-colors"
+              className="h-4 w-4 text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors"
               onClick={() => router.push('/admin/discounts')}
             />
             {isEdit ? "Edit Discount" : "Create Discount"}
           </h1>
-          <p className="text-[10px] text-slate-400 mt-0.5">
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
             {isEdit ? "Modify discount details and assignments" : "Add a new discount to your store"}
           </p>
         </div>
@@ -703,7 +890,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
           <button
             type="button"
             onClick={() => router.push('/admin/discounts')}
-            className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all border border-slate-700/50"
+            className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-all border border-slate-200 dark:border-slate-700/50 font-medium"
           >
             Cancel
           </button>
@@ -711,7 +898,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
             type="button"
             onClick={onSubmit}
             disabled={isSubmitting || isFormInvalid}
-            className="px-3.5 py-1.5 text-xs bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg font-medium shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-800 disabled:shadow-none"
+            className="px-3.5 py-1.5 text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg font-semibold shadow-md shadow-orange-500/20 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-500 dark:disabled:from-slate-700 dark:disabled:to-slate-800 disabled:shadow-none"
           >
             <Save className="h-3.5 w-3.5" />
             {isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Create Discount"}
@@ -720,7 +907,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
       </div>
 
       {/* Tabs Menu Row */}
-      <div className="flex flex-wrap gap-1.5 bg-slate-900/50 p-1.5 rounded-xl border border-slate-800/80 backdrop-blur-sm">
+      <div className="flex flex-wrap gap-1.5 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800/80">
         {activeTabsList.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -729,9 +916,9 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all duration-300 ${isActive
-                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${isActive
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/20"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800/40"
                 }`}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -745,21 +932,21 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
       <div className="space-y-4">
         {/* PANEL 1: BASIC INFO */}
         {activeTab === "basic-info" && (
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Info className="h-4 w-4 text-violet-400" />
+          <div className="bg-white dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm backdrop-blur-md space-y-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Info className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               Basic Information
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Requires Coupon Code */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-800 rounded-xl">
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-semibold text-white flex items-center gap-1.5 cursor-pointer">
-                    <Tag className="h-3.5 w-3.5 text-violet-400" />
+                  <label className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-1.5 cursor-pointer">
+                    <Tag className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                     Requires Coupon Code
                   </label>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Must enter a coupon code during checkout to apply.
                   </p>
                 </div>
@@ -783,7 +970,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                   />
 
                   <div
-                    className={`relative w-10 h-6 rounded-full transition-all duration-300 ${formData.requiresCouponCode ? "bg-emerald-500" : "bg-slate-600"
+                    className={`relative w-10 h-6 rounded-full transition-all duration-300 ${formData.requiresCouponCode ? "bg-emerald-500" : "bg-slate-400 dark:bg-slate-600"
                       }`}
                   >
                     <div
@@ -795,13 +982,13 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
               </div>
 
               {/* Active Status */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-800 rounded-xl">
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl">
                 <div className="space-y-0.5">
-                  <label className="text-sm font-semibold text-white flex items-center gap-1.5 cursor-pointer">
-                    <Info className="h-3.5 w-3.5 text-violet-400" />
+                  <label className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-1.5 cursor-pointer">
+                    <Info className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                     Active Status
                   </label>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Publish and enable this discount program.
                   </p>
                 </div>
@@ -820,7 +1007,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                   />
 
                   <div
-                    className={`relative w-10 h-6 rounded-full transition-all duration-300 ${formData.isActive ? "bg-emerald-500" : "bg-slate-600"
+                    className={`relative w-10 h-6 rounded-full transition-all duration-300 ${formData.isActive ? "bg-emerald-500" : "bg-slate-400 dark:bg-slate-600"
                       }`}
                   >
                     <div
@@ -834,21 +1021,21 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
             {/* Discount Name */}
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-1.5">Discount Name *</label>
+              <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Discount Name *</label>
               <input
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. Winter Holiday Blowout"
-                className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-700 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm"
               />
             </div>
 
             {/* Admin Comment Editor */}
             <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-1.5">Admin Comment (Internal description/rules)</label>
-              <div className="border border-slate-750 rounded-xl overflow-hidden min-h-[150px]">
+              <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Admin Comment (Internal description/rules)</label>
+              <div className="border border-slate-300 dark:border-slate-750 rounded-xl overflow-hidden min-h-[150px]">
                 <ProductDescriptionEditor
                   value={formData.adminComment}
                   onChange={(val) => setFormData({ ...formData, adminComment: val })}
@@ -860,58 +1047,61 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
         {/* PANEL 2: ASSIGNMENT & VALUE */}
         {activeTab === "assignment-value" && (
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Target className="h-4 w-4 text-violet-400" />
+          <div className="bg-white dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm backdrop-blur-md space-y-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Target className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               Assignment & Value
             </h2>
 
             {/* Helper alert matching senior's screenshot text */}
-            <div className="bg-indigo-950/20 border border-indigo-500/20 p-3 rounded-xl text-xs text-slate-300">
-              Set the discount value first — the product picker below will only show items (or variants) that already match it.
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 p-3.5 rounded-xl text-xs text-amber-950 dark:text-amber-200 font-semibold shadow-sm flex items-center gap-2">
+              <Info className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0" />
+              <span>Set the discount value first — the product picker below will only show items (or variants) that already match it.</span>
             </div>
 
-            {/* Value mode (Percentage vs Fixed) */}
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, usePercentage: true, discountAmount: 0 })}
-                className={`p-4 rounded-xl border text-left flex items-center gap-3.5 transition-all ${formData.usePercentage
-                  ? "bg-violet-600/10 border-violet-500 text-white shadow-lg shadow-violet-500/10"
-                  : "bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700"
-                  }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${formData.usePercentage ? "border-violet-500 bg-violet-600" : "border-slate-600"}`}>
-                  {formData.usePercentage && <div className="w-2.5 h-2.5 rounded-full bg-white"></div>}
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Percentage</p>
-                  <p className="text-[11px] text-slate-500">Discount by percentage</p>
-                </div>
-              </button>
+            {/* Value mode (Percentage vs Fixed) - Only for standard product/category discounts */}
+            {formData.discountType !== "UptoXPercent" && formData.discountType !== "UptoXPrice" && formData.discountType !== "FixedPrice" && formData.discountType !== "BuyXGetY" && formData.discountType !== "TieredQuantity" && (
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, usePercentage: true, discountAmount: "" })}
+                  className={`p-4 rounded-xl border text-left flex items-center gap-3.5 transition-all ${formData.usePercentage
+                    ? "bg-amber-500/10 border-amber-500 text-slate-900 dark:text-white shadow-sm"
+                    : "bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
+                    }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${formData.usePercentage ? "border-amber-500 bg-amber-500" : "border-slate-300 dark:border-slate-600"}`}>
+                    {formData.usePercentage && <div className="w-2.5 h-2.5 rounded-full bg-white"></div>}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Percentage</p>
+                    <p className="text-[11px] text-slate-500">Discount by percentage</p>
+                  </div>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, usePercentage: false, discountPercentage: 0 })}
-                className={`p-4 rounded-xl border text-left flex items-center gap-3.5 transition-all ${!formData.usePercentage
-                  ? "bg-violet-600/10 border-violet-500 text-white shadow-lg shadow-violet-500/10"
-                  : "bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700"
-                  }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${!formData.usePercentage ? "border-violet-500 bg-violet-600" : "border-slate-600"}`}>
-                  {!formData.usePercentage && <div className="w-2.5 h-2.5 rounded-full bg-white"></div>}
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Fixed Amount</p>
-                  <p className="text-[11px] text-slate-500">Discount by fixed amount</p>
-                </div>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, usePercentage: false, discountPercentage: "" })}
+                  className={`p-4 rounded-xl border text-left flex items-center gap-3.5 transition-all ${!formData.usePercentage
+                    ? "bg-amber-500/10 border-amber-500 text-slate-900 dark:text-white shadow-sm"
+                    : "bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
+                    }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${!formData.usePercentage ? "border-amber-500 bg-amber-500" : "border-slate-300 dark:border-slate-600"}`}>
+                    {!formData.usePercentage && <div className="w-2.5 h-2.5 rounded-full bg-white"></div>}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Fixed Amount</p>
+                    <p className="text-[11px] text-slate-500">Discount by fixed amount</p>
+                  </div>
+                </button>
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid gap-4 ${(formData.discountType === "BuyXGetY" || formData.discountType === "TieredQuantity") ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
               {/* Discount Type */}
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Discount Type *</label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Discount Type *</label>
                 <select
                   required
                   value={formData.discountType}
@@ -920,50 +1110,324 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                     setFormData(prev => ({
                       ...prev,
                       discountType: val,
+                      usePercentage: (val === "UptoXPrice" || val === "FixedPrice") ? false : true,
+                      buyQuantity: val === "BuyXGetY" ? (prev.buyQuantity ?? "") : prev.buyQuantity,
+                      getQuantity: val === "BuyXGetY" ? (prev.getQuantity ?? "") : prev.getQuantity,
+                      tiers: val === "TieredQuantity" ? (prev.tiers && prev.tiers.length > 0 ? prev.tiers : [{ quantity: "", discountPercentage: "" }]) : prev.tiers,
+                      discountPercentage: prev.discountPercentage,
                       assignedProductIds: [],
                       assignedCategoryIds: [],
                       assignedManufacturerIds: []
                     }));
                   }}
-                  className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm"
                 >
                   <option value="AssignedToProducts">Assigned to products</option>
                   <option value="AssignedToCategories">Assigned to categories</option>
-                  <option value="UptoXPercent">Up to X% Discount</option>
+                  <option value="UptoXPercent">Up to X% (umbrella)</option>
+                  <option value="UptoXPrice">Up to £X (price umbrella)</option>
+                  <option value="FixedPrice">Fixed Price (e.g. "£10 Tuesday")</option>
+                  <option value="BuyXGetY">Buy X Get Y % Off (e.g. "Buy 1 Get 2nd at 50% Off")</option>
+                  <option value="TieredQuantity">Tiered Quantity Discount (e.g. "Buy More, Save More")</option>
                 </select>
               </div>
 
               {/* Discount Value Inputs */}
-              {formData.usePercentage ? (
+              {formData.discountType === "TieredQuantity" ? (
+                <div className="space-y-4">
+                  {/* Callout Notice */}
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4 flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-950 dark:text-amber-300 font-bold text-sm">
+                      <span>📦 Tiered Quantity Discount (&quot;Buy More, Save More&quot;)</span>
+                    </div>
+                    <p className="text-xs text-amber-950 dark:text-amber-200/90 leading-relaxed font-medium">
+                      Encourage bulk purchases with tiered quantity discounts (e.g., Buy 3+ get 10% off each, Buy 5+ get 20% off each). When a tier threshold is reached, all units of the eligible product receive that tier&apos;s discount percentage.
+                    </p>
+                  </div>
+
+                  {/* Tiers Configuration */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-800 dark:text-slate-300">
+                        Quantity Tiers *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentTiers = formData.tiers || [];
+                          setFormData({
+                            ...formData,
+                            tiers: [
+                              ...currentTiers,
+                              { quantity: "", discountPercentage: "" }
+                            ]
+                          });
+                        }}
+                        className="px-3 py-1 text-xs bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 rounded-lg font-semibold transition-all flex items-center gap-1 shadow-sm"
+                      >
+                        + Add Tier
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(formData.tiers || []).map((tier, idx) => (
+                        <div key={idx} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <span className="text-xs font-bold text-amber-700 dark:text-amber-400 w-16">Tier #{idx + 1}</span>
+                          <div className="flex-1">
+                            <label className="block text-[11px] text-slate-700 dark:text-slate-300 font-medium mb-1">Buy Quantity (min units) *</label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={tier.quantity ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const newTiers = [...(formData.tiers || [])];
+                                newTiers[idx] = { ...newTiers[idx], quantity: raw === "" ? "" : (parseInt(raw) || "") };
+                                setFormData({ ...formData, tiers: newTiers });
+                              }}
+                              className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder-slate-400"
+                              placeholder="e.g. 3"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-[11px] text-slate-700 dark:text-slate-300 font-medium mb-1">Discount % Off *</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                step="0.1"
+                                value={tier.discountPercentage ?? ""}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  const newTiers = [...(formData.tiers || [])];
+                                  newTiers[idx] = {
+                                    ...newTiers[idx],
+                                    discountPercentage: raw === "" ? "" : (parseFloat(raw) || "")
+                                  };
+                                  setFormData({ ...formData, tiers: newTiers });
+                                }}
+                                className="w-full pl-3 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder-slate-400"
+                                placeholder="e.g. 10"
+                              />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-xs font-semibold">%</span>
+                            </div>
+                          </div>
+                          <div className="pt-5">
+                            <button
+                              type="button"
+                              disabled={(formData.tiers || []).length <= 1}
+                              onClick={() => {
+                                const newTiers = (formData.tiers || []).filter((_, i) => i !== idx);
+                                setFormData({ ...formData, tiers: newTiers });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-red-500/10 transition-all"
+                              title="Remove tier"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Live Preview Callout */}
+                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-amber-950 dark:text-amber-200 leading-relaxed shadow-sm">
+                      <div className="text-amber-700 dark:text-amber-400 shrink-0 text-base">ℹ️</div>
+                      <div>
+                        <span className="font-bold text-amber-950 dark:text-amber-300">Customer experience: </span>
+                        {(formData.tiers || []).some(t => t.quantity !== "" && t.discountPercentage !== "") ? (
+                          (formData.tiers || []).filter(t => t.quantity !== "" && t.discountPercentage !== "").map((t, i, arr) => (
+                            <span key={i} className="inline-block mr-2 font-bold text-amber-950 dark:text-amber-200">
+                              Buy {t.quantity}+ get {t.discountPercentage}% off each{i < arr.length - 1 ? " • " : ""}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="italic text-amber-800 dark:text-amber-400 font-medium">Configure quantity and discount % above to see live preview</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : formData.discountType === "BuyXGetY" ? (
+                <div className="space-y-4">
+                  {/* Callout Notice */}
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4 flex flex-col gap-2 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-950 dark:text-amber-300 font-bold text-sm">
+                      <span>🎁 Buy X Get Y % Off (&quot;Buy 1 Get 2nd at 50% Off&quot;)</span>
+                    </div>
+                    <p className="text-xs text-amber-950 dark:text-amber-200/90 leading-relaxed font-medium">
+                      Applies automatically at checkout, no coupon needed. Each product is checked on its own — how many of THIS item the customer has decides its discount, nothing else in their basket affects it. Total items needed = Buy + Get. For &quot;Buy 1 Get 2nd at 50% Off&quot;, use Buy 1, Get 1, At 50%.
+                    </p>
+                  </div>
+
+                  {/* 3 Value Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Buy *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        step="1"
+                        value={formData.buyQuantity ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setFormData({ ...formData, buyQuantity: raw === "" ? "" : (parseInt(raw) || "") });
+                        }}
+                        placeholder="e.g. 1"
+                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Get *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        step="1"
+                        value={formData.getQuantity ?? ""}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setFormData({ ...formData, getQuantity: raw === "" ? "" : (parseInt(raw) || "") });
+                        }}
+                        placeholder="e.g. 1"
+                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">At % Off *</label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          max="100"
+                          step="0.01"
+                          value={formData.discountPercentage ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setFormData({
+                              ...formData,
+                              discountPercentage: raw === "" ? "" : (parseFloat(raw) || ""),
+                              usePercentage: true
+                            });
+                          }}
+                          placeholder="e.g. 50"
+                          className="w-full pl-3 pr-8 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-medium text-sm">%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Preview Callout */}
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
+                    <div className="text-amber-700 dark:text-amber-400 shrink-0 text-base">✅</div>
+                    <p className="text-xs text-amber-950 dark:text-amber-200/90 leading-relaxed font-medium">
+                      {(formData.buyQuantity !== "" && formData.getQuantity !== "" && formData.discountPercentage !== "") ? (
+                        <>
+                          <span className="font-bold text-amber-950 dark:text-amber-300">What the customer sees: </span>
+                          to unlock this deal on an eligible product, they buy <strong className="font-bold text-amber-950 dark:text-amber-100">{Number(formData.buyQuantity) + Number(formData.getQuantity)}</strong> of it — <strong className="font-bold text-amber-950 dark:text-amber-100">{formData.buyQuantity}</strong> at full price and <strong className="font-bold text-amber-950 dark:text-amber-100">{formData.getQuantity}</strong> at <strong className="font-bold text-amber-950 dark:text-amber-100">{formData.discountPercentage}% off</strong>. Buying double that (<strong className="font-bold text-amber-950 dark:text-amber-100">{(Number(formData.buyQuantity) + Number(formData.getQuantity)) * 2}</strong>) repeats the deal twice, and so on.
+                        </>
+                      ) : (
+                        <span className="italic text-amber-800 dark:text-amber-400 font-medium">Enter Buy, Get, and % Off above to preview how this deal will look to customers.</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              ) : formData.discountType === "FixedPrice" ? (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1.5">Discount Percentage *</label>
+                  <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Fixed Price Amount (£) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-medium text-sm">£</span>
+                    <input
+                      type="number"
+                      required
+                      min="0.01"
+                      step="0.01"
+                      value={formData.discountAmount ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setFormData({
+                          ...formData,
+                          discountAmount: raw === "" ? "" : (parseFloat(raw) || ""),
+                          usePercentage: false
+                        });
+                      }}
+                      placeholder="e.g. 10.00"
+                      className="w-full pl-7 pr-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">Products & variants with exact sell price of £{(Number(formData.discountAmount) || 0).toFixed(2)} will qualify.</p>
+                </div>
+              ) : formData.discountType === "UptoXPrice" ? (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Up to Price (£) *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-medium text-sm">£</span>
+                    <input
+                      type="number"
+                      required
+                      min="0.01"
+                      step="0.01"
+                      value={formData.discountAmount ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setFormData({
+                          ...formData,
+                          discountAmount: raw === "" ? "" : (parseFloat(raw) || "")
+                        });
+                      }}
+                      placeholder="e.g. 10.00"
+                      className="w-full pl-7 pr-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">Products & variants with sell price up to this amount will qualify.</p>
+                </div>
+              ) : formData.usePercentage ? (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Discount Percentage *</label>
                   <div className="relative">
                     <input
                       type="number"
                       required
                       min="1"
                       max="100"
-                      value={formData.discountPercentage || ""}
-                      onChange={(e) => setFormData({ ...formData, discountPercentage: Number(e.target.value) || 0 })}
+                      value={formData.discountPercentage ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setFormData({
+                          ...formData,
+                          discountPercentage: raw === "" ? "" : (parseFloat(raw) || "")
+                        });
+                      }}
                       placeholder="e.g. 20"
-                      className="w-full pl-3 pr-10 py-2.5 bg-slate-950/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                      className="w-full pl-3 pr-10 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-medium text-sm">%</span>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1.5">Discount Amount *</label>
+                  <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Discount Amount *</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">£</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-medium text-sm">£</span>
                     <input
                       type="number"
                       required
                       min="1"
-                      value={formData.discountAmount || ""}
-                      onChange={(e) => setFormData({ ...formData, discountAmount: Number(e.target.value) || 0 })}
+                      value={formData.discountAmount ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setFormData({
+                          ...formData,
+                          discountAmount: raw === "" ? "" : (parseFloat(raw) || "")
+                        });
+                      }}
                       placeholder="e.g. 10.00"
-                      className="w-full pl-7 pr-3 py-2.5 bg-slate-950/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                      className="w-full pl-7 pr-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
                     />
                   </div>
                 </div>
@@ -971,9 +1435,11 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
             </div>
 
             {/* Category selection */}
-            {formData.discountType === "AssignedToCategories" && (
+            {(formData.discountType === "AssignedToCategories" || formData.discountType === "BuyXGetY") && (
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Select Categories *</label>
+                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-300 mb-1.5">
+                  Categories {formData.discountType === "BuyXGetY" ? "(optional — leave empty to pick specific products below instead)" : "*"}
+                </label>
                 <Select
                   isMulti
                   options={categoryOptions}
@@ -981,9 +1447,9 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                   onChange={(selectedOptions) => setFormData({
                     ...formData,
                     assignedCategoryIds: selectedOptions ? selectedOptions.map(opt => opt.value) : [],
-                    assignedProductIds: [] // clear products
+                    ...(formData.discountType === "AssignedToCategories" ? { assignedProductIds: [] } : {})
                   })}
-                  placeholder="Select categories..."
+                  placeholder="Select one or more categories..."
                   isSearchable
                   styles={customSelectStyles}
                   className="react-select-container text-xs"
@@ -992,35 +1458,122 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
               </div>
             )}
 
-            {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent" || (formData.discountType === "AssignedToCategories" && formData.assignedCategoryIds.length > 0)) && (
+            {(formData.discountType === "AssignedToProducts" || formData.discountType === "UptoXPercent" || formData.discountType === "UptoXPrice" || formData.discountType === "FixedPrice" || formData.discountType === "BuyXGetY" || formData.discountType === "TieredQuantity" || (formData.discountType === "AssignedToCategories" && formData.assignedCategoryIds.length > 0)) && (
               <div className="space-y-3">
-                <label className="block text-xs font-semibold text-slate-305">
-                  Select Products <span className="text-xs text-slate-500 font-normal">* Choose which products this discount applies to</span>
+                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-300">
+                  Select Products {(formData.discountType === "UptoXPrice" || formData.discountType === "FixedPrice" || formData.discountType === "BuyXGetY") ? (
+                    <span className="text-xs text-amber-700 dark:text-amber-400/90 font-medium">(Optional: Leave empty to include all matching products)</span>
+                  ) : formData.discountType === "TieredQuantity" ? (
+                    <span className="text-xs text-amber-700 dark:text-amber-400 font-semibold">* Choose the products this tiered discount applies to</span>
+                  ) : (
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">* Choose which products this discount applies to</span>
+                  )}
                 </label>
 
-                {/* Wide Matching products container card */}
-                <div className="bg-slate-950/30 border border-slate-800 rounded-2xl p-4 space-y-3">
-                  {/* Top line header info */}
-                  <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                {/* Notice for TieredQuantity */}
+                {formData.discountType === "TieredQuantity" && (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
+                    <Info className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-xs font-semibold text-white">Matching products</h3>
-                      <p className="text-[10px] text-slate-500">Check the products (or variants) this discount should apply to.</p>
+                      <p className="text-xs font-bold text-amber-950 dark:text-amber-300">Product Assignment</p>
+                      <p className="text-[11px] text-amber-950 dark:text-amber-200/90 font-medium">
+                        Select the specific products or variants below that qualify for this tiered quantity discount.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-Pick Notice for BuyXGetY */}
+                {formData.discountType === "BuyXGetY" && formData.assignedProductIds.length === 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
+                    <Info className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-950 dark:text-amber-300">Matching products included automatically</p>
+                      <p className="text-[11px] text-amber-950 dark:text-amber-200/90 font-medium">
+                        Leave unchecked to include every matching product automatically, or check specific ones below to limit the discount to just those.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-Pick Notice for FixedPrice */}
+                {formData.discountType === "FixedPrice" && formData.assignedProductIds.length === 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
+                    <Info className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-950 dark:text-amber-300">Auto-Pick Active</p>
+                      <p className="text-[11px] text-amber-950 dark:text-amber-200/90 font-medium">
+                        No specific products are selected. All products & variants across the store with exact sell price of £{(Number(formData.discountAmount) || 0).toFixed(2)} will be automatically included in this offer. You can optionally select specific items below if you wish to restrict it manually.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-Pick Notice for UptoXPrice */}
+                {formData.discountType === "UptoXPrice" && formData.assignedProductIds.length === 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm">
+                    <Info className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-950 dark:text-amber-300">Auto-Pick Active</p>
+                      <p className="text-[11px] text-amber-950 dark:text-amber-200/90 font-medium">
+                        No specific products are selected. All products & variants across the store with sell price up to £{(Number(formData.discountAmount) || 0).toFixed(2)} will be automatically included in this offer. You can optionally select specific items below if you wish to restrict it manually.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Wide Matching products container card */}
+                <div className="bg-slate-50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+                  {/* Top line header info */}
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Matching products</h3>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Check the products (or variants) this discount should apply to.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-violet-400 font-bold shrink-0 mr-2">
-                        {products.length} products
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-bold shrink-0 mr-2">
+                        {(() => {
+                          const campaignAmount = Number(formData.discountAmount) || 0;
+                          let count = 0;
+                          products.forEach(p => {
+                            if (p.variants && p.variants.length > 0) {
+                              p.variants.forEach((v: any) => {
+                                if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+                                  const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+                                  if (vSell === campaignAmount) count++;
+                                } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+                                  const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+                                  if (vSell <= campaignAmount) count++;
+                                } else {
+                                  count++;
+                                }
+                              });
+                            } else {
+                              if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+                                const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
+                                if (pSell === campaignAmount) count++;
+                              } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+                                const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
+                                if (pSell <= campaignAmount) count++;
+                              } else {
+                                count++;
+                              }
+                            }
+                          });
+                          return count;
+                        })()} products
                       </span>
                       <button
                         type="button"
                         onClick={selectAllShown}
-                        className="text-[10px] text-violet-405 hover:text-violet-300 transition-colors font-medium border border-violet-500/20 px-2 py-0.5 rounded-lg bg-violet-500/5"
+                        className="text-[10px] text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors font-semibold border border-amber-300 dark:border-amber-500/20 px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-500/5 shadow-sm"
                       >
                         Select all shown
                       </button>
                       <button
                         type="button"
                         onClick={clearAllSelected}
-                        className="text-[10px] text-red-400 hover:text-red-300 transition-colors font-medium border border-red-500/20 px-2 py-0.5 rounded-lg bg-red-500/5"
+                        className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors font-semibold border border-red-200 dark:border-red-500/20 px-2 py-0.5 rounded-lg bg-red-50 dark:bg-red-500/5 shadow-sm"
                       >
                         Clear all
                       </button>
@@ -1030,13 +1583,13 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                   {/* Filters / Search bar */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="md:col-span-2 relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                       <input
                         type="text"
                         value={localSearchTerm}
                         onChange={(e) => setLocalSearchTerm(e.target.value)}
                         placeholder="Search matching products by name, sku..."
-                        className="w-full pl-9 pr-3 py-2 bg-slate-950/40 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -1069,23 +1622,36 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                   <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1.5">
                     {productsLoading && productPage === 1 ? (
                       <div className="flex flex-col items-center justify-center py-12 space-y-2">
-                        <div className="w-8 h-8 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
-                        <p className="text-xs text-slate-500">Loading products list...</p>
+                        <div className="w-8 h-8 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Loading products list...</p>
                       </div>
                     ) : products.length === 0 ? (
-                      <div className="text-center py-12 text-slate-500 bg-slate-900/10 border border-slate-900 rounded-xl">
+                      <div className="text-center py-12 text-slate-500 bg-white dark:bg-slate-900/10 border border-slate-200 dark:border-slate-900 rounded-xl">
                         <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
                         <p className="text-sm font-medium">No matching products found</p>
-                        <p className="text-xs text-slate-600">Try adjusting your filters or discount percentage</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-600">Try adjusting your filters or discount percentage</p>
                       </div>
                     ) : (
                       <>
                         {products.flatMap(product => {
                           const { hasConflict, uniqueConflicts, isAssignedToCurrentDiscount } = checkProductConflicts(product.id);
                           const isDisabled = false; // Bypass disabling for campaign conflicts
+                          const campaignAmount = Number(formData.discountAmount) || 0;
 
                           if (product.variants && product.variants.length > 0) {
-                            return product.variants.map((v: any) => {
+                            const eligibleVariants = product.variants.filter((v: any) => {
+                              if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+                                const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+                                return vSell === campaignAmount;
+                              }
+                              if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+                                const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
+                                return vSell <= campaignAmount;
+                              }
+                              return true;
+                            });
+
+                            return eligibleVariants.map((v: any) => {
                               const isSelected = formData.assignedProductIds.includes(v.id);
                               const imageUrl = v.imageUrl || getProductImage(product.images || []);
                               const hasVarDiscount = v.discountPercentage > 0 || (v.sellPrice && v.price > v.sellPrice);
@@ -1099,8 +1665,8 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                     handleItemSelect(v.id, product);
                                   }}
                                   className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${isSelected
-                                    ? "bg-violet-950/20 border-violet-500/40"
-                                    : "bg-slate-900/30 border-slate-800/80 hover:border-slate-700"
+                                    ? "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-500/40"
+                                    : "bg-white dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700"
                                     }`}
                                 >
                                   <input
@@ -1108,42 +1674,42 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                     checked={isSelected}
                                     disabled={isDisabled}
                                     onChange={() => handleItemSelect(v.id, product)}
-                                    className="w-4 h-4 rounded border-slate-700 text-violet-500 focus:ring-violet-500 bg-slate-950 cursor-pointer shrink-0"
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-600 focus:ring-amber-500 bg-white dark:bg-slate-950 cursor-pointer shrink-0"
                                   />
 
-                                  <div className="w-9 h-9 rounded overflow-hidden border border-slate-800 bg-slate-900 shrink-0">
+                                  <div className="w-9 h-9 rounded overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shrink-0">
                                     {imageUrl ? (
                                       <img src={getImageUrl(imageUrl)} alt={v.name || product.name} className="w-full h-full object-cover" />
                                     ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-600 font-medium">No Img</div>
+                                      <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-400 font-medium">No Img</div>
                                     )}
                                   </div>
 
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-white truncate">{v.name || product.name}</p>
-                                    <p className="text-[10px] text-slate-500">SKU: {v.sku || product.sku || "N/A"}</p>
+                                    <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{v.name || product.name}</p>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400">SKU: {v.sku || product.sku || "N/A"}</p>
                                   </div>
 
                                   {/* Stock & Pricing aligned right */}
                                   <div className="flex items-center gap-2.5 shrink-0 ml-auto">
                                     {isAssignedToCurrentDiscount && isEdit && (
-                                      <span className="px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded text-[9px] font-bold">
+                                      <span className="px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400 rounded text-[9px] font-bold">
                                         Current
                                       </span>
                                     )}
-                                    <span className="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded text-[9px] font-semibold">
+                                    <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded text-[9px] font-semibold">
                                       Stock {v.stockQuantity ?? 0}
                                     </span>
                                     {hasVarDiscount ? (
                                       <>
                                         <span className="text-[11px] text-red-500 line-through">£{v.price}</span>
-                                        <span className="text-xs font-semibold text-emerald-400">£{v.sellPrice}</span>
+                                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">£{v.sellPrice}</span>
                                         <span className="px-1.5 py-0.5 bg-orange-600 text-white border border-orange-700 rounded text-[9px] font-bold dark:bg-orange-400 dark:text-slate-950 dark:border-orange-300">
                                           {v.discountPercentage}% OFF
                                         </span>
                                       </>
                                     ) : (
-                                      <span className="text-xs font-semibold text-emerald-400">£{v.price}</span>
+                                      <span className="text-xs font-bold text-slate-900 dark:text-emerald-400">£{v.price}</span>
                                     )}
                                   </div>
                                 </div>
@@ -1152,6 +1718,14 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                           }
 
                           // Simple product
+                          if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
+                            const pSell = (product.sellPrice !== undefined && product.sellPrice !== null && product.sellPrice > 0) ? product.sellPrice : (product.price ?? 0);
+                            if (pSell !== campaignAmount) return [];
+                          } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
+                            const pSell = (product.sellPrice !== undefined && product.sellPrice !== null && product.sellPrice > 0) ? product.sellPrice : (product.price ?? 0);
+                            if (pSell > campaignAmount) return [];
+                          }
+
                           const isSelected = formData.assignedProductIds.includes(product.id);
                           const imageUrl = getProductImage(product.images || []);
 
@@ -1164,8 +1738,8 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                 handleItemSelect(product.id, product);
                               }}
                               className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${isSelected
-                                ? "bg-violet-950/20 border-violet-500/40"
-                                : "bg-slate-900/30 border-slate-800/80 hover:border-slate-700"
+                                ? "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-500/40"
+                                : "bg-white dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700"
                                 }`}
                             >
                               <input
@@ -1173,42 +1747,42 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                 checked={isSelected}
                                 disabled={isDisabled}
                                 onChange={() => handleItemSelect(product.id, product)}
-                                className="w-4 h-4 rounded border-slate-700 text-violet-500 focus:ring-violet-500 bg-slate-950 cursor-pointer shrink-0"
+                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-600 focus:ring-amber-500 bg-white dark:bg-slate-950 cursor-pointer shrink-0"
                               />
 
-                              <div className="w-9 h-9 rounded overflow-hidden border border-slate-800 bg-slate-900 shrink-0">
+                              <div className="w-9 h-9 rounded overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shrink-0">
                                 {imageUrl ? (
                                   <img src={getImageUrl(imageUrl)} alt={product.name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-600 font-medium">No Img</div>
+                                  <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-400 font-medium">No Img</div>
                                 )}
                               </div>
 
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-white truncate">{product.name}</p>
-                                <p className="text-[10px] text-slate-500">SKU: {product.sku || "N/A"}</p>
+                                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{product.name}</p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400">SKU: {product.sku || "N/A"}</p>
                               </div>
 
                               {/* Stock & Pricing aligned right */}
                               <div className="flex items-center gap-2.5 shrink-0 ml-auto">
                                 {isAssignedToCurrentDiscount && isEdit && (
-                                  <span className="px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded text-[9px] font-bold">
+                                  <span className="px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400 rounded text-[9px] font-bold">
                                     Current
                                   </span>
                                 )}
-                                <span className="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded text-[9px] font-semibold">
+                                <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded text-[9px] font-semibold">
                                   Stock {product.stockQuantity ?? 0}
                                 </span>
                                 {product.discountPercentage > 0 ? (
                                   <>
                                     <span className="text-[11px] text-red-500 line-through">£{product.price}</span>
-                                    <span className="text-xs font-semibold text-emerald-400">£{product.sellPrice}</span>
+                                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">£{product.sellPrice}</span>
                                     <span className="px-1.5 py-0.5 bg-orange-600 text-white border border-orange-700 rounded text-[9px] font-bold dark:bg-orange-400 dark:text-slate-950 dark:border-orange-300">
                                       {product.discountPercentage}% OFF
                                     </span>
                                   </>
                                 ) : (
-                                  <span className="text-xs font-semibold text-emerald-400">£{product.price}</span>
+                                  <span className="text-xs font-bold text-slate-900 dark:text-emerald-400">£{product.price}</span>
                                 )}
                               </div>
                             </div>
@@ -1221,10 +1795,10 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                               type="button"
                               onClick={handleLoadMore}
                               disabled={productsLoading}
-                              className="px-4 py-2 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
+                              className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
                             >
                               {productsLoading && (
-                                <div className="w-3.5 h-3.5 border-2 border-slate-500/20 border-t-slate-500 rounded-full animate-spin"></div>
+                                <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-amber-500 rounded-full animate-spin"></div>
                               )}
                               Load More Products
                             </button>
@@ -1241,41 +1815,61 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
         {/* PANEL 3: LIMITS & VALIDITY */}
         {activeTab === "limits-validity" && (
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-violet-400" />
+          <div className="bg-white dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm backdrop-blur-md space-y-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               Limits & Validity
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Start Date *</label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Start Date & Time *</label>
                 <input
                   type="datetime-local"
                   required
-                  value={formData.startDate}
+                  value={formData.startDate ? formData.startDate.slice(0, 16) : ""}
+                  onFocus={() => {
+                    if (!formData.startDate) {
+                      setFormData(prev => ({ ...prev, startDate: getNowDateTimeString(0) }));
+                    }
+                  }}
+                  onPointerDown={() => {
+                    if (!formData.startDate) {
+                      setFormData(prev => ({ ...prev, startDate: getNowDateTimeString(0) }));
+                    }
+                  }}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-slate-955/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">End Date *</label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">End Date & Time *</label>
                 <input
                   type="datetime-local"
                   required
-                  value={formData.endDate}
+                  value={formData.endDate ? formData.endDate.slice(0, 16) : ""}
+                  onFocus={() => {
+                    if (!formData.endDate) {
+                      setFormData(prev => ({ ...prev, endDate: getNowDateTimeString(1) }));
+                    }
+                  }}
+                  onPointerDown={() => {
+                    if (!formData.endDate) {
+                      setFormData(prev => ({ ...prev, endDate: getNowDateTimeString(1) }));
+                    }
+                  }}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-slate-955/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Limitation Type *</label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Limitation Type *</label>
                 <select
                   value={formData.discountLimitation}
                   onChange={(e) => setFormData({ ...formData, discountLimitation: e.target.value as DiscountLimitationType, limitationTimes: null })}
-                  className="w-full px-3 py-2.5 bg-slate-955/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm"
                 >
                   <option value="Unlimited">Unlimited</option>
                   <option value="NTimesOnly">N Times Only</option>
@@ -1286,15 +1880,18 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
             {formData.discountLimitation !== "Unlimited" && (
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Limitation Times *</label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Limitation Times *</label>
                 <input
                   type="number"
                   required
                   min="1"
-                  value={formData.limitationTimes || ""}
-                  onChange={(e) => setFormData({ ...formData, limitationTimes: Number(e.target.value) || null })}
+                  value={formData.limitationTimes ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setFormData({ ...formData, limitationTimes: raw === "" ? "" : (parseInt(raw) || "") });
+                  }}
                   placeholder="e.g. 5"
-                  className="w-full px-3 py-2.5 bg-slate-955/40 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm placeholder-slate-400"
                 />
               </div>
             )}
@@ -1303,27 +1900,27 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
         {/* PANEL 4: COUPON SETTINGS (Only visible if requiresCouponCode is true) */}
         {activeTab === "coupon-settings" && formData.requiresCouponCode && (
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Tag className="h-4 w-4 text-violet-400" />
+          <div className="bg-white dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm backdrop-blur-md space-y-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Tag className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               Coupon Settings
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Coupon Code *</label>
+                <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">Coupon Code *</label>
                 <input
                   type="text"
                   required
                   value={formData.couponCode}
                   onChange={(e) => setFormData({ ...formData, couponCode: e.target.value.toUpperCase() })}
                   placeholder="e.g. SAVE20"
-                  className="w-full px-3 py-2.5 bg-slate-950/40 border border-slate-700 rounded-xl text-white placeholder-slate-650 focus:outline-none focus:ring-1 focus:ring-violet-500 text-sm"
+                  className="w-full px-3 py-2.5 bg-white dark:bg-slate-950/40 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-800 rounded-xl self-end h-[46px]">
-                <label htmlFor="isCumulative" className="text-sm font-semibold text-white cursor-pointer select-none">
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl self-end h-[46px]">
+                <label htmlFor="isCumulative" className="text-sm font-semibold text-slate-800 dark:text-white cursor-pointer select-none">
                   Cumulative (Can combine with other discounts)
                 </label>
                 <input
@@ -1331,7 +1928,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                   id="isCumulative"
                   checked={formData.isCumulative}
                   onChange={(e) => setFormData({ ...formData, isCumulative: e.target.checked })}
-                  className="w-4 h-4 text-violet-600 bg-slate-955 border-slate-750 rounded focus:ring-violet-500 focus:ring-1 cursor-pointer"
+                  className="w-4 h-4 text-amber-600 bg-white dark:bg-slate-955 border-slate-300 dark:border-slate-750 rounded focus:ring-amber-500 focus:ring-1 cursor-pointer"
                 />
               </div>
             </div>
@@ -1340,42 +1937,42 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
         {/* PANEL 5: BANNER IMAGES */}
         {activeTab === "banner-images" && (
-          <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md space-y-4">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Monitor className="h-4 w-4 text-violet-400" />
+          <div className="bg-white dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm backdrop-blur-md space-y-4">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Monitor className="h-4 w-4 text-amber-500 dark:text-amber-400" />
               Banner Images
             </h2>
 
             <div className="space-y-4">
               {/* DESKTOP BANNER */}
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Desktop Banner Image (Recommended size: 662 x 413 px) webp only.</label>
+                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-300">Desktop Banner Image (Recommended size: 662 x 413 px) webp only.</label>
                 {desktopPreview ? (
-                  <div className="relative rounded-xl overflow-hidden border border-violet-500 bg-slate-950 p-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-amber-500 bg-white dark:bg-slate-950 p-1.5 shadow-sm">
                     <img src={desktopPreview} alt="Desktop Preview" className="w-full h-28 object-cover rounded-lg" />
                     <button
                       type="button"
                       onClick={() => setDesktopFile(null)}
-                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg"
+                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg shadow-sm"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ) : formData.desktopBannerImageUrl ? (
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 p-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1.5 shadow-sm">
                     <img src={getImageUrl(formData.desktopBannerImageUrl)} alt="Desktop Banner" className="w-full h-28 object-cover rounded-lg" />
                     <button
                       type="button"
                       onClick={() => handleDeleteBannerImage(initialData!.id, "desktop")}
-                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg"
+                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg shadow-sm"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-violet-500 transition-all bg-slate-955/20">
-                    <Upload size={18} className="text-slate-500 mb-0.5" />
-                    <span className="text-[10px] text-slate-500">Upload Desktop Image</span>
+                  <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer hover:border-amber-500 transition-all bg-slate-50/50 dark:bg-slate-955/20">
+                    <Upload size={18} className="text-slate-400 dark:text-slate-500 mb-0.5" />
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Upload Desktop Image</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1397,33 +1994,33 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
               {/* MOBILE BANNER */}
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Mobile Banner Image (Recommended size: 662 x 413 px) webp only</label>
+                <label className="block text-xs font-semibold text-slate-800 dark:text-slate-300">Mobile Banner Image (Recommended size: 662 x 413 px) webp only</label>
                 {mobilePreview ? (
-                  <div className="relative rounded-xl overflow-hidden border border-violet-500 bg-slate-955 p-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-amber-500 bg-white dark:bg-slate-955 p-1.5 shadow-sm">
                     <img src={mobilePreview} alt="Mobile Preview" className="w-full h-28 object-cover rounded-lg" />
                     <button
                       type="button"
                       onClick={() => setMobileFile(null)}
-                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg"
+                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg shadow-sm"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ) : formData.mobileBannerImageUrl ? (
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 p-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1.5 shadow-sm">
                     <img src={getImageUrl(formData.mobileBannerImageUrl)} alt="Mobile Banner" className="w-full h-28 object-cover rounded-lg" />
                     <button
                       type="button"
                       onClick={() => handleDeleteBannerImage(initialData!.id, "mobile")}
-                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg"
+                      className="absolute top-3.5 right-3.5 bg-red-650 hover:bg-red-700 text-white p-1.5 rounded-lg shadow-sm"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:border-violet-500 transition-all bg-slate-955/20">
-                    <Upload size={18} className="text-slate-500 mb-0.5" />
-                    <span className="text-[10px] text-slate-500">Upload Mobile Image</span>
+                  <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer hover:border-amber-500 transition-all bg-slate-50/50 dark:bg-slate-955/20">
+                    <Upload size={18} className="text-slate-400 dark:text-slate-500 mb-0.5" />
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">Upload Mobile Image</span>
                     <input
                       type="file"
                       accept="image/*"
