@@ -16,7 +16,9 @@ interface Props {
   initialHasMore: boolean;
   pageSize: number;
   discountName: string;
+  discountType?: string;
   discountPercentage?: number;
+  discountAmount?: number;
   requiresCouponCode?: boolean;
   assignedProductIds?: string[];
 }
@@ -27,7 +29,9 @@ export default function DiscountProductsClient({
   initialHasMore,
   pageSize,
   discountName,
+  discountType,
   discountPercentage,
+  discountAmount,
   requiresCouponCode = false,
   assignedProductIds = [],
 }: Props) {
@@ -111,6 +115,28 @@ export default function DiscountProductsClient({
     return () => observer.disconnect();
   }, [hasMore, loading, page]);
 
+  // Check if an item/variant is eligible for this discount offer
+  const isItemEligible = useCallback((product: any, variant: any | null): boolean => {
+    // ONLY apply strict filter for "UptoXPercent" offers
+    if (discountType === "UptoXPercent") {
+      const pct = variant
+        ? (variant.discountPercentage ?? product.discountPercentage ?? 0)
+        : (product.discountPercentage ?? 0);
+
+      const price = variant ? (variant.price ?? 0) : (product.price ?? 0);
+      const sell = variant ? (variant.sellPrice ?? variant.price ?? 0) : (product.sellPrice ?? product.price ?? 0);
+
+      // Must have actual discount >= 1% and sell price lower than base price
+      if (pct < 1) return false;
+      if (price > 0 && sell >= price) return false;
+      if (discountPercentage && pct > (discountPercentage + 0.5)) return false;
+      return true;
+    }
+
+    // For ALL other discount types (BuyXGetY, TieredQuantity, FixedPrice, UptoXPrice, AssignedToProducts, etc.), do not filter here
+    return true;
+  }, [discountType, discountPercentage]);
+
   // Flatten products returned by backend for this discount & filter by target discount percentage / assigned IDs
   const preFilteredFlattenedProducts = useMemo(() => {
     const list: any[] = [];
@@ -118,59 +144,70 @@ export default function DiscountProductsClient({
     products.forEach((product) => {
       // 1. If discount has explicitly assigned products/variants, match specifically
       if (assignedProductIds && assignedProductIds.length > 0) {
-        // Check if any variant of this product is in assignedProductIds
-        const matchingVariants = (product.variants || []).filter((v: any) =>
-          assignedProductIds.includes(v.id)
-        );
+        // If product has variants, match specifically on variant ID
+        if (product.variants && product.variants.length > 0) {
+          const matchingVariants = product.variants.filter((v: any) =>
+            assignedProductIds.includes(v.id) && isItemEligible(product, v)
+          );
 
-        if (matchingVariants.length > 0) {
-          // Push card specifically for each matching variant!
-          matchingVariants.forEach((v: any) => {
-            list.push({
-              productData: product,
-              variantForCard: v,
-              cardSlug: v.slug || product.slug,
+          if (matchingVariants.length > 0) {
+            // Push card specifically for each matching variant!
+            matchingVariants.forEach((v: any) => {
+              list.push({
+                productData: product,
+                variantForCard: v,
+                cardSlug: v.slug || product.slug,
+              });
             });
-          });
-          return;
-        }
+            return;
+          }
 
-        // If parent product ID is in assignedProductIds
-        if (assignedProductIds.includes(product.id)) {
-          if (product.visibleIndividually && product.variants?.length) {
-            product.variants.forEach((v: any) => {
-              if (v.isActive) {
+          // In case parent product ID was assigned instead of individual variant IDs
+          if (assignedProductIds.includes(product.id)) {
+            // Only push variants that actually have this discount in assignedDiscounts
+            const discountedVariants = product.variants.filter((v: any) =>
+              v.isActive &&
+              isItemEligible(product, v) &&
+              (!discountId || (v.assignedDiscounts || []).some((d: any) => d.id === discountId))
+            );
+
+            if (discountedVariants.length > 0) {
+              discountedVariants.forEach((v: any) => {
                 list.push({
                   productData: product,
                   variantForCard: v,
                   cardSlug: v.slug || product.slug,
                 });
-              }
-            });
-          } else {
-            list.push({
-              productData: product,
-              variantForCard: null,
-              cardSlug: product.slug,
-            });
+              });
+              return;
+            }
           }
-          return;
+
+          return; // variable product had no matching or eligible variants in assignedProductIds
         }
 
-        return; // neither variant nor parent product matched assignedProductIds
+        // Simple product without variants
+        if (assignedProductIds.includes(product.id) && isItemEligible(product, null)) {
+          list.push({
+            productData: product,
+            variantForCard: null,
+            cardSlug: product.slug,
+          });
+        }
+        return;
       }
 
       // 2. If no assignedProductIds (general campaign or category offer)
       if (product.visibleIndividually && product.variants?.length) {
         product.variants.forEach((variant: any) => {
-          if (!variant.isActive) return;
+          if (!variant.isActive || !isItemEligible(product, variant)) return;
           list.push({
             productData: product,
             variantForCard: variant,
             cardSlug: variant.slug || product.slug,
           });
         });
-      } else {
+      } else if (isItemEligible(product, null)) {
         list.push({
           productData: product,
           variantForCard: null,
@@ -179,8 +216,8 @@ export default function DiscountProductsClient({
       }
     });
 
-    // 3. Only filter by target campaign percentage if this is NOT a coupon and no specific IDs were assigned
-    if (!requiresCouponCode && (!assignedProductIds || assignedProductIds.length === 0) && discountPercentage && discountPercentage > 0) {
+    // 3. For non-UptoXPercent general campaigns without assigned IDs, preserve original behavior
+    if (discountType !== "UptoXPercent" && !requiresCouponCode && (!assignedProductIds || assignedProductIds.length === 0) && discountPercentage && discountPercentage > 0) {
       return list.filter((item: any) => {
         const p = item.productData;
         const itemPct = item.variantForCard
@@ -195,7 +232,7 @@ export default function DiscountProductsClient({
     }
 
     return list;
-  }, [products, discountPercentage, requiresCouponCode, assignedProductIds]);
+  }, [products, isItemEligible, assignedProductIds, discountType, discountPercentage, requiresCouponCode, discountId]);
 
   // Price range
   useEffect(() => {

@@ -180,6 +180,7 @@ setMobileFile,
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  const [loadingViewProducts, setLoadingViewProducts] = useState(false);
   
   const filteredProducts = useMemo(() => {
     const seen = new Set();
@@ -265,10 +266,26 @@ setMobileFile,
 }, [editingDiscount]);
 
 const productMap = useMemo(() => {
-  const map = new Map();
+  const map = new Map<string, any>();
 
   [...products, ...selectedProducts].forEach(p => {
     map.set(p.id, p);
+    if (p.variants && Array.isArray(p.variants)) {
+      p.variants.forEach((v: any) => {
+        map.set(v.id, {
+          ...p,
+          id: v.id,
+          name: v.name ? `${p.name} - ${v.name}` : (v.sku ? `${p.name} (${v.sku})` : p.name),
+          sku: v.sku || p.sku,
+          price: v.price || p.price,
+          sellPrice: v.sellPrice || p.sellPrice,
+          images: v.imageUrl ? [{ imageUrl: v.imageUrl, isMain: true }] : p.images,
+          mainImageUrl: v.imageUrl || (p as any).mainImageUrl,
+          isVariant: true,
+          parentProductName: p.name,
+        });
+      });
+    }
   });
 
   return map;
@@ -369,6 +386,7 @@ if (d.isCumulative && formData.isCumulative) return false;
 }, [productMap, props.discounts, editingDiscount]);
 
 useEffect(() => {
+  if (!viewingDiscount?.id) return;
   if (!viewingDiscount?.assignedProductIds) return;
 
   const ids = viewingDiscount.assignedProductIds
@@ -376,38 +394,77 @@ useEffect(() => {
     .map(id => id.trim())
     .filter(Boolean);
 
-  const missingIds = ids.filter(id => !productMap.has(id));
+  if (ids.length === 0) return;
 
+  const missingIds = ids.filter(id => !productMap.has(id));
   if (missingIds.length === 0) return;
 
-  const fetchViewProducts = async () => {
-    try {
-      const res = await Promise.all(
-        missingIds.map(id => productsService.getById(id))
-      );
+  let isMounted = true;
+  setLoadingViewProducts(true);
 
-      const fetched: Product[] = res
-        .map(r => r?.data?.data)
-        .filter((p): p is Product => Boolean(p));
-
-      setSelectedProducts(prev => {
-        const map = new Map(prev.map(p => [p.id, p]));
-
-        fetched.forEach(p => {
-          map.set(p.id, p);
+  // High-performance single API call: gets all discounted products & variants in one request
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  fetch(`${baseUrl}/api/Products/discounted?discountId=${viewingDiscount.id}&page=1&pageSize=100`)
+    .then(res => (res.ok ? res.json() : null))
+    .then(json => {
+      if (!isMounted) return;
+      const items = json?.data?.items || [];
+      if (Array.isArray(items) && items.length > 0) {
+        setSelectedProducts(prev => {
+          const map = new Map(prev.map(p => [p.id, p]));
+          items.forEach((p: Product) => map.set(p.id, p));
+          return Array.from(map.values());
         });
+      } else {
+        // Fallback: fetch individual products safely if discounted endpoint returns empty
+        Promise.allSettled(missingIds.map(id => productsService.getById(id).catch(() => null)))
+          .then(results => {
+            if (!isMounted) return;
+            const fetched: Product[] = results
+              .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+              .map(r => r.value?.data?.data)
+              .filter((p): p is Product => Boolean(p));
 
-        return Array.from(map.values());
-      });
+            if (fetched.length > 0) {
+              setSelectedProducts(prev => {
+                const map = new Map(prev.map(p => [p.id, p]));
+                fetched.forEach(p => map.set(p.id, p));
+                return Array.from(map.values());
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    })
+    .catch(err => {
+      console.error("Error fetching viewing discount products:", err);
+      // Safe fallback
+      Promise.allSettled(missingIds.map(id => productsService.getById(id).catch(() => null)))
+        .then(results => {
+          if (!isMounted) return;
+          const fetched: Product[] = results
+            .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+            .map(r => r.value?.data?.data)
+            .filter((p): p is Product => Boolean(p));
 
-    } catch (e) {
-      console.error("Failed to fetch viewing products", e);
-    }
+          if (fetched.length > 0) {
+            setSelectedProducts(prev => {
+              const map = new Map(prev.map(p => [p.id, p]));
+              fetched.forEach(p => map.set(p.id, p));
+              return Array.from(map.values());
+            });
+          }
+        })
+        .catch(() => {});
+    })
+    .finally(() => {
+      if (isMounted) setLoadingViewProducts(false);
+    });
+
+  return () => {
+    isMounted = false;
   };
-
-  fetchViewProducts();
-
-}, [viewingDiscount, productMap]);
+}, [viewingDiscount?.id, viewingDiscount?.assignedProductIds]);
 
 const mergedOptions = useMemo(() => {
   const map = new Map();
@@ -2487,286 +2544,326 @@ useEffect(() => {
 </div>
 
                   {/* Assignments */}
-                  {(viewingDiscount.assignedProductIds || viewingDiscount.assignedCategoryIds || viewingDiscount.assignedManufacturerIds || viewingDiscount.discountType === 'UptoXPrice' || viewingDiscount.discountType === 'FixedPrice') && (
-                    <div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
-                      <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                        <span className="text-xl">🎯</span>
-                        Assignments
-                      </h3>
-                      <div className="space-y-4">
-                        
-                        {/* Auto-Pick banner for FixedPrice without specific products */}
-                        {viewingDiscount.discountType === 'FixedPrice' && !viewingDiscount.assignedProductIds && (
-                          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
-                            <span>ℹ️</span>
-                            <span><strong>Auto-Pick Mode:</strong> All products & variants with Sell Price = £{viewingDiscount.discountAmount?.toFixed(2) || "0.00"} are automatically included.</span>
-                          </div>
-                        )}
+                  <div className="bg-slate-800/30 p-5 rounded-xl border border-slate-700/50">
+                    <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+                      <span className="text-xl">🎯</span>
+                      Assignments
+                    </h3>
+                    <div className="space-y-4">
+                      
+                      {/* Auto-Pick banner for FixedPrice without specific products */}
+                      {viewingDiscount.discountType === 'FixedPrice' && !viewingDiscount.assignedProductIds && (
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
+                          <span>ℹ️</span>
+                          <span><strong>Auto-Pick Mode:</strong> All products & variants with Sell Price = £{viewingDiscount.discountAmount !== undefined && viewingDiscount.discountAmount !== null ? Number(viewingDiscount.discountAmount).toFixed(2) : "0.00"} are automatically included.</span>
+                        </div>
+                      )}
 
-                        {/* Auto-Pick banner for UptoXPrice without specific products */}
-                        {viewingDiscount.discountType === 'UptoXPrice' && !viewingDiscount.assignedProductIds && (
-                          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
-                            <span>ℹ️</span>
-                            <span><strong>Auto-Pick Mode:</strong> All products & variants with Sell Price ≤ £{viewingDiscount.discountAmount?.toFixed(2) || "0.00"} are automatically included.</span>
-                          </div>
-                        )}
+                      {/* Auto-Pick banner for UptoXPrice without specific products */}
+                      {viewingDiscount.discountType === 'UptoXPrice' && !viewingDiscount.assignedProductIds && (
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
+                          <span>ℹ️</span>
+                          <span><strong>Auto-Pick Mode:</strong> All products & variants with Sell Price ≤ £{viewingDiscount.discountAmount !== undefined && viewingDiscount.discountAmount !== null ? Number(viewingDiscount.discountAmount).toFixed(2) : "0.00"} are automatically included.</span>
+                        </div>
+                      )}
 
-                        {/* FOR ASSIGNED TO PRODUCTS / UPTO X PERCENT / UPTO X PRICE / FIXED PRICE */}
-                        {(viewingDiscount.discountType === 'AssignedToProducts' || viewingDiscount.discountType === 'UptoXPercent' || viewingDiscount.discountType === 'UptoXPrice' || viewingDiscount.discountType === 'FixedPrice') && viewingDiscount.assignedProductIds && (
-                          <div>
-                            <div className="flex items-center gap-2 mb-3">
+                      {/* Auto-Pick banner for UptoXPercent without specific products */}
+                      {viewingDiscount.discountType === 'UptoXPercent' && !viewingDiscount.assignedProductIds && (
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2">
+                          <span>ℹ️</span>
+                          <span><strong>Auto-Pick Mode:</strong> All products & variants with discount percentage between 1% and {viewingDiscount.discountPercentage}% are automatically included.</span>
+                        </div>
+                      )}
+
+                      {/* Storewide Offer banner without specific products */}
+                      {(viewingDiscount.discountType === 'AssignedToProducts' || viewingDiscount.discountType === 'BuyXGetY' || viewingDiscount.discountType === 'TieredQuantity') && !viewingDiscount.assignedProductIds && (
+                        <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs text-blue-300 flex items-center gap-2">
+                          <span>🌐</span>
+                          <span><strong>Storewide Offer:</strong> This promotion applies to all eligible products across the store.</span>
+                        </div>
+                      )}
+
+                      {/* FOR PRODUCTS / VARIANTS LIST (AssignedToProducts, UptoXPercent, UptoXPrice, FixedPrice, BuyXGetY, TieredQuantity) */}
+                      {(viewingDiscount.discountType === 'AssignedToProducts' || 
+                        viewingDiscount.discountType === 'UptoXPercent' || 
+                        viewingDiscount.discountType === 'UptoXPrice' || 
+                        viewingDiscount.discountType === 'FixedPrice' ||
+                        viewingDiscount.discountType === 'BuyXGetY' ||
+                        viewingDiscount.discountType === 'TieredQuantity') && viewingDiscount.assignedProductIds && (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
                                 <Package className="h-4 w-4 text-blue-400" />
                               </div>
-                              <p className="text-sm text-blue-400 font-bold">Discount Applied on Products:</p>
+                              <div>
+                                <p className="text-sm text-blue-400 font-bold">
+                                  {viewingDiscount.discountType === 'BuyXGetY'
+                                    ? 'Buy X Get Y Applied on Products:'
+                                    : viewingDiscount.discountType === 'TieredQuantity'
+                                    ? 'Tiered Quantity Applied on Products:'
+                                    : 'Discount Applied on Products:'}
+                                </p>
+                                <p className="text-[11px] text-slate-400">
+                                  {viewingDiscount.assignedProductIds.split(',').filter(Boolean).length} items selected
+                                </p>
+                              </div>
                             </div>
-                      <div className="flex flex-col gap-2 pl-10">
-  {viewingDiscount.assignedProductIds
-    .split(",")
-    .filter((id) => id.trim())
-    .map((productId, index) => {
-      const product = productMap.get(productId.trim());
-
-      // ✅ Same image fallback logic
-      const variantImg =
-        product?.variants?.find((v: any) => v.imageUrl)?.imageUrl || "";
-
-      const productImg =
-        product?.images?.find((img: any) => img.isMain)?.imageUrl ||
-        product?.images?.[0]?.imageUrl ||
-        "";
-
-      const imgUrl = getImageUrl(variantImg || productImg);
-
-      return (
-        <div
-          key={index}
-          className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-semibold border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center gap-2"
-        >
-          {/* Index */}
-          <span className="w-5 h-5 rounded-full bg-blue-500/20 text-[10px] flex items-center justify-center text-blue-300 font-bold flex-shrink-0">
-            {index + 1}
-          </span>
-
-          {/* Image */}
-          {imgUrl ? (
-            <img
-              src={imgUrl}
-              alt={product?.name || "Product"}
-              className="w-6 h-6 rounded object-cover flex-shrink-0 border border-blue-400/20"
-              onError={(e) =>
-                (e.currentTarget.src = "/placeholder.png")
-              }
-            />
-          ) : (
-            <div className="w-6 h-6 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
-              <Package className="h-3 w-3 text-slate-400" />
-            </div>
-          )}
-
-          {/* Name */}
-          <span className="truncate">
-            {product ? product.name : `Product ${index + 1}`}
-          </span>
-        </div>
-      );
-    })}
-</div>
-                          </div>
-                        )}
-                        
-                   {/* FOR ASSIGNED TO CATEGORIES */}
-{viewingDiscount.discountType === 'AssignedToCategories' && (
-  <>
-    {viewingDiscount.assignedCategoryIds && (
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-            <Target className="h-4 w-4 text-green-400" />
-          </div>
-
-          <div>
-            <p className="text-sm text-green-400 font-bold">
-              Category Discount Applied on:
-            </p>
-
-            <p className="text-xs text-slate-400 mt-0.5">
-              {viewingDiscount.assignedProductIds &&
-              viewingDiscount.assignedProductIds.trim() !== ""
-                ? "This discount applies only to selected products from this category"
-                : "This discount applies to all products inside this category"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 pl-10">
-          {viewingDiscount.assignedCategoryIds
-            .split(',')
-            .filter(id => id.trim())
-            .map((categoryId, index) => {
-           const category = findCategoryById(
-  categories,
-  categoryId
-);
-
-              return (
-                <span
-                  key={index}
-                  className="
-                    px-3 py-2
-                    bg-green-500/10
-                    text-green-400
-                    rounded-lg
-                    text-xs
-                    font-semibold
-                    border border-green-500/30
-                    hover:bg-green-500/20
-                    transition-all
-                    flex items-center gap-2
-                  "
-                >
-                  <span className="text-base">📁</span>
-
-                  {category
-                    ? category.name
-                    : `Category ${index + 1}`}
-                </span>
-              );
-            })}
-        </div>
-      </div>
-    )}
-
-    {/* SPECIFIC PRODUCTS */}
-    {viewingDiscount.assignedProductIds &&
-      viewingDiscount.assignedProductIds.trim() !== "" && (
-        <div className="mt-4 pt-4 border-t border-slate-700/50">
-
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-              <Package className="h-4 w-4 text-violet-400" />
-            </div>
-
-            <div>
-              <p className="text-sm text-violet-400 font-bold">
-                Selected Products:
-              </p>
-
-              <p className="text-xs text-slate-400 mt-0.5">
-                Only these products receive the category discount
-              </p>
-            </div>
-          </div>
-
-        <div className="flex flex-wrap gap-2 pl-10">
-  {viewingDiscount.assignedProductIds
-    .split(',')
-    .filter(id => id.trim())
-    .map((productId, index) => {
-      const product = productMap.get(productId.trim());
-
-      return (
-        <div
-          key={index}
-          className="
-            flex items-center gap-2
-            px-3 py-2
-            bg-violet-500/10
-            text-violet-400
-            rounded-xl
-            text-xs
-            font-semibold
-            border border-violet-500/30
-            hover:bg-violet-500/20
-            transition-all
-
-          "
-        >
-          {/* COUNT */}
-          <div
-            className="
-              w-5 h-5
-              rounded-full
-              bg-violet-500/20
-              border border-violet-500/30
-              flex items-center justify-center
-              text-[10px]
-              font-bold
-              shrink-0
-            "
-          >
-            {index + 1}
-          </div>
-
-          {/* IMAGE */}
-          <div
-            className="
-              w-8 h-8
-              rounded-lg
-              overflow-hidden
-              bg-slate-800
-              border border-violet-500/20
-              shrink-0
-            "
-          >
-          {(() => {
-  const productImage =
-    product?.mainImageUrl ||
-    product?.images?.find((i: any) => i.isMain)?.imageUrl ||
-    product?.images?.[0]?.imageUrl ||
-    product?.variants?.find((v: any) => v.imageUrl)?.imageUrl;
-
-  return productImage ? (
-    <img
-      src={productImage}
-      alt={product?.name}
-      className="w-full h-full object-cover"
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center">
-      <Package className="h-3 w-3 text-violet-400" />
-    </div>
-  );
-})()}
-          </div>
-
-          {/* NAME */}
-          <span
-            className="truncate"
-            title={product?.name}
-          >
-            {product
-              ? product.name
-              : `Product ${index + 1}`}
-          </span>
-        </div>
-      );
-    })}
-</div>
-        </div>
-      )}
-  </>
-)}
-
-                        {/* FOR ORDER TOTAL / SHIPPING */}
-                        {(viewingDiscount.discountType === 'AssignedToOrderTotal' || 
-                          viewingDiscount.discountType === 'AssignedToShipping' ||
-                          viewingDiscount.discountType === 'AssignedToOrderSubTotal') && (
-                          <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
-                            <p className="text-cyan-400 text-sm flex items-center gap-2">
-                              <AlertCircle className="h-4 w-4" />
-                              This discount applies to {' '}
-                              <span className="font-bold">
-                                {viewingDiscount.discountType === 'AssignedToOrderTotal' ? 'entire order total' :
-                                 viewingDiscount.discountType === 'AssignedToShipping' ? 'shipping charges' :
-                                 'order subtotal'}
+                            {loadingViewProducts && (
+                              <span className="text-[11px] text-amber-400 flex items-center gap-1.5 font-medium animate-pulse">
+                                <div className="w-2.5 h-2.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></div>
+                                Loading details...
                               </span>
-                            </p>
+                            )}
                           </div>
-                        )}
-                      </div>
+
+                          <div className="flex flex-col gap-2 pl-2 max-h-72 overflow-y-auto pr-1">
+                            {viewingDiscount.assignedProductIds
+                              .split(",")
+                              .filter((id) => id.trim())
+                              .map((productId, index) => {
+                                const product = productMap.get(productId.trim());
+
+                                const variantImg =
+                                  product?.variants?.find((v: any) => v.id === productId.trim() || v.imageUrl)?.imageUrl || "";
+
+                                const productImg =
+                                  product?.images?.find((img: any) => img.isMain)?.imageUrl ||
+                                  product?.images?.[0]?.imageUrl ||
+                                  (product as any)?.mainImageUrl ||
+                                  "";
+
+                                const imgUrl = getImageUrl(variantImg || productImg);
+
+                                return (
+                                  <div
+                                    key={index}
+                                    className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-semibold border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center gap-2.5"
+                                  >
+                                    {/* Index */}
+                                    <span className="w-5 h-5 rounded-full bg-blue-500/20 text-[10px] flex items-center justify-center text-blue-300 font-bold flex-shrink-0">
+                                      {index + 1}
+                                    </span>
+
+                                    {/* Image */}
+                                    {imgUrl ? (
+                                      <img
+                                        src={imgUrl}
+                                        alt={product?.name || "Product"}
+                                        className="w-7 h-7 rounded object-cover flex-shrink-0 border border-blue-400/20"
+                                        onError={(e) =>
+                                          (e.currentTarget.src = "/placeholder.png")
+                                        }
+                                      />
+                                    ) : (
+                                      <div className="w-7 h-7 rounded bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                        <Package className="h-3.5 w-3.5 text-slate-400" />
+                                      </div>
+                                    )}
+
+                                    {/* Name & SKU */}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="truncate text-white font-medium">
+                                        {product ? product.name : (loadingViewProducts ? "Loading..." : `Product ${index + 1}`)}
+                                      </p>
+                                      {product?.sku && (
+                                        <p className="text-[10px] text-slate-400 font-mono">
+                                          SKU: {product.sku}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* FOR ASSIGNED TO CATEGORIES */}
+                      {viewingDiscount.discountType === 'AssignedToCategories' && (
+                        <>
+                          {viewingDiscount.assignedCategoryIds && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                                  <Target className="h-4 w-4 text-green-400" />
+                                </div>
+                                <div>
+                                  <p className="text-sm text-green-400 font-bold">
+                                    Category Discount Applied on:
+                                  </p>
+                                  <p className="text-xs text-slate-400 mt-0.5">
+                                    {viewingDiscount.assignedProductIds &&
+                                    viewingDiscount.assignedProductIds.trim() !== ""
+                                      ? "This discount applies only to selected products from this category"
+                                      : "This discount applies to all products inside this category"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2 pl-10">
+                                {viewingDiscount.assignedCategoryIds
+                                  .split(',')
+                                  .filter(id => id.trim())
+                                  .map((categoryId, index) => {
+                                    const category = findCategoryById(
+                                      categories,
+                                      categoryId
+                                    );
+                                    return (
+                                      <span
+                                        key={index}
+                                        className="px-3 py-2 bg-green-500/10 text-green-400 rounded-lg text-xs font-semibold border border-green-500/30 hover:bg-green-500/20 transition-all flex items-center gap-2"
+                                      >
+                                        <span className="text-base">📁</span>
+                                        {category ? category.name : `Category ${index + 1}`}
+                                      </span>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* SPECIFIC PRODUCTS UNDER CATEGORY */}
+                          {viewingDiscount.assignedProductIds &&
+                            viewingDiscount.assignedProductIds.trim() !== "" && (
+                              <div className="mt-4 pt-4 border-t border-slate-700/50">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-violet-400" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-violet-400 font-bold">
+                                      Selected Products:
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                      Only these products receive the category discount
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 pl-10 max-h-56 overflow-y-auto">
+                                  {viewingDiscount.assignedProductIds
+                                    .split(',')
+                                    .filter(id => id.trim())
+                                    .map((productId, index) => {
+                                      const product = productMap.get(productId.trim());
+                                      return (
+                                        <div
+                                          key={index}
+                                          className="flex items-center gap-2 px-3 py-2 bg-violet-500/10 text-violet-400 rounded-xl text-xs font-semibold border border-violet-500/30 hover:bg-violet-500/20 transition-all"
+                                        >
+                                          <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                            {index + 1}
+                                          </div>
+                                          <span className="truncate max-w-[200px]" title={product?.name}>
+                                            {product ? product.name : (loadingViewProducts ? "Loading..." : `Product ${index + 1}`)}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              </div>
+                            )}
+                        </>
+                      )}
+
+                      {/* FOR ASSIGNED TO MANUFACTURERS */}
+                      {viewingDiscount.discountType === 'AssignedToManufacturers' && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                              <Target className="h-4 w-4 text-purple-400" />
+                            </div>
+                            <div>
+                              <p className="text-sm text-purple-400 font-bold">
+                                Brand Discount Applied on:
+                              </p>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                {viewingDiscount.assignedProductIds && viewingDiscount.assignedProductIds.trim() !== ""
+                                  ? "This discount applies only to selected products from these brands"
+                                  : "This discount applies to all products from these brands"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {viewingDiscount.assignedManufacturerIds && (
+                            <div className="flex flex-wrap gap-2 pl-10">
+                              {viewingDiscount.assignedManufacturerIds
+                                .split(',')
+                                .filter(id => id.trim())
+                                .map((brandId, index) => {
+                                  const brand = brandOptions?.find(b => b.value === brandId.trim());
+                                  return (
+                                    <span
+                                      key={index}
+                                      className="px-3 py-2 bg-purple-500/10 text-purple-400 rounded-lg text-xs font-semibold border border-purple-500/30 flex items-center gap-2"
+                                    >
+                                      <span>🏷️</span>
+                                      {brand ? brand.label : `Brand ${index + 1}`}
+                                    </span>
+                                  );
+                                })}
+                            </div>
+                          )}
+
+                          {/* SPECIFIC PRODUCTS UNDER BRAND */}
+                          {viewingDiscount.assignedProductIds && viewingDiscount.assignedProductIds.trim() !== "" && (
+                            <div className="mt-4 pt-4 border-t border-slate-700/50">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                  <Package className="h-4 w-4 text-purple-400" />
+                                </div>
+                                <div>
+                                  <p className="text-sm text-purple-400 font-bold">Selected Products:</p>
+                                  <p className="text-xs text-slate-400 mt-0.5">Only these products receive the brand discount</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2 pl-10 max-h-56 overflow-y-auto">
+                                {viewingDiscount.assignedProductIds
+                                  .split(',')
+                                  .filter(id => id.trim())
+                                  .map((productId, index) => {
+                                    const product = productMap.get(productId.trim());
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 text-purple-400 rounded-xl text-xs font-semibold border border-purple-500/30"
+                                      >
+                                        <span className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center text-[10px] font-bold shrink-0">{index + 1}</span>
+                                        <span className="truncate max-w-[200px]" title={product?.name}>
+                                          {product ? product.name : (loadingViewProducts ? "Loading..." : `Product ${index + 1}`)}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* FOR ORDER TOTAL / SHIPPING */}
+                      {(viewingDiscount.discountType === 'AssignedToOrderTotal' || 
+                        viewingDiscount.discountType === 'AssignedToShipping' ||
+                        viewingDiscount.discountType === 'AssignedToOrderSubTotal') && (
+                        <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                          <p className="text-cyan-400 text-sm flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 shrink-0" />
+                            <span>
+                              This discount applies to{' '}
+                              <strong className="font-bold">
+                                {viewingDiscount.discountType === 'AssignedToOrderTotal' ? 'the entire order total' :
+                                 viewingDiscount.discountType === 'AssignedToShipping' ? 'shipping charges' :
+                                 'the order subtotal'}
+                              </strong>
+                              {' '}at checkout.
+                            </span>
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Admin Comment */}
                   {viewingDiscount.adminComment && (

@@ -68,8 +68,12 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
     if (res.ok) {
       const json = await res.json();
       discount = json?.data ?? null;
+    } else {
+      console.error(`Failed to fetch discount: status ${res.status}`);
     }
-  } catch { }
+  } catch (err) {
+    console.error("Error fetching discount by slug:", err);
+  }
 
   if (!discount || discount.isDeleted) notFound();
 
@@ -111,7 +115,9 @@ export default async function DiscountProductsPage({ params, searchParams }: Pag
           initialHasMore={initialHasMore}
           pageSize={PAGE_SIZE}
           discountName={discount.name}
+          discountType={discount.discountType}
           discountPercentage={discount.usePercentage ? discount.discountPercentage : undefined}
+          discountAmount={discount.discountAmount}
           requiresCouponCode={discount.requiresCouponCode === true}
           assignedProductIds={discount.assignedProductIds ? discount.assignedProductIds.split(',').map((s: string) => s.trim()).filter(Boolean) : []}
         />

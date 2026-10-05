@@ -1440,11 +1440,16 @@ export default function CheckoutPage() {
       return;
     }
 
+    setShippingQuoteLoading(true);
     const controller = new AbortController();
+    let timeoutTimer: NodeJS.Timeout | null = null;
 
     const timer = setTimeout(async () => {
       try {
-        setShippingQuoteLoading(true);
+        timeoutTimer = setTimeout(() => {
+          controller.abort();
+        }, 15000);
+
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/Shipping/quote?postcode=${encodeURIComponent(postcode)}&orderTotal=${cartValue}&productIds=${encodeURIComponent(productIdsParam)}`,
           { signal: controller.signal }
@@ -1512,6 +1517,14 @@ export default function CheckoutPage() {
               const defaultOpt = options.find((o: any) => o.isDefault);
               return defaultOpt || options[0];
             });
+
+            // Clear delivery option error if previously set
+            setFieldErrors((prev) => {
+              if (!prev.deliveryOption) return prev;
+              const copy = { ...prev };
+              delete copy.deliveryOption;
+              return copy;
+            });
           } else {
             setSelectedShippingOption(null);
           }
@@ -1519,8 +1532,12 @@ export default function CheckoutPage() {
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           console.error("Shipping quote fetch error:", err);
+          setShippingError("Unable to load delivery options. Please check your network connection.");
+          setShippingOptions([]);
+          setSelectedShippingOption(null);
         }
       } finally {
+        if (timeoutTimer) clearTimeout(timeoutTimer);
         if (!controller.signal.aborted) {
           setShippingQuoteLoading(false);
         }
@@ -1529,6 +1546,7 @@ export default function CheckoutPage() {
 
     return () => {
       clearTimeout(timer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       controller.abort();
     };
   }, [billingPostalCode, shippingPostalCode, shippingSameAsBilling, deliveryMethod, allSupportNextDay, allSupportSameDay, allNextDayFree, productIdsParam, cartValue]);
@@ -2181,9 +2199,35 @@ export default function CheckoutPage() {
     if (deliveryMethod === "ClickAndCollect" && !selectedStoreId) {
       errors.selectedStore = "Please select a store";
     }
+
+    if (deliveryMethod === "HomeDelivery" && !errors.billingPostalCode && !errors.shippingPostalCode) {
+      if (shippingQuoteLoading) {
+        errors.deliveryOption = "Delivery options are loading. Please wait a moment.";
+      } else if (shippingError) {
+        errors.deliveryOption = shippingError;
+      } else if (shippingOptions.length === 0) {
+        errors.deliveryOption = "No delivery options available for this address. Please check your postcode.";
+      } else if (!selectedShippingOption || (!selectedShippingOption.deliveryOptionId && !selectedShippingOption.deliveryServiceId)) {
+        errors.deliveryOption = "Please select a delivery option to continue.";
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setError("Please fill all required fields");
+      const hasAddressErrors = Object.keys(errors).some((k) => k !== "deliveryOption" && k !== "selectedStore");
+      if (hasAddressErrors) {
+        setError("Please fill all required fields");
+      } else if (errors.deliveryOption) {
+        setError(errors.deliveryOption);
+        if (typeof document !== "undefined") {
+          const el = document.getElementById("delivery-options-section");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } else if (errors.selectedStore) {
+        setError(errors.selectedStore);
+      } else {
+        setError("Please fill all required fields");
+      }
       return null;
     }
     // 🔁 subscription logic (AS IS – unchanged)
@@ -2838,9 +2882,9 @@ export default function CheckoutPage() {
             </fieldset>
           )}
           {/* SHIPPING OPTIONS */}
-          {deliveryMethod === "HomeDelivery" && (shippingOptions.length > 0 || shippingQuoteLoading) && (
-            <fieldset disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
-              <div className="bg-white p-3 rounded shadow">
+          {deliveryMethod === "HomeDelivery" && (
+            <fieldset id="delivery-options-section" disabled={isLocked} className={isLocked ? "opacity-60" : ""}>
+              <div className={`bg-white p-3 rounded shadow transition-all ${fieldErrors.deliveryOption ? "border-2 border-red-500 ring-1 ring-red-400" : ""}`}>
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-sm font-semibold">Delivery options</h2>
                   {shippingQuoteLoading && (
@@ -2853,6 +2897,15 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
+
+                {fieldErrors.deliveryOption && (
+                  <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium flex items-center gap-2">
+                    <svg className="h-4 w-4 text-red-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span>{fieldErrors.deliveryOption}</span>
+                  </div>
+                )}
 
                 {hasMixedNextDayFree && (
                   <div className="mb-3 p-3 bg-amber-50 border border-amber-250 rounded-lg text-xs text-amber-800 flex items-start gap-2 animate-in fade-in duration-200">
@@ -2872,7 +2925,11 @@ export default function CheckoutPage() {
                     Loading delivery options...
                   </div>
                 ) : shippingOptions.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">Enter your postcode above to see delivery options.</p>
+                  <p className="text-xs text-gray-500 py-2">
+                    {!(shippingSameAsBilling ? billingPostalCode : shippingPostalCode).trim()
+                      ? "Enter your postcode above to see delivery options."
+                      : (shippingError || "No delivery options available for this postcode. Please check your postcode.")}
+                  </p>
                 ) : (
                   <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 transition-opacity ${shippingQuoteLoading ? "opacity-60 pointer-events-none" : "opacity-100"}`}>
                     {shippingOptions.map((opt: any) => {
@@ -2901,7 +2958,16 @@ export default function CheckoutPage() {
                               type="radio"
                               name="shippingOption"
                               checked={isSelected}
-                              onChange={() => setSelectedShippingOption(opt)}
+                              onChange={() => {
+                                setSelectedShippingOption(opt);
+                                setFieldErrors((prev) => {
+                                  if (!prev.deliveryOption) return prev;
+                                  const copy = { ...prev };
+                                  delete copy.deliveryOption;
+                                  return copy;
+                                });
+                                setError((prev) => (prev && (prev.toLowerCase().includes("delivery") || prev.toLowerCase().includes("shipping")) ? null : prev));
+                              }}
                               className="accent-[#f38918] mt-0.5"
                             />
                             <div className="flex-1">
@@ -3248,7 +3314,7 @@ export default function CheckoutPage() {
                 ) : null}
 
                 {/* Shipping */}
-                {deliveryMethod === "HomeDelivery" && selectedShippingOption && (
+                {deliveryMethod === "HomeDelivery" && selectedShippingOption ? (
                   <div className="flex items-center justify-between text-sm text-gray-700">
                     <span className="font-medium">{getShippingOptionTitle(selectedShippingOption)}</span>
                     <span className={`font-semibold ${shippingCost === 0 ? "text-orange-600" : ""}`}>
@@ -3265,7 +3331,23 @@ export default function CheckoutPage() {
                       })()}
                     </span>
                   </div>
-                )}
+                ) : deliveryMethod === "HomeDelivery" && shippingQuoteLoading ? (
+                  <div className="flex items-center justify-between text-xs text-gray-500 py-1">
+                    <span className="flex items-center gap-1.5">
+                      <svg className="animate-spin h-3.5 w-3.5 text-[#f38918]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Delivery
+                    </span>
+                    <span className="text-[#f38918] font-medium">Calculating...</span>
+                  </div>
+                ) : deliveryMethod === "HomeDelivery" && !selectedShippingOption ? (
+                  <div className="flex items-center justify-between text-xs text-amber-700 py-1">
+                    <span>Delivery</span>
+                    <span className="font-medium">Not selected</span>
+                  </div>
+                ) : null}
                 {pointsDiscount > 0 && (
                   <div className="flex items-center justify-between text-orange-700 text-xs">
                     <span>Loyalty Points Discount ({pointsToRedeem} pts)</span>
@@ -3316,7 +3398,7 @@ export default function CheckoutPage() {
                     <button
                       disabled={
                         isPlacing ||
-                        (deliveryMethod === "HomeDelivery" && !!shippingError)
+                        (deliveryMethod === "HomeDelivery" && (shippingQuoteLoading || !!shippingError))
                       }
                       onClick={async () => {
 
@@ -3327,6 +3409,18 @@ export default function CheckoutPage() {
                         }
 
                         if (isPlacing) return;
+
+                        // ✅ PRE-CHECK: If delivery options are actively loading, prevent premature submit
+                        if (deliveryMethod === "HomeDelivery" && shippingQuoteLoading) {
+                          const msg = "Delivery options are still loading. Please wait a moment.";
+                          setError(msg);
+                          setFieldErrors((prev) => ({ ...prev, deliveryOption: msg }));
+                          if (typeof document !== "undefined") {
+                            const el = document.getElementById("delivery-options-section");
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }
+                          return;
+                        }
 
                         setIsPlacing(true);
 
@@ -3453,7 +3547,7 @@ export default function CheckoutPage() {
 
                       }}
                       className={`w-full py-2 text-sm rounded transition flex items-center justify-center gap-2 ${isPlacing ||
-                        (deliveryMethod === "HomeDelivery" && !!shippingError)
+                        (deliveryMethod === "HomeDelivery" && (shippingQuoteLoading || !!shippingError))
                         ? "bg-gray-400 cursor-not-allowed text-white"
                         : "bg-black hover:bg-[#f38918] text-white"
                         }`}
@@ -3484,6 +3578,30 @@ export default function CheckoutPage() {
                           {isFreeOrder
                             ? "Placing order"
                             : "Preparing payment"}
+                        </>
+                      ) : shippingQuoteLoading && deliveryMethod === "HomeDelivery" ? (
+                        <>
+                          <svg
+                            className="animate-spin h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8z"
+                            />
+                          </svg>
+                          Loading delivery options...
                         </>
                       ) : (
                         isFreeOrder

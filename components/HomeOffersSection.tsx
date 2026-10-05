@@ -237,8 +237,8 @@ function OfferCard({ discount, baseUrl }: { discount: OfferDiscount; baseUrl: st
           <span className="truncate">{discountLabel}</span>
         </span>
 
-        {/* Expiry Countdown (or Product Count if no expiry) */}
-        {daysLeft !== null && daysLeft <= 14 ? (
+        {/* Expiry Countdown */}
+        {daysLeft !== null && (
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-tight shrink-0 shadow-2xs ${isExpiringSoon
               ? "bg-red-50 text-red-600 border border-red-200"
@@ -248,12 +248,7 @@ function OfferCard({ discount, baseUrl }: { discount: OfferDiscount; baseUrl: st
             <Clock className="w-3 h-3 shrink-0" />
             <span>{daysLeft === 0 ? "Ends Today!" : `${daysLeft}d left`}</span>
           </span>
-        ) : discount.productCount != null && discount.productCount > 0 ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-white/90 px-2 py-0.5 rounded-md border border-slate-200/60 shrink-0">
-            <ShoppingBag className="w-3 h-3 text-slate-400" />
-            <span>{discount.productCount} {discount.productCount === 1 ? "Item" : "Items"}</span>
-          </span>
-        ) : null}
+        )}
       </div>
 
       {/* 2. BANNER IMAGE CONTAINER (Cross-browser GPU stable ambient fill for Chrome & Firefox) */}

@@ -111,8 +111,14 @@ export default function ProductCard({
 
   // Coupon indicator (separate from our discount)
   const discountBadge = getDiscountBadge(product);
+  // ---------- Active Discounts (Product + Variant aware) ----------
+  const cardDiscounts: any[] = [
+    ...(variantForCard?.assignedDiscounts ?? defaultVariant?.assignedDiscounts ?? []),
+    ...(product.assignedDiscounts ?? []),
+  ];
+
   // ---------- Active Coupon (indicator only) ----------
-  const hasActiveCoupon = product.assignedDiscounts?.some((d: any) => {
+  const hasActiveCoupon = cardDiscounts.some((d: any) => {
     if (!d.isActive) return false;
     if (!d.requiresCouponCode) return false;
 
@@ -287,7 +293,7 @@ export default function ProductCard({
               </div>
             </div>
           ) : (() => {
-            const discounts: any[] = product.assignedDiscounts ?? [];
+            const discounts: any[] = cardDiscounts;
             const buyDeal = discounts.find((d: any) => d && d.discountType === "BuyXGetY" && d.isActive !== false && (d.discountPercentage > 0));
             if (buyDeal) {
               const buyQty = buyDeal.buyQuantity || 1;
@@ -455,13 +461,14 @@ export default function ProductCard({
         <Link href={`/product/${cardSlug}`}>
           <h3 className="font-semibold text-xs md:text-sm mb-1 line-clamp-2 hover:text-[#f39a16] transition min-h-[32px] md:min-h-[40px]">
             {defaultVariant
-              ? `${product.name} (${[
-                defaultVariant.option1Value,
-                defaultVariant.option2Value,
-                defaultVariant.option3Value,
-              ]
-                .filter(Boolean)
-                .join(", ")})`
+              ? (() => {
+                  const opts = [
+                    defaultVariant.option1Value,
+                    defaultVariant.option2Value,
+                    defaultVariant.option3Value,
+                  ].filter(Boolean).join(", ");
+                  return opts ? `${product.name} (${opts})` : (defaultVariant.name || product.name);
+                })()
               : product.name}
           </h3>
         </Link>

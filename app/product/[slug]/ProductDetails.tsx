@@ -2969,10 +2969,17 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                           </span>
                         )}
 
-                        {/* Stock Badge - On the price line at the end */}
+                        {/* VAT Badge - placed right on the price line beside price/discount */}
+                        {vatRate !== null && vatRate > 0 && !product.vatExempt && (
+                          <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold whitespace-nowrap">
+                            {vatRate}% VAT
+                          </span>
+                        )}
+
+                        {/* Stock Badge - On the price line */}
                         {stockDisplay.show && (
                           <span
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md border whitespace-nowrap ml-auto sm:ml-0 ${stockDisplay.type === "out"
+                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-md border whitespace-nowrap ${stockDisplay.type === "out"
                               ? "bg-red-50 border-red-200 text-red-700"
                               : stockDisplay.type === "low"
                                 ? "bg-amber-50 border-amber-200 text-amber-800"
@@ -3123,20 +3130,15 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                         </div>
                       )}
 
-                      {/* VAT & Loyalty Badges */}
-                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                        {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-                          <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold">
-                            {vatRate}% VAT
-                          </span>
-                        )}
-                        {loyaltyPoints && (
+                      {/* Loyalty Badges */}
+                      {loyaltyPoints && (
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
                           <span className="inline-flex items-center gap-1 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
                             <AwardIcon className="h-3 w-3 text-orange-600" />
                             Earn {loyaltyPoints} points
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* ─── CHEMISTDIRECT-STYLE RECURRING PURCHASE COMPONENT ─── */}
@@ -3200,10 +3202,17 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                                 </span>
                               )}
 
-                              {/* Stock Badge - On the price line at the end */}
+                              {/* VAT Badge - placed right on the price line beside price/discount */}
+                              {vatRate !== null && vatRate > 0 && !product.vatExempt && (
+                                <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold whitespace-nowrap">
+                                  {vatRate}% VAT
+                                </span>
+                              )}
+
+                              {/* Stock Badge - On the price line */}
                               {stockDisplay.show && (
                                 <span
-                                  className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-md border whitespace-nowrap ml-auto sm:ml-0 ${stockDisplay.type === "out"
+                                  className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${stockDisplay.type === "out"
                                     ? "bg-red-50 border-red-200 text-red-700"
                                     : stockDisplay.type === "low"
                                       ? "bg-amber-50 border-amber-200 text-amber-800"
@@ -3358,20 +3367,15 @@ bg-white/80 hover:bg-white shadow-md rounded-full p-2 backdrop-blur-sm transitio
                               </div>
                             )}
 
-                            {/* VAT and Loyalty */}
-                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                              {vatRate !== null && vatRate > 0 && !product.vatExempt && (
-                                <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md font-semibold">
-                                  {vatRate}% VAT
-                                </span>
-                              )}
-                              {loyaltyPoints && (
+                            {/* Loyalty Badges */}
+                            {loyaltyPoints && (
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5">
                                 <span className="inline-flex items-center gap-1 text-[11px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md">
                                   <AwardIcon className="h-3 w-3 text-orange-600" />
                                   Earn {loyaltyPoints} points
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Quantity & CTA Buttons Section */}

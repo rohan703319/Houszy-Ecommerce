@@ -282,6 +282,10 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
   const [localSearchTerm, setLocalSearchTerm] = useState("");
   const [productCategoryFilter, setProductCategoryFilter] = useState("");
   const [productBrandFilter, setProductBrandFilter] = useState("");
+  const [assignedProducts, setAssignedProducts] = useState<Product[]>([]);
+  const [onlyShowSelected, setOnlyShowSelected] = useState<boolean>(() => {
+    return Boolean(isEdit && initialData?.assignedProductIds && initialData.assignedProductIds.trim().length > 0);
+  });
 
   // Debounce search term changes to prevent screen flicker and lag
   useEffect(() => {
@@ -338,19 +342,76 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
       });
 
       // Load initial selected products
-      const ids = initialData.assignedProductIds
-        ? initialData.assignedProductIds.split(",").map(id => id.trim()).filter(Boolean)
-        : [];
-      if (ids.length > 0) {
-        Promise.all(ids.map(id => productsService.getById(id)))
-          .then(results => {
-            const validProducts = results.map(res => res?.data?.data).filter((p): p is Product => !!p);
-            setSelectedProducts(validProducts);
+      if (initialData.id) {
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        fetch(`${baseUrl}/api/Products/discounted?discountId=${initialData.id}&page=1&pageSize=100`)
+          .then(res => res.ok ? res.json() : null)
+          .then(json => {
+            const items = json?.data?.items || [];
+            if (Array.isArray(items) && items.length > 0) {
+              setAssignedProducts(items);
+              setSelectedProducts(items);
+            } else {
+              const ids = initialData.assignedProductIds
+                ? initialData.assignedProductIds.split(",").map(id => id.trim()).filter(Boolean)
+                : [];
+              if (ids.length > 0) {
+                Promise.all(ids.map(id => productsService.getById(id).catch(() => null)))
+                  .then(results => {
+                    const validProducts = results.map(res => res?.data?.data).filter((p): p is Product => !!p);
+                    if (validProducts.length > 0) {
+                      setAssignedProducts(validProducts);
+                      setSelectedProducts(validProducts);
+                    }
+                  })
+                  .catch(err => console.error("Error loading assigned products fallback:", err));
+              }
+            }
           })
-          .catch(err => console.error("Error loading assigned products detail:", err));
+          .catch(err => {
+            console.error("Error loading assigned products detail:", err);
+            const ids = initialData.assignedProductIds
+              ? initialData.assignedProductIds.split(",").map(id => id.trim()).filter(Boolean)
+              : [];
+            if (ids.length > 0) {
+              Promise.all(ids.map(id => productsService.getById(id).catch(() => null)))
+                .then(results => {
+                  const validProducts = results.map(res => res?.data?.data).filter((p): p is Product => !!p);
+                  if (validProducts.length > 0) {
+                    setAssignedProducts(validProducts);
+                    setSelectedProducts(validProducts);
+                  }
+                })
+                .catch(e => console.error("Error loading assigned products fallback:", e));
+            }
+          });
+      } else {
+        const ids = initialData.assignedProductIds
+          ? initialData.assignedProductIds.split(",").map(id => id.trim()).filter(Boolean)
+          : [];
+        if (ids.length > 0) {
+          Promise.all(ids.map(id => productsService.getById(id).catch(() => null)))
+            .then(results => {
+              const validProducts = results.map(res => res?.data?.data).filter((p): p is Product => !!p);
+              setSelectedProducts(validProducts);
+              setAssignedProducts(validProducts);
+            })
+            .catch(err => console.error("Error loading assigned products detail:", err));
+        }
       }
     }
   }, [initialData]);
+
+  // When assigned products are loaded on edit, prioritize them at the top of the products list
+  useEffect(() => {
+    if (assignedProducts.length > 0) {
+      setProducts(prev => {
+        const assignedIds = new Set(assignedProducts.map(p => p.id));
+        const nonAssignedPrev = prev.filter(p => !assignedIds.has(p.id));
+        return [...assignedProducts, ...nonAssignedPrev];
+      });
+    }
+  }, [assignedProducts]);
 
   // Load dropdown lists and other active discounts for conflict checks
   useEffect(() => {
@@ -380,8 +441,9 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     const map = new Map<string, Product>();
     products.forEach(p => map.set(p.id, p));
     selectedProducts.forEach(p => map.set(p.id, p));
+    assignedProducts.forEach(p => map.set(p.id, p));
     return map;
-  }, [products, selectedProducts]);
+  }, [products, selectedProducts, assignedProducts]);
 
   // check conflicts logic
   const checkProductConflicts = useCallback((productIdStr: string) => {
@@ -480,7 +542,13 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
           return [...prev, ...newItems];
         });
       } else {
-        setProducts(fetchedItems);
+        if (!productSearchTerm.trim() && !productCategoryFilter && !productBrandFilter && assignedProducts.length > 0) {
+          const assignedIds = new Set(assignedProducts.map(p => p.id));
+          const nonAssignedFetched = fetchedItems.filter((p: Product) => !assignedIds.has(p.id));
+          setProducts([...assignedProducts, ...nonAssignedFetched]);
+        } else {
+          setProducts(fetchedItems);
+        }
       }
 
       if (fetchedItems.length < 20) {
@@ -493,7 +561,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     } finally {
       setProductsLoading(false);
     }
-  }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, formData.discountPercentage, formData.discountAmount, formData.requiresCouponCode, formData.assignedCategoryIds.join(",")]);
+  }, [productCategoryFilter, productBrandFilter, productSearchTerm, formData.discountType, formData.discountPercentage, formData.discountAmount, formData.requiresCouponCode, formData.assignedCategoryIds.join(","), assignedProducts]);
 
   // Debounce discount percentage and discount amount so rapid typing doesn't fire multiple API calls
   const discountPctRef = useRef(formData.discountPercentage);
@@ -541,6 +609,17 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         newSelected = selectedProducts;
       }
     } else {
+      // Validate item eligibility if UptoXPercent
+      const campaignPercent = Number(formData.discountPercentage) || 0;
+      if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+        const v = product.variants?.find((itemVar: any) => itemVar.id === id);
+        const pct = v ? (v.discountPercentage ?? 0) : (product.discountPercentage ?? 0);
+        if (pct < 1 || pct > campaignPercent) {
+          toast.error(`This item has ${pct}% discount, which is not between 1% and ${campaignPercent}%`);
+          return;
+        }
+      }
+
       newIds = [...formData.assignedProductIds, id];
       newSelected = selectedProducts.some(p => p.id === product.id)
         ? selectedProducts
@@ -551,12 +630,43 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
     setSelectedProducts(newSelected);
   };
 
+  // Prioritize products that have selected variants/products at the top of the list
+  const sortedProductsToRender = useMemo(() => {
+    const combined = [...products];
+    const existingIds = new Set(combined.map(p => p.id));
+    assignedProducts.forEach(p => {
+      if (!existingIds.has(p.id)) {
+        combined.unshift(p);
+        existingIds.add(p.id);
+      }
+    });
+
+    let list = combined;
+    if (onlyShowSelected) {
+      list = list.filter(p =>
+        formData.assignedProductIds.includes(p.id) ||
+        (p.variants && p.variants.some((v: any) => formData.assignedProductIds.includes(v.id)))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const aHasSelected = formData.assignedProductIds.includes(a.id) ||
+        (a.variants && a.variants.some((v: any) => formData.assignedProductIds.includes(v.id)));
+      const bHasSelected = formData.assignedProductIds.includes(b.id) ||
+        (b.variants && b.variants.some((v: any) => formData.assignedProductIds.includes(v.id)));
+
+      if (aHasSelected && !bHasSelected) return -1;
+      if (!aHasSelected && bHasSelected) return 1;
+      return 0;
+    });
+  }, [products, assignedProducts, formData.assignedProductIds, onlyShowSelected]);
+
   const selectAllShown = () => {
     const newIds = [...formData.assignedProductIds];
     const newSelected = [...selectedProducts];
     const campaignAmount = Number(formData.discountAmount) || 0;
+    const campaignPercent = Number(formData.discountPercentage) || 0;
 
-    products.forEach(p => {
+    sortedProductsToRender.forEach(p => {
       if (p.variants && p.variants.length > 0) {
         const eligibleVars = p.variants.filter((v: any) => {
           if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
@@ -566,6 +676,10 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
           if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
             const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
             return vSell <= campaignAmount;
+          }
+          if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+            const vPct = v.discountPercentage ?? 0;
+            return vPct >= 1 && vPct <= campaignPercent;
           }
           return true;
         });
@@ -584,6 +698,9 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
         } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
           const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
           if (pSell > campaignAmount) return;
+        } else if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+          const pPct = p.discountPercentage ?? 0;
+          if (pPct < 1 || pPct > campaignPercent) return;
         }
         if (!newIds.includes(p.id)) {
           newIds.push(p.id);
@@ -1525,43 +1642,88 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                 {/* Wide Matching products container card */}
                 <div className="bg-slate-50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
                   {/* Top line header info */}
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-850 pb-2.5">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Matching products</h3>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Check the products (or variants) this discount should apply to.</p>
+                      <div className="flex items-center gap-2.5">
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Matching products</h3>
+                        {/* Filter Tabs: All vs Selected */}
+                        <div className="inline-flex items-center p-0.5 rounded-lg bg-slate-200/70 dark:bg-slate-800 border border-slate-300/80 dark:border-slate-700/60 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setOnlyShowSelected(false)}
+                            className={`px-2.5 py-0.5 rounded-md font-medium transition-all ${
+                              !onlyShowSelected
+                                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-semibold"
+                                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                          >
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setOnlyShowSelected(true)}
+                            className={`px-2.5 py-0.5 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+                              onlyShowSelected
+                                ? "bg-amber-500 text-white shadow-sm font-bold"
+                                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                          >
+                            <span>Selected</span>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                              onlyShowSelected ? "bg-amber-600 text-white" : "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-bold"
+                            }`}>
+                              {formData.assignedProductIds.length}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {onlyShowSelected
+                          ? `Showing ${formData.assignedProductIds.length} currently selected products/variants for this discount.`
+                          : "Check the products (or variants) this discount should apply to. Selected items are pinned at the top."}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-amber-600 dark:text-amber-400 font-bold shrink-0 mr-2">
                         {(() => {
                           const campaignAmount = Number(formData.discountAmount) || 0;
+                          const campaignPercent = Number(formData.discountPercentage) || 0;
                           let count = 0;
-                          products.forEach(p => {
+                          sortedProductsToRender.forEach(p => {
                             if (p.variants && p.variants.length > 0) {
                               p.variants.forEach((v: any) => {
+                                if (onlyShowSelected && !formData.assignedProductIds.includes(v.id)) return;
                                 if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
                                   const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
                                   if (vSell === campaignAmount) count++;
                                 } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
                                   const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
                                   if (vSell <= campaignAmount) count++;
+                                } else if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+                                  const vPct = v.discountPercentage ?? 0;
+                                  if (vPct >= 1 && vPct <= campaignPercent) count++;
                                 } else {
                                   count++;
                                 }
                               });
                             } else {
+                              if (onlyShowSelected && !formData.assignedProductIds.includes(p.id)) return;
                               if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
                                 const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
                                 if (pSell === campaignAmount) count++;
                               } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
                                 const pSell = (p.sellPrice !== undefined && p.sellPrice !== null && p.sellPrice > 0) ? p.sellPrice : (p.price ?? 0);
                                 if (pSell <= campaignAmount) count++;
+                              } else if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+                                const pPct = p.discountPercentage ?? 0;
+                                if (pPct >= 1 && pPct <= campaignPercent) count++;
                               } else {
                                 count++;
                               }
                             }
                           });
                           return count;
-                        })()} products
+                        })()} items
                       </span>
                       <button
                         type="button"
@@ -1625,21 +1787,29 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                         <div className="w-8 h-8 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Loading products list...</p>
                       </div>
-                    ) : products.length === 0 ? (
+                    ) : sortedProductsToRender.length === 0 ? (
                       <div className="text-center py-12 text-slate-500 bg-white dark:bg-slate-900/10 border border-slate-200 dark:border-slate-900 rounded-xl">
                         <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm font-medium">No matching products found</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-600">Try adjusting your filters or discount percentage</p>
+                        <p className="text-sm font-medium">
+                          {onlyShowSelected ? "No products selected yet" : "No matching products found"}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-600">
+                          {onlyShowSelected
+                            ? "Switch to 'All' or search above to find and select products for this discount"
+                            : "Try adjusting your filters or discount percentage"}
+                        </p>
                       </div>
                     ) : (
                       <>
-                        {products.flatMap(product => {
+                        {sortedProductsToRender.flatMap(product => {
                           const { hasConflict, uniqueConflicts, isAssignedToCurrentDiscount } = checkProductConflicts(product.id);
                           const isDisabled = false; // Bypass disabling for campaign conflicts
                           const campaignAmount = Number(formData.discountAmount) || 0;
+                          const campaignPercent = Number(formData.discountPercentage) || 0;
 
                           if (product.variants && product.variants.length > 0) {
                             const eligibleVariants = product.variants.filter((v: any) => {
+                              if (onlyShowSelected && !formData.assignedProductIds.includes(v.id)) return false;
                               if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
                                 const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
                                 return vSell === campaignAmount;
@@ -1648,11 +1818,25 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                                 const vSell = (v.sellPrice !== undefined && v.sellPrice !== null && v.sellPrice > 0) ? v.sellPrice : (v.price ?? 0);
                                 return vSell <= campaignAmount;
                               }
+                              if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+                                const vPct = v.discountPercentage ?? 0;
+                                return vPct >= 1 && vPct <= campaignPercent;
+                              }
                               return true;
+                            });
+
+                            // Sort selected variants to the top within this product
+                            eligibleVariants.sort((v1: any, v2: any) => {
+                              const v1Sel = formData.assignedProductIds.includes(v1.id);
+                              const v2Sel = formData.assignedProductIds.includes(v2.id);
+                              if (v1Sel && !v2Sel) return -1;
+                              if (!v1Sel && v2Sel) return 1;
+                              return 0;
                             });
 
                             return eligibleVariants.map((v: any) => {
                               const isSelected = formData.assignedProductIds.includes(v.id);
+                              const isVarCurrent = !!(initialData?.id && initialData.assignedProductIds?.split(',').map((s: string) => s.trim()).includes(v.id));
                               const imageUrl = v.imageUrl || getProductImage(product.images || []);
                               const hasVarDiscount = v.discountPercentage > 0 || (v.sellPrice && v.price > v.sellPrice);
 
@@ -1692,9 +1876,9 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
                                   {/* Stock & Pricing aligned right */}
                                   <div className="flex items-center gap-2.5 shrink-0 ml-auto">
-                                    {isAssignedToCurrentDiscount && isEdit && (
+                                    {(isVarCurrent || isSelected) && isEdit && (
                                       <span className="px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400 rounded text-[9px] font-bold">
-                                        Current
+                                        {isVarCurrent ? "Current" : "Selected"}
                                       </span>
                                     )}
                                     <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded text-[9px] font-semibold">
@@ -1718,12 +1902,18 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                           }
 
                           // Simple product
+                          if (onlyShowSelected && !formData.assignedProductIds.includes(product.id)) {
+                            return [];
+                          }
                           if (formData.discountType === "FixedPrice" && campaignAmount > 0) {
                             const pSell = (product.sellPrice !== undefined && product.sellPrice !== null && product.sellPrice > 0) ? product.sellPrice : (product.price ?? 0);
                             if (pSell !== campaignAmount) return [];
                           } else if (formData.discountType === "UptoXPrice" && campaignAmount > 0) {
                             const pSell = (product.sellPrice !== undefined && product.sellPrice !== null && product.sellPrice > 0) ? product.sellPrice : (product.price ?? 0);
                             if (pSell > campaignAmount) return [];
+                          } else if (formData.discountType === "UptoXPercent" && campaignPercent > 0) {
+                            const pPct = product.discountPercentage ?? 0;
+                            if (pPct < 1 || pPct > campaignPercent) return [];
                           }
 
                           const isSelected = formData.assignedProductIds.includes(product.id);
@@ -1765,9 +1955,9 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
 
                               {/* Stock & Pricing aligned right */}
                               <div className="flex items-center gap-2.5 shrink-0 ml-auto">
-                                {isAssignedToCurrentDiscount && isEdit && (
+                                {(isAssignedToCurrentDiscount || isSelected) && isEdit && (
                                   <span className="px-1.5 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-600 dark:text-orange-400 rounded text-[9px] font-bold">
-                                    Current
+                                    {isAssignedToCurrentDiscount ? "Current" : "Selected"}
                                   </span>
                                 )}
                                 <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded text-[9px] font-semibold">
@@ -1789,7 +1979,7 @@ export default function DiscountForm({ initialData = null, isEdit = false }: Dis
                           );
                         })}
 
-                        {hasMoreProducts && (
+                        {hasMoreProducts && !onlyShowSelected && (
                           <div className="pt-2 flex justify-center">
                             <button
                               type="button"
